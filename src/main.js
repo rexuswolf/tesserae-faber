@@ -1,7 +1,7 @@
 import JSZip from "jszip";
 import {
   loadLibrary, buildToken, createViewer, tokenSvg, roleName, addTokenToZip, saveFile, reminderSpec, layoutName,
-  TEAMS, EDITIONS, FRAME_STYLES, BACK_STYLES, FILAMENTS, DEFAULT_SPEC,
+  TEAMS, EDITIONS, FRAME_STYLES, BACK_STYLES, TOKEN_STYLES, FILAMENTS, DEFAULT_SPEC,
 } from "./engine/token-engine.js";
 import {
   onUser, signIn, signOutUser, isAdmin, isInvited, loadRoles, uploadRoles,
@@ -15,7 +15,7 @@ const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const fold = (s) => String(s).toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
 
-const RANGES = { diameter: [0, " mm"], height: [1, " mm"], depth: [1, " mm"], iconScale: [2, "×"], textSize: [1, " mm"], spacing: [2, "×"], maxArc: [0, "°"], frameWidth: [1, " mm"] };
+const RANGES = { diameter: [0, " mm"], height: [1, " mm"], depth: [1, " mm"], windowDepth: [1, " mm"], iconScale: [2, "×"], textSize: [1, " mm"], spacing: [2, "×"], maxArc: [0, "°"], frameWidth: [1, " mm"] };
 const MAX_SVG = 300000;
 const QUEUE_KEY = "midnight-mint-queue";
 const STYLE_KEY = "midnight-mint-style";
@@ -285,7 +285,9 @@ function renderWorkshop() {
       : t("depth.help");
     const n = token.name;
     $("#nameHint").className = "hint" + (n.letterHeight < 2.5 ? " warn" : "");
-    $("#nameHint").textContent = t("name.hint", { arc: n.total.toFixed(0), mm: n.letterHeight.toFixed(1), shrunk: n.scale < 1, small: n.letterHeight < 2.5 });
+    $("#nameHint").textContent = n.total == null
+      ? t("name.hintWindow", { lines: n.lines, mm: n.letterHeight.toFixed(1), small: n.letterHeight < 2.5 })
+      : t("name.hint", { arc: n.total.toFixed(0), mm: n.letterHeight.toFixed(1), shrunk: n.scale < 1, small: n.letterHeight < 2.5 });
     $("#nameSummary").textContent = `${n.letterHeight.toFixed(1)} mm`;
   });
 }
@@ -298,6 +300,11 @@ function syncControls(spec) {
     $("#" + id).value = s[id];
     $(`output[data-for=${id}]`).textContent = (+s[id]).toFixed(dp).replace(".", dec) + unit;
   }
+  $("#styleSummary").textContent = t(`style.${s.style}`);
+  $("#styleHint").textContent = t(`style.${s.style}.help`);
+  $("#windowDepthRow").hidden = s.style !== "window";
+  // The curved-name controls don't apply to the window style.
+  for (const id of ["spacing", "maxArc"]) $("#" + id).closest(".row").hidden = s.style === "window";
   $("#frameSummary").textContent = t(`frame.${s.frame}`);
   $("#backSummary").textContent = t(`back.${s.back}`);
   $("#coinSummary").textContent = `${s.diameter} × ${s.height} mm`;
@@ -324,6 +331,7 @@ function buildChoices() {
   const make = (key, list) => {
     $(`[data-choice=${key}]`).innerHTML = list.map((s) => `<button class="pill" type="button" data-v="${s.id}">${esc(t(`${key}.${s.id}`))}</button>`).join("");
   };
+  make("style", TOKEN_STYLES);
   make("frame", FRAME_STYLES);
   make("back", BACK_STYLES.filter((s) => s.id !== "seal" || state.lib?.sealSvg));
   for (const box of $$(".metal")) {
@@ -359,7 +367,7 @@ function wire() {
   $("#wsClose").onclick = () => $("#workshop").classList.remove("open");
   $$(".turn .pill").forEach((b) => b.onclick = () => { viewer.setView(b.dataset.view); syncView(b.dataset.view); });
   $$(".tabs [data-tab]").forEach((b) => b.onclick = () => { state.tab = b.dataset.tab; renderWorkshop(); });
-  for (const key of ["frame", "back"]) {
+  for (const key of ["style", "frame", "back"]) {
     $(`[data-choice=${key}]`).onclick = (e) => {
       const b = e.target.closest("button"); if (!b) return;
       if (key === "back" && b.dataset.v === "custom" && !editingSpec()?.customSvg) { $("#upload").click(); return; }

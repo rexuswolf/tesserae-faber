@@ -189,7 +189,8 @@ export async function buildBambuProject(items, { faceDown = true, onProgress = (
         const geom = token.parts[part];
         if (!geom) continue;
         const id = nextId++;
-        partXml.push(meshXml(id, meshOf(geom, token.spec.height, faceDown)));
+        // The window style has its relief on top, so it prints face-up.
+        partXml.push(meshXml(id, meshOf(geom, token.spec.height, faceDown && token.spec.style !== "window")));
         components.push(`<component p:path="${file}" objectid="${id}" transform="1 0 0 0 1 0 0 0 1 ${x.toFixed(3)} ${y.toFixed(3)} 0"/>`);
         partsCfg.push(`    <part id="${id}" subtype="normal_part">
       <metadata key="name" value="${part}"/>

@@ -69,7 +69,13 @@ export const FILAMENTS = {
   bronze: "#9a6a3a",
 };
 
+/** Token layouts: "classic" (curved name, flush inlays, printed face-down) and
+ *  "window" (coloured window with the icon in relief, straight name, printed face-up). */
+export const TOKEN_STYLES = [{ id: "classic" }, { id: "window" }];
+
 export const DEFAULT_SPEC = {
+  style: "classic",
+  windowDepth: 0.8,    // mm; how deep the window is (window style)
   lang: "es",
   diameter: 45,
   height: 2,
@@ -420,6 +426,118 @@ function buildBack(lib, role, text, spec) {
   }
 }
 
+// ---------------------------------------------------------------- window style
+
+const FLOOR = 0.4;   // colour layer at the bottom of the window
+
+/** Window depth that fits the coin (keeps the floor, a black core and the back inlay). */
+function windowDepthFor(spec) {
+  const back = spec.back && spec.back !== "none" ? spec.depth : 0;
+  return Math.max(0.4, Math.min(spec.windowDepth, spec.height - FLOOR - MIN_CORE - back));
+}
+
+/** The window: a circle cut off by a straight line near the middle. */
+function windowPoints(Rw, cutY, n = 72) {
+  const xc = Math.sqrt(Math.max(Rw * Rw - cutY * cutY, 0));
+  const a0 = Math.atan2(cutY, xc), a1 = Math.PI - a0;
+  const pts = [];
+  for (let i = 0; i <= n; i++) { const a = a0 + ((a1 - a0) * i) / n; pts.push(new THREE.Vector2(Rw * Math.cos(a), Rw * Math.sin(a))); }
+  return pts;   // closes back along the straight edge
+}
+
+/**
+ * Where everything goes in the window style (coin coordinates, mm, y up):
+ * the window, the icon box inside it, and the name as straight lines below.
+ */
+export function windowLayout(lib, text, spec) {
+  const R = spec.diameter / 2;
+  const rim = Math.max(1.6, spec.diameter * 0.045);
+  const Rw = R - rim;
+  const cutY = -R * 0.2;
+  // name: one or two straight lines in the band under the window
+  const words = (text || "").toUpperCase().trim().split(/\s+/).filter(Boolean);
+  const options = [words.join(" ")];
+  if (words.length > 1) {
+    let best = null;
+    for (let i = 1; i < words.length; i++) {
+      const a = words.slice(0, i).join(" "), b = words.slice(i).join(" ");
+      const score = Math.max(a.length, b.length);
+      if (!best || score < best.score) best = { score, lines: [a, b] };
+    }
+    options.push(best.lines);
+  }
+  const widthAt1 = (line) => { const box = boundsOf(lib.font.generateShapes(line, 1 / lib.capHeight)); return box.max.x - box.min.x; };
+  const bottom = -(R - rim * 0.9);
+  const gap = 1.2, lead = 1.45;
+  let best = null;
+  for (const opt of options) {
+    const lines = Array.isArray(opt) ? opt : [opt];
+    if (!lines[0]) break;
+    const w = lines.map(widthAt1);
+    for (let cap = spec.textSize; cap >= 1.2; cap -= 0.05) {
+      const baselines = lines.map((_, i) => cutY - gap - cap - i * cap * lead);
+      if (baselines[baselines.length - 1] < bottom) continue;
+      const fits = lines.every((_, i) => w[i] * cap <= 2 * Math.sqrt(Math.max((R - rim) ** 2 - baselines[i] ** 2, 0)) - 2);
+      if (fits) { if (!best || cap > best.cap + 0.15) best = { cap, lines, baselines }; break; }
+    }
+  }
+  best ??= { cap: 1.2, lines: [words.join(" ")], baselines: [cutY - gap - 1.2] };
+  // Centre the name block in the band under the window (a touch above the middle).
+  const blockTop = best.baselines[0] + best.cap, blockBottom = best.baselines[best.baselines.length - 1];
+  const free = (blockBottom - bottom) - (cutY - gap - blockTop);
+  if (free > 0) best.baselines = best.baselines.map((y) => y - (free / 2) * 0.8);
+  return {
+    R, Rw, cutY, rim, cap: best.cap, em: best.cap / lib.capHeight,
+    lines: best.lines.map((t, i) => ({ text: t, y: best.baselines[i] })),
+    icon: { top: Rw - 1.4, bottom: cutY + 1.0, halfWidth: Rw * 0.78 },
+  };
+}
+
+/** SVG path data for font shapes (y up), moved by (dx, y) and flipped to SVG's y-down. */
+function shapesToPath(shapes, dx, y) {
+  const ring = (pts) => pts.map((pt, i) => `${i ? "L" : "M"}${(pt.x + dx).toFixed(2)} ${(-(pt.y + y)).toFixed(2)}`).join("") + "Z";
+  return shapes.map((sh) => ring(sh.getPoints(6)) + sh.holes.map((h) => ring(h.getPoints(6))).join("")).join("");
+}
+
+/** Matrix that fits the role's icon into the window (from its SVG coordinates). */
+function windowIconMatrix(lib, role, W, z, spec) {
+  const shapes = iconShapes(lib, role);
+  const box = boundsOf(shapes), size = new THREE.Vector2(); box.getSize(size);
+  const h = W.icon.top - W.icon.bottom;
+  const k = Math.min((2 * W.icon.halfWidth) / Math.max(size.x, 1e-6), h / Math.max(size.y, 1e-6)) * (spec.iconScale || 1);
+  const cy = (W.icon.top + W.icon.bottom) / 2;
+  const bcx = (box.min.x + box.max.x) / 2, bcy = (box.min.y + box.max.y) / 2;
+  return { shapes, k, cy, bcx, bcy, m: chain(T(0, cy, z), S(k, -k, 1), T(-bcx, -bcy, 0)) };
+}
+
+function buildWindowToken(lib, role, text, spec) {
+  const H = spec.height, p = windowDepthFor(spec);
+  const W = windowLayout(lib, text, spec);
+  const pts = windowPoints(W.Rw, W.cutY);
+  const windowShape = new THREE.Shape(pts);
+  const ring = circleShape(W.R);
+  ring.holes.push(new THREE.Path([...pts].reverse()));
+  const I = windowIconMatrix(lib, role, W, H - p, spec);
+  // Coin colour: full disc below the window, the top layer with the window cut out,
+  // and the icon standing in the window up to the surface.
+  const base = merge([
+    extrude([circleShape(W.R)], H - p, T(0, 0, 0), 48),
+    extrude([ring], p, T(0, 0, H - p), 48),
+    extrude(I.shapes, p, I.m, 5),
+  ]);
+  // Team colour: the window floor and the name (flush inlay on the top layer).
+  const floor = extrude([windowShape], FLOOR, T(0, 0, H - p - FLOOR), 48);
+  const letters = W.lines.map((line) => {
+    const shapes = lib.font.generateShapes(line.text, W.em);
+    const box = boundsOf(shapes);
+    return extrude(shapes, spec.depth, T(-(box.min.x + box.max.x) / 2, line.y, H - spec.depth), 4);
+  });
+  return {
+    base, front: merge([floor, ...letters]),
+    name: { letterHeight: W.cap, scale: W.cap / spec.textSize, total: null, lines: W.lines.length },
+  };
+}
+
 function buildBase(spec) {
   const g = new THREE.CylinderGeometry(spec.diameter / 2, spec.diameter / 2, spec.height, 160);
   g.rotateX(Math.PI / 2);
@@ -450,6 +568,13 @@ export function buildToken(lib, role, spec, text) {
   const fit = fittingDepth(spec);
   spec = { ...spec, depth: fit.depth };
   text ??= roleName(role, spec.lang);
+  if (spec.style === "window") {
+    const w = buildWindowToken(lib, role, text, spec);
+    return {
+      parts: { base: w.base, front: w.front, frame: buildFrame(spec), back: buildBack(lib, role, text, spec) },
+      colours: partColours(role, spec), name: w.name, spec, depthClamped: fit.clamped ? fit.max : null,
+    };
+  }
   const front = buildFront(lib, role, text, spec);
   return {
     parts: { base: buildBase(spec), front: front.geom, frame: buildFrame(spec), back: buildBack(lib, role, text, spec) },
@@ -541,7 +666,20 @@ export function tokenSvg(lib, role, spec, { side = "front", text } = {}) {
   const label = text ?? roleName(role, spec.lang);
   const k = spec.diameter * spec.iconScale / TRACE_VIEW;
   let body = "";
-  if (side === "front") {
+  if (side === "front" && spec.style === "window") {
+    const W = windowLayout(lib, label, spec);
+    const I = windowIconMatrix(lib, role, W, 0, spec);
+    const d = windowPoints(W.Rw, W.cutY).map((pt, i) => `${i ? "L" : "M"}${pt.x.toFixed(2)} ${(-pt.y).toFixed(2)}`).join("") + "Z";
+    body += `<path d="${d}" fill="${c.front}"/>`;
+    body += `<g fill="${c.base}" transform="translate(0 ${(-I.cy).toFixed(3)}) scale(${I.k.toFixed(5)}) translate(${(-I.bcx).toFixed(3)} ${(-I.bcy).toFixed(3)})"><g transform="${role.g}">${iconMarkup(role)}</g></g>`;
+    // The name as outlines from the same font as the 3D model, so both always match.
+    for (const line of W.lines) {
+      const shapes = lib.font.generateShapes(line.text, W.em);
+      const box = boundsOf(shapes), dx = -(box.min.x + box.max.x) / 2;
+      body += `<path fill="${c.front}" fill-rule="evenodd" d="${shapesToPath(shapes, dx, line.y)}"/>`;
+    }
+    if (spec.frame !== "none") body += `<circle r="${(R - 0.4 - spec.frameWidth / 2).toFixed(2)}" fill="none" stroke="${c.frame}" stroke-width="${spec.frameWidth}"/>`;
+  } else if (side === "front") {
     body += `<g fill="${c.front}" transform="translate(0 ${-(spec.iconOffsetY || 0)}) scale(${k}) translate(${-TRACE_VIEW / 2} ${-TRACE_VIEW / 2})"><g transform="${role.g}">${iconMarkup(role)}</g></g>`;
     const L = layoutName(lib, label, spec);
     // SVG y points down: angle a in engine space is -a on screen.
@@ -588,7 +726,7 @@ const slug = (s) => s.normalize("NFD").replace(/\p{M}/gu, "").replace(/[^A-Za-z0
 
 function stl(geom, spec, faceDown) {
   const g = geom.clone();
-  if (faceDown) {
+  if (faceDown && spec.style !== "window") {   // the window style prints face-up
     g.applyMatrix4(M().makeRotationX(Math.PI));
     g.translate(0, 0, spec.height);
   }

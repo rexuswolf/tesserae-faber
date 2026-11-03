@@ -26,6 +26,7 @@ setTimeout(() => {
     else if (k === "token") click('.tabs [data-tab="token"]');
     else if (k === "own") { const c = document.querySelector("#ownStyle"); c.checked = true; c.dispatchEvent(new Event("change")); }
     else if (k === "frame") click(`[data-choice="frame"] [data-v="${v}"]`);
+    else if (k === "style") click(`[data-choice="style"] [data-v="${v}"]`);
     else if (k === "add") click("#enqueue");
     else if (k === "addall") click(`#rows [data-addall="${v}"]`);
     else if (k === "queue") click("#queueToggle");
