@@ -20,7 +20,7 @@
     <div id="editions"></div>
     <footer class="ccc">
       <img src="/ccc-sleeve.png" alt="Community Created Content" width="86" height="34">
-      <p data-i18n="ccc.short"></p>
+      <p><span data-i18n="ccc.short"></span> <a href="#" data-credits data-i18n="credits.link"></a></p>
     </footer>
   </nav>
 
@@ -28,7 +28,6 @@
   <main class="sheet" id="sheet">
     <header class="sheet-head">
       <div class="sheet-title">
-        <img id="edLogo" alt="" hidden>
         <h1 id="edTitle"></h1>
       </div>
       <p id="edLead" class="lead"></p>
@@ -180,6 +179,13 @@
   </div>
 </div>
 
+<dialog id="credits" aria-labelledby="creditsTitle">
+  <form method="dialog" class="close"><button class="pill" data-i18n="admin.close"></button></form>
+  <h2 id="creditsTitle" data-i18n="credits.title"></h2>
+  <p class="hint" data-i18n="credits.intro"></p>
+  <ul class="credits" id="creditsList"></ul>
+</dialog>
+
 <dialog id="admin" aria-labelledby="adminTitle">
   <form method="dialog" class="close"><button class="pill" data-i18n="admin.close"></button></form>
   <h2 id="adminTitle" data-i18n="admin.title"></h2>
@@ -188,8 +194,6 @@
     <p class="hint" id="libraryState"></p>
     <div class="import">
       <label class="pill file"><span data-i18n="admin.uploadRoles"></span><input type="file" id="libraryFile" accept="application/json,.json" hidden></label>
-      <label class="pill file"><span data-i18n="admin.uploadSeal"></span><input type="file" id="sealFile" accept=".svg,image/svg+xml" hidden></label>
-      <label class="pill file"><span data-i18n="admin.uploadLogos"></span><input type="file" id="logoFiles" accept="image/webp,image/png" multiple hidden></label>
     </div>
   </section>
   <section>

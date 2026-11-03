@@ -221,3 +221,11 @@ dialog .import { margin-top: 10px; }
   .ws-close { display: inline-block; }
 }
 @media (prefers-reduced-motion: reduce) { .tok svg, .workshop { transition: none; } }
+
+/* credits */
+.ccc a { color: var(--dust); text-decoration: underline; text-underline-offset: 2px; }
+.credits { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-direction: column; gap: 12px; max-height: 60vh; overflow-y: auto; }
+.credits small { color: var(--dust); }
+.credits p { margin: 2px 0 0; font-size: 12.5px; color: var(--dust); line-height: 1.6; }
+.credits a { color: var(--dust); }
+.credits a:hover { color: var(--bone); }

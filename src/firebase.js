@@ -41,12 +41,15 @@ export async function loadRoles() {
 
 /** Admin: replaces the role library with the contents of roles_data.json. */
 export async function uploadRoles(roles, onProgress = () => {}) {
-  const valid = roles.filter((r) => r && typeof r.en === "string" && typeof r.team === "string" && Array.isArray(r.d));
-  if (!valid.length) throw new Error("the file has no roles in the expected format (en, es, team, g, d)");
+  const valid = roles.filter((r) => r && typeof r.en === "string" && typeof r.team === "string" && typeof r.body === "string");
+  if (!valid.length) throw new Error("the file has no roles in the expected format (en, es, team, icon, author, g, body)");
   for (let i = 0; i < valid.length; i += 50) {
     const batch = writeBatch(db);
     for (const r of valid.slice(i, i + 50)) {
-      batch.set(doc(db, "roles", roleId(r.en)), { en: r.en, es: r.es || r.en, team: r.team, edition: r.edition || "", reminders: r.reminders || { en: [], es: [] }, g: r.g || "", d: r.d });
+      batch.set(doc(db, "roles", roleId(r.en)), {
+        en: r.en, es: r.es || r.en, team: r.team, edition: r.edition || "", reminders: r.reminders || { en: [], es: [] },
+        icon: r.icon || "", author: r.author || "", g: r.g || "", body: r.body,
+      });
     }
     await batch.commit();
     onProgress(Math.min(i + 50, valid.length), valid.length);
@@ -54,21 +57,7 @@ export async function uploadRoles(roles, onProgress = () => {}) {
   return valid.length;
 }
 
-/** The seal (an SVG string) used for the "Clocktower seal" back, or null. */
-export async function loadSeal() {
-  const snap = await getDoc(doc(db, "library", "seal"));
-  return snap.exists() ? snap.data().svg : null;
-}
-export const uploadSeal = (svg) => setDoc(doc(db, "library", "seal"), { svg });
 
-/** Official edition logos (data URLs), keyed by file name: tb, bmr, snv, taf. */
-export async function loadEditionLogos() {
-  const snap = await getDocs(collection(db, "library"));
-  const logos = {};
-  for (const d of snap.docs) if (d.id.startsWith("edition_")) logos[d.id.slice(8)] = d.data().img;
-  return logos;
-}
-export const uploadEditionLogo = (name, dataUrl) => setDoc(doc(db, "library", `edition_${name}`), { img: dataUrl });
 
 // ------------------------------------------------------------ invites
 

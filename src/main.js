@@ -4,8 +4,7 @@ import {
   TEAMS, EDITIONS, FRAME_STYLES, BACK_STYLES, FILAMENTS, DEFAULT_SPEC,
 } from "./engine/token-engine.js";
 import {
-  onUser, signIn, signOutUser, isAdmin, isInvited, loadRoles, uploadRoles, loadSeal, uploadSeal,
-  loadEditionLogos, uploadEditionLogo,
+  onUser, signIn, signOutUser, isAdmin, isInvited, loadRoles, uploadRoles,
   listInvites, addInvite, removeInvite, listDesigns, saveDesign, deleteDesign, ADMIN_EMAIL,
 } from "./firebase.js";
 import { buildBambuProject, planPlates, FILAMENT_SLOTS } from "./bambu/bambu3mf.js";
@@ -22,7 +21,6 @@ const QUEUE_KEY = "midnight-mint-queue";
 const STYLE_KEY = "midnight-mint-style";
 const OVERRIDES_KEY = "midnight-mint-overrides";
 const EDITION_ORDER = ["tb", "bmr", "snv", "carousel", "fabled", "loric"];
-const EDITION_LOGO = { tb: "tb", bmr: "bmr", snv: "snv", fabled: "taf" };   // official logo files
 const TEAM_ORDER = ["townsfolk", "outsider", "minion", "demon", "traveller", "fabled", "loric"];
 const TEAM_PLURAL = {
   es: { townsfolk: "Aldeanos", outsider: "Forasteros", minion: "Esbirros", demon: "Demonios", traveller: "Viajeros", fabled: "Fábulas", loric: "Lóricos" },
@@ -35,7 +33,7 @@ const PLATE_LABEL = {
 };
 
 const state = {
-  user: null, lib: null, logos: {},
+  user: null, lib: null,
   edition: "tb", team: "all",
   sel: null,              // { key, role, reminder: index | null }
   tab: "set",
@@ -117,9 +115,13 @@ onUser(async (user) => {
         ? { title: t("gate.empty.title"), text: t("gate.empty.text"), action: { label: t("gate.empty.open"), run: openAdmin }, secondary: { label: t("gate.signOut"), run: signOutUser } }
         : { title: t("gate.settingUp.title"), text: t("gate.settingUp.text"), action: { label: t("gate.signOut"), run: signOutUser } }));
     }
-    const [seal, logos] = await Promise.all([loadSeal(), loadEditionLogos().catch(() => ({}))]);
-    state.lib = await loadLibrary(roles, { sealSvg: seal });
-    state.logos = logos;
+    if (roles.some((r) => !r.body)) {
+      // The library still has the old official artwork: an admin must upload the new one.
+      return showGate(() => (isAdmin(user)
+        ? { title: t("gate.oldLibrary.title"), text: t("gate.oldLibrary.text"), action: { label: t("gate.empty.open"), run: openAdmin }, secondary: { label: t("gate.signOut"), run: signOutUser } }
+        : { title: t("gate.settingUp.title"), text: t("gate.settingUp.text"), action: { label: t("gate.signOut"), run: signOutUser } }));
+    }
+    state.lib = await loadLibrary(roles);
     gateState = null;
     startApp();
   } catch (err) {
@@ -161,9 +163,8 @@ function renderSpine() {
   $("#editions").innerHTML = EDITION_ORDER.filter((e) => state.lib.roles.some((r) => r.edition === e)).map((e) => {
     const roles = state.lib.roles.filter((r) => r.edition === e);
     const rem = roles.reduce((n, r) => n + remindersOf(r).length, 0);
-    const logo = state.logos[EDITION_LOGO[e]];
     return `<button class="ed" type="button" data-ed="${e}" aria-current="${state.edition === e && !searchQuery()}">
-      <span class="logo">${logo ? `<img src="${logo}" alt="">` : `<b>${esc(EDITIONS[e].mark)}</b>`}</span>
+      <span class="logo"><b>${esc(EDITIONS[e].mark)}</b></span>
       <span>${esc(EDITIONS[e].name[lang])}<small>${esc(t("ed.count", { c: roles.length, r: rem }))}</small></span></button>`;
   }).join("");
 }
@@ -176,9 +177,6 @@ function renderSheet() {
   const lang = uiLang(), q = searchQuery();
   const ed = state.edition;
   // header
-  const logo = !q && state.logos[EDITION_LOGO[ed]];
-  $("#edLogo").hidden = !logo;
-  if (logo) $("#edLogo").src = logo;
   $("#edTitle").textContent = q ? t("sheet.results", { q: $("#search").value.trim() }) : EDITIONS[ed].name[lang];
   $("#edLead").textContent = q ? t("sheet.leadSearch") : t(`edition.lead.${ed}`);
 
@@ -647,6 +645,30 @@ async function onSavedClick(e) {
   }
 }
 
+// ------------------------------------------------------------ credits
+
+const AUTHOR_NAMES = {
+  lorc: "Lorc", delapouite: "Delapouite", "caro-asercion": "Caro Asercion", skoll: "Skoll", "carl-olsen": "Carl Olsen",
+  "lord-berandas": "Lord Berandas", "various-artists": "Various artists", cathelineau: "Cathelineau", zajkonur: "Zajkonur",
+  aussiesim: "AussieSim", faithtoken: "Faithtoken", starseeker: "Starseeker", willdabeast: "Willdabeast",
+};
+const authorName = (a) => AUTHOR_NAMES[a] || a.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+/** Credits for the game-icons.net icons in the library (CC BY 3.0 asks for author credit). */
+function openCredits() {
+  const byAuthor = new Map();
+  for (const r of state.lib?.roles || []) {
+    if (!r.icon) continue;
+    if (!byAuthor.has(r.author)) byAuthor.set(r.author, new Set());
+    byAuthor.get(r.author).add(r.icon);
+  }
+  $("#creditsList").innerHTML = [...byAuthor].sort((a, b) => b[1].size - a[1].size).map(([a, icons]) =>
+    `<li><b>${esc(authorName(a))}</b> <small>${esc(t("credits.count", { n: icons.size }))}</small><p>${[...icons].sort().map((i) =>
+      `<a href="https://game-icons.net/1x1/${encodeURIComponent(a)}/${encodeURIComponent(i)}.html" target="_blank" rel="noopener">${esc(i)}</a>`).join(", ")}</p></li>`).join("");
+  $("#credits").showModal();
+}
+document.addEventListener("click", (e) => { if (e.target.closest("[data-credits]")) { e.preventDefault(); openCredits(); } });
+
 // ------------------------------------------------------------ admin
 
 async function openAdmin() {
@@ -674,31 +696,6 @@ $("#inviteForm").onsubmit = async (e) => {
     $("#inviteHint").textContent = t("admin.invitedOne", { email: address });
     $("#inviteEmail").value = ""; renderInvites();
   } catch (err) { $("#inviteHint").textContent = err.message; }
-};
-$("#sealFile").onchange = async (e) => {
-  const f = e.target.files[0]; e.target.value = "";
-  if (!f) return;
-  const out = $("#libraryState");
-  try {
-    const svg = await f.text();
-    if (!svg.includes("<svg")) throw new Error(t("admin.notSvg"));
-    await uploadSeal(svg);
-    out.textContent = t("admin.sealUploaded");
-    setTimeout(() => location.reload(), 800);
-  } catch (err) { out.textContent = t("admin.uploadFailed", { message: err.message }); }
-};
-$("#logoFiles").onchange = async (e) => {
-  const files = [...e.target.files]; e.target.value = "";
-  const out = $("#libraryState");
-  try {
-    for (const f of files) {
-      const name = f.name.replace(/\.[^.]+$/, "").toLowerCase();
-      const dataUrl = await new Promise((ok, fail) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = fail; r.readAsDataURL(f); });
-      await uploadEditionLogo(name, dataUrl);
-    }
-    out.textContent = t("admin.logosUploaded", { n: files.length });
-    setTimeout(() => location.reload(), 800);
-  } catch (err) { out.textContent = t("admin.uploadFailed", { message: err.message }); }
 };
 $("#libraryFile").onchange = async (e) => {
   const f = e.target.files[0]; e.target.value = "";

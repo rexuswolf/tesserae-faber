@@ -8,11 +8,10 @@ export const isAdmin = () => true;
 export const isInvited = async () => true;
 export const roleId = (en) => en.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
 export async function loadRoles() {
-  const roles = await (await fetch("/admin-data/roles_data.json")).json();
+  const roles = await (await fetch("/admin-data/roles_game_icons.json")).json();
   return roles.map((r) => ({ id: roleId(r.en), ...r }));
 }
-export const loadSeal = async () => (await fetch("/admin-data/seal.svg")).text();
-export const uploadRoles = async () => 0, uploadSeal = async () => {};
+export const uploadRoles = async () => 0;
 export const listInvites = async () => [], addInvite = async (e) => e, removeInvite = async () => {};
 export const listDesigns = async () => [], saveDesign = async () => "d1", deleteDesign = async () => {};
 
@@ -33,23 +32,3 @@ setTimeout(() => {
   }
 }, 4000);
 
-export async function loadEditionLogos() {
-  const out = {};
-  for (const n of ["tb", "bmr", "snv", "taf"]) {
-    const blob = await (await fetch(`/admin-data/editions/${n}.webp`)).blob();
-    out[n] = await new Promise((ok) => { const r = new FileReader(); r.onload = () => ok(r.result); r.readAsDataURL(blob); });
-  }
-  return out;
-}
-export const uploadEditionLogo = async () => {};
-
-// Test-only: report elements wider than the viewport (#measure)
-setTimeout(() => {
-  if (!location.hash.includes("measure")) return;
-  const vw = document.documentElement.clientWidth;
-  const wide = [...document.querySelectorAll("body *")].filter((el) => el.getBoundingClientRect().right > vw + 1 && el.getClientRects().length)
-    .slice(0, 12).map((el) => `${el.tagName.toLowerCase()}${el.id ? "#" + el.id : ""}.${[...el.classList].join(".")} right=${Math.round(el.getBoundingClientRect().right)}`);
-  const pre = document.createElement("pre"); pre.id = "measure";
-  pre.textContent = `vw=${vw} scrollWidth=${document.documentElement.scrollWidth}\n` + wide.join("\n");
-  document.body.append(pre);
-}, 6000);
