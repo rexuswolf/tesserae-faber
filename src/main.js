@@ -238,6 +238,9 @@ function wire() {
     state.queue = []; persistQueue(); renderQueue();
   };
   $("#bambu").onclick = downloadBambu;
+  $("#scriptFile").onchange = async (e) => { const f = e.target.files[0]; e.target.value = ""; if (f) importScript(await f.text()); };
+  $("#pasteToggle").onclick = () => { const box = $("#pasteBox"); box.hidden = !box.hidden; $("#pasteToggle").setAttribute("aria-expanded", String(!box.hidden)); if (!box.hidden) $("#scriptText").focus(); };
+  $("#pasteImport").onclick = () => importScript($("#scriptText").value);
   $("#printed").oninput = (e) => { state.custom = e.target.value; render(); };
   for (const id of Object.keys(RANGES)) $("#" + id).oninput = render;
   $("#signOut").onclick = () => { $(".me").open = false; signOutUser(); };
@@ -333,6 +336,50 @@ async function downloadBambu() {
     out.className = "hint warn";
     out.textContent = `Couldn't build the project: ${err.message}`;
   } finally { btn.disabled = false; }
+}
+
+// ------------------------------------------------------------ script import
+
+const idKey = (s) => String(s).normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+
+/**
+ * Reads a script in the official Script Tool format: an array whose entries are
+ * character ids ("washerwoman") or objects ({"id": "washerwoman"}), with an
+ * optional {"id": "_meta", "name": …} entry. Ids are matched loosely
+ * ("fortune_teller", "fortuneteller" and "Fortune Teller" all work).
+ */
+function parseScript(text) {
+  let data;
+  try { data = JSON.parse(text); } catch { throw new Error("that isn't valid JSON. Export the script from the Script Tool as JSON and try again"); }
+  if (!Array.isArray(data)) throw new Error("a script is a JSON list of characters, starting with [");
+  const byKey = new Map(state.lib.roles.flatMap((r) => [[idKey(r.en), r], [idKey(r.id), r]]));
+  let name = null;
+  const roles = [], skipped = [];
+  for (const entry of data) {
+    const id = typeof entry === "string" ? entry : entry?.id;
+    if (!id) continue;
+    if (id === "_meta") { name = entry.name || null; continue; }
+    const role = byKey.get(idKey(id)) || (entry?.name && byKey.get(idKey(entry.name)));
+    if (role) { if (!roles.includes(role)) roles.push(role); }
+    else skipped.push(entry?.name || id);
+  }
+  if (!roles.length) throw new Error("none of the characters in that script are in the library");
+  return { name, roles, skipped };
+}
+
+function importScript(text) {
+  const note = $("#importNote");
+  try {
+    const { name, roles, skipped } = parseScript(text);
+    roles.forEach((r) => addToQueue(r, null));
+    note.className = "hint";
+    note.textContent = `Added ${roles.length} characters${name ? ` from “${name}”` : ""}.` +
+      (skipped.length ? ` Skipped ${skipped.length} not in the library (homebrew?): ${skipped.slice(0, 6).join(", ")}${skipped.length > 6 ? "…" : ""}.` : "");
+    $("#pasteBox").hidden = true; $("#pasteToggle").setAttribute("aria-expanded", "false"); $("#scriptText").value = "";
+  } catch (err) {
+    note.className = "hint warn";
+    note.textContent = `Couldn't import the script: ${err.message}.`;
+  }
 }
 
 // ------------------------------------------------------------ saved designs

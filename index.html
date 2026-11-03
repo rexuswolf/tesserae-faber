@@ -53,6 +53,15 @@
       <details id="queueBox">
         <summary>Print queue <small id="queueSummary"></small></summary>
         <div class="rows">
+          <div class="import">
+            <label class="pill file">Import a script<input type="file" id="scriptFile" accept="application/json,.json" hidden></label>
+            <button class="pill" type="button" id="pasteToggle" aria-expanded="false">Paste JSON</button>
+          </div>
+          <div class="paste" id="pasteBox" hidden>
+            <textarea class="text" id="scriptText" rows="4" placeholder='[{"id":"_meta","name":"…"},"washerwoman","librarian",…]' aria-label="Script JSON"></textarea>
+            <button class="pill" type="button" id="pasteImport">Import</button>
+          </div>
+          <p class="hint" id="importNote">Use the JSON from the official Script Tool. Every character is added with the current style.</p>
           <ul class="saved" id="queue"></ul>
           <p class="hint" id="queuePlan"></p>
           <button class="forge" id="bambu" type="button" disabled>Download for Bambu A1</button>
