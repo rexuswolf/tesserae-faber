@@ -493,6 +493,25 @@ export function windowLayout(lib, text, spec) {
   };
 }
 
+/** SVG path data for one glyph at font size 1, in font units (y up). Cached. */
+function glyphPath(lib, ch) {
+  lib.glyphPaths ??= new Map();
+  if (!lib.glyphPaths.has(ch)) {
+    const ring = (pts) => pts.map((pt, i) => `${i ? "L" : "M"}${pt.x.toFixed(4)} ${pt.y.toFixed(4)}`).join("") + "Z";
+    lib.glyphPaths.set(ch, glyph(lib, ch).shapes.map((sh) => ring(sh.getPoints(6)) + sh.holes.map((h) => ring(h.getPoints(6))).join("")).join(""));
+  }
+  return lib.glyphPaths.get(ch);
+}
+
+/**
+ * One letter as an SVG path: centred on its advance at (x, y) (SVG coordinates),
+ * rotated by `deg`, at font size `em` — the same geometry the 3D model uses.
+ */
+function letterSvg(lib, ch, x, y, deg, em, fill) {
+  const g = glyph(lib, ch);
+  return `<path fill="${fill}" fill-rule="evenodd" transform="translate(${x.toFixed(2)} ${y.toFixed(2)}) rotate(${deg.toFixed(1)}) scale(${em.toFixed(4)} ${(-em).toFixed(4)}) translate(${(-g.center).toFixed(4)} 0)" d="${glyphPath(lib, ch)}"/>`;
+}
+
 /** SVG path data for font shapes (y up), moved by (dx, y) and flipped to SVG's y-down. */
 function shapesToPath(shapes, dx, y) {
   const ring = (pts) => pts.map((pt, i) => `${i ? "L" : "M"}${(pt.x + dx).toFixed(2)} ${(-(pt.y + y)).toFixed(2)}`).join("") + "Z";
@@ -563,8 +582,15 @@ export function fittingDepth(spec) {
   return { depth: Math.min(spec.depth, max), clamped: spec.depth > max, max };
 }
 
+/** In the window style only a plain rim fits around the window (other frames would float over it). */
+function windowFrame(spec) {
+  if (spec.style !== "window" || spec.frame === "none") return spec;
+  const rim = Math.max(1.6, spec.diameter * 0.045);
+  return { ...spec, frame: "rim", frameWidth: Math.min(spec.frameWidth, rim - 0.6) };
+}
+
 export function buildToken(lib, role, spec, text) {
-  spec = { ...DEFAULT_SPEC, ...spec, colours: { ...DEFAULT_SPEC.colours, ...spec?.colours } };
+  spec = windowFrame({ ...DEFAULT_SPEC, ...spec, colours: { ...DEFAULT_SPEC.colours, ...spec?.colours } });
   const fit = fittingDepth(spec);
   spec = { ...spec, depth: fit.depth };
   text ??= roleName(role, spec.lang);
@@ -660,7 +686,7 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
  * family "Dumbledor" — load engine/engine.css on the page for it.
  */
 export function tokenSvg(lib, role, spec, { side = "front", text } = {}) {
-  spec = { ...DEFAULT_SPEC, ...spec };
+  spec = windowFrame({ ...DEFAULT_SPEC, ...spec, colours: { ...DEFAULT_SPEC.colours, ...spec?.colours } });
   const c = partColours(role, spec);
   const R = spec.diameter / 2;
   const label = text ?? roleName(role, spec.lang);
@@ -687,7 +713,7 @@ export function tokenSvg(lib, role, spec, { side = "front", text } = {}) {
       if (ch === " ") return;
       const a = L.angles[i];
       const x = L.radius * Math.cos((a * Math.PI) / 180), y = -L.radius * Math.sin((a * Math.PI) / 180);
-      body += `<text x="${x.toFixed(2)}" y="${y.toFixed(2)}" transform="rotate(${(-(a + 90)).toFixed(1)} ${x.toFixed(2)} ${y.toFixed(2)})" font-size="${(L.em * 0.98).toFixed(2)}" text-anchor="middle" fill="${c.front}" font-family="Dumbledor">${esc(ch)}</text>`;
+      body += letterSvg(lib, ch, x, y, -(a + 90), L.em, c.front);
     });
     const out = R - 0.4, w = spec.frameWidth;
     const ring = (o, i, col) => `<circle r="${((o + i) / 2).toFixed(2)}" fill="none" stroke="${col}" stroke-width="${(o - i).toFixed(2)}"/>`;
@@ -709,10 +735,10 @@ export function tokenSvg(lib, role, spec, { side = "front", text } = {}) {
       L.chars.forEach((ch, i) => {
         if (ch === " ") return;
         const a = L.angles[i], x = L.radius * Math.cos((a * Math.PI) / 180), y = -L.radius * Math.sin((a * Math.PI) / 180);
-        body += `<text x="${x.toFixed(2)}" y="${y.toFixed(2)}" transform="rotate(${(90 - a).toFixed(1)} ${x.toFixed(2)} ${y.toFixed(2)})" font-size="${L.em.toFixed(2)}" text-anchor="middle" fill="${c.back}" font-family="Dumbledor">${esc(ch)}</text>`;
+        body += letterSvg(lib, ch, x, y, 90 - a, L.em, c.back);
       });
       const markEm = L.markScale;
-      body += `<text x="0" y="${(-(L.markY) + L.markCy * markEm).toFixed(2)}" font-size="${markEm.toFixed(2)}" text-anchor="middle" fill="${c.back}" font-family="Dumbledor">${esc(L.mark)}</text>`;
+      body += `<g transform="translate(0 ${(-L.markY).toFixed(3)}) scale(${markEm.toFixed(4)})"><path fill="${c.back}" fill-rule="evenodd" d="${shapesToPath(L.markShapes, -L.markCx, -L.markCy)}"/></g>`;
     }
     if (spec.back === "seal" && lib.sealSvg) body += `<g fill="${c.back}" transform="scale(${spec.diameter / TRACE_VIEW}) translate(${-TRACE_VIEW / 2} ${-TRACE_VIEW / 2})">${lib.sealSvg.replace(/^[\s\S]*?<g /, "<g ").replace(/fill="#000000"/, "").replace(/<\/svg>\s*$/, "")}</g>`;
     else if (back) body += `<text y="1.5" text-anchor="middle" font-size="5" fill="${c.back}" font-family="Dumbledor">${esc(back === "Name" ? label.toUpperCase() : back.toUpperCase())}</text>`;
