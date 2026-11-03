@@ -5,10 +5,11 @@ import {
 } from "./engine/token-engine.js";
 import {
   onUser, signIn, signOutUser, isAdmin, isInvited, loadRoles, uploadRoles, loadSeal, uploadSeal,
+  loadEditionLogos, uploadEditionLogo,
   listInvites, addInvite, removeInvite, listDesigns, saveDesign, deleteDesign, ADMIN_EMAIL,
 } from "./firebase.js";
 import { buildBambuProject, planPlates, FILAMENT_SLOTS } from "./bambu/bambu3mf.js";
-import { t, uiLang, setUiLang, applyStatic } from "./i18n.js";
+import { t, uiLang, setUiLang } from "./i18n.js";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -18,21 +19,15 @@ const fold = (s) => String(s).toLowerCase().normalize("NFD").replace(/\p{M}/gu, 
 const RANGES = { diameter: [0, " mm"], height: [1, " mm"], depth: [1, " mm"], iconScale: [2, "×"], textSize: [1, " mm"], spacing: [2, "×"], maxArc: [0, "°"], frameWidth: [1, " mm"] };
 const MAX_SVG = 300000;
 const QUEUE_KEY = "midnight-mint-queue";
-
-// Tray filters
-const TEAM_FILTERS = {
-  all: null,
-  good: ["townsfolk", "outsider"], townsfolk: ["townsfolk"], outsider: ["outsider"],
-  evil: ["minion", "demon"], minion: ["minion"], demon: ["demon"],
-  traveller: ["traveller"], fabled: ["fabled"], loric: ["loric"],
-};
-const TEAM_FILTER_LABEL = {
-  es: { all: "Todos los equipos", good: "Bien (aldeanos y forasteros)", evil: "Mal (esbirros y demonios)" },
-  en: { all: "All teams", good: "Good (townsfolk and outsiders)", evil: "Evil (minions and demons)" },
-};
+const STYLE_KEY = "midnight-mint-style";
+const OVERRIDES_KEY = "midnight-mint-overrides";
 const EDITION_ORDER = ["tb", "bmr", "snv", "carousel", "fabled", "loric"];
-
-// Plates
+const EDITION_LOGO = { tb: "tb", bmr: "bmr", snv: "snv", fabled: "taf" };   // official logo files
+const TEAM_ORDER = ["townsfolk", "outsider", "minion", "demon", "traveller", "fabled", "loric"];
+const TEAM_PLURAL = {
+  es: { townsfolk: "Aldeanos", outsider: "Forasteros", minion: "Esbirros", demon: "Demonios", traveller: "Viajeros", fabled: "Fábulas", loric: "Lóricos" },
+  en: { townsfolk: "Townsfolk", outsider: "Outsiders", minion: "Minions", demon: "Demons", traveller: "Travellers", fabled: "Fabled", loric: "Loric" },
+};
 const PLATE_GROUP = { townsfolk: "good", outsider: "good", minion: "evil", demon: "evil", traveller: "traveller", fabled: "fabled", loric: "loric" };
 const PLATE_LABEL = {
   es: { good: "Bien", evil: "Mal", traveller: "Viajeros", fabled: "Fábulas", loric: "Lóricos" },
@@ -40,35 +35,47 @@ const PLATE_LABEL = {
 };
 
 const state = {
-  queue: [], selecting: false, picked: new Set(), preview: null,
-  kind: "characters", edition: "all", team: "all", shown: [],
-  user: null, lib: null, role: null, custom: null, designId: null, designs: [],
-  spec: { ...structuredClone(DEFAULT_SPEC), lang: uiLang() },
+  user: null, lib: null, logos: {},
+  edition: "tb", team: "all",
+  sel: null,              // { key, role, reminder: index | null }
+  tab: "set",
+  spec: loadJSON(STYLE_KEY, null) || { ...structuredClone(DEFAULT_SPEC), colours: { ...DEFAULT_SPEC.colours, frame: FILAMENTS.gold } },
+  overrides: new Map(Object.entries(loadJSON(OVERRIDES_KEY, {}))),   // key -> { text?, spec? }
+  queue: [], designs: [],
 };
-state.spec.colours.frame = FILAMENTS.gold;
 let viewer = null;
-let gateState = null;   // re-renders the sign-in screen when the language changes
+let gateState = null;
 
-const printed = () => state.custom ?? (state.role ? roleName(state.role, state.spec.lang) : "");
+function loadJSON(key, fallback) { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } }
+function storeJSON(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* storage unavailable */ } }
+
+// ------------------------------------------------------------ tokens: keys, text, style
+
+const charKey = (role) => `c:${role.id}`;
+const remKey = (role, i) => `r:${role.id}:${i}`;
+const remindersOf = (role, lang = uiLang()) => role.reminders?.[lang] || role.reminders?.en || [];
+
+/** The style a token uses: its own, or the set's; reminders get the reminder layout. */
+function specFor(key, isReminder) {
+  const base = state.overrides.get(key)?.spec ?? state.spec;
+  const spec = { ...DEFAULT_SPEC, ...base, colours: { ...DEFAULT_SPEC.colours, ...base.colours }, lang: uiLang() };
+  return isReminder ? reminderSpec(spec) : spec;
+}
+/** The text printed on a token. */
+function textFor(key, role, reminder) {
+  const own = state.overrides.get(key)?.text;
+  if (own != null && own !== "") return own;
+  return reminder != null ? remindersOf(role)[reminder] : roleName(role, uiLang());
+}
 const filamentName = (slot) => t(`filament.${FILAMENT_SLOTS[slot].name}`);
 
 // ------------------------------------------------------------ language
 
-/** One switch for both the interface and the names on the tokens. */
 function setLang(lang) {
   setUiLang(lang);
-  state.spec.lang = lang;
   $$(".langs .pill").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.lang === lang)));
-  state.custom = null; state.preview = null;
-  if (state.lib) {
-    $("#printed").value = printed();
-    buildChoices();
-    renderFilters();
-    renderTray();
-    render();
-    renderQueue();
-    renderDesigns();
-  } else if (gateState) gate(gateState());
+  if (state.lib) { buildChoices(); renderAll(); renderQueue(); renderDesigns(); }
+  else if (gateState) gate(gateState());
 }
 $$(".langs .pill").forEach((b) => b.addEventListener("click", () => setLang(b.dataset.lang)));
 setLang(uiLang());
@@ -110,7 +117,9 @@ onUser(async (user) => {
         ? { title: t("gate.empty.title"), text: t("gate.empty.text"), action: { label: t("gate.empty.open"), run: openAdmin }, secondary: { label: t("gate.signOut"), run: signOutUser } }
         : { title: t("gate.settingUp.title"), text: t("gate.settingUp.text"), action: { label: t("gate.signOut"), run: signOutUser } }));
     }
-    state.lib = await loadLibrary(roles, { sealSvg: await loadSeal() });
+    const [seal, logos] = await Promise.all([loadSeal(), loadEditionLogos().catch(() => ({}))]);
+    state.lib = await loadLibrary(roles, { sealSvg: seal });
+    state.logos = logos;
     gateState = null;
     startApp();
   } catch (err) {
@@ -133,227 +142,271 @@ function startApp() {
     viewer.setView("angle");
     wire();
   }
-  state.role = state.role && state.lib.roles.find((r) => r.id === state.role.id) || state.lib.roles.find((r) => r.en === "Fortune Teller") || state.lib.roles[0];
-  $("#printed").value = printed();
+  const first = state.lib.roles.find((r) => r.en === "Fortune Teller") || state.lib.roles[0];
+  if (!state.sel) state.sel = { key: charKey(first), role: first, reminder: null };
+  state.edition = state.sel.role.edition || "tb";
   buildChoices();
-  renderFilters();
-  renderTray();
-  render();
-  refreshDesigns();
   loadQueue();
+  renderAll();
   renderQueue();
+  refreshDesigns();
+}
+
+function renderAll() { renderSpine(); renderSheet(); renderWorkshop(); }
+
+// ------------------------------------------------------------ spine
+
+function renderSpine() {
+  const lang = uiLang();
+  $("#editions").innerHTML = EDITION_ORDER.filter((e) => state.lib.roles.some((r) => r.edition === e)).map((e) => {
+    const roles = state.lib.roles.filter((r) => r.edition === e);
+    const rem = roles.reduce((n, r) => n + remindersOf(r).length, 0);
+    const logo = state.logos[EDITION_LOGO[e]];
+    return `<button class="ed" type="button" data-ed="${e}" aria-current="${state.edition === e && !searchQuery()}">
+      <span class="logo">${logo ? `<img src="${logo}" alt="">` : `<b>${esc(EDITIONS[e].mark)}</b>`}</span>
+      <span>${esc(EDITIONS[e].name[lang])}<small>${esc(t("ed.count", { c: roles.length, r: rem }))}</small></span></button>`;
+  }).join("");
+}
+
+// ------------------------------------------------------------ sheet
+
+const searchQuery = () => fold($("#search").value.trim());
+
+function renderSheet() {
+  const lang = uiLang(), q = searchQuery();
+  const ed = state.edition;
+  // header
+  const logo = !q && state.logos[EDITION_LOGO[ed]];
+  $("#edLogo").hidden = !logo;
+  if (logo) $("#edLogo").src = logo;
+  $("#edTitle").textContent = q ? t("sheet.results", { q: $("#search").value.trim() }) : EDITIONS[ed].name[lang];
+  $("#edLead").textContent = q ? t("sheet.leadSearch") : t(`edition.lead.${ed}`);
+
+  // which characters
+  let roles = q ? state.lib.roles : state.lib.roles.filter((r) => r.edition === ed);
+  const teamsHere = TEAM_ORDER.filter((tm) => roles.some((r) => r.team === tm));
+  if (state.team !== "all" && !teamsHere.includes(state.team)) state.team = "all";
+  $("#teamChips").innerHTML = [["all", t("team.all")], ...teamsHere.map((tm) => [tm, TEAM_PLURAL[lang][tm]])]
+    .map(([id, label]) => `<button class="pill" type="button" data-team="${id}" aria-pressed="${state.team === id}">${esc(label)}</button>`).join("");
+  if (state.team !== "all") roles = roles.filter((r) => r.team === state.team);
+
+  // search matches the name (both languages) or any reminder text
+  const hits = new Map();
+  if (q) {
+    roles = roles.filter((r) => {
+      const remHits = remindersOf(r).map((text, i) => [text, r.reminders?.en?.[i]].some((s) => s && fold(s).includes(q)) ? i : -1).filter((i) => i >= 0);
+      const nameHit = fold(r.en).includes(q) || fold(r.es).includes(q);
+      if (remHits.length) hits.set(r.id, new Set(remHits));
+      return nameHit || remHits.length;
+    });
+  }
+
+  if (!roles.length) { $("#rows").innerHTML = `<p class="empty">${esc(t("sheet.noResults"))}</p>`; return; }
+  $("#rows").innerHTML = TEAM_ORDER.map((team) => {
+    const list = roles.filter((r) => r.team === team);
+    if (!list.length) return "";
+    return `<div class="team-h"><i style="background:${TEAMS[team].colour}"></i><span>${esc(TEAM_PLURAL[lang][team])}</span><small>${list.length}</small></div>` +
+      list.map((r) => rowHtml(r, q, hits.get(r.id))).join("");
+  }).join("");
+}
+
+function rowHtml(r, q, remHits) {
+  const lang = uiLang(), ck = charKey(r);
+  const thumb = (key, reminder) => {
+    const isRem = reminder != null;
+    const spec = { ...specFor(key, isRem), diameter: isRem ? reminderSpec(DEFAULT_SPEC).diameter : 45, back: "none" };
+    const own = state.overrides.has(key);
+    return `<button class="tok" type="button" data-key="${key}" aria-current="${state.sel?.key === key}" aria-label="${esc(textFor(key, r, reminder))}">${tokenSvg(state.lib, r, spec, { text: textFor(key, r, reminder) })}${own ? `<span class="mark" title="${esc(t("sheet.own"))}">✎</span>` : ""}</button>`;
+  };
+  const rems = remindersOf(r);
+  const other = lang === "es" ? r.en : r.es;
+  return `<div class="row" data-current="${state.sel?.role === r}">
+    ${thumb(ck, null)}
+    <div class="who" data-key="${ck}"><b>${esc(textFor(ck, r, null))}</b>${other !== textFor(ck, r, null) ? `<small>${esc(other)}</small>` : ""}${q ? `<em>${esc(EDITIONS[r.edition]?.name[lang] || "")}</em>` : ""}</div>
+    <div class="rems">${rems.length ? rems.map((_, i) => `<div class="rem${remHits?.has(i) ? " hit" : ""}">${thumb(remKey(r, i), i)}<span>${esc(textFor(remKey(r, i), r, i))}</span></div>`).join("") : `<span class="none">${esc(t("sheet.noReminders"))}</span>`}</div>
+    <div class="take"><button class="pill" type="button" data-add="${r.id}">${esc(t("sheet.addChar"))}</button>${rems.length ? `<button class="pill" type="button" data-addall="${r.id}">${esc(t("sheet.addAll"))}</button>` : ""}</div>
+  </div>`;
+}
+
+function select(key) {
+  const [kind, id, idx] = key.split(":");
+  const role = state.lib.roles.find((r) => r.id === id);
+  if (!role) return;
+  state.sel = { key, role, reminder: kind === "r" ? +idx : null };
+  $$("#rows .tok").forEach((b) => b.setAttribute("aria-current", String(b.dataset.key === key)));
+  $$("#rows .row").forEach((row) => row.dataset.current = String(!!row.querySelector(`[data-key="${key}"]`)));
+  if (state.sel.reminder != null) { viewer.setView("top"); syncView("top"); }
+  $("#workshop").classList.add("open");
+  renderWorkshop();
+}
+
+// ------------------------------------------------------------ workshop
+
+/** The spec the style controls edit: the set's, or the selected token's own. */
+function editingSpec() {
+  if (state.tab === "token") return state.overrides.get(state.sel.key)?.spec ?? null;
+  return state.spec;
 }
 
 let raf = 0;
-function render() {
+function renderWorkshop() {
   cancelAnimationFrame(raf);
   raf = requestAnimationFrame(() => {
-    for (const id of Object.keys(RANGES)) state.spec[id] = +$("#" + id).value;
-    for (const [id, [dp, unit]] of Object.entries(RANGES)) $(`output[data-for=${id}]`).textContent = (+$("#" + id).value).toFixed(dp).replace(".", uiLang() === "es" ? "," : ".") + unit;
-    if (!state.lib || !state.role) return;
-    const token = buildToken(state.lib, state.role, state.spec, printed());
+    const { key, role, reminder } = state.sel;
+    const isRem = reminder != null;
+    const lang = uiLang();
+    const spec = specFor(key, isRem);
+    const text = textFor(key, role, reminder);
+    const token = buildToken(state.lib, role, spec, text);
     state.token = token;
-    viewer.setToken(state.preview != null ? buildToken(state.lib, state.role, reminderSpec(state.spec), state.preview) : token);
-    renderReminders();
-    const lang = state.spec.lang;
-    $("#ghost").textContent = state.preview ?? printed();
-    $("#name").textContent = state.preview ?? (printed() || " ");
-    const edition = EDITIONS[state.role.edition]?.name[lang];
-    $("#sub").textContent = [state.preview != null ? printed() : null, TEAMS[state.role.team].label[lang], edition, state.role.en !== printed() ? state.role.en : null].filter(Boolean).join(" · ");
+    viewer.setToken(token);
+
+    $("#name").textContent = text;
+    $("#sub").textContent = [isRem ? textFor(charKey(role), role, null) : null, TEAMS[role.team].label[lang], EDITIONS[role.edition]?.name[lang],
+      role.en !== text && !isRem ? role.en : null].filter(Boolean).join(" · ");
+    $("#enqueue").textContent = t(isRem ? "act.addReminder" : "act.addChar");
+
+    // tabs
+    $$(".tabs [data-tab]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === state.tab)));
+    $("#styleControls").hidden = state.tab === "saved";
+    $("#savedPanel").hidden = state.tab !== "saved";
+    const own = state.overrides.get(key);
+    $("#tokenOnly").hidden = state.tab !== "token";
+    $("#printed").value = own?.text ?? "";
+    $("#printed").placeholder = isRem ? remindersOf(role)[reminder] : roleName(role, lang);
+    $("#ownStyle").checked = !!own?.spec;
+    $("#resetToken").hidden = !own;
+    $("#styleScope").textContent = state.tab === "set" ? t("ws.scopeSet") : own?.spec ? t("ws.scopeTokenOn") : t("ws.scopeTokenOff");
+    const editing = editingSpec();
+    $("#styleFields").disabled = !editing;
+    syncControls(editing ?? state.spec);
+
     const n = token.name;
     $("#nameHint").className = "hint" + (n.letterHeight < 2.5 ? " warn" : "");
     $("#nameHint").textContent = t("name.hint", { arc: n.total.toFixed(0), mm: n.letterHeight.toFixed(1), shrunk: n.scale < 1, small: n.letterHeight < 2.5 });
     $("#nameSummary").textContent = `${n.letterHeight.toFixed(1)} mm`;
-    $("#frameSummary").textContent = t(`frame.${state.spec.frame}`);
-    $("#backSummary").textContent = t(`back.${state.spec.back}`);
-    $("#coinSummary").textContent = `${state.spec.diameter} × ${state.spec.height} mm`;
-    $$("[data-choice] button").forEach((b) => b.setAttribute("aria-pressed", String(state.spec[b.parentElement.dataset.choice] === b.dataset.v)));
-    $$(".metal").forEach((box) => $$("button", box).forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === state.spec.colours[box.dataset.colour]))));
   });
 }
 
-// ------------------------------------------------------------ tray: filters
-
-function renderFilters() {
-  const lang = state.spec.lang;
-  const editions = EDITION_ORDER.filter((e) => state.lib.roles.some((r) => r.edition === e));
-  $("#editionFilter").innerHTML = `<option value="all">${esc(t("tray.allEditions"))}</option>` +
-    editions.map((e) => `<option value="${e}">${esc(EDITIONS[e].name[lang])}</option>`).join("");
-  $("#editionFilter").value = editions.includes(state.edition) ? state.edition : "all";
-  $("#teamFilter").innerHTML = Object.keys(TEAM_FILTERS).map((k) =>
-    `<option value="${k}">${esc(TEAM_FILTER_LABEL[lang][k] || TEAMS[k].label[lang])}</option>`).join("");
-  $("#teamFilter").value = state.team;
-  $$("#kindSeg .pill").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.kind === state.kind)));
-  $("#selectMode").setAttribute("aria-pressed", String(state.selecting));
-  $("#picker").hidden = !state.selecting;
-}
-
-const remindersOf = (role, lang = state.spec.lang) => role.reminders?.[lang] || role.reminders?.en || [];
-
-/** What the tray shows: characters, or every reminder token, after the filters. */
-function trayItems() {
-  const teams = TEAM_FILTERS[state.team];
-  const q = fold($("#search").value.trim());
-  const roles = state.lib.roles.filter((r) => (!teams || teams.includes(r.team)) && (state.edition === "all" || r.edition === state.edition));
-  if (state.kind === "characters") {
-    return roles.filter((r) => !q || fold(r.en).includes(q) || fold(r.es).includes(q))
-      .map((r) => ({ key: `c:${r.id}`, role: r, label: r[state.spec.lang] }));
+/** Puts a spec's values into the style controls. */
+function syncControls(spec) {
+  const s = { ...DEFAULT_SPEC, ...spec, colours: { ...DEFAULT_SPEC.colours, ...spec.colours } };
+  const dec = uiLang() === "es" ? "," : ".";
+  for (const [id, [dp, unit]] of Object.entries(RANGES)) {
+    $("#" + id).value = s[id];
+    $(`output[data-for=${id}]`).textContent = (+s[id]).toFixed(dp).replace(".", dec) + unit;
   }
-  const out = [];
-  for (const r of roles) {
-    remindersOf(r).forEach((text, i) => {
-      const enText = r.reminders?.en?.[i] ?? text;
-      if (q && ![r.en, r.es, text, enText].some((s) => fold(s).includes(q))) return;
-      out.push({ key: `r:${r.id}:${i}`, role: r, reminder: text, label: text, sub: r[state.spec.lang] });
-    });
-  }
-  return out;
+  $("#frameSummary").textContent = t(`frame.${s.frame}`);
+  $("#backSummary").textContent = t(`back.${s.back}`);
+  $("#coinSummary").textContent = `${s.diameter} × ${s.height} mm`;
+  $$("[data-choice] button").forEach((b) => b.setAttribute("aria-pressed", String(s[b.parentElement.dataset.choice] === b.dataset.v)));
+  $$(".metal").forEach((box) => $$("button", box).forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === s.colours[box.dataset.colour]))));
 }
 
-function renderTray() {
-  const items = trayItems();
-  state.shown = items;
-  const charSpec = { ...state.spec, diameter: 45, back: "none" };
-  const remSpec = reminderSpec(charSpec);
-  $("#tokens").innerHTML = items.map((it, i) => {
-    const current = it.role === state.role && (it.reminder ?? null) === state.preview;
-    const picked = state.picked.has(it.key);
-    const pic = it.reminder != null ? tokenSvg(state.lib, it.role, remSpec, { text: it.reminder }) : tokenSvg(state.lib, it.role, charSpec);
-    return `<button class="tok${it.reminder != null ? " rem" : ""}" type="button" data-i="${i}" aria-current="${current}" data-picked="${picked}"${state.selecting ? ` aria-pressed="${picked}"` : ""}>${pic}<span>${esc(it.label)}</span>${it.sub ? `<small>${esc(it.sub)}</small>` : ""}</button>`;
-  }).join("") || `<p class="hint">${esc(t(state.kind === "characters" ? "tray.noMatch" : "tray.noReminders"))}</p>`;
-  $("#trayCount").textContent = t(state.kind === "characters" ? "tray.countCharacters" : "tray.countReminders", { n: items.length });
-  renderPicker();
+/** Applies a style change to whatever the controls are editing. */
+function changeStyle(mutate) {
+  const target = editingSpec();
+  if (!target) return;
+  mutate(target);
+  if (state.tab === "set") storeJSON(STYLE_KEY, state.spec); else storeOverrides();
+  renderWorkshop();
+  scheduleSheet();
 }
-
-function renderPicker() {
-  const n = state.picked.size;
-  $("#pickCount").textContent = n ? t("pick.count", { n }) : t("pick.prompt");
-  $("#pickAdd").disabled = !n;
-  $("#pickAdd").textContent = t("pick.add", { n });
-}
-
-// ------------------------------------------------------------ reminders section
-
-function renderReminders() {
-  const list = remindersOf(state.role);
-  $("#remindersSummary").textContent = list.length ? String(list.length) : t("reminders.none");
-  $("#reminderChips").innerHTML = list.map((r, i) => `<button class="pill" type="button" data-r="${i}" aria-pressed="${state.preview === r}">${esc(r)}</button>`).join("");
-  $("#addReminders").hidden = !list.length;
-  const hint = $("#reminderHint");
-  if (!list.length) { hint.className = "hint"; hint.textContent = t("reminders.noneHint"); return; }
-  const longest = list.reduce((a, b) => (b.length > a.length ? b : a));
-  const size = layoutName(state.lib, longest, { ...DEFAULT_SPEC, ...reminderSpec(state.spec) }).letterHeight;
-  hint.className = "hint" + (size < 2 ? " warn" : "");
-  hint.textContent = `${t(state.preview != null ? "reminders.previewHint" : "reminders.tapHint")} ${t("reminders.size", { mm: reminderSpec(state.spec).diameter })}` +
-    (size < 2 ? t("reminders.small", { mm: size.toFixed(1) }) : "");
-}
-
-function selectRole(role, reminder = null) {
-  state.role = role; state.custom = null; state.designId = null; state.preview = reminder;
-  $("#printed").value = printed();
-  if (reminder != null) { viewer.setView("top"); syncView("top"); }
-  $$("#tokens .tok").forEach((tok) => {
-    const it = state.shown[+tok.dataset.i];
-    tok.setAttribute("aria-current", String(it.role === role && (it.reminder ?? null) === reminder));
-  });
-  render();
-}
+let sheetTimer = 0;
+function scheduleSheet() { clearTimeout(sheetTimer); sheetTimer = setTimeout(() => { renderSheet(); renderQueue(); }, 180); }
+function storeOverrides() { storeJSON(OVERRIDES_KEY, Object.fromEntries(state.overrides)); }
 
 function syncView(v) { $$(".turn .pill").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.view === v))); }
 
-// ------------------------------------------------------------ wiring
-
 function buildChoices() {
   const make = (key, list) => {
-    const box = $(`[data-choice=${key}]`);
-    box.innerHTML = list.map((s) => `<button class="pill" type="button" data-v="${s.id}">${esc(t(`${key}.${s.id}`))}</button>`).join("");
+    $(`[data-choice=${key}]`).innerHTML = list.map((s) => `<button class="pill" type="button" data-v="${s.id}">${esc(t(`${key}.${s.id}`))}</button>`).join("");
   };
   make("frame", FRAME_STYLES);
-  make("back", BACK_STYLES.filter((s) => s.id !== "seal" || state.lib.sealSvg));
+  make("back", BACK_STYLES.filter((s) => s.id !== "seal" || state.lib?.sealSvg));
   for (const box of $$(".metal")) {
     const opts = ["team", "gold", "silver", "bronze", "white"];
     box.innerHTML = opts.map((o) => `<button type="button" class="${o === "team" ? "team" : ""}" data-v="${o === "team" ? "team" : FILAMENTS[o]}" style="${o === "team" ? "" : `background:${FILAMENTS[o]}`}" aria-label="${esc(t(`metal.${o}`))}" title="${esc(t(`metal.${o}`))}"></button>`).join("");
   }
 }
 
+// ------------------------------------------------------------ wiring
+
 function wire() {
+  // spine and sheet
+  $("#editions").onclick = (e) => {
+    const b = e.target.closest("[data-ed]"); if (!b) return;
+    state.edition = b.dataset.ed; state.team = "all"; $("#search").value = "";
+    renderSpine(); renderSheet(); $("#sheet").scrollTo({ top: 0 });
+  };
+  $("#search").oninput = () => { renderSpine(); renderSheet(); };
+  $("#teamChips").onclick = (e) => { const b = e.target.closest("[data-team]"); if (b) { state.team = b.dataset.team; renderSheet(); } };
+  $("#rows").onclick = (e) => {
+    const add = e.target.closest("[data-add]"), all = e.target.closest("[data-addall]"), pick = e.target.closest("[data-key]");
+    if (add) { const r = roleById(add.dataset.add); const n = addCharacter(r); note(t("act.queued", { name: textFor(charKey(r), r, null), n })); return; }
+    if (all) {
+      const r = roleById(all.dataset.addall);
+      addToQueue(r, null); remindersOf(r).forEach((_, i) => addToQueue(r, i));
+      note(t("act.queued", { name: textFor(charKey(r), r, null), n: remindersOf(r).length }));
+      return;
+    }
+    if (pick) select(pick.dataset.key);
+  };
+
+  // workshop
+  $("#wsClose").onclick = () => $("#workshop").classList.remove("open");
+  $$(".turn .pill").forEach((b) => b.onclick = () => { viewer.setView(b.dataset.view); syncView(b.dataset.view); });
+  $$(".tabs [data-tab]").forEach((b) => b.onclick = () => { state.tab = b.dataset.tab; renderWorkshop(); });
   for (const key of ["frame", "back"]) {
     $(`[data-choice=${key}]`).onclick = (e) => {
       const b = e.target.closest("button"); if (!b) return;
-      if (key === "back" && b.dataset.v === "custom" && !state.spec.customSvg) { $("#upload").click(); return; }
-      state.spec[key] = b.dataset.v;
+      if (key === "back" && b.dataset.v === "custom" && !editingSpec()?.customSvg) { $("#upload").click(); return; }
+      changeStyle((s) => { s[key] = b.dataset.v; });
       if (key === "back") { viewer.setView("back"); syncView("back"); }
-      render();
     };
   }
-  for (const box of $$(".metal")) box.onclick = (e) => { const b = e.target.closest("button"); if (!b) return; state.spec.colours[box.dataset.colour] = b.dataset.v; render(); };
+  for (const box of $$(".metal")) box.onclick = (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    changeStyle((s) => { s.colours = { ...DEFAULT_SPEC.colours, ...s.colours, [box.dataset.colour]: b.dataset.v }; });
+  };
+  for (const id of Object.keys(RANGES)) $("#" + id).oninput = (e) => changeStyle((s) => { s[id] = +e.target.value; });
   $("#upload").onchange = async (e) => {
     const f = e.target.files[0]; e.target.value = "";
     if (!f) return;
     const hint = $("#uploadHint");
     hint.hidden = false;
     if (f.size > MAX_SVG) { hint.className = "hint warn"; hint.textContent = t("upload.tooBig", { file: f.name, kb: (f.size / 1024).toFixed(0), max: MAX_SVG / 1000 }); return; }
-    state.spec.customSvg = await f.text();
-    state.spec.back = "custom";
+    const svg = await f.text();
+    changeStyle((s) => { s.customSvg = svg; s.back = "custom"; });
     hint.className = "hint"; hint.textContent = t("upload.using", { file: f.name });
-    viewer.setView("back"); syncView("back"); render();
+    viewer.setView("back"); syncView("back");
   };
-  $$(".turn .pill").forEach((b) => b.onclick = () => { viewer.setView(b.dataset.view); syncView(b.dataset.view); });
-
-  // tray
-  $$("#kindSeg .pill").forEach((b) => b.onclick = () => { state.kind = b.dataset.kind; renderFilters(); renderTray(); });
-  $("#editionFilter").onchange = (e) => { state.edition = e.target.value; renderTray(); };
-  $("#teamFilter").onchange = (e) => { state.team = e.target.value; renderTray(); };
-  $("#search").oninput = renderTray;
-  $("#selectMode").onclick = () => { state.selecting = !state.selecting; if (!state.selecting) state.picked.clear(); renderFilters(); renderTray(); };
-  $("#tokens").onclick = (e) => {
-    const b = e.target.closest("button[data-i]"); if (!b) return;
-    const it = state.shown[+b.dataset.i];
-    if (state.selecting) {
-      state.picked.has(it.key) ? state.picked.delete(it.key) : state.picked.add(it.key);
-      b.dataset.picked = String(state.picked.has(it.key)); b.setAttribute("aria-pressed", b.dataset.picked);
-      renderPicker();
-    }
-    selectRole(it.role, it.reminder ?? null);
+  // this token only
+  $("#printed").oninput = (e) => {
+    const own = { ...(state.overrides.get(state.sel.key) || {}), text: e.target.value };
+    if (!own.text && !own.spec) state.overrides.delete(state.sel.key); else state.overrides.set(state.sel.key, own);
+    storeOverrides(); renderWorkshop(); scheduleSheet();
   };
-  $("#pickAll").onclick = () => { state.shown.forEach((it) => state.picked.add(it.key)); renderTray(); };
-  $("#pickNone").onclick = () => { state.picked.clear(); renderTray(); };
-  $("#pickAdd").onclick = () => {
-    let chars = 0, extra = 0;
-    for (const key of state.picked) {
-      const [kind, id, idx] = key.split(":");
-      const role = state.lib.roles.find((r) => r.id === id);
-      if (!role) continue;
-      if (kind === "c") { chars++; extra += addCharacter(role, null); }
-      else { const text = remindersOf(role)[+idx]; if (text != null) { addToQueue(role, null, text); extra++; } }
-    }
-    $("#exportNote").textContent = t("act.queuedMany", { n: chars, extra });
-    state.picked.clear(); state.selecting = false; renderFilters(); renderTray();
-    $("#queueBox").open = true;
+  $("#ownStyle").onchange = (e) => {
+    const own = { ...(state.overrides.get(state.sel.key) || {}) };
+    if (e.target.checked) own.spec = structuredClone(state.spec); else delete own.spec;
+    if (!own.text && !own.spec) state.overrides.delete(state.sel.key); else state.overrides.set(state.sel.key, own);
+    storeOverrides(); renderWorkshop(); scheduleSheet();
   };
-
-  // drawer
+  $("#resetToken").onclick = () => { state.overrides.delete(state.sel.key); storeOverrides(); renderWorkshop(); scheduleSheet(); };
   $("#enqueue").onclick = () => {
-    if (state.preview != null) {
-      addToQueue(state.role, null, state.preview);
-      $("#exportNote").textContent = t("reminders.added", { n: 1, name: printed() });
-    } else {
-      const n = addCharacter(state.role, state.custom);
-      $("#exportNote").textContent = t("act.queued", { name: printed(), n });
-    }
-    $("#queueBox").open = true;
+    const { role, reminder } = state.sel;
+    if (reminder != null) { addToQueue(role, reminder); note(t("reminders.added", { n: 1, name: textFor(charKey(role), role, null) })); }
+    else { const n = addCharacter(role); note(t("act.queued", { name: textFor(charKey(role), role, null), n })); }
   };
-  $("#reminderChips").onclick = (e) => {
-    const b = e.target.closest("[data-r]"); if (!b) return;
-    const r = remindersOf(state.role)[+b.dataset.r];
-    state.preview = state.preview === r ? null : r;
-    viewer.setView("top"); syncView("top"); render();
-  };
-  $("#addReminders").onclick = () => {
-    const list = remindersOf(state.role);
-    list.forEach((r) => addToQueue(state.role, null, r));
-    $("#queueBox").open = true;
-    $("#exportNote").textContent = t("reminders.added", { n: list.length, name: printed() });
+  $("#download").onclick = forge;
+  $("#save").onclick = save;
+  $("#saved").onclick = onSavedClick;
+
+  // queue
+  $("#queueToggle").onclick = () => {
+    const open = $("#queuePanel").hidden;
+    $("#queuePanel").hidden = !open; $("#queueToggle").setAttribute("aria-expanded", String(open));
   };
   $("#queue").onclick = (e) => { const b = e.target.closest("[data-unqueue]"); if (b) { state.queue = state.queue.filter((q) => q.key !== b.dataset.unqueue); persistQueue(); renderQueue(); } };
   $("#queueClear").onclick = (e) => {
@@ -366,65 +419,71 @@ function wire() {
   $("#scriptFile").onchange = async (e) => { const f = e.target.files[0]; e.target.value = ""; if (f) importScript(await f.text()); };
   $("#pasteToggle").onclick = () => { const box = $("#pasteBox"); box.hidden = !box.hidden; $("#pasteToggle").setAttribute("aria-expanded", String(!box.hidden)); if (!box.hidden) $("#scriptText").focus(); };
   $("#pasteImport").onclick = () => importScript($("#scriptText").value);
-  $("#printed").oninput = (e) => { state.custom = e.target.value; state.preview = null; render(); };
-  for (const id of Object.keys(RANGES)) $("#" + id).oninput = render;
+
+  // account
   $("#signOut").onclick = () => { $(".me").open = false; signOutUser(); };
   $("#openAdmin").onclick = () => { $(".me").open = false; openAdmin(); };
-  $("#download").onclick = forge;
-  $("#save").onclick = save;
-  $("#saved").onclick = onSavedClick;
 }
 
+const roleById = (id) => state.lib.roles.find((r) => r.id === id);
+function note(text) { $("#exportNote").textContent = text; }
+
 async function forge() {
-  const btn = $("#download"), note = $("#exportNote");
+  const btn = $("#download");
   btn.disabled = true;
   try {
+    const { role, reminder, key } = state.sel;
     const zip = new JSZip();
-    const reminder = state.preview;
-    const token = reminder != null ? buildToken(state.lib, state.role, reminderSpec(state.spec), reminder) : state.token;
-    const folder = addTokenToZip(zip, token, state.role, reminder ?? printed(), { faceDown: true });
+    const folder = addTokenToZip(zip, state.token, role, textFor(key, role, reminder), { faceDown: true });
     await saveFile(await zip.generateAsync({ type: "blob" }), `${folder}.zip`);
-    note.textContent = t("act.downloaded", { file: `${folder}.zip` });
+    note(t("act.downloaded", { file: `${folder}.zip` }));
   } catch (err) {
-    note.textContent = t("act.downloadFailed", { message: err?.message || err });
+    note(t("act.downloadFailed", { message: err?.message || err }));
   } finally { btn.disabled = false; }
 }
 
 // ------------------------------------------------------------ print queue
 
 function loadQueue() {
-  try { state.queue = JSON.parse(localStorage.getItem(QUEUE_KEY) || "[]").filter((q) => state.lib.roles.some((r) => r.id === q.roleId)); }
-  catch { state.queue = []; }
+  state.queue = loadJSON(QUEUE_KEY, []).filter((q) => q && state.lib.roles.some((r) => r.id === q.roleId) && q.spec);
 }
-function persistQueue() {
-  try { localStorage.setItem(QUEUE_KEY, JSON.stringify(state.queue)); } catch { /* storage unavailable: the queue lasts this visit */ }
-}
-/** Queues a token; `reminder` makes it that character's reminder token. */
-function addToQueue(role, text, reminder = null) {
-  state.queue.push({ key: crypto.randomUUID(), roleId: role.id, text, reminder, spec: structuredClone(state.spec) });
+function persistQueue() { storeJSON(QUEUE_KEY, state.queue); }
+
+/**
+ * Queues a character (reminder = null) or one of its reminders, with the style
+ * and text it has right now.
+ */
+function addToQueue(role, reminder) {
+  const key = reminder != null ? remKey(role, reminder) : charKey(role);
+  const own = state.overrides.get(key);
+  state.queue.push({
+    key: crypto.randomUUID(), roleId: role.id,
+    reminder: reminder != null ? textFor(key, role, reminder) : null,
+    text: reminder == null ? textFor(key, role, null) : null,
+    custom: !!own,
+    spec: { ...structuredClone(own?.spec ?? state.spec), lang: uiLang() },
+  });
   persistQueue();
   renderQueue();
 }
 /** Queues a character and, if "Include reminder tokens" is ticked, its reminders. Returns how many reminders. */
-function addCharacter(role, text) {
-  addToQueue(role, text);
+function addCharacter(role) {
+  addToQueue(role, null);
   if (!$("#withReminders").checked) return 0;
   const list = remindersOf(role);
-  list.forEach((r) => addToQueue(role, null, r));
+  list.forEach((_, i) => addToQueue(role, i));
   return list.length;
 }
 const isReminder = (q) => q.reminder != null;
-const itemSpec = (q) => (isReminder(q) ? reminderSpec(q.spec) : q.spec);
-/** Text printed on the token. */
+const itemSpec = (q) => (isReminder(q) ? reminderSpec({ ...DEFAULT_SPEC, ...q.spec }) : { ...DEFAULT_SPEC, ...q.spec });
 const queueTitle = (q, role) => (isReminder(q) ? q.reminder : q.text ?? roleName(role, q.spec.lang));
-/** Name in lists and in Bambu Studio. */
 const queueLabel = (q, role) => (isReminder(q) ? `${roleName(role, q.spec.lang)}: ${q.reminder}` : queueTitle(q, role));
 const queueGroup = (q, role) => PLATE_LABEL[uiLang()][PLATE_GROUP[role.team]] + (isReminder(q) ? t("queue.reminderSuffix") : "");
 
 /** Plate plan without building geometry: which parts exist and their colours. */
 function queuePlan() {
   const items = state.queue.map((q) => {
-    const role = state.lib.roles.find((r) => r.id === q.roleId);
+    const role = roleById(q.roleId);
     const base = itemSpec(q);
     const spec = { ...DEFAULT_SPEC, ...base, colours: { ...DEFAULT_SPEC.colours, ...base.colours } };
     const team = TEAMS[role.team].colour, pick = (v) => (v === "team" ? team : v);
@@ -441,24 +500,28 @@ function queuePlan() {
 function renderQueue() {
   if (!state.lib) return;
   const n = state.queue.length;
-  $("#queueSummary").textContent = n ? String(n) : "";
+  $("#queueCount").textContent = n ? t("queue.count", { n }) : t("queue.emptyShort");
   $("#queueClear").hidden = !n;
   $("#bambu").disabled = !n;
-  $("#queue").innerHTML = state.queue.map((q) => {
-    const role = state.lib.roles.find((r) => r.id === q.roleId);
-    const pic = tokenSvg(state.lib, role, itemSpec(q), { text: queueTitle(q, role) });
+  const pics = state.queue.map((q) => {
+    const role = roleById(q.roleId);
+    return { q, role, pic: tokenSvg(state.lib, role, itemSpec(q), { text: queueTitle(q, role) }) };
+  });
+  $("#queueStack").innerHTML = pics.slice(-5).map((p) => p.pic).join("");
+  $("#queue").innerHTML = pics.map(({ q, role, pic }) => {
     const label = queueLabel(q, role);
-    return `<li><span class="q">${pic}<span>${esc(label)}</span></span><button class="del" type="button" data-unqueue="${q.key}" aria-label="${esc(t("queue.removeAria", { name: label }))}">${esc(t("queue.remove"))}</button></li>`;
+    return `<li><span class="open">${pic}<span>${esc(label)}${q.custom ? " ✎" : ""}</span></span><button class="del" type="button" data-unqueue="${q.key}" aria-label="${esc(t("queue.removeAria", { name: label }))}">${esc(t("queue.remove"))}</button></li>`;
   }).join("") || `<li class="hint">${esc(t("queue.empty"))}</li>`;
-  if (!n) { $("#queuePlan").textContent = ""; return; }
+  const plan = $("#queuePlan");
+  if (!n) { plan.className = "hint"; plan.textContent = t("queue.barHint"); return; }
   try {
-    const plan = queuePlan();
-    const used = [...new Set(plan.plates.flatMap((p) => [...p.slots]))].map(filamentName);
-    $("#queuePlan").className = "hint";
-    $("#queuePlan").textContent = t("queue.plan", { n: plan.plates.length, plates: plan.plates.map((p) => `${p.name} (${p.items.length})`).join(", "), filaments: used.join(", ") });
+    const p = queuePlan();
+    const used = [...new Set(p.plates.flatMap((x) => [...x.slots]))].map(filamentName);
+    plan.className = "hint";
+    plan.textContent = t("queue.plan", { n: p.plates.length, plates: p.plates.map((x) => `${x.name} (${x.items.length})`).join(", "), filaments: used.join(", ") });
   } catch (err) {
-    $("#queuePlan").className = "hint warn";
-    $("#queuePlan").textContent = err.message;
+    plan.className = "hint warn";
+    plan.textContent = err.message;
   }
 }
 
@@ -468,7 +531,7 @@ async function downloadBambu() {
   try {
     const items = [];
     for (const [i, q] of state.queue.entries()) {
-      const role = state.lib.roles.find((r) => r.id === q.roleId);
+      const role = roleById(q.roleId);
       out.textContent = t("queue.building", { i: i + 1, n: state.queue.length, name: queueLabel(q, role) });
       await new Promise((r) => setTimeout(r));
       items.push({ token: buildToken(state.lib, role, itemSpec(q), queueTitle(q, role)), title: queueLabel(q, role), group: queueGroup(q, role) });
@@ -491,8 +554,7 @@ const idKey = (s) => fold(s).replace(/[^a-z0-9]/g, "");
 /**
  * Reads a script in the official Script Tool format: an array whose entries are
  * character ids ("washerwoman") or objects ({"id": "washerwoman"}), with an
- * optional {"id": "_meta", "name": …} entry. Ids are matched loosely
- * ("fortune_teller", "fortuneteller" and "Fortune Teller" all work).
+ * optional {"id": "_meta", "name": …} entry. Ids are matched loosely.
  */
 function parseScript(text) {
   let data;
@@ -514,17 +576,17 @@ function parseScript(text) {
 }
 
 function importScript(text) {
-  const note = $("#importNote");
+  const out = $("#importNote");
   try {
     const { name, roles, skipped } = parseScript(text);
-    const extra = roles.reduce((n, r) => n + addCharacter(r, null), 0);
-    note.className = "hint";
-    note.textContent = t("import.done", { n: roles.length, extra, name }) +
+    const extra = roles.reduce((n, r) => n + addCharacter(r), 0);
+    out.className = "hint";
+    out.textContent = t("import.done", { n: roles.length, extra, name }) +
       (skipped.length ? t("import.skipped", { n: skipped.length, list: skipped.slice(0, 6).join(", ") + (skipped.length > 6 ? "…" : "") }) : "");
     $("#pasteBox").hidden = true; $("#pasteToggle").setAttribute("aria-expanded", "false"); $("#scriptText").value = "";
   } catch (err) {
-    note.className = "hint warn";
-    note.textContent = t("import.failed", { message: err.message });
+    out.className = "hint warn";
+    out.textContent = t("import.failed", { message: err.message });
   }
 }
 
@@ -542,41 +604,45 @@ function renderDesigns() {
   if (!state.lib) return;
   $("#savedSummary").textContent = state.designs.length ? String(state.designs.length) : "";
   $("#saved").innerHTML = state.designs.map((d) => {
-    const role = state.lib.roles.find((r) => r.id === d.roleId);
+    const role = roleById(d.roleId);
     if (!role) return "";
-    const pic = tokenSvg(state.lib, role, { ...DEFAULT_SPEC, ...d.spec, diameter: 45, colours: { ...DEFAULT_SPEC.colours, ...d.spec.colours } }, { text: d.text ?? roleName(role, d.spec.lang) });
-    return `<li><button type="button" data-open="${d.id}">${pic}<span>${esc(d.title)}</span></button><button class="del" type="button" data-del="${d.id}" aria-label="${esc(t("saved.deleteAria", { name: d.title }))}">${esc(t("saved.delete"))}</button></li>`;
+    const pic = tokenSvg(state.lib, role, { ...DEFAULT_SPEC, ...d.spec, diameter: 45, colours: { ...DEFAULT_SPEC.colours, ...d.spec.colours } }, { text: d.text || roleName(role, d.spec.lang) });
+    return `<li><button class="open" type="button" data-open="${d.id}">${pic}<span>${esc(d.title)}</span></button><button class="del" type="button" data-del="${d.id}" aria-label="${esc(t("saved.deleteAria", { name: d.title }))}">${esc(t("saved.delete"))}</button></li>`;
   }).join("") || `<li class="hint">${esc(t("saved.empty"))}</li>`;
 }
 async function save() {
-  const btn = $("#save"), note = $("#exportNote");
+  const btn = $("#save");
   btn.disabled = true;
-  const title = printed() || state.role.en;
+  const { key, role, reminder } = state.sel;
+  if (reminder != null) { $("#saveNote").textContent = t("saved.charactersOnly"); btn.disabled = false; return; }
+  const title = textFor(key, role, null);
   try {
-    state.designId = await saveDesign(state.user.uid, { roleId: state.role.id, text: state.custom, spec: state.spec, title }, state.designId);
-    note.textContent = t("saved.saved", { name: title });
+    const spec = specFor(key, false);
+    await saveDesign(state.user.uid, { roleId: role.id, text: state.overrides.get(key)?.text || null, spec, title });
+    $("#saveNote").textContent = t("saved.saved", { name: title });
     await refreshDesigns();
   } catch (err) {
-    note.textContent = t("saved.failed", { message: err.message });
+    $("#saveNote").textContent = t("saved.failed", { message: err.message });
   } finally { btn.disabled = false; }
 }
 async function onSavedClick(e) {
   const open = e.target.closest("[data-open]"), del = e.target.closest("[data-del]");
   if (open) {
+    // A saved design becomes that token's own style and name.
     const d = state.designs.find((x) => x.id === open.dataset.open);
-    const role = state.lib.roles.find((r) => r.id === d.roleId);
-    state.spec = { ...structuredClone(DEFAULT_SPEC), ...d.spec, colours: { ...DEFAULT_SPEC.colours, ...d.spec.colours } };
-    for (const id of Object.keys(RANGES)) $("#" + id).value = state.spec[id];
-    state.role = role;
-    setLang(state.spec.lang);
-    state.custom = d.text ?? null; state.designId = d.id; $("#printed").value = printed();
-    render();
-    $("#exportNote").textContent = t("saved.opened", { name: d.title });
+    const role = roleById(d.roleId);
+    const { lang, ...spec } = d.spec;
+    state.overrides.set(charKey(role), { text: d.text || null, spec });
+    storeOverrides();
+    if (role.edition) state.edition = role.edition;
+    $("#search").value = "";
+    state.tab = "token";
+    renderSpine(); renderSheet(); select(charKey(role));
+    $("#saveNote").textContent = t("saved.opened", { name: d.title });
   }
   if (del) {
     if (del.dataset.confirm !== "1") { del.dataset.confirm = "1"; del.textContent = t("saved.deleteConfirm"); return; }
     await deleteDesign(state.user.uid, del.dataset.del);
-    if (state.designId === del.dataset.del) state.designId = null;
     refreshDesigns();
   }
 }
@@ -618,6 +684,19 @@ $("#sealFile").onchange = async (e) => {
     if (!svg.includes("<svg")) throw new Error(t("admin.notSvg"));
     await uploadSeal(svg);
     out.textContent = t("admin.sealUploaded");
+    setTimeout(() => location.reload(), 800);
+  } catch (err) { out.textContent = t("admin.uploadFailed", { message: err.message }); }
+};
+$("#logoFiles").onchange = async (e) => {
+  const files = [...e.target.files]; e.target.value = "";
+  const out = $("#libraryState");
+  try {
+    for (const f of files) {
+      const name = f.name.replace(/\.[^.]+$/, "").toLowerCase();
+      const dataUrl = await new Promise((ok, fail) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = fail; r.readAsDataURL(f); });
+      await uploadEditionLogo(name, dataUrl);
+    }
+    out.textContent = t("admin.logosUploaded", { n: files.length });
     setTimeout(() => location.reload(), 800);
   } catch (err) { out.textContent = t("admin.uploadFailed", { message: err.message }); }
 };

@@ -12,27 +12,40 @@
 <link rel="stylesheet" href="/src/style.css">
 </head>
 <body>
-<div class="table" id="app" hidden>
-  <main class="stage">
+<div class="app" id="app" hidden>
+
+  <!-- editions -->
+  <nav class="spine" id="spine" data-i18n-attr="aria-label:spine.aria">
     <div class="brand">Midnight Mint</div>
-    <div class="title" id="ghost" aria-hidden="true"></div>
-    <canvas id="view" data-i18n-attr="aria-label:view.aria"></canvas>
-    <div class="caption">
-      <h1 id="name">&nbsp;</h1>
-      <p id="sub"></p>
-    </div>
-    <div class="turn" role="group" data-i18n-attr="aria-label:view.group">
-      <button class="pill" type="button" data-view="angle" aria-pressed="true" data-i18n="view.angle"></button>
-      <button class="pill" type="button" data-view="top" aria-pressed="false" data-i18n="view.front"></button>
-      <button class="pill" type="button" data-view="back" aria-pressed="false" data-i18n="view.back"></button>
-    </div>
+    <div id="editions"></div>
+    <footer class="ccc">
+      <img src="/ccc-sleeve.png" alt="Community Created Content" width="86" height="34">
+      <p data-i18n="ccc.short"></p>
+    </footer>
+  </nav>
+
+  <!-- script sheet -->
+  <main class="sheet" id="sheet">
+    <header class="sheet-head">
+      <div class="sheet-title">
+        <img id="edLogo" alt="" hidden>
+        <h1 id="edTitle"></h1>
+      </div>
+      <p id="edLead" class="lead"></p>
+      <div class="filters">
+        <input type="search" id="search" class="search" autocomplete="off" data-i18n-attr="placeholder:sheet.search aria-label:sheet.search">
+        <div class="chips" id="teamChips" role="group" data-i18n-attr="aria-label:tray.team"></div>
+      </div>
+    </header>
+    <div id="rows"></div>
   </main>
 
-  <aside class="drawer">
-    <div class="head">
+  <!-- workshop -->
+  <aside class="workshop" id="workshop">
+    <div class="ws-top">
       <div class="langs" role="group" data-i18n-attr="aria-label:lang.group">
-        <button class="pill" type="button" data-lang="es" aria-pressed="true" lang="es">Español</button>
-        <button class="pill" type="button" data-lang="en" aria-pressed="false" lang="en">English</button>
+        <button class="pill" type="button" data-lang="es" lang="es">Español</button>
+        <button class="pill" type="button" data-lang="en" lang="en">English</button>
       </div>
       <details class="me">
         <summary data-i18n-attr="aria-label:me.aria"><img id="avatar" alt="" referrerpolicy="no-referrer"></summary>
@@ -42,109 +55,110 @@
           <button type="button" id="signOut" data-i18n="me.signOut"></button>
         </div>
       </details>
+      <button class="pill ws-close" type="button" id="wsClose" data-i18n="ws.close"></button>
     </div>
-    <div class="body">
-      <details>
-        <summary><span data-i18n="sec.saved"></span> <small id="savedSummary"></small></summary>
-        <div class="rows">
-          <ul class="saved" id="saved"></ul>
-        </div>
-      </details>
-      <details id="queueBox">
-        <summary><span data-i18n="sec.queue"></span> <small id="queueSummary"></small></summary>
-        <div class="rows">
-          <div class="import">
-            <label class="pill file"><span data-i18n="queue.import"></span><input type="file" id="scriptFile" accept="application/json,.json" hidden></label>
-            <button class="pill" type="button" id="pasteToggle" aria-expanded="false" data-i18n="queue.paste"></button>
-          </div>
-          <div class="paste" id="pasteBox" hidden>
-            <textarea class="text" id="scriptText" rows="4" placeholder='[{"id":"_meta","name":"…"},"washerwoman","librarian",…]' data-i18n-attr="aria-label:queue.pasteAria"></textarea>
-            <button class="pill" type="button" id="pasteImport" data-i18n="queue.pasteImport"></button>
-          </div>
-          <label class="check"><input type="checkbox" id="withReminders"> <span data-i18n="queue.withReminders"></span></label>
-          <p class="hint" id="importNote" data-i18n="queue.importHelp"></p>
-          <ul class="saved" id="queue"></ul>
-          <p class="hint" id="queuePlan"></p>
-          <button class="forge" id="bambu" type="button" disabled data-i18n="queue.download"></button>
-          <button class="pill" id="queueClear" type="button" hidden data-i18n="queue.clear"></button>
-        </div>
-      </details>
-      <details open>
-        <summary><span data-i18n="sec.name"></span> <small id="nameSummary"></small></summary>
-        <div class="rows">
-          <input class="text" type="text" id="printed" data-i18n-attr="aria-label:name.aria" autocomplete="off">
-          <p class="hint" id="nameHint"></p>
-          <div class="row"><label for="textSize" data-i18n="range.textSize"></label><output data-for="textSize"></output><input type="range" id="textSize" min="2" max="6" step="0.1" value="4"></div>
-          <div class="row"><label for="spacing" data-i18n="range.spacing"></label><output data-for="spacing"></output><input type="range" id="spacing" min="0.8" max="2" step="0.05" value="1.1"></div>
-          <div class="row"><label for="maxArc" data-i18n="range.maxArc"></label><output data-for="maxArc"></output><input type="range" id="maxArc" min="90" max="240" step="5" value="180"></div>
-        </div>
-      </details>
-      <details id="remindersBox">
-        <summary><span data-i18n="sec.reminders"></span> <small id="remindersSummary"></small></summary>
-        <div class="rows">
-          <div class="choices" id="reminderChips"></div>
-          <p class="hint" id="reminderHint"></p>
-          <button class="pill" type="button" id="addReminders" data-i18n="reminders.add"></button>
-        </div>
-      </details>
-      <details>
-        <summary><span data-i18n="sec.frame"></span> <small id="frameSummary"></small></summary>
-        <div class="rows">
-          <div class="choices" data-choice="frame"></div>
-          <div class="row"><label for="frameWidth" data-i18n="range.frameWidth"></label><output data-for="frameWidth"></output><input type="range" id="frameWidth" min="0.4" max="2" step="0.1" value="0.8"></div>
-          <div class="metal" data-colour="frame" data-i18n-attr="aria-label:frame.aria"></div>
-        </div>
-      </details>
-      <details>
-        <summary><span data-i18n="sec.back"></span> <small id="backSummary"></small></summary>
-        <div class="rows">
-          <div class="choices" data-choice="back"></div>
-          <input type="file" id="upload" accept=".svg,image/svg+xml" hidden data-i18n-attr="aria-label:upload.aria">
-          <p class="hint" id="uploadHint" hidden></p>
-          <div class="metal" data-colour="back" data-i18n-attr="aria-label:back.aria"></div>
-        </div>
-      </details>
-      <details>
-        <summary><span data-i18n="sec.coin"></span> <small id="coinSummary"></small></summary>
-        <div class="rows">
-          <div class="row"><label for="diameter" data-i18n="range.diameter"></label><output data-for="diameter"></output><input type="range" id="diameter" min="30" max="60" step="1" value="45"></div>
-          <div class="row"><label for="height" data-i18n="range.height"></label><output data-for="height"></output><input type="range" id="height" min="1.2" max="4" step="0.2" value="2"></div>
-          <div class="row"><label for="depth" data-i18n="range.depth"></label><output data-for="depth"></output><input type="range" id="depth" min="0.2" max="0.8" step="0.2" value="0.2"></div>
-          <div class="row"><label for="iconScale" data-i18n="range.iconScale"></label><output data-for="iconScale"></output><input type="range" id="iconScale" min="0.6" max="1.2" step="0.05" value="1"></div>
-        </div>
-      </details>
+    <div class="stage">
+      <canvas id="view" data-i18n-attr="aria-label:view.aria"></canvas>
+      <div class="turn" role="group" data-i18n-attr="aria-label:view.group">
+        <button class="pill" type="button" data-view="angle" aria-pressed="true" data-i18n="view.angle"></button>
+        <button class="pill" type="button" data-view="top" aria-pressed="false" data-i18n="view.front"></button>
+        <button class="pill" type="button" data-view="back" aria-pressed="false" data-i18n="view.back"></button>
+      </div>
     </div>
-    <div class="actions">
-      <button class="forge" id="download" type="button" data-i18n="act.forge"></button>
-      <button class="pill" id="enqueue" type="button" data-i18n="act.enqueue"></button>
-      <button class="pill" id="save" type="button" data-i18n="act.save"></button>
+    <div class="caption">
+      <h2 id="name">&nbsp;</h2>
+      <p id="sub"></p>
     </div>
-    <p class="hint note" id="exportNote" data-i18n="act.note"></p>
-    <footer class="ccc">
-      <img src="/ccc-sleeve.png" alt="Community Created Content" width="86" height="34">
-      <p data-i18n="ccc.app"></p>
-    </footer>
+    <div class="ws-actions">
+      <button class="forge" id="enqueue" type="button"></button>
+      <button class="pill" id="download" type="button" data-i18n="act.stl"></button>
+    </div>
+    <div class="tabs" role="tablist">
+      <button role="tab" type="button" data-tab="set" aria-selected="true" data-i18n="ws.set"></button>
+      <button role="tab" type="button" data-tab="token" aria-selected="false" data-i18n="ws.token"></button>
+      <button role="tab" type="button" data-tab="saved" aria-selected="false"><span data-i18n="ws.saved"></span> <small id="savedSummary"></small></button>
+    </div>
+    <div class="ws-body">
+      <!-- shared style controls: edit the set style, or this token's own style -->
+      <section id="styleControls">
+        <p class="hint" id="styleScope"></p>
+        <div class="token-only" id="tokenOnly">
+          <label class="field"><span data-i18n="ws.printedText"></span><input class="text" type="text" id="printed" autocomplete="off"></label>
+          <label class="check"><input type="checkbox" id="ownStyle"> <span data-i18n="ws.ownStyle"></span></label>
+          <button class="link" type="button" id="resetToken" data-i18n="ws.reset"></button>
+        </div>
+        <fieldset id="styleFields">
+          <details open>
+            <summary><span data-i18n="sec.name"></span> <small id="nameSummary"></small></summary>
+            <div class="rows">
+              <p class="hint" id="nameHint"></p>
+              <div class="row"><label for="textSize" data-i18n="range.textSize"></label><output data-for="textSize"></output><input type="range" id="textSize" min="2" max="6" step="0.1" value="4"></div>
+              <div class="row"><label for="spacing" data-i18n="range.spacing"></label><output data-for="spacing"></output><input type="range" id="spacing" min="0.8" max="2" step="0.05" value="1.1"></div>
+              <div class="row"><label for="maxArc" data-i18n="range.maxArc"></label><output data-for="maxArc"></output><input type="range" id="maxArc" min="90" max="240" step="5" value="180"></div>
+            </div>
+          </details>
+          <details>
+            <summary><span data-i18n="sec.frame"></span> <small id="frameSummary"></small></summary>
+            <div class="rows">
+              <div class="choices" data-choice="frame"></div>
+              <div class="row"><label for="frameWidth" data-i18n="range.frameWidth"></label><output data-for="frameWidth"></output><input type="range" id="frameWidth" min="0.4" max="2" step="0.1" value="0.8"></div>
+              <div class="metal" data-colour="frame" data-i18n-attr="aria-label:frame.aria"></div>
+            </div>
+          </details>
+          <details>
+            <summary><span data-i18n="sec.back"></span> <small id="backSummary"></small></summary>
+            <div class="rows">
+              <div class="choices" data-choice="back"></div>
+              <input type="file" id="upload" accept=".svg,image/svg+xml" hidden data-i18n-attr="aria-label:upload.aria">
+              <p class="hint" id="uploadHint" hidden></p>
+              <div class="metal" data-colour="back" data-i18n-attr="aria-label:back.aria"></div>
+            </div>
+          </details>
+          <details>
+            <summary><span data-i18n="sec.coin"></span> <small id="coinSummary"></small></summary>
+            <div class="rows">
+              <div class="row"><label for="diameter" data-i18n="range.diameter"></label><output data-for="diameter"></output><input type="range" id="diameter" min="30" max="60" step="1" value="45"></div>
+              <div class="row"><label for="height" data-i18n="range.height"></label><output data-for="height"></output><input type="range" id="height" min="1.2" max="4" step="0.2" value="2"></div>
+              <div class="row"><label for="depth" data-i18n="range.depth"></label><output data-for="depth"></output><input type="range" id="depth" min="0.2" max="0.8" step="0.2" value="0.2"></div>
+              <div class="row"><label for="iconScale" data-i18n="range.iconScale"></label><output data-for="iconScale"></output><input type="range" id="iconScale" min="0.6" max="1.2" step="0.05" value="1"></div>
+            </div>
+          </details>
+        </fieldset>
+      </section>
+      <section id="savedPanel" hidden>
+        <button class="pill" type="button" id="save" data-i18n="act.save"></button>
+        <p class="hint" id="saveNote" data-i18n="saved.help"></p>
+        <ul class="list" id="saved"></ul>
+      </section>
+    </div>
+    <p class="hint note" id="exportNote"></p>
   </aside>
 
-  <section class="tray" data-i18n-attr="aria-label:tray.aria">
-    <div class="filters">
-      <div class="seg" role="group" id="kindSeg">
-        <button class="pill" type="button" data-kind="characters" aria-pressed="true" data-i18n="tray.characters"></button>
-        <button class="pill" type="button" data-kind="reminders" aria-pressed="false" data-i18n="tray.reminders"></button>
+  <!-- queue -->
+  <footer class="queuebar" id="queuebar">
+    <button class="qb-toggle" type="button" id="queueToggle" aria-expanded="false" aria-controls="queuePanel">
+      <span class="stack" id="queueStack"></span>
+      <span id="queueCount"></span>
+    </button>
+    <p class="hint" id="queuePlan"></p>
+    <button class="forge" id="bambu" type="button" disabled data-i18n="queue.download"></button>
+  </footer>
+  <section class="queue-panel" id="queuePanel" hidden>
+    <div class="qp-head">
+      <h2 data-i18n="sec.queue"></h2>
+      <div class="import">
+        <label class="pill file"><span data-i18n="queue.import"></span><input type="file" id="scriptFile" accept="application/json,.json" hidden></label>
+        <button class="pill" type="button" id="pasteToggle" aria-expanded="false" data-i18n="queue.paste"></button>
+        <button class="pill" id="queueClear" type="button" hidden data-i18n="queue.clear"></button>
       </div>
-      <select id="editionFilter" class="select" data-i18n-attr="aria-label:tray.edition"></select>
-      <select id="teamFilter" class="select" data-i18n-attr="aria-label:tray.team"></select>
-      <input type="search" id="search" class="search" autocomplete="off" data-i18n-attr="placeholder:tray.search aria-label:tray.search">
-      <button class="pill" type="button" id="selectMode" aria-pressed="false" data-i18n="tray.chooseSeveral"></button>
-      <span class="count" id="trayCount"></span>
     </div>
-    <div class="picker" id="picker" hidden>
-      <span id="pickCount"></span>
-      <button class="pill" type="button" id="pickAll" data-i18n="pick.all"></button>
-      <button class="pill" type="button" id="pickNone" data-i18n="pick.none"></button>
-      <button class="forge" type="button" id="pickAdd" disabled></button>
+    <div class="paste" id="pasteBox" hidden>
+      <textarea class="text" id="scriptText" rows="3" placeholder='[{"id":"_meta","name":"…"},"washerwoman","librarian",…]' data-i18n-attr="aria-label:queue.pasteAria"></textarea>
+      <button class="pill" type="button" id="pasteImport" data-i18n="queue.pasteImport"></button>
     </div>
-    <div class="tokens" id="tokens"></div>
+    <label class="check"><input type="checkbox" id="withReminders"> <span data-i18n="queue.withReminders"></span></label>
+    <p class="hint" id="importNote" data-i18n="queue.importHelp"></p>
+    <ul class="list grid" id="queue"></ul>
   </section>
 </div>
 
@@ -172,8 +186,11 @@
   <section>
     <h3 data-i18n="admin.library"></h3>
     <p class="hint" id="libraryState"></p>
-    <label class="pill file"><span data-i18n="admin.uploadRoles"></span><input type="file" id="libraryFile" accept="application/json,.json" hidden></label>
-    <label class="pill file"><span data-i18n="admin.uploadSeal"></span><input type="file" id="sealFile" accept=".svg,image/svg+xml" hidden></label>
+    <div class="import">
+      <label class="pill file"><span data-i18n="admin.uploadRoles"></span><input type="file" id="libraryFile" accept="application/json,.json" hidden></label>
+      <label class="pill file"><span data-i18n="admin.uploadSeal"></span><input type="file" id="sealFile" accept=".svg,image/svg+xml" hidden></label>
+      <label class="pill file"><span data-i18n="admin.uploadLogos"></span><input type="file" id="logoFiles" accept="image/webp,image/png" multiple hidden></label>
+    </div>
   </section>
   <section>
     <h3 data-i18n="admin.invited"></h3>

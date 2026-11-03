@@ -61,6 +61,15 @@ export async function loadSeal() {
 }
 export const uploadSeal = (svg) => setDoc(doc(db, "library", "seal"), { svg });
 
+/** Official edition logos (data URLs), keyed by file name: tb, bmr, snv, taf. */
+export async function loadEditionLogos() {
+  const snap = await getDocs(collection(db, "library"));
+  const logos = {};
+  for (const d of snap.docs) if (d.id.startsWith("edition_")) logos[d.id.slice(8)] = d.data().img;
+  return logos;
+}
+export const uploadEditionLogo = (name, dataUrl) => setDoc(doc(db, "library", `edition_${name}`), { img: dataUrl });
+
 // ------------------------------------------------------------ invites
 
 export async function listInvites() {

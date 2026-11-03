@@ -16,19 +16,40 @@ export const uploadRoles = async () => 0, uploadSeal = async () => {};
 export const listInvites = async () => [], addInvite = async (e) => e, removeInvite = async () => {};
 export const listDesigns = async () => [], saveDesign = async () => "d1", deleteDesign = async () => {};
 
-// Test-only scripted clicks, chosen by the URL hash, e.g. #reminders,tb
+// Test-only scripted clicks, chosen by the URL hash, e.g. #search=envenen,select=c:poisoner,token,own,frame=clock,add
 setTimeout(() => {
-  const steps = location.hash.slice(1).split(",").filter(Boolean);
   const click = (sel) => document.querySelector(sel)?.click();
-  for (const step of steps) {
-    if (step === "reminders") click('#kindSeg [data-kind="reminders"]');
-    else if (step === "select") click("#selectMode");
-    else if (step === "pickall") click("#pickAll");
-    else if (step === "first") click("#tokens .tok");
-    else if (step === "queue") document.querySelector("#queueBox").open = true;
-    else if (step === "add") click("#pickAdd");
-    else if (["tb", "bmr", "snv", "carousel", "fabled", "loric"].includes(step)) {
-      const sel = document.querySelector("#editionFilter"); sel.value = step; sel.dispatchEvent(new Event("change"));
-    }
+  for (const step of location.hash.slice(1).split(",").filter(Boolean)) {
+    const [k, v] = step.split("=");
+    if (k === "search") { const i = document.querySelector("#search"); i.value = decodeURIComponent(v); i.dispatchEvent(new Event("input")); }
+    else if (k === "select") click(`#rows .tok[data-key="${v}"]`);
+    else if (k === "ed") click(`#editions [data-ed="${v}"]`);
+    else if (k === "token") click('.tabs [data-tab="token"]');
+    else if (k === "own") { const c = document.querySelector("#ownStyle"); c.checked = true; c.dispatchEvent(new Event("change")); }
+    else if (k === "frame") click(`[data-choice="frame"] [data-v="${v}"]`);
+    else if (k === "add") click("#enqueue");
+    else if (k === "addall") click(`#rows [data-addall="${v}"]`);
+    else if (k === "queue") click("#queueToggle");
   }
 }, 4000);
+
+export async function loadEditionLogos() {
+  const out = {};
+  for (const n of ["tb", "bmr", "snv", "taf"]) {
+    const blob = await (await fetch(`/admin-data/editions/${n}.webp`)).blob();
+    out[n] = await new Promise((ok) => { const r = new FileReader(); r.onload = () => ok(r.result); r.readAsDataURL(blob); });
+  }
+  return out;
+}
+export const uploadEditionLogo = async () => {};
+
+// Test-only: report elements wider than the viewport (#measure)
+setTimeout(() => {
+  if (!location.hash.includes("measure")) return;
+  const vw = document.documentElement.clientWidth;
+  const wide = [...document.querySelectorAll("body *")].filter((el) => el.getBoundingClientRect().right > vw + 1 && el.getClientRects().length)
+    .slice(0, 12).map((el) => `${el.tagName.toLowerCase()}${el.id ? "#" + el.id : ""}.${[...el.classList].join(".")} right=${Math.round(el.getBoundingClientRect().right)}`);
+  const pre = document.createElement("pre"); pre.id = "measure";
+  pre.textContent = `vw=${vw} scrollWidth=${document.documentElement.scrollWidth}\n` + wide.join("\n");
+  document.body.append(pre);
+}, 6000);
