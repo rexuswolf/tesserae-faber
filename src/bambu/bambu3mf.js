@@ -37,43 +37,52 @@ function tokenSlots(token) {
   return new Set(PARTS.filter((p) => token.parts[p]).map((p) => slotOf(token.colours[p])));
 }
 
-/** How many tokens of this diameter fit on one plate. */
+/** Tokens per row on a plate for this diameter. */
+const perRowFor = (diameter) => Math.max(1, Math.floor((BED - 2 * MARGIN + GAP) / (diameter + GAP)));
+
+/**
+ * How many tokens of this diameter fit on one plate. The last grid slot
+ * (bottom-right) is kept free for the prime tower.
+ */
 export function perPlate(diameter) {
-  const n = Math.max(1, Math.floor((BED - 2 * MARGIN + GAP) / (diameter + GAP)));
-  return n * n;
+  const n = perRowFor(diameter);
+  return Math.max(1, n * n - 1);
 }
 
 /**
- * Groups tokens onto plates: at most `perPlate` tokens and at most 4 filaments
- * (the AMS lite) per plate. Tokens sharing colours are kept together.
- * @param items [{token, title, group}] group is a label such as the team name.
+ * Groups tokens onto plates. Each plate holds one group only (Good, Evil,
+ * Travellers, Fabled, Loric), at most `perPlate` tokens and at most 4 filaments
+ * (the AMS lite).
+ * @param items [{token, title, group}] group is a label such as "Good".
  */
 export function planPlates(items) {
   const diameter = Math.max(...items.map((i) => i.token.spec.diameter));
   const capacity = perPlate(diameter);
-  const sorted = items.map((it) => ({ ...it, slots: tokenSlots(it.token) }))
-    .sort((a, b) => [...a.slots].sort().join() .localeCompare([...b.slots].sort().join()) || a.title.localeCompare(b.title));
+  const groups = [];
+  for (const it of items) if (!groups.includes(it.group)) groups.push(it.group);
   const plates = [];
-  for (const it of sorted) {
-    if (it.slots.size > AMS_SLOTS) throw new Error(`${it.title} needs ${it.slots.size} filaments; the AMS lite holds ${AMS_SLOTS}`);
-    let plate = plates.find((p) => p.items.length < capacity && new Set([...p.slots, ...it.slots]).size <= AMS_SLOTS);
-    if (!plate) { plate = { items: [], slots: new Set() }; plates.push(plate); }
-    plate.items.push(it);
-    it.slots.forEach((s) => plate.slots.add(s));
-  }
-  // Name plates after their groups, numbering repeats ("Good 1", "Good 2").
-  const counts = {};
-  for (const p of plates) {
-    const groups = [...new Set(p.items.map((i) => i.group))];
-    p.label = groups.length > 2 ? "Mixed" : groups.join(" + ");
-    counts[p.label] = (counts[p.label] || 0) + 1;
-  }
-  const seen = {};
-  for (const p of plates) {
-    seen[p.label] = (seen[p.label] || 0) + 1;
-    p.name = counts[p.label] > 1 ? `${p.label} ${seen[p.label]}` : p.label;
+  for (const group of groups) {
+    const members = items.filter((it) => it.group === group).map((it) => ({ ...it, slots: tokenSlots(it.token) }))
+      .sort((a, b) => [...a.slots].sort().join().localeCompare([...b.slots].sort().join()) || a.title.localeCompare(b.title));
+    const mine = [];
+    for (const it of members) {
+      if (it.slots.size > AMS_SLOTS) throw new Error(`${it.title} needs ${it.slots.size} filaments; the AMS lite holds ${AMS_SLOTS}`);
+      let plate = mine.find((p) => p.items.length < capacity && new Set([...p.slots, ...it.slots]).size <= AMS_SLOTS);
+      if (!plate) { plate = { group, items: [], slots: new Set() }; mine.push(plate); }
+      plate.items.push(it);
+      it.slots.forEach((sl) => plate.slots.add(sl));
+    }
+    mine.forEach((p, i) => { p.name = mine.length > 1 ? `${group} ${i + 1}` : group; });
+    plates.push(...mine);
   }
   return { plates, capacity, diameter };
+}
+
+/** Where the prime tower goes on every plate: the free bottom-right slot. */
+function towerSpot(diameter) {
+  const n = perRowFor(diameter), pitch = diameter + GAP;
+  const left = MARGIN + (n - 1) * pitch;           // left edge of the last column
+  return { x: left + 3, y: MARGIN + 2 };            // the tower grows towards +y from here
 }
 
 // ------------------------------------------------------------ geometry
@@ -112,7 +121,7 @@ const XML = `<?xml version="1.0" encoding="UTF-8"?>\n`;
 
 // ------------------------------------------------------------ settings
 
-function projectSettings(used, plateCount) {
+function projectSettings(used, plateCount, diameter) {
   const s = structuredClone(template.settings);
   for (const key of template.perFilament) s[key] = used.map((slot) => template.settings[key][slot]);
   const n = used.length;
@@ -120,8 +129,14 @@ function projectSettings(used, plateCount) {
   s.filament_map = Array(n).fill("1");
   s.flush_volumes_vector = Array(2 * n).fill("140");
   s.flush_volumes_matrix = used.flatMap((a) => used.map((b) => (a === b ? "0" : "400")));
-  s.wipe_tower_x = Array(plateCount).fill(String(s.wipe_tower_x?.[0] ?? "15"));
-  s.wipe_tower_y = Array(plateCount).fill(String(s.wipe_tower_y?.[0] ?? "220"));
+  // Bambu Studio may switch the prime tower on when it loads your presets, so plan
+  // for it: a small tower in the slot we keep free on every plate. On the A1 most
+  // purging goes down the waste chute; the tower only takes prime_volume per change.
+  const spot = towerSpot(diameter);
+  s.enable_prime_tower = "1";
+  s.prime_tower_width = "35";
+  s.wipe_tower_x = Array(plateCount).fill(spot.x.toFixed(1));
+  s.wipe_tower_y = Array(plateCount).fill(spot.y.toFixed(1));
   return s;
 }
 
@@ -138,7 +153,7 @@ export async function buildBambuProject(items, { faceDown = true, onProgress = (
   const extruder = (slot) => usedSlots.indexOf(slot) + 1;
   const cols = Math.ceil(Math.sqrt(plan.plates.length));
   const pitch = plan.diameter + GAP;
-  const perRow = Math.sqrt(plan.capacity);
+  const perRow = perRowFor(plan.diameter);
   const first = MARGIN + plan.diameter / 2;
 
   const zip = new JSZip();
@@ -223,7 +238,7 @@ ${rels.map((r, i) => ` <Relationship Target="${r}" Id="rel-${i + 1}" Type="http:
 ${objectsCfg.join("\n")}
 ${platesCfg.join("\n")}
 </config>`);
-  zip.file("Metadata/project_settings.config", JSON.stringify(projectSettings(usedSlots, plan.plates.length), null, 4));
+  zip.file("Metadata/project_settings.config", JSON.stringify(projectSettings(usedSlots, plan.plates.length, plan.diameter), null, 4));
   zip.file("Metadata/slice_info.config", `${XML}<config>
   <header>
     <header_item key="X-BBL-Client-Type" value="slicer"/>
