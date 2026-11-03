@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Midnight Mint</title>
-<meta name="description" content="Design 3D-printable character tokens for your Blood on the Clocktower group. A free, community-made tool.">
+<meta name="description" content="Diseña tokens imprimibles en 3D para tu grupo de Blood on the Clocktower. Una herramienta gratuita hecha por la comunidad.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%232a0f20' stroke='%23c9a227' stroke-width='2'/%3E%3Cpath d='M16 6v10l5 4' stroke='%23efe6d6' stroke-width='2.4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,123 +16,133 @@
   <main class="stage">
     <div class="brand">Midnight Mint</div>
     <div class="title" id="ghost" aria-hidden="true"></div>
-    <canvas id="view" aria-label="The token in 3D. Drag to turn it."></canvas>
+    <canvas id="view" data-i18n-attr="aria-label:view.aria"></canvas>
     <div class="caption">
       <h1 id="name">&nbsp;</h1>
       <p id="sub"></p>
     </div>
-    <div class="turn" role="group" aria-label="View">
-      <button class="pill" type="button" data-view="angle" aria-pressed="true">Angle</button>
-      <button class="pill" type="button" data-view="top" aria-pressed="false">Front</button>
-      <button class="pill" type="button" data-view="back" aria-pressed="false">Back</button>
+    <div class="turn" role="group" data-i18n-attr="aria-label:view.group">
+      <button class="pill" type="button" data-view="angle" aria-pressed="true" data-i18n="view.angle"></button>
+      <button class="pill" type="button" data-view="top" aria-pressed="false" data-i18n="view.front"></button>
+      <button class="pill" type="button" data-view="back" aria-pressed="false" data-i18n="view.back"></button>
     </div>
   </main>
 
   <aside class="drawer">
     <div class="head">
-      <div class="langs" role="group" aria-label="Language on the token">
-        <button class="pill" type="button" data-lang="es" aria-pressed="true">Español</button>
-        <button class="pill" type="button" data-lang="en" aria-pressed="false">English</button>
+      <div class="langs" role="group" data-i18n-attr="aria-label:lang.group">
+        <button class="pill" type="button" data-lang="es" aria-pressed="true" lang="es">Español</button>
+        <button class="pill" type="button" data-lang="en" aria-pressed="false" lang="en">English</button>
       </div>
       <details class="me">
-        <summary aria-label="Your account"><img id="avatar" alt="" referrerpolicy="no-referrer"></summary>
+        <summary data-i18n-attr="aria-label:me.aria"><img id="avatar" alt="" referrerpolicy="no-referrer"></summary>
         <div class="menu">
           <p id="meEmail"></p>
-          <button type="button" id="openAdmin" hidden>Library and invites</button>
-          <button type="button" id="signOut">Sign out</button>
+          <button type="button" id="openAdmin" hidden data-i18n="me.admin"></button>
+          <button type="button" id="signOut" data-i18n="me.signOut"></button>
         </div>
       </details>
     </div>
     <div class="body">
       <details>
-        <summary>My tokens <small id="savedSummary"></small></summary>
+        <summary><span data-i18n="sec.saved"></span> <small id="savedSummary"></small></summary>
         <div class="rows">
           <ul class="saved" id="saved"></ul>
         </div>
       </details>
       <details id="queueBox">
-        <summary>Print queue <small id="queueSummary"></small></summary>
+        <summary><span data-i18n="sec.queue"></span> <small id="queueSummary"></small></summary>
         <div class="rows">
           <div class="import">
-            <label class="pill file">Import a script<input type="file" id="scriptFile" accept="application/json,.json" hidden></label>
-            <button class="pill" type="button" id="pasteToggle" aria-expanded="false">Paste JSON</button>
+            <label class="pill file"><span data-i18n="queue.import"></span><input type="file" id="scriptFile" accept="application/json,.json" hidden></label>
+            <button class="pill" type="button" id="pasteToggle" aria-expanded="false" data-i18n="queue.paste"></button>
           </div>
           <div class="paste" id="pasteBox" hidden>
-            <textarea class="text" id="scriptText" rows="4" placeholder='[{"id":"_meta","name":"…"},"washerwoman","librarian",…]' aria-label="Script JSON"></textarea>
-            <button class="pill" type="button" id="pasteImport">Import</button>
+            <textarea class="text" id="scriptText" rows="4" placeholder='[{"id":"_meta","name":"…"},"washerwoman","librarian",…]' data-i18n-attr="aria-label:queue.pasteAria"></textarea>
+            <button class="pill" type="button" id="pasteImport" data-i18n="queue.pasteImport"></button>
           </div>
-          <label class="check"><input type="checkbox" id="withReminders"> Include reminder tokens when adding characters</label>
-          <p class="hint" id="importNote">Use the JSON from the official Script Tool. Every character is added with the current style.</p>
+          <label class="check"><input type="checkbox" id="withReminders"> <span data-i18n="queue.withReminders"></span></label>
+          <p class="hint" id="importNote" data-i18n="queue.importHelp"></p>
           <ul class="saved" id="queue"></ul>
           <p class="hint" id="queuePlan"></p>
-          <button class="forge" id="bambu" type="button" disabled>Download for Bambu A1</button>
-          <button class="pill" id="queueClear" type="button" hidden>Clear the queue</button>
+          <button class="forge" id="bambu" type="button" disabled data-i18n="queue.download"></button>
+          <button class="pill" id="queueClear" type="button" hidden data-i18n="queue.clear"></button>
         </div>
       </details>
       <details open>
-        <summary>Name <small id="nameSummary"></small></summary>
+        <summary><span data-i18n="sec.name"></span> <small id="nameSummary"></small></summary>
         <div class="rows">
-          <input class="text" type="text" id="printed" aria-label="Name on the token" autocomplete="off">
+          <input class="text" type="text" id="printed" data-i18n-attr="aria-label:name.aria" autocomplete="off">
           <p class="hint" id="nameHint"></p>
-          <div class="row"><label for="textSize">Letter height</label><output data-for="textSize"></output><input type="range" id="textSize" min="2" max="6" step="0.1" value="4"></div>
-          <div class="row"><label for="spacing">Spacing</label><output data-for="spacing"></output><input type="range" id="spacing" min="0.8" max="2" step="0.05" value="1.1"></div>
-          <div class="row"><label for="maxArc">Longest arc</label><output data-for="maxArc"></output><input type="range" id="maxArc" min="90" max="240" step="5" value="180"></div>
+          <div class="row"><label for="textSize" data-i18n="range.textSize"></label><output data-for="textSize"></output><input type="range" id="textSize" min="2" max="6" step="0.1" value="4"></div>
+          <div class="row"><label for="spacing" data-i18n="range.spacing"></label><output data-for="spacing"></output><input type="range" id="spacing" min="0.8" max="2" step="0.05" value="1.1"></div>
+          <div class="row"><label for="maxArc" data-i18n="range.maxArc"></label><output data-for="maxArc"></output><input type="range" id="maxArc" min="90" max="240" step="5" value="180"></div>
         </div>
       </details>
       <details id="remindersBox">
-        <summary>Reminders <small id="remindersSummary"></small></summary>
+        <summary><span data-i18n="sec.reminders"></span> <small id="remindersSummary"></small></summary>
         <div class="rows">
           <div class="choices" id="reminderChips"></div>
           <p class="hint" id="reminderHint"></p>
-          <button class="pill" type="button" id="addReminders">Add these reminders to print</button>
+          <button class="pill" type="button" id="addReminders" data-i18n="reminders.add"></button>
         </div>
       </details>
       <details>
-        <summary>Frame <small id="frameSummary"></small></summary>
+        <summary><span data-i18n="sec.frame"></span> <small id="frameSummary"></small></summary>
         <div class="rows">
           <div class="choices" data-choice="frame"></div>
-          <div class="row"><label for="frameWidth">Width</label><output data-for="frameWidth"></output><input type="range" id="frameWidth" min="0.4" max="2" step="0.1" value="0.8"></div>
-          <div class="metal" data-colour="frame" aria-label="Frame filament"></div>
+          <div class="row"><label for="frameWidth" data-i18n="range.frameWidth"></label><output data-for="frameWidth"></output><input type="range" id="frameWidth" min="0.4" max="2" step="0.1" value="0.8"></div>
+          <div class="metal" data-colour="frame" data-i18n-attr="aria-label:frame.aria"></div>
         </div>
       </details>
       <details>
-        <summary>Back <small id="backSummary"></small></summary>
+        <summary><span data-i18n="sec.back"></span> <small id="backSummary"></small></summary>
         <div class="rows">
           <div class="choices" data-choice="back"></div>
-          <input type="file" id="upload" accept=".svg,image/svg+xml" hidden aria-label="Your SVG pattern">
+          <input type="file" id="upload" accept=".svg,image/svg+xml" hidden data-i18n-attr="aria-label:upload.aria">
           <p class="hint" id="uploadHint" hidden></p>
-          <div class="metal" data-colour="back" aria-label="Back filament"></div>
+          <div class="metal" data-colour="back" data-i18n-attr="aria-label:back.aria"></div>
         </div>
       </details>
       <details>
-        <summary>Coin <small id="coinSummary"></small></summary>
+        <summary><span data-i18n="sec.coin"></span> <small id="coinSummary"></small></summary>
         <div class="rows">
-          <div class="row"><label for="diameter">Diameter</label><output data-for="diameter"></output><input type="range" id="diameter" min="30" max="60" step="1" value="45"></div>
-          <div class="row"><label for="height">Thickness</label><output data-for="height"></output><input type="range" id="height" min="1.2" max="4" step="0.2" value="2"></div>
-          <div class="row"><label for="depth">Inlay depth</label><output data-for="depth"></output><input type="range" id="depth" min="0.2" max="0.8" step="0.2" value="0.2"></div>
-          <div class="row"><label for="iconScale">Icon size</label><output data-for="iconScale"></output><input type="range" id="iconScale" min="0.6" max="1.2" step="0.05" value="1"></div>
+          <div class="row"><label for="diameter" data-i18n="range.diameter"></label><output data-for="diameter"></output><input type="range" id="diameter" min="30" max="60" step="1" value="45"></div>
+          <div class="row"><label for="height" data-i18n="range.height"></label><output data-for="height"></output><input type="range" id="height" min="1.2" max="4" step="0.2" value="2"></div>
+          <div class="row"><label for="depth" data-i18n="range.depth"></label><output data-for="depth"></output><input type="range" id="depth" min="0.2" max="0.8" step="0.2" value="0.2"></div>
+          <div class="row"><label for="iconScale" data-i18n="range.iconScale"></label><output data-for="iconScale"></output><input type="range" id="iconScale" min="0.6" max="1.2" step="0.05" value="1"></div>
         </div>
       </details>
     </div>
     <div class="actions">
-      <button class="forge" id="download" type="button">Forge this token</button>
-      <button class="pill" id="enqueue" type="button">Add to print</button>
-      <button class="pill" id="save" type="button">Save</button>
+      <button class="forge" id="download" type="button" data-i18n="act.forge"></button>
+      <button class="pill" id="enqueue" type="button" data-i18n="act.enqueue"></button>
+      <button class="pill" id="save" type="button" data-i18n="act.save"></button>
     </div>
-    <p class="hint note" id="exportNote">Downloads the STLs, face-down and ready for Bambu Studio.</p>
+    <p class="hint note" id="exportNote" data-i18n="act.note"></p>
     <footer class="ccc">
       <img src="/ccc-sleeve.png" alt="Community Created Content" width="86" height="34">
-      <p>A free, community-made tool. Not affiliated with or endorsed by The Pandemonium Institute. Character art © The Pandemonium Institute.</p>
+      <p data-i18n="ccc.app"></p>
     </footer>
   </aside>
 
-  <section class="tray" aria-label="Characters">
-    <div class="teams" id="teams"></div>
+  <section class="tray" data-i18n-attr="aria-label:tray.aria">
+    <div class="filters">
+      <div class="seg" role="group" id="kindSeg">
+        <button class="pill" type="button" data-kind="characters" aria-pressed="true" data-i18n="tray.characters"></button>
+        <button class="pill" type="button" data-kind="reminders" aria-pressed="false" data-i18n="tray.reminders"></button>
+      </div>
+      <select id="editionFilter" class="select" data-i18n-attr="aria-label:tray.edition"></select>
+      <select id="teamFilter" class="select" data-i18n-attr="aria-label:tray.team"></select>
+      <input type="search" id="search" class="search" autocomplete="off" data-i18n-attr="placeholder:tray.search aria-label:tray.search">
+      <button class="pill" type="button" id="selectMode" aria-pressed="false" data-i18n="tray.chooseSeveral"></button>
+      <span class="count" id="trayCount"></span>
+    </div>
     <div class="picker" id="picker" hidden>
       <span id="pickCount"></span>
-      <button class="pill" type="button" id="pickAll">Select all shown</button>
-      <button class="pill" type="button" id="pickNone">Clear selection</button>
-      <button class="forge" type="button" id="pickAdd" disabled>Add to print</button>
+      <button class="pill" type="button" id="pickAll" data-i18n="pick.all"></button>
+      <button class="pill" type="button" id="pickNone" data-i18n="pick.none"></button>
+      <button class="forge" type="button" id="pickAdd" disabled></button>
     </div>
     <div class="tokens" id="tokens"></div>
   </section>
@@ -141,33 +151,37 @@
 <div class="gate" id="gate">
   <div class="gate-card">
     <p class="mark">Midnight Mint</p>
-    <h2 id="gateTitle">Opening the grimoire…</h2>
+    <h2 id="gateTitle"></h2>
     <p id="gateText"></p>
     <button class="forge" type="button" id="gateAction" hidden></button>
     <button class="pill" type="button" id="gateSecondary" hidden></button>
+    <div class="langs gate-langs" role="group" data-i18n-attr="aria-label:lang.group">
+      <button class="pill" type="button" data-lang="es" lang="es">Español</button>
+      <button class="pill" type="button" data-lang="en" lang="en">English</button>
+    </div>
     <footer class="ccc">
       <img src="/ccc-sleeve.png" alt="Community Created Content" width="86" height="34">
-      <p>A free, community-made tool for printing your own character tokens. Not affiliated with or endorsed by The Pandemonium Institute.</p>
+      <p data-i18n="ccc.gate"></p>
     </footer>
   </div>
 </div>
 
 <dialog id="admin" aria-labelledby="adminTitle">
-  <form method="dialog" class="close"><button class="pill" aria-label="Close">Close</button></form>
-  <h2 id="adminTitle">Library and invites</h2>
+  <form method="dialog" class="close"><button class="pill" data-i18n="admin.close"></button></form>
+  <h2 id="adminTitle" data-i18n="admin.title"></h2>
   <section>
-    <h3>Character library</h3>
+    <h3 data-i18n="admin.library"></h3>
     <p class="hint" id="libraryState"></p>
-    <label class="pill file">Upload roles_data.json<input type="file" id="libraryFile" accept="application/json,.json" hidden></label>
-    <label class="pill file">Upload seal.svg<input type="file" id="sealFile" accept=".svg,image/svg+xml" hidden></label>
+    <label class="pill file"><span data-i18n="admin.uploadRoles"></span><input type="file" id="libraryFile" accept="application/json,.json" hidden></label>
+    <label class="pill file"><span data-i18n="admin.uploadSeal"></span><input type="file" id="sealFile" accept=".svg,image/svg+xml" hidden></label>
   </section>
   <section>
-    <h3>Invited people</h3>
+    <h3 data-i18n="admin.invited"></h3>
     <form id="inviteForm" class="invite">
-      <input class="text" type="email" id="inviteEmail" placeholder="friend@example.com" required aria-label="Email to invite">
-      <button class="pill" type="submit">Invite</button>
+      <input class="text" type="email" id="inviteEmail" placeholder="amigo@ejemplo.com" required data-i18n-attr="aria-label:admin.inviteAria">
+      <button class="pill" type="submit" data-i18n="admin.invite"></button>
     </form>
-    <p class="hint" id="inviteHint">They sign in with this Google account.</p>
+    <p class="hint" id="inviteHint" data-i18n="admin.inviteHint"></p>
     <ul class="invites" id="invites"></ul>
   </section>
 </dialog>
