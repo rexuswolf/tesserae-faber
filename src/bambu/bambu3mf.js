@@ -186,7 +186,8 @@ export async function buildBambuProject(items, { faceDown = true, onProgress = (
       const { token } = it;
       const file = `/3D/Objects/token_${pi + 1}_${ti + 1}.model`;
       const partXml = [], components = [], partsCfg = [];
-      for (const part of PARTS) {
+      // The magnet hole is a negative part: the slicer cuts it out of every colour.
+      for (const part of [...PARTS, "magnet"]) {
         const geom = token.parts[part];
         if (!geom) continue;
         const id = nextId++;
@@ -194,10 +195,10 @@ export async function buildBambuProject(items, { faceDown = true, onProgress = (
         const faceUp = token.spec.style === "window" && token.spec.windowFinish !== "flat";
         partXml.push(meshXml(id, meshOf(geom, token.spec.height, faceDown && !faceUp)));
         components.push(`<component p:path="${file}" objectid="${id}" transform="1 0 0 0 1 0 0 0 1 ${x.toFixed(3)} ${y.toFixed(3)} 0"/>`);
-        partsCfg.push(`    <part id="${id}" subtype="normal_part">
+        partsCfg.push(`    <part id="${id}" subtype="${part === "magnet" ? "negative_part" : "normal_part"}">
       <metadata key="name" value="${part}"/>
       <metadata key="matrix" value="1 0 0 ${x.toFixed(3)} 0 1 0 ${y.toFixed(3)} 0 0 1 0 0 0 0 1"/>
-      <metadata key="extruder" value="${extruder(slotOf(token.colours[part]))}"/>
+      <metadata key="extruder" value="${extruder(slotOf(token.colours[part] ?? token.colours.base))}"/>
     </part>`);
       }
       zip.file(file.slice(1), `${XML}<model unit="millimeter" xml:lang="en-US" ${NS}><metadata name="BambuStudio:3mfVersion">1</metadata><resources>${partXml.join("")}</resources><build/></model>`);
@@ -226,6 +227,18 @@ ${partsCfg.join("\n")}
     <metadata key="filament_maps" value="${usedSlots.map(() => 1).join(" ")}"/>
 ${instances.join("\n")}
   </plate>`);
+  }
+
+  // Pauses to drop hidden magnets in: one per distinct height on each plate.
+  const pauses = plan.plates.map((p) => [...new Set(p.items.map((it) => it.token.magnet?.pauseZ).filter(Boolean))].sort((a, b) => a - b));
+  if (pauses.some((z) => z.length)) {
+    zip.file("Metadata/custom_gcode_per_layer.xml", `${XML}<custom_gcodes_per_layer>
+${pauses.map((zs, pi) => zs.length ? `<plate>
+<plate_info id="${pi + 1}"/>
+${zs.map((z) => `<layer top_z="${z}" type="1" extruder="1" color="" extra="" gcode="M400 U1"/>`).join("\n")}
+<mode value="MultiAsSingle"/>
+</plate>` : "").filter(Boolean).join("\n")}
+</custom_gcodes_per_layer>`);
   }
 
   const today = new Date().toISOString().slice(0, 10);
@@ -266,5 +279,5 @@ ${platesCfg.join("\n")}
 </config>`);
 
   const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 6 } });
-  return { blob, plan, filaments: usedSlots.map((s) => FILAMENT_SLOTS[s]) };
+  return { blob, plan, filaments: usedSlots.map((s) => FILAMENT_SLOTS[s]), pauses: [...new Set(pauses.flat())].sort((a, b) => a - b) };
 }

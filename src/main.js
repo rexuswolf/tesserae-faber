@@ -1,6 +1,6 @@
 import JSZip from "jszip";
 import {
-  loadLibrary, buildToken, createViewer, tokenSvg, roleName, addTokenToZip, saveFile, reminderSpec, layoutName,
+  loadLibrary, buildToken, createViewer, magnetLayout, MAGNET_SIZES, tokenSvg, roleName, addTokenToZip, saveFile, reminderSpec, layoutName,
   TEAMS, EDITIONS, FRAME_STYLES, BACK_STYLES, TOKEN_STYLES, FILAMENTS, DEFAULT_SPEC,
 } from "./engine/token-engine.js";
 import {
@@ -54,12 +54,17 @@ let gateState = null;
 
 /** Premade designs. Applying one replaces the style being edited (set or token). */
 const PRESETS = [
-  { id: "rapida", spec: { style: "classic", frame: "rim", frameWidth: 0.8, back: "none", depth: 0.2,
+  { id: "rapida", spec: { style: "classic", frame: "rim", frameWidth: 0.8, back: "none", depth: 0.2, magnet: "none",
     colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } } },
-  { id: "marfil", spec: { style: "classic", frame: "rim", frameWidth: 1.0, back: "guilloche", depth: 0.4,
+  { id: "marfil", spec: { style: "classic", frame: "rim", frameWidth: 1.0, back: "guilloche", depth: 0.4, magnet: "none",
     colours: { base: FILAMENTS.white, front: "team", frame: FILAMENTS.bronze, back: FILAMENTS.bronze } } },
-  { id: "legible", spec: { style: "window", windowFinish: "flat", textSize: 6, frame: "none", back: "none", depth: 0.4,
+  { id: "legible", spec: { style: "window", windowFinish: "flat", textSize: 6, frame: "none", back: "none", depth: 0.4, magnet: "none",
     colours: { base: FILAMENTS.white, front: "team", frame: "team", back: FILAMENTS.gold } } },
+  // Magnets: an open pocket to glue into, or one sealed inside during a pause.
+  { id: "iman", spec: { style: "classic", frame: "rim", frameWidth: 0.8, back: "none", depth: 0.2, magnet: "pocket", magnetSize: "6x2",
+    colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } } },
+  { id: "oculto", spec: { style: "classic", frame: "fases", frameWidth: 0.8, back: "medianoche", depth: 0.4, magnet: "hidden", magnetSize: "6x2",
+    colours: { base: FILAMENTS.black, front: "team", frame: FILAMENTS.gold, back: FILAMENTS.gold } } },
 ];
 const presetSpec = (p) => ({ ...structuredClone(DEFAULT_SPEC), ...structuredClone(p.spec) });
 
@@ -361,7 +366,14 @@ function syncControls(spec) {
   for (const id of ["spacing", "maxArc"]) $("#" + id).closest(".row").hidden = s.style === "window";
   $("#frameSummary").textContent = t(`frame.${s.frame}`);
   $("#backSummary").textContent = t(`back.${s.back}`);
-  $("#coinSummary").textContent = `${s.diameter} × ${s.height} mm`;
+  // Magnet: the hole, the pause and how thick the coin has to be.
+  const m = magnetLayout(s), dec2 = (v) => String(v).replace(".", dec);
+  $("#magnetSizeRow").hidden = !m;
+  $("#magnetSummary").textContent = m ? `${t(`magnet.${m.kind}`)} · ${m.md}×${m.mt}` : t("magnet.none");
+  $("#magnetHint").textContent = !m ? t("magnet.none.help")
+    : t(`magnet.${m.kind}.help`, { d: dec2((m.radius * 2).toFixed(1)), size: `${m.md} × ${m.mt}`, z: dec2(m.pauseZ) })
+      + (s.height < m.minHeight ? " " + t("magnet.taller", { from: dec2(s.height), to: dec2(m.minHeight) }) : "");
+  $("#coinSummary").textContent = `${s.diameter} × ${dec2(Math.max(s.height, m?.minHeight ?? 0))} mm`;
   $$("[data-choice] button").forEach((b) => b.setAttribute("aria-pressed", String(s[b.parentElement.dataset.choice] === b.dataset.v)));
   $$(".metal").forEach((box) => $$("button", box).forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === s.colours[box.dataset.colour]))));
 }
@@ -387,6 +399,8 @@ function buildChoices() {
   };
   make("style", TOKEN_STYLES);
   make("windowFinish", [{ id: "relief" }, { id: "flat" }]);
+  make("magnet", [{ id: "none" }, { id: "pocket" }, { id: "hidden" }]);
+  $("[data-choice=magnetSize]").innerHTML = MAGNET_SIZES.map((v) => `<button class="pill" type="button" data-v="${v}">${v.replace("x", " × ")} mm</button>`).join("");
   // Frames are drawn as coin tiles by renderFrameTiles().
   // Backs are drawn as coin tiles by renderBackTiles().
   for (const box of $$(".metal")) {
@@ -424,7 +438,7 @@ function wire() {
   $("#wsClose").onclick = () => $("#workshop").classList.remove("open");
   $$(".turn .pill").forEach((b) => b.onclick = () => { viewer.setView(b.dataset.view); syncView(b.dataset.view); });
   $$(".tabs [data-tab]").forEach((b) => b.onclick = () => { state.tab = b.dataset.tab; renderWorkshop(); });
-  for (const key of ["style", "windowFinish", "frame", "back"]) {
+  for (const key of ["style", "windowFinish", "frame", "back", "magnet", "magnetSize"]) {
     $(`[data-choice=${key}]`).onclick = (e) => {
       const b = e.target.closest("button"); if (!b) return;
       if (key === "back" && b.dataset.v === "custom" && !editingSpec()?.customSvg) { $("#upload").click(); return; }
@@ -608,11 +622,12 @@ async function downloadBambu() {
       await new Promise((r) => setTimeout(r));
       items.push({ token: buildToken(state.lib, role, itemSpec(q), queueTitle(q, role)), title: queueLabel(q, role), group: queueGroup(q, role) });
     }
-    const { blob, plan, filaments } = await buildBambuProject(items, { onProgress: (d, total) => { out.textContent = t("queue.writing", { i: d, n: total }); } });
+    const { blob, plan, filaments, pauses } = await buildBambuProject(items, { onProgress: (d, total) => { out.textContent = t("queue.writing", { i: d, n: total }); } });
     const file = `midnight-mint-${items.length}-tokens.3mf`;
     await saveFile(blob, file);
     out.className = "hint";
-    out.textContent = t("queue.done", { file, n: plan.plates.length, filaments: filaments.map((f) => t(`filament.${f.name}`)).join(", ") });
+    out.textContent = t("queue.done", { file, n: plan.plates.length, filaments: filaments.map((f) => t(`filament.${f.name}`)).join(", ") })
+      + (pauses.length ? " " + t("queue.pauses", { z: pauses.map((z) => String(z).replace(".", uiLang() === "es" ? "," : ".")).join(", ") }) : "");
   } catch (err) {
     out.className = "hint warn";
     out.textContent = t("queue.failed", { message: err.message });

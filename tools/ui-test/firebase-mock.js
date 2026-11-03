@@ -60,6 +60,6 @@ setTimeout(() => {
 // Test-only: #open=frame,base opens the sections holding those colour rows and scrolls to the first
 setTimeout(() => {
   const m = location.hash.match(/open=([\w,]+)/); if (!m) return;
-  const ds = m[1].split(",").map((k) => document.querySelector(`[data-colour=${k}]`)?.closest("details")).filter(Boolean);
+  const ds = m[1].split(",").map((k) => document.querySelector(`[data-colour=${k}], [data-choice=${k}]`)?.closest("details")).filter(Boolean);
   ds.forEach((d) => { d.open = true; }); ds[0]?.scrollIntoView();
 }, 5800);

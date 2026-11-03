@@ -82,6 +82,8 @@ export const TOKEN_STYLES = [{ id: "classic" }, { id: "window" }];
 export const DEFAULT_SPEC = {
   style: "classic",
   windowDepth: 0.8,    // mm; how deep the window is (window style, relief finish)
+  magnet: "none",           // "none" | "pocket" (open hole in the back) | "hidden" (inside, print pauses)
+  magnetSize: "6x2",        // diameter x thickness, mm
   windowFinish: "relief",   // "relief": icon stands in a recessed window (printed face-up)
                             // "flat": everything flush, nothing to feel by touch (printed face-down)
   lang: "es",
@@ -867,6 +869,55 @@ export function fittingDepth(spec) {
   return { depth: Math.min(spec.depth, max), clamped: spec.depth > max, max };
 }
 
+/** Magnet sizes (diameter x thickness, mm) commonly sold for crafts. */
+export const MAGNET_SIZES = ["5x2", "6x2", "6x3", "8x1", "8x2", "10x1", "10x2", "10x3"];
+const LAYER = 0.2, SHELL = 0.6;                  // print layer; plastic kept around the magnet
+const upLayer = (v) => Math.ceil(v / LAYER - 1e-6) * LAYER;
+const mm2 = (v) => Math.round(v * 100) / 100;
+
+/**
+ * Where the magnet goes, in the centre of the coin.
+ *  "pocket": an open hole in the back; the magnet is glued in after printing.
+ *  "hidden": a sealed cavity inside the coin; the print pauses so the magnet can go in.
+ * Heights snap to the 0.2 mm layers so the pause lands on a layer boundary.
+ * Returns null without a magnet; otherwise the hole (model z, back face at z = 0),
+ * the minimum coin height and, for "hidden", the print height to pause at
+ * (Bambu pauses before printing the layer that ends at that height).
+ */
+export function magnetLayout(spec) {
+  if (!spec.magnet || spec.magnet === "none") return null;
+  const [md, mt] = String(spec.magnetSize || "6x2").split("x").map(Number);
+  const faceUp = printsFaceUp(spec);
+  const front = faceUp ? upLayer(windowDepthFor(spec) + spec.depth) : spec.depth;  // the face needs this much
+  const back = spec.back && spec.back !== "none" ? spec.depth : 0;
+  const hole = upLayer(mt + 0.2);                // 0.2 mm headroom so the nozzle never touches it
+  const radius = (md + 0.3) / 2;                 // 0.3 mm play so it drops in
+  if (spec.magnet === "pocket") {
+    return { kind: "pocket", md, mt, radius, z0: 0, z1: hole, minHeight: mm2(upLayer(hole + SHELL + front)) };
+  }
+  // Print coordinates: z' up from the bed. Face-down prints have the front on the bed.
+  const bottom = faceUp ? back : front, top = faceUp ? front : back;
+  const lo = upLayer(bottom + SHELL);
+  const minHeight = mm2(lo + hole + upLayer(SHELL + top));
+  const H = Math.max(spec.height, minHeight);
+  const hi = H - upLayer(SHELL + top) - hole;    // highest start that keeps the roof
+  const c0 = mm2(Math.max(lo, Math.floor((lo + hi) / 2 / LAYER + 1e-6) * LAYER));
+  const c1 = mm2(c0 + hole);
+  return {
+    kind: "hidden", md, mt, radius, minHeight, pauseZ: mm2(c1 + LAYER),
+    z0: faceUp ? c0 : mm2(H - c1), z1: faceUp ? c1 : mm2(H - c0),
+  };
+}
+
+/** The magnet hole as a solid, cut out of the coin by the slicer (a negative part). */
+function magnetCut(m) {
+  const extra = m.kind === "pocket" ? 0.3 : 0;   // poke through the back face
+  const g = new THREE.CylinderGeometry(m.radius, m.radius, m.z1 - m.z0 + extra, 64);
+  g.rotateX(Math.PI / 2);
+  g.translate(0, 0, (m.z0 - extra + m.z1) / 2);
+  return g;
+}
+
 /** In the window style only a plain rim fits around the window (other frames would float over it). */
 function windowFrame(spec) {
   if (spec.style !== "window" || spec.frame === "none") return spec;
@@ -876,22 +927,36 @@ function windowFrame(spec) {
 
 export function buildToken(lib, role, spec, text) {
   spec = windowFrame({ ...DEFAULT_SPEC, ...spec, colours: { ...DEFAULT_SPEC.colours, ...spec?.colours } });
+  // A magnet may need a thicker coin.
+  const need = magnetLayout(spec)?.minHeight ?? 0;
+  if (spec.height < need) spec = { ...spec, height: need };
   const fit = fittingDepth(spec);
   spec = { ...spec, depth: fit.depth };
   text ??= roleName(role, spec.lang);
+  const magnet = magnetLayout(spec);
+  const extras = {
+    magnet: magnet ? magnetCut(magnet) : null,
+    // Preview only: the open pocket seen from the back.
+    hole: magnet?.kind === "pocket" ? (() => {
+      const g = new THREE.CylinderGeometry(magnet.radius, magnet.radius, 0.01, 64);
+      g.rotateX(Math.PI / 2); g.translate(0, 0, -0.04); return g;
+    })() : null,
+  };
+  const colours = { ...partColours(role, spec), hole: "#0b090c" };
   if (spec.style === "window") {
     const w = buildWindowToken(lib, role, text, spec);
     return {
-      parts: { base: w.base, front: w.front, icon: w.icon || null, frame: buildFrame(spec), back: buildBack(lib, role, text, spec) },
-      colours: partColours(role, spec), name: w.name, spec, depthClamped: fit.clamped ? fit.max : null,
+      parts: { base: w.base, front: w.front, icon: w.icon || null, frame: buildFrame(spec), back: buildBack(lib, role, text, spec), ...extras },
+      colours, name: w.name, spec, magnet, depthClamped: fit.clamped ? fit.max : null,
     };
   }
   const front = buildFront(lib, role, text, spec);
   return {
-    parts: { base: buildBase(spec), front: front.geom, frame: buildFrame(spec), back: buildBack(lib, role, text, spec) },
-    colours: partColours(role, spec),
+    parts: { base: buildBase(spec), front: front.geom, frame: buildFrame(spec), back: buildBack(lib, role, text, spec), ...extras },
+    colours,
     name: front.name,
     spec,
+    magnet,
     depthClamped: fit.clamped ? fit.max : null,
   };
 }
@@ -913,7 +978,7 @@ export function createViewer(canvas, { background = null } = {}) {
   const under = new THREE.DirectionalLight(0xffffff, 1.0); under.position.set(40, 60, -120); scene.add(under);
 
   const meshes = {};
-  for (const name of ["base", "front", "icon", "frame", "back"]) {
+  for (const name of ["base", "front", "icon", "frame", "back", "hole"]) {
     meshes[name] = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshStandardMaterial({ roughness: 0.6, metalness: 0.05 }));
     scene.add(meshes[name]);
   }
@@ -1008,6 +1073,8 @@ export function tokenSvg(lib, role, spec, { side = "front", text } = {}) {
     const designed = backDesign(spec.back, R);
     if (designed) body += `<path fill="${c.back}" fill-rule="nonzero" d="${shapesToPath(designed, 0, 0, 48)}"/>`;
     const ed = spec.back === "edition" ? editionBack(lib, role, spec) : null;
+    const pocket = magnetLayout(spec);
+    if (pocket?.kind === "pocket") body += `<circle r="${pocket.radius.toFixed(2)}" fill="#0b090c" opacity=".85"/>`;
     if (ed) body += `<path fill="${c.back}" fill-rule="evenodd" d="${shapesToPath(ed, 0, 0, 48)}"/>`;
     if (spec.back === "seal" && lib.sealSvg) body += `<g fill="${c.back}" transform="scale(${spec.diameter / TRACE_VIEW}) translate(${-TRACE_VIEW / 2} ${-TRACE_VIEW / 2})">${lib.sealSvg.replace(/^[\s\S]*?<g /, "<g ").replace(/fill="#000000"/, "").replace(/<\/svg>\s*$/, "")}</g>`;
     else if (back && !designed) body += `<text y="1.5" text-anchor="middle" font-size="5" fill="${c.back}" font-family="Dumbledor">${esc(back === "Name" ? label.toUpperCase() : back.toUpperCase())}</text>`;
@@ -1041,9 +1108,14 @@ export function addTokenToZip(zip, token, role, text, { faceDown = true } = {}) 
     dir.file(file, stl(token.parts[part], token.spec, faceDown));
     lines.push(`${file}  filament ${token.colours[part]}`);
   });
+  const m = token.magnet;
+  if (m) dir.file("magnet_cut.stl", stl(token.parts.magnet, token.spec, faceDown && !printsFaceUp(token.spec)));
+  const magnetNote = !m ? "" : m.kind === "pocket"
+    ? `\nmagnet_cut.stl: add it to the object as a NEGATIVE PART. It leaves a ${(m.radius * 2).toFixed(1)} mm hole in the back\nfor a ${m.md}x${m.mt} mm magnet; glue it in after printing.\n`
+    : `\nmagnet_cut.stl: add it to the object as a NEGATIVE PART. It leaves a hidden ${(m.radius * 2).toFixed(1)} mm cavity\nfor a ${m.md}x${m.mt} mm magnet. Add a pause at the layer that ends at ${m.pauseZ} mm,\ndrop the magnet in (a dot of glue keeps it from jumping to the nozzle) and resume.\n`;
   dir.file("README.txt",
     `${text} (${role.en})\nDiameter ${token.spec.diameter} mm, thickness ${token.spec.height} mm${faceDown ? ", face-down" : ""}.\n\n` +
-    `Load all STLs together as ONE object with several parts (Bambu Studio: "Yes" when asked),\nthen give each part its filament:\n\n${lines.join("\n")}\n`);
+    `Load all STLs together as ONE object with several parts (Bambu Studio: "Yes" when asked),\nthen give each part its filament:\n\n${lines.join("\n")}\n${magnetNote}`);
   return name;
 }
 
