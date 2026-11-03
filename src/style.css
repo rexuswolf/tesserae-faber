@@ -44,7 +44,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 /* spine */
 .spine { grid-row: 1; grid-column: 1; background: var(--velvet); border-right: 1px solid var(--seam); display: flex; flex-direction: column; min-height: 0; }
-.spine .brand { font-family: var(--display); font-size: 21px; color: var(--brass); padding: 20px 18px 12px; }
+.spine .brand { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-size: 21px; color: var(--brass); padding: 18px 18px 12px; }
+.brand img { flex: none; }
+.mid { color: var(--bone); }
 #editions { flex: 1; overflow-y: auto; padding: 0 10px; display: flex; flex-direction: column; gap: 4px; }
 .ed { display: grid; grid-template-columns: 58px 1fr; gap: 10px; align-items: center; text-align: left; border: 0; background: none; padding: 8px; border-radius: 12px; cursor: pointer; }
 .ed .logo { width: 58px; height: 44px; display: grid; place-items: center; }
@@ -145,6 +147,12 @@ summary small { font-family: var(--ui); font-size: 12.5px; color: var(--dust); }
 .ws-body .row input[type=range] { grid-column: 1 / -1; accent-color: var(--brass); }
 .choices { display: flex; flex-wrap: wrap; gap: 6px; }
 .choices .pill { font-size: 13px; padding: 5px 11px; }
+[data-choice=back] { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.back-tile { border: 1px solid transparent; background: none; border-radius: 12px; padding: 6px 2px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11.5px; color: var(--dust); text-align: center; line-height: 1.15; }
+.back-tile svg, .upload-tile { width: 56px; height: 56px; }
+.upload-tile { display: grid; place-items: center; border-radius: 50%; border: 1px dashed var(--seam); font-size: 12px; }
+.back-tile:hover { background: rgba(239, 230, 214, .05); }
+.back-tile[aria-pressed=true] { border-color: var(--brass); color: var(--bone); background: rgba(201, 162, 39, .08); }
 .metal { display: flex; gap: 8px; }
 .metal button { width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; }
 .metal button[aria-pressed=true] { border-color: var(--bone); }
@@ -176,7 +184,8 @@ summary small { font-family: var(--ui); font-size: 12.5px; color: var(--dust); }
 /* gate */
 .gate { position: fixed; inset: 0; display: grid; place-items: center; padding: 20px; z-index: 30; background: radial-gradient(120% 90% at 50% 38%, #3b1530 0%, var(--velvet) 45%, var(--velvet-deep) 100%); }
 .gate-card { width: min(460px, 100%); text-align: center; display: flex; flex-direction: column; gap: 14px; align-items: center; }
-.gate .mark { margin: 0; font-family: var(--display); font-size: 22px; color: var(--brass); }
+.gate .mark { margin: 0; font-family: var(--display); font-size: 26px; color: var(--brass); }
+.gate-logo { display: block; }
 .gate h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 44px; line-height: 1.05; text-wrap: balance; }
 .gate p { margin: 0; color: var(--dust); max-width: 46ch; }
 .gate .forge { min-width: 240px; }
@@ -232,3 +241,14 @@ dialog .import { margin-top: 10px; }
 .credits p { margin: 2px 0 0; font-size: 12.5px; color: var(--dust); line-height: 1.6; }
 .credits a { color: var(--dust); }
 .credits a:hover { color: var(--bone); }
+
+/* premade designs */
+.presets { display: grid; gap: 8px; padding-bottom: 10px; border-bottom: 1px solid var(--seam); }
+.presets-title { margin: 0; font-family: var(--display); font-size: 19px; }
+.preset-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.preset { border: 1px solid var(--seam); background: rgba(23, 8, 18, .5); border-radius: 12px; padding: 8px 6px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; font-size: 12.5px; line-height: 1.2; }
+.preset svg { width: 54px; height: 54px; }
+.preset small { color: var(--dust); font-size: 11px; }
+.preset[aria-pressed=true] { border-color: var(--brass); background: rgba(201, 162, 39, .1); }
+@media (max-width: 1180px) { .spine .brand span span { display: inline; } }
+@media (max-width: 900px) { .spine .brand img { width: 24px; height: 24px; } }

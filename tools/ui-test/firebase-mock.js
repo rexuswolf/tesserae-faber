@@ -37,3 +37,13 @@ setTimeout(() => {
 
 // Test-only: #scrollws scrolls the workshop to the bottom
 setTimeout(() => { if (location.hash.includes("scrollws")) document.querySelector("#workshop").scrollTop = 99999; }, 6000);
+
+// Test-only: #preset=marfil applies a design; #showback opens the back section and scrolls to it
+setTimeout(() => {
+  const h = location.hash;
+  const m = h.match(/preset=(\w+)/); if (m) document.querySelector(`[data-preset="${m[1]}"]`)?.click();
+  if (h.includes("showback")) setTimeout(() => {
+    const d = [...document.querySelectorAll(".ws-body details")].find((x) => x.querySelector("[data-choice=back]"));
+    d.open = true; d.scrollIntoView();
+  }, 800);
+}, 5000);

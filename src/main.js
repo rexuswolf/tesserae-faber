@@ -48,6 +48,17 @@ const state = {
 let viewer = null;
 let gateState = null;
 
+/** Premade designs. Applying one replaces the style being edited (set or token). */
+const PRESETS = [
+  { id: "rapida", spec: { style: "classic", frame: "rim", frameWidth: 0.8, back: "none", depth: 0.2,
+    colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } } },
+  { id: "marfil", spec: { style: "classic", frame: "rim", frameWidth: 1.0, back: "guilloche", depth: 0.4,
+    colours: { base: FILAMENTS.white, front: "team", frame: FILAMENTS.bronze, back: FILAMENTS.bronze } } },
+  { id: "legible", spec: { style: "window", windowFinish: "flat", textSize: 6, frame: "none", back: "none", depth: 0.4,
+    colours: { base: FILAMENTS.white, front: "team", frame: "team", back: FILAMENTS.gold } } },
+];
+const presetSpec = (p) => ({ ...structuredClone(DEFAULT_SPEC), ...structuredClone(p.spec) });
+
 function loadJSON(key, fallback) { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } }
 function storeJSON(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* storage unavailable */ } }
 
@@ -281,6 +292,8 @@ function renderWorkshop() {
     $("#styleScope").textContent = state.tab === "set" ? t("ws.scopeSet") : own?.spec ? t("ws.scopeTokenOn") : t("ws.scopeTokenOff");
     const editing = editingSpec();
     $("#styleFields").disabled = !editing;
+    renderPresets(role, editing);
+    renderBackTiles(role, editing ?? state.spec);
     syncControls(editing ?? state.spec);
 
     $("#depthHint").className = "hint" + (token.depthClamped ? " warn" : "");
@@ -294,6 +307,25 @@ function renderWorkshop() {
       : t("name.hint", { arc: n.total.toFixed(0), mm: n.letterHeight.toFixed(1), shrunk: n.scale < 1, small: n.letterHeight < 2.5 });
     $("#nameSummary").textContent = `${n.letterHeight.toFixed(1)} mm`;
   });
+}
+
+/** The back designs as small coin backs, in the colours of the style being edited. */
+function renderBackTiles(role, spec) {
+  const s = { ...DEFAULT_SPEC, ...spec, colours: { ...DEFAULT_SPEC.colours, ...spec.colours }, diameter: 45 };
+  if (s.colours.back === "team") s.colours.back = FILAMENTS.gold;
+  $("[data-choice=back]").innerHTML = BACK_STYLES.filter((b) => b.id !== "seal").map((b) =>
+    `<button class="back-tile" type="button" data-v="${b.id}" aria-pressed="${s.back === b.id}">${
+      b.id === "custom" && !s.customSvg ? `<span class="upload-tile">SVG</span>` : tokenSvg(state.lib, role, { ...s, back: b.id }, { side: "back" })
+    }<span>${esc(t(`back.${b.id}`))}</span></button>`).join("");
+}
+
+/** The premade designs, each previewed with the selected character. */
+function renderPresets(role, editing) {
+  $("#presetsBox").hidden = !editing;
+  if (!editing) return;
+  const same = (p) => Object.entries(p.spec).every(([k, v]) => JSON.stringify(k === "colours" ? { ...DEFAULT_SPEC.colours, ...editing.colours, ...v } : v) === JSON.stringify(k === "colours" ? { ...DEFAULT_SPEC.colours, ...editing.colours } : editing[k] ?? DEFAULT_SPEC[k]));
+  $("#presets").innerHTML = PRESETS.map((p) =>
+    `<button class="preset" type="button" data-preset="${p.id}" aria-pressed="${same(p)}">${tokenSvg(state.lib, role, { ...presetSpec(p), diameter: 45 }, { text: roleName(role, uiLang()) })}<span>${esc(t(`preset.${p.id}`))}</span><small>${esc(t(`preset.${p.id}.help`))}</small></button>`).join("");
 }
 
 /** Puts a spec's values into the style controls. */
@@ -340,9 +372,10 @@ function buildChoices() {
   make("style", TOKEN_STYLES);
   make("windowFinish", [{ id: "relief" }, { id: "flat" }]);
   make("frame", FRAME_STYLES);
-  make("back", BACK_STYLES.filter((s) => s.id !== "seal" || state.lib?.sealSvg));
+  // Backs are drawn as coin tiles by renderBackTiles().
   for (const box of $$(".metal")) {
-    const opts = ["team", "gold", "silver", "bronze", "white"];
+    // The back never takes the team colour: it would show the team from behind.
+    const opts = box.dataset.colour === "back" ? ["gold", "silver", "bronze", "white", "black"] : ["team", "gold", "silver", "bronze", "white", "black"];
     box.innerHTML = opts.map((o) => `<button type="button" class="${o === "team" ? "team" : ""}" data-v="${o === "team" ? "team" : FILAMENTS[o]}" style="${o === "team" ? "" : `background:${FILAMENTS[o]}`}" aria-label="${esc(t(`metal.${o}`))}" title="${esc(t(`metal.${o}`))}"></button>`).join("");
   }
 }
@@ -397,6 +430,11 @@ function wire() {
     changeStyle((s) => { s.customSvg = svg; s.back = "custom"; });
     hint.className = "hint"; hint.textContent = t("upload.using", { file: f.name });
     viewer.setView("back"); syncView("back");
+  };
+  $("#presets").onclick = (e) => {
+    const b = e.target.closest("[data-preset]"); if (!b) return;
+    const next = presetSpec(PRESETS.find((p) => p.id === b.dataset.preset));
+    changeStyle((s) => { for (const k of Object.keys(next)) if (k !== "lang" && k !== "customSvg") s[k] = structuredClone(next[k]); });
   };
   // this token only
   $("#printed").oninput = (e) => {
