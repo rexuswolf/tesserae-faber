@@ -32,3 +32,6 @@ setTimeout(() => {
   }
 }, 4000);
 
+
+// Test-only: #scrollws scrolls the workshop to the bottom
+setTimeout(() => { if (location.hash.includes("scrollws")) document.querySelector("#workshop").scrollTop = 99999; }, 6000);
