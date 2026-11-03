@@ -1,7 +1,8 @@
 rules_version = '2';
 
-// Midnight Mint is invite-only: the role library (which contains The Pandemonium
-// Institute's character artwork) is readable only by invited, signed-in people.
+// Midnight Mint is open to anyone signed in with Google. The character library
+// has no TPI artwork (icons from game-icons.net, CC BY 3.0). The allowlist is kept
+// so the app can go back to invite-only by switching invited() below.
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -15,8 +16,8 @@ service cloud.firestore {
       return signedIn() && email() == 'admin@example.invalid';
     }
     function invited() {
-      return isAdmin()
-        || (signedIn() && exists(/databases/$(database)/documents/allowlist/$(email())));
+      return signedIn();   // open to everyone signed in
+      // Invite-only: return isAdmin() || (signedIn() && exists(/databases/$(database)/documents/allowlist/$(email())));
     }
 
     // One document per invited email address (the document id is the lower-case email).

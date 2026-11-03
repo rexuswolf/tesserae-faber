@@ -55,7 +55,7 @@ const STR = {
     "admin.logosUploaded": ({ n }) => `Subidos ${n} logos. Recargando…`,
     // gate
     "gate.signedOut.title": "Imprime los personajes de tu grimorio",
-    "gate.signedOut.text": "Diseña tokens con forma de moneda para tu grupo, en español o inglés. Gíralos en 3D y descarga los STL para tu impresora. Por ahora, Midnight Mint funciona solo con invitación.",
+    "gate.signedOut.text": "Diseña tokens con forma de moneda para tu grupo, en español o inglés. Gíralos en 3D y descarga los STL o el proyecto para tu impresora. Entra con tu cuenta de Google para empezar.",
     "gate.signIn": "Entrar con Google",
     "gate.signInFailed": ({ message }) => `No se pudo entrar: ${message}`,
     "gate.opening": "Abriendo el grimorio…",
@@ -288,7 +288,7 @@ const STR = {
     "admin.uploadLogos": "Upload edition logos",
     "admin.logosUploaded": ({ n }) => `Uploaded ${n} logos. Reloading…`,
     "gate.signedOut.title": "Print the characters of your grimoire",
-    "gate.signedOut.text": "Design coin tokens for your group in Spanish or English, turn them in 3D and download STLs for your printer. Midnight Mint is invite-only for now.",
+    "gate.signedOut.text": "Design coin tokens for your group in Spanish or English, turn them in 3D and download STLs or a project for your printer. Sign in with your Google account to start.",
     "gate.signIn": "Sign in with Google",
     "gate.signInFailed": ({ message }) => `Sign-in failed: ${message}`,
     "gate.opening": "Opening the grimoire…",

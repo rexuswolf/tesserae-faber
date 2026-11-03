@@ -19,10 +19,13 @@ export const signIn = () => signInWithPopup(auth, new GoogleAuthProvider());
 export const signOutUser = () => signOut(auth);
 export const isAdmin = (user) => user?.email?.toLowerCase() === ADMIN_EMAIL;
 
+/** The app is open to anyone signed in. Set to true to go back to invite-only. */
+export const INVITE_ONLY = false;
+
 /** True when this person may use the app. */
 export async function isInvited(user) {
   if (!user) return false;
-  if (isAdmin(user)) return true;
+  if (isAdmin(user) || !INVITE_ONLY) return true;
   const snap = await getDoc(doc(db, "allowlist", user.email.toLowerCase()));
   return snap.exists();
 }
