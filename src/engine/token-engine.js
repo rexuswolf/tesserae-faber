@@ -43,11 +43,12 @@ export const FRAME_STYLES = [
 
 export const BACK_STYLES = [
   { id: "none", label: "Plain" },
+  { id: "medianoche", label: "Midnight" },
+  { id: "guilloche", label: "Guilloché" },
+  { id: "rosa", label: "Compass rose" },
+  { id: "sol", label: "Sunburst" },
+  { id: "eclipse", label: "Eclipse" },
   { id: "edition", label: "Edition" },
-  { id: "seal", label: "Clocktower seal" },
-  { id: "clock", label: "Clock face" },
-  { id: "rings", label: "Rings" },
-  { id: "name", label: "Role name" },
   { id: "custom", label: "Your SVG" },
 ];
 
@@ -375,6 +376,8 @@ function buildBack(lib, role, text, spec) {
   // The back is seen from below, so mirror X to read correctly when flipped over.
   const mirror = S(-1, 1, 1);
   const shapes = [];
+  const designed = backDesign(spec.back, R);
+  if (designed) return extrude(designed, d, chain(mirror), 24);
   switch (spec.back) {
     case "seal":
       return extrude(lib.seal, d, chain(mirror, tracedMatrix(spec.diameter, 0)));
@@ -586,6 +589,134 @@ function buildFlatWindowToken(lib, role, text, spec) {
   };
 }
 
+// ---------------------------------------------------------------- designed backs
+//
+// The back is the same on every token (so it gives nothing away) and is printed
+// as one colour, so each design is a set of filled shapes. Nothing is thinner
+// than ~0.45 mm, so it prints cleanly with a 0.4 mm nozzle.
+
+const TAU = Math.PI * 2;
+const pt = (r, a) => new THREE.Vector2(r * Math.cos(a), r * Math.sin(a));
+const polygon = (points) => new THREE.Shape(points);
+function disc(r, x = 0, y = 0) { const sh = new THREE.Shape(); sh.absarc(x, y, r, 0, TAU, false); return sh; }
+function annulus(rOut, rIn, x = 0, y = 0) {
+  const sh = disc(rOut, x, y);
+  const hole = new THREE.Path(); hole.absarc(x, y, rIn, 0, TAU, true);
+  sh.holes.push(hole);
+  return sh;
+}
+/** A tapered hand or ray from r0 to r1 at angle a: width w0 at the base, w1 at the tip. */
+function taper(r0, r1, a, w0, w1) {
+  const n = new THREE.Vector2(-Math.sin(a), Math.cos(a));
+  const b = pt(r0, a), t = pt(r1, a);
+  return polygon([b.clone().addScaledVector(n, w0 / 2), t.clone().addScaledVector(n, w1 / 2),
+    t.clone().addScaledVector(n, -w1 / 2), b.clone().addScaledVector(n, -w0 / 2)]);
+}
+/** A four-pointed star (sparkle) with long and short arms. */
+function sparkle(x, y, long, short, rot = 0) {
+  const pts = [];
+  for (let i = 0; i < 8; i++) {
+    const a = rot + (i * TAU) / 8, r = i % 2 ? short : long;
+    pts.push(new THREE.Vector2(x + r * Math.cos(a), y + r * Math.sin(a)));
+  }
+  return polygon(pts);
+}
+/**
+ * A crescent: the disc (cx, cy, r) minus the shadow disc (bx, by, br), as one
+ * outline: the lit part of the moon's edge, then the shadow's edge inside the moon.
+ */
+function crescent(cx, cy, r, bx, by, br, n = 120) {
+  const inShadow = ([x, y]) => Math.hypot(x - bx, y - by) < br;
+  const inMoon = ([x, y]) => Math.hypot(x - cx, y - cy) < r;
+  const ring = (x, y, rr) => Array.from({ length: n }, (_, i) => [x + rr * Math.cos((i * TAU) / n), y + rr * Math.sin((i * TAU) / n)]);
+  const moon = ring(cx, cy, r), shadow = ring(bx, by, br);
+  // Lit arc: start where the moon's edge leaves the shadow and follow it until it re-enters.
+  const k = moon.findIndex((q, i) => !inShadow(q) && inShadow(moon[(i - 1 + n) % n]));
+  if (k < 0) return disc(r, cx, cy);
+  const outer = [];
+  for (let j = 0; j < n && !inShadow(moon[(k + j) % n]); j++) outer.push(moon[(k + j) % n]);
+  // Shadow arc inside the moon, from the end of the lit arc back to its start.
+  const last = outer[outer.length - 1];
+  let m = 0, best = Infinity;
+  shadow.forEach((q, i) => { const dd = Math.hypot(q[0] - last[0], q[1] - last[1]); if (inMoon(q) && dd < best) { best = dd; m = i; } });
+  const walk = (step) => { const out = []; for (let j = 0; j < n; j++) { const q = shadow[(m + step * j + n * n) % n]; if (!inMoon(q)) break; out.push(q); } return out; };
+  const a = walk(-1), b = walk(1);
+  const inner = a.length >= b.length ? a : b;
+  return polygon([...outer, ...inner].map(([x, y]) => new THREE.Vector2(x, y)));
+}
+
+/** A beaded border: n small discs on a circle. */
+const beads = (r, n, size) => Array.from({ length: n }, (_, i) => disc(size, ...pt(r, (i * TAU) / n).toArray()));
+
+/** Filled shapes for a designed back, or null if `id` isn't one of them. */
+export function backDesign(id, R) {
+  const out = R - 0.7;
+  switch (id) {
+    case "medianoche": {
+      // Beaded border, a fine inner ring, weighted hour markers, a small crescent
+      // moon at XII and tapered hands at five to midnight.
+      const sh = [annulus(out, out - 0.55), ...beads(out - 1.45, 64, 0.32), annulus(out - 2.2, out - 2.7)];
+      for (let h = 0; h < 12; h++) {
+        const a = Math.PI / 2 - (h * TAU) / 12;
+        if (h === 0) continue;                                     // XII holds the moon
+        if (h % 3 === 0) sh.push(taper(out - 6.2, out - 3.2, a, 1.5, 0.9));
+        else sh.push(sparkle(...pt(out - 4.1, a).toArray(), 0.9, 0.38, a));
+      }
+      const moonY = out - 5.4;                                    // crescent at XII
+      sh.push(crescent(0, moonY, 2.7, 1.25, moonY + 0.65, 2.3));
+      const minute = Math.PI / 2 + (5 * TAU) / 60, hour = Math.PI / 2 + (0.08 * TAU) / 12;
+      sh.push(taper(-2.6, R * 0.6, minute, 1.8, 0.6), taper(-2.0, R * 0.38, hour, 2.6, 0.9), disc(1.7), annulus(2.7, 2.15));
+      return sh;
+    }
+    case "guilloche": {
+      // Engraved lace: interlocking rings around the centre, framed by a double rim.
+      const sh = [annulus(out, out - 0.6), annulus(out - 1.3, out - 1.8)];
+      const n = 16, c = R * 0.34, r = R * 0.36;
+      for (let i = 0; i < n; i++) sh.push(annulus(r, r - 0.5, ...pt(c, (i * TAU) / n).toArray()));
+      sh.push(annulus(R * 0.2, R * 0.2 - 0.5), disc(1.2));
+      return sh;
+    }
+    case "rosa": {
+      // Sixteen-point compass rose inside a ring of beads.
+      const sh = [annulus(out, out - 0.6), ...beads(out - 1.4, 48, 0.3)];
+      const long = out - 2.6, mid = long * 0.62, short = long * 0.42, inner = 1.6;
+      const star = (n, r, w, rot) => {
+        const pts = [];
+        for (let i = 0; i < n * 2; i++) {
+          const a = rot + (i * Math.PI) / n;
+          pts.push(pt(i % 2 ? inner + w : r, a));
+        }
+        return polygon(pts);
+      };
+      sh.push(star(4, long, 1.6, Math.PI / 2), star(4, mid, 1.2, Math.PI / 2 + Math.PI / 4), star(8, short, 0.6, Math.PI / 2 + Math.PI / 8));
+      sh.push(annulus(long * 0.3, long * 0.3 - 0.5));
+      return sh;
+    }
+    case "sol": {
+      // Art-deco sunburst: alternating long and short rays around a ringed disc.
+      const sh = [annulus(out, out - 0.6)];
+      const n = 32, r0 = R * 0.24, rl = out - 1.4, rs = out - 4.2;
+      for (let i = 0; i < n; i++) {
+        const a = (i * TAU) / n;
+        sh.push(i % 2 ? taper(r0 + 1.2, rs, a, 1.0, 0.45) : taper(r0 + 1.2, rl, a, 1.6, 0.5));
+      }
+      sh.push(annulus(r0, r0 - 0.55), disc(r0 - 1.3));
+      return sh;
+    }
+    case "eclipse": {
+      // A crescent moon with a few stars, inside a fine double rim.
+      const sh = [annulus(out, out - 0.6), annulus(out - 1.2, out - 1.65)];
+      const mr = R * 0.44;
+      sh.push(crescent(-R * 0.06, -R * 0.02, mr, R * 0.1, R * 0.08, mr * 0.9));
+      for (const [x, y, s] of [[0.42, 0.34, 1.0], [0.4, -0.4, 0.7], [0.5, -0.06, 0.55], [-0.08, 0.55, 0.5], [0.3, 0.58, 0.4]])
+        sh.push(sparkle(x * R, y * R, 1.7 * s + 0.4, 0.45 * s + 0.2));
+      return sh;
+    }
+    default:
+      return null;
+  }
+}
+
 function buildBase(spec) {
   const g = new THREE.CylinderGeometry(spec.diameter / 2, spec.diameter / 2, spec.height, 160);
   g.rotateX(Math.PI / 2);
@@ -759,6 +890,8 @@ export function tokenSvg(lib, role, spec, { side = "front", text } = {}) {
     }
   } else {
     const back = { seal: "Seal", clock: "Clock", rings: "Rings", name: "Name", custom: "Custom" }[spec.back];
+    const designed = backDesign(spec.back, R);
+    if (designed) body += `<path fill="${c.back}" fill-rule="nonzero" d="${shapesToPath(designed, 0, 0)}"/>`;
     const L = spec.back === "edition" ? editionLayout(lib, role, spec) : null;
     if (L) {
       body += `<circle r="${R - 1}" fill="none" stroke="${c.back}" stroke-width="0.8"/>`;
@@ -771,7 +904,7 @@ export function tokenSvg(lib, role, spec, { side = "front", text } = {}) {
       body += `<g transform="translate(0 ${(-L.markY).toFixed(3)}) scale(${markEm.toFixed(4)})"><path fill="${c.back}" fill-rule="evenodd" d="${shapesToPath(L.markShapes, -L.markCx, -L.markCy)}"/></g>`;
     }
     if (spec.back === "seal" && lib.sealSvg) body += `<g fill="${c.back}" transform="scale(${spec.diameter / TRACE_VIEW}) translate(${-TRACE_VIEW / 2} ${-TRACE_VIEW / 2})">${lib.sealSvg.replace(/^[\s\S]*?<g /, "<g ").replace(/fill="#000000"/, "").replace(/<\/svg>\s*$/, "")}</g>`;
-    else if (back) body += `<text y="1.5" text-anchor="middle" font-size="5" fill="${c.back}" font-family="Dumbledor">${esc(back === "Name" ? label.toUpperCase() : back.toUpperCase())}</text>`;
+    else if (back && !designed) body += `<text y="1.5" text-anchor="middle" font-size="5" fill="${c.back}" font-family="Dumbledor">${esc(back === "Name" ? label.toUpperCase() : back.toUpperCase())}</text>`;
   }
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${-R - 0.5} ${-R - 0.5} ${spec.diameter + 1} ${spec.diameter + 1}" role="img" aria-label="${esc(label)} token"><circle r="${R}" fill="${c.base}"/>${body}</svg>`;
 }
