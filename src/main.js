@@ -7,6 +7,7 @@ import {
   onUser, signIn, signOutUser, isAdmin, isInvited, loadRoles, uploadRoles, loadSeal, uploadSeal,
   listInvites, addInvite, removeInvite, listDesigns, saveDesign, deleteDesign, ADMIN_EMAIL,
 } from "./firebase.js";
+import { buildBambuProject, planPlates, FILAMENT_SLOTS } from "./bambu/bambu3mf.js";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -20,7 +21,15 @@ const GROUP_LABEL = {
 };
 const MAX_SVG = 300000;
 
+const QUEUE_KEY = "midnight-mint-queue";
+const PLATE_GROUP = { townsfolk: "good", outsider: "good", minion: "evil", demon: "evil", traveller: "traveller", fabled: "fabled", loric: "loric" };
+const PLATE_LABEL = {
+  es: { good: "Bien", evil: "Mal", traveller: "Viajeros", fabled: "Fábulas", loric: "Lóricos" },
+  en: { good: "Good", evil: "Evil", traveller: "Travellers", fabled: "Fabled", loric: "Loric" },
+};
+
 const state = {
+  queue: [], selecting: false, picked: new Set(),
   user: null, lib: null, role: null, custom: null, group: "all", designId: null, designs: [],
   spec: structuredClone(DEFAULT_SPEC),
 };
@@ -93,6 +102,8 @@ function startApp() {
   renderTray();
   render();
   refreshDesigns();
+  loadQueue();
+  renderQueue();
 }
 
 let raf = 0;
@@ -126,9 +137,12 @@ function renderTray() {
   const lang = state.spec.lang;
   const q = $("#search")?.value ?? "";
   $("#teams").innerHTML = TEAM_GROUPS.map(([id]) => `<button class="pill" type="button" data-g="${id}" aria-pressed="${state.group === id}">${GROUP_LABEL[lang][id]}</button>`).join("") +
+    `<button class="pill" type="button" id="selectMode" aria-pressed="${state.selecting}">${lang === "es" ? "Elegir varios" : "Choose several"}</button>` +
     `<input type="search" id="search" placeholder="${lang === "es" ? "Buscar personaje" : "Find a character"}" autocomplete="off" aria-label="${lang === "es" ? "Buscar personaje" : "Find a character"}">`;
   $("#search").value = q;
   $("#search").oninput = renderTokens;
+  $("#selectMode").onclick = () => { state.selecting = !state.selecting; if (!state.selecting) state.picked.clear(); renderTray(); };
+  $("#picker").hidden = !state.selecting;
   renderTokens();
 }
 function renderTokens() {
@@ -137,8 +151,16 @@ function renderTokens() {
   const q = n($("#search").value.trim());
   const thumbSpec = { ...state.spec, diameter: 45, back: "none" };
   const list = state.lib.roles.map((r, i) => [r, i]).filter(([r]) => (!teams || teams.includes(r.team)) && (!q || n(r.en).includes(q) || n(r.es).includes(q)));
-  $("#tokens").innerHTML = list.map(([r, i]) => `<button class="tok" type="button" data-i="${i}" aria-current="${r === state.role}">${tokenSvg(state.lib, r, thumbSpec)}<span>${esc(r[lang])}</span></button>`).join("")
+  state.shown = list.map(([r]) => r);
+  $("#tokens").innerHTML = list.map(([r, i]) => `<button class="tok" type="button" data-i="${i}" aria-current="${r === state.role}" data-picked="${state.picked.has(r.id)}"${state.selecting ? ` aria-pressed="${state.picked.has(r.id)}"` : ""}>${tokenSvg(state.lib, r, thumbSpec)}<span>${esc(r[lang])}</span></button>`).join("")
     || `<p class="hint">${lang === "es" ? "Ningún personaje coincide." : "No character matches."}</p>`;
+  renderPicker();
+}
+function renderPicker() {
+  const n = state.picked.size, es = state.spec.lang === "es";
+  $("#pickCount").textContent = n ? (es ? `${n} elegidos` : `${n} chosen`) : (es ? "Toca los personajes que quieras imprimir" : "Tap the characters you want to print");
+  $("#pickAdd").disabled = !n;
+  $("#pickAdd").textContent = es ? `Añadir ${n || ""} a imprimir`.replace("  ", " ") : `Add ${n || ""} to print`.replace("  ", " ");
 }
 
 function selectRole(role) {
@@ -189,7 +211,33 @@ function wire() {
   $$(".turn .pill").forEach((b) => b.onclick = () => { viewer.setView(b.dataset.view); syncView(b.dataset.view); });
   $$(".langs .pill").forEach((b) => b.onclick = () => setLang(b.dataset.lang));
   $("#teams").onclick = (e) => { const b = e.target.closest("button[data-g]"); if (b) { state.group = b.dataset.g; renderTray(); } };
-  $("#tokens").onclick = (e) => { const b = e.target.closest("button[data-i]"); if (b) selectRole(state.lib.roles[+b.dataset.i]); };
+  $("#tokens").onclick = (e) => {
+    const b = e.target.closest("button[data-i]"); if (!b) return;
+    const role = state.lib.roles[+b.dataset.i];
+    if (state.selecting) {
+      state.picked.has(role.id) ? state.picked.delete(role.id) : state.picked.add(role.id);
+      b.dataset.picked = String(state.picked.has(role.id)); b.setAttribute("aria-pressed", b.dataset.picked);
+      renderPicker();
+    }
+    selectRole(role);
+  };
+  $("#pickAll").onclick = () => { state.shown.forEach((r) => state.picked.add(r.id)); renderTokens(); };
+  $("#pickNone").onclick = () => { state.picked.clear(); renderTokens(); };
+  $("#pickAdd").onclick = () => {
+    const roles = state.lib.roles.filter((r) => state.picked.has(r.id));
+    roles.forEach((r) => addToQueue(r, null));
+    $("#exportNote").textContent = `Added ${roles.length} to the print queue with the current style.`;
+    state.picked.clear(); state.selecting = false; renderTray();
+    $("#queueBox").open = true;
+  };
+  $("#enqueue").onclick = () => { addToQueue(state.role, state.custom); $("#queueBox").open = true; $("#exportNote").textContent = `Added “${printed()}” to the print queue.`; };
+  $("#queue").onclick = (e) => { const b = e.target.closest("[data-unqueue]"); if (b) { state.queue = state.queue.filter((q) => q.key !== b.dataset.unqueue); persistQueue(); renderQueue(); } };
+  $("#queueClear").onclick = (e) => {
+    if (e.target.dataset.confirm !== "1") { e.target.dataset.confirm = "1"; e.target.textContent = "Clear all?"; return; }
+    e.target.dataset.confirm = ""; e.target.textContent = "Clear the queue";
+    state.queue = []; persistQueue(); renderQueue();
+  };
+  $("#bambu").onclick = downloadBambu;
   $("#printed").oninput = (e) => { state.custom = e.target.value; render(); };
   for (const id of Object.keys(RANGES)) $("#" + id).oninput = render;
   $("#signOut").onclick = () => { $(".me").open = false; signOutUser(); };
@@ -209,6 +257,81 @@ async function forge() {
     note.textContent = `Downloaded ${folder}.zip.`;
   } catch (err) {
     note.textContent = `Couldn't build the download: ${err?.message || err}`;
+  } finally { btn.disabled = false; }
+}
+
+// ------------------------------------------------------------ print queue
+
+function loadQueue() {
+  try { state.queue = JSON.parse(localStorage.getItem(QUEUE_KEY) || "[]").filter((q) => state.lib.roles.some((r) => r.id === q.roleId)); }
+  catch { state.queue = []; }
+}
+function persistQueue() {
+  try { localStorage.setItem(QUEUE_KEY, JSON.stringify(state.queue)); } catch { /* storage unavailable: the queue lasts this visit */ }
+}
+function addToQueue(role, text) {
+  state.queue.push({ key: crypto.randomUUID(), roleId: role.id, text, spec: structuredClone(state.spec) });
+  persistQueue();
+  renderQueue();
+}
+const queueTitle = (q, role) => q.text ?? roleName(role, q.spec.lang);
+
+/** Plate plan without building geometry: which parts exist and their colours. */
+function queuePlan() {
+  const items = state.queue.map((q) => {
+    const role = state.lib.roles.find((r) => r.id === q.roleId);
+    const spec = { ...DEFAULT_SPEC, ...q.spec, colours: { ...DEFAULT_SPEC.colours, ...q.spec.colours } };
+    const team = TEAMS[role.team].colour, pick = (v) => (v === "team" ? team : v);
+    const hasBack = spec.back !== "none" && (spec.back !== "custom" || spec.customSvg) && (spec.back !== "seal" || state.lib.sealSvg) && (spec.back !== "edition" || role.edition);
+    return {
+      title: queueTitle(q, role), group: PLATE_LABEL[spec.lang][PLATE_GROUP[role.team]],
+      token: { spec, parts: { base: 1, front: 1, frame: spec.frame !== "none" ? 1 : null, back: hasBack ? 1 : null },
+        colours: { base: pick(spec.colours.base), front: pick(spec.colours.front), frame: pick(spec.colours.frame), back: pick(spec.colours.back) } },
+    };
+  });
+  return planPlates(items);
+}
+
+function renderQueue() {
+  const n = state.queue.length;
+  $("#queueSummary").textContent = n ? String(n) : "";
+  $("#queueClear").hidden = !n;
+  $("#bambu").disabled = !n;
+  $("#queue").innerHTML = state.queue.map((q) => {
+    const role = state.lib.roles.find((r) => r.id === q.roleId);
+    const pic = tokenSvg(state.lib, role, { ...q.spec, diameter: 45 }, { text: queueTitle(q, role) });
+    return `<li><span class="q">${pic}<span>${esc(queueTitle(q, role))}</span></span><button class="del" type="button" data-unqueue="${q.key}" aria-label="Remove ${esc(queueTitle(q, role))}">Remove</button></li>`;
+  }).join("") || `<li class="hint">Add tokens here, then download them all as one Bambu Studio project. Use “Choose several” in the tray to add many at once.</li>`;
+  if (!n) { $("#queuePlan").textContent = ""; return; }
+  try {
+    const plan = queuePlan();
+    const used = [...new Set(plan.plates.flatMap((p) => [...p.slots]))].map((s) => FILAMENT_SLOTS[s].name);
+    $("#queuePlan").className = "hint";
+    $("#queuePlan").textContent = `${plan.plates.length} plate${plan.plates.length > 1 ? "s" : ""} (up to ${plan.capacity} tokens, 4 filaments each). Filaments: ${used.join(", ")}.`;
+  } catch (err) {
+    $("#queuePlan").className = "hint warn";
+    $("#queuePlan").textContent = err.message;
+  }
+}
+
+async function downloadBambu() {
+  const btn = $("#bambu"), out = $("#queuePlan");
+  btn.disabled = true;
+  try {
+    const items = [];
+    for (const [i, q] of state.queue.entries()) {
+      const role = state.lib.roles.find((r) => r.id === q.roleId);
+      out.textContent = `Building ${i + 1} of ${state.queue.length}: ${queueTitle(q, role)}`;
+      await new Promise((r) => setTimeout(r));
+      items.push({ token: buildToken(state.lib, role, q.spec, queueTitle(q, role)), title: queueTitle(q, role), group: PLATE_LABEL[q.spec.lang][PLATE_GROUP[role.team]] });
+    }
+    const { blob, plan, filaments } = await buildBambuProject(items, { onProgress: (d, t) => { out.textContent = `Writing the project: ${d} of ${t}`; } });
+    const name = `midnight-mint-${items.length}-tokens.3mf`;
+    await saveFile(blob, name);
+    out.textContent = `Downloaded ${name}: ${plan.plates.length} plate${plan.plates.length > 1 ? "s" : ""}, filaments ${filaments.map((f) => f.name).join(", ")}. Open it in Bambu Studio and match each filament to an AMS slot.`;
+  } catch (err) {
+    out.className = "hint warn";
+    out.textContent = `Couldn't build the project: ${err.message}`;
   } finally { btn.disabled = false; }
 }
 

@@ -1,0 +1,65 @@
+"""
+Generates src/bambu/a1-template.json: Bambu Studio project settings for a Bambu Lab A1
+(0.4 mm nozzle, 0.20 mm layers, PLA Basic) with one filament per Midnight Mint colour.
+The browser trims it to the filaments a project actually uses.
+
+Run once (needs Bambu Studio installed): python3 tools/make_bambu_template.py <any.stl>
+"""
+import json, os, subprocess, sys, tempfile, zipfile
+
+APP = "/Applications/BambuStudio.app"
+CLI = f"{APP}/Contents/MacOS/BambuStudio"
+PROFILES = f"{APP}/Contents/Resources/profiles/BBL"
+PRINTER, PROCESS, FILAMENT = "Bambu Lab A1 0.4 nozzle", "0.20mm Standard @BBL A1", "Bambu PLA Basic @BBL A1"
+# Must match FILAMENT_SLOTS in src/bambu/bambu3mf.js (order = filament number).
+COLOURS = ["#1d1c21", "#2f86e0", "#b3191e", "#8a3d9e", "#d4a72c", "#3f9651", "#c9a227", "#a7adb4", "#9a6a3a", "#ece9e2"]
+TEMPLATE_META = {"name", "instantiation", "type", "from", "setting_id"}
+
+
+def resolve(kind, name, out_dir):
+    chain, cur = [], name
+    while cur:
+        with open(f"{PROFILES}/{kind}/{cur}.json") as f:
+            p = json.load(f)
+        chain.append(p)
+        cur = p.get("inherits")
+    res = {}
+    for p in reversed(chain):
+        for t in p.get("include", []):
+            with open(f"{PROFILES}/{kind}/{t}.json") as f:
+                res.update({k: v for k, v in json.load(f).items() if k not in TEMPLATE_META})
+        res.update(p)
+    res.pop("include", None)
+    res.update(name=name, inherits="", instantiation="true")
+    path = os.path.join(out_dir, f"{kind}.json")
+    json.dump(res, open(path, "w"))
+    return path
+
+
+def main(stl):
+    n = len(COLOURS)
+    with tempfile.TemporaryDirectory() as tmp:
+        assemble = {"plates": [{"plate_name": "t", "need_arrange": False, "objects": [
+            {"path": os.path.abspath(stl), "count": 1, "filaments": [1], "assemble_index": [1], "pos_x": [128], "pos_y": [128], "pos_z": [0]}]}]}
+        json.dump(assemble, open(f"{tmp}/a.json", "w"))
+        fil = resolve("filament", FILAMENT, tmp)
+        out = f"{tmp}/t.3mf"
+        subprocess.run([CLI, "--load-settings", f"{resolve('machine', PRINTER, tmp)};{resolve('process', PROCESS, tmp)}",
+                        "--load-filaments", ";".join([fil] * n), "--load-assemble-list", f"{tmp}/a.json",
+                        "--export-3mf", "t.3mf", "--outputdir", tmp], check=True, capture_output=True)
+        s = json.loads(zipfile.ZipFile(out).read("Metadata/project_settings.config"))
+    # The CLI sizes these for its own default filament count, which breaks slicing.
+    s["filament_colour"] = COLOURS
+    s["filament_map"] = ["1"] * n
+    s["flush_volumes_vector"] = ["140"] * (2 * n)
+    s["flush_volumes_matrix"] = ["0" if i == j else "400" for i in range(n) for j in range(n)]
+    s["enable_prime_tower"] = "0"
+    s["curr_bed_type"] = "Textured PEI Plate"
+    per_filament = sorted(k for k, v in s.items() if isinstance(v, list) and len(v) == n)
+    os.makedirs("src/bambu", exist_ok=True)
+    json.dump({"filaments": n, "perFilament": per_filament, "settings": s}, open("src/bambu/a1-template.json", "w"), separators=(",", ":"))
+    print(f"wrote src/bambu/a1-template.json: {len(s)} settings, {len(per_filament)} per-filament")
+
+
+if __name__ == "__main__":
+    main(sys.argv[1])

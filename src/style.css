@@ -79,7 +79,9 @@ summary small { font-family: var(--ui); font-size: 13px; color: var(--dust); }
 .saved li > button:first-child:hover { background: rgba(239, 230, 214, .06); }
 .saved svg { width: 36px; height: 36px; flex: none; }
 .saved .del { border: 0; background: none; color: var(--dust); cursor: pointer; font-size: 13px; }
-.actions { display: flex; gap: 8px; margin: 0 22px 10px; }
+.actions { display: flex; gap: 8px; margin: 0 22px 10px; flex-wrap: wrap; }
+.actions .forge { flex-basis: 100%; }
+.actions .pill { flex: 1; }
 .forge { flex: 1; border: 0; border-radius: 999px; padding: 13px 18px; background: var(--brass); color: var(--velvet-deep); font-weight: 600; cursor: pointer; }
 .forge:disabled { opacity: .5; cursor: default; }
 .drawer .note { margin: 0 22px 12px; }
@@ -95,6 +97,12 @@ summary small { font-family: var(--ui); font-size: 13px; color: var(--dust); }
 .tok svg { width: 72px; height: 72px; border-radius: 50%; transition: transform .15s; }
 .tok:hover svg { transform: translateY(-3px); }
 .tok[aria-current=true] svg { box-shadow: 0 0 0 2px var(--brass); }
+.tok { position: relative; }
+.tok[data-picked=true] svg { box-shadow: 0 0 0 3px var(--brass); }
+.tok[data-picked=true]::after { content: "✓"; position: absolute; top: 0; right: 8px; width: 22px; height: 22px; border-radius: 50%; background: var(--brass); color: var(--velvet-deep); font-size: 13px; font-weight: 700; display: grid; place-items: center; }
+.picker { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.picker span { color: var(--dust); font-size: 14px; margin-right: 4px; }
+.picker .forge { flex: none; padding: 8px 18px; }
 .tok span { font-size: 12px; color: var(--dust); text-align: center; line-height: 1.2; }
 .tok[aria-current=true] span { color: var(--bone); }
 
@@ -131,3 +139,7 @@ dialog .file { display: inline-block; margin-top: 10px; }
   .gate h2 { font-size: 34px; }
 }
 @media (prefers-reduced-motion: reduce) { .tok svg { transition: none; } }
+
+/* print queue rows reuse the saved-token list */
+.saved .q { flex: 1; display: flex; align-items: center; gap: 10px; padding: 4px; }
+#queueBox .forge { flex: none; }

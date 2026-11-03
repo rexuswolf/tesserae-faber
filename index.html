@@ -50,6 +50,15 @@
           <ul class="saved" id="saved"></ul>
         </div>
       </details>
+      <details id="queueBox">
+        <summary>Print queue <small id="queueSummary"></small></summary>
+        <div class="rows">
+          <ul class="saved" id="queue"></ul>
+          <p class="hint" id="queuePlan"></p>
+          <button class="forge" id="bambu" type="button" disabled>Download for Bambu A1</button>
+          <button class="pill" id="queueClear" type="button" hidden>Clear the queue</button>
+        </div>
+      </details>
       <details open>
         <summary>Name <small id="nameSummary"></small></summary>
         <div class="rows">
@@ -89,6 +98,7 @@
     </div>
     <div class="actions">
       <button class="forge" id="download" type="button">Forge this token</button>
+      <button class="pill" id="enqueue" type="button">Add to print</button>
       <button class="pill" id="save" type="button">Save</button>
     </div>
     <p class="hint note" id="exportNote">Downloads the STLs, face-down and ready for Bambu Studio.</p>
@@ -100,6 +110,12 @@
 
   <section class="tray" aria-label="Characters">
     <div class="teams" id="teams"></div>
+    <div class="picker" id="picker" hidden>
+      <span id="pickCount"></span>
+      <button class="pill" type="button" id="pickAll">Select all shown</button>
+      <button class="pill" type="button" id="pickNone">Clear selection</button>
+      <button class="forge" type="button" id="pickAdd" disabled>Add to print</button>
+    </div>
     <div class="tokens" id="tokens"></div>
   </section>
 </div>
