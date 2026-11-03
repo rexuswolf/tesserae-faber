@@ -75,6 +75,7 @@ export const DEFAULT_SPEC = {
   height: 2,
   depth: 0.2,
   iconScale: 1,
+  iconOffsetY: 0,      // mm; raises the icon (reminder tokens make room for their word)
   textSize: 4,
   spacing: 1.1,
   margin: 2,
@@ -85,6 +86,24 @@ export const DEFAULT_SPEC = {
   customSvg: null,
   colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold },
 };
+
+/**
+ * A reminder token's spec, derived from the character style: smaller coin,
+ * smaller raised icon, the reminder word along the bottom, plain back.
+ */
+export function reminderSpec(spec) {
+  return {
+    ...spec,
+    diameter: spec.reminderDiameter ?? 32,
+    textSize: 3,
+    iconScale: 0.68,
+    iconOffsetY: 3,
+    margin: 1.5,
+    maxArc: 240,
+    frameWidth: Math.min(spec.frameWidth ?? 0.8, 0.6),
+    back: "none",
+  };
+}
 
 // ---------------------------------------------------------------- loading
 
@@ -282,14 +301,14 @@ function iconShapes(lib, role) {
 }
 
 /** Matrix placing traced-SVG shapes (y down, 0..127.56) centred on the coin. */
-function tracedMatrix(sizeMm, z, mirrorX = false) {
+function tracedMatrix(sizeMm, z, mirrorX = false, offsetY = 0) {
   const k = sizeMm / TRACE_VIEW;
-  return chain(T(0, 0, z), S(mirrorX ? -1 : 1, 1, 1), S(k, -k, 1), T(-TRACE_VIEW / 2, -TRACE_VIEW / 2, 0));
+  return chain(T(0, offsetY, z), S(mirrorX ? -1 : 1, 1, 1), S(k, -k, 1), T(-TRACE_VIEW / 2, -TRACE_VIEW / 2, 0));
 }
 
 function buildFront(lib, role, text, spec) {
   const top = spec.height - spec.depth;
-  const icon = extrude(iconShapes(lib, role), spec.depth, tracedMatrix(spec.diameter * spec.iconScale, top));
+  const icon = extrude(iconShapes(lib, role), spec.depth, tracedMatrix(spec.diameter * spec.iconScale, top, false, spec.iconOffsetY || 0));
   const L = layoutName(lib, text, spec);
   const letters = L.chars.map((c, i) => {
     if (c === " ") return null;
@@ -501,7 +520,7 @@ export function tokenSvg(lib, role, spec, { side = "front", text } = {}) {
   const k = spec.diameter * spec.iconScale / TRACE_VIEW;
   let body = "";
   if (side === "front") {
-    body += `<g fill="${c.front}" transform="scale(${k}) translate(${-TRACE_VIEW / 2} ${-TRACE_VIEW / 2})"><g transform="${role.g}">${role.d.map((d) => `<path d="${d}"/>`).join("")}</g></g>`;
+    body += `<g fill="${c.front}" transform="translate(0 ${-(spec.iconOffsetY || 0)}) scale(${k}) translate(${-TRACE_VIEW / 2} ${-TRACE_VIEW / 2})"><g transform="${role.g}">${role.d.map((d) => `<path d="${d}"/>`).join("")}</g></g>`;
     const L = layoutName(lib, label, spec);
     // SVG y points down: angle a in engine space is -a on screen.
     L.chars.forEach((ch, i) => {

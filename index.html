@@ -61,6 +61,7 @@
             <textarea class="text" id="scriptText" rows="4" placeholder='[{"id":"_meta","name":"…"},"washerwoman","librarian",…]' aria-label="Script JSON"></textarea>
             <button class="pill" type="button" id="pasteImport">Import</button>
           </div>
+          <label class="check"><input type="checkbox" id="withReminders"> Include reminder tokens when adding characters</label>
           <p class="hint" id="importNote">Use the JSON from the official Script Tool. Every character is added with the current style.</p>
           <ul class="saved" id="queue"></ul>
           <p class="hint" id="queuePlan"></p>
@@ -76,6 +77,14 @@
           <div class="row"><label for="textSize">Letter height</label><output data-for="textSize"></output><input type="range" id="textSize" min="2" max="6" step="0.1" value="4"></div>
           <div class="row"><label for="spacing">Spacing</label><output data-for="spacing"></output><input type="range" id="spacing" min="0.8" max="2" step="0.05" value="1.1"></div>
           <div class="row"><label for="maxArc">Longest arc</label><output data-for="maxArc"></output><input type="range" id="maxArc" min="90" max="240" step="5" value="180"></div>
+        </div>
+      </details>
+      <details id="remindersBox">
+        <summary>Reminders <small id="remindersSummary"></small></summary>
+        <div class="rows">
+          <div class="choices" id="reminderChips"></div>
+          <p class="hint" id="reminderHint"></p>
+          <button class="pill" type="button" id="addReminders">Add these reminders to print</button>
         </div>
       </details>
       <details>

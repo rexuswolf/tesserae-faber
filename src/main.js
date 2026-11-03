@@ -1,6 +1,6 @@
 import JSZip from "jszip";
 import {
-  loadLibrary, buildToken, createViewer, tokenSvg, roleName, addTokenToZip, saveFile,
+  loadLibrary, buildToken, createViewer, tokenSvg, roleName, addTokenToZip, saveFile, reminderSpec, layoutName,
   TEAMS, EDITIONS, FRAME_STYLES, BACK_STYLES, FILAMENTS, DEFAULT_SPEC,
 } from "./engine/token-engine.js";
 import {
@@ -29,7 +29,7 @@ const PLATE_LABEL = {
 };
 
 const state = {
-  queue: [], selecting: false, picked: new Set(),
+  queue: [], selecting: false, picked: new Set(), preview: null,
   user: null, lib: null, role: null, custom: null, group: "all", designId: null, designs: [],
   spec: structuredClone(DEFAULT_SPEC),
 };
@@ -115,7 +115,8 @@ function render() {
     if (!state.lib || !state.role) return;
     const token = buildToken(state.lib, state.role, state.spec, printed());
     state.token = token;
-    viewer.setToken(token);
+    viewer.setToken(state.preview != null ? buildToken(state.lib, state.role, reminderSpec(state.spec), state.preview) : token);
+    renderReminders();
     const lang = state.spec.lang;
     $("#ghost").textContent = printed();
     $("#name").textContent = printed() || " ";
@@ -163,8 +164,27 @@ function renderPicker() {
   $("#pickAdd").textContent = es ? `Añadir ${n || ""} a imprimir`.replace("  ", " ") : `Add ${n || ""} to print`.replace("  ", " ");
 }
 
+/** The character's reminder tokens (in the token language). */
+const remindersOf = (role, lang = state.spec.lang) => role.reminders?.[lang] || role.reminders?.en || [];
+
+function renderReminders() {
+  const list = remindersOf(state.role), es = state.spec.lang === "es";
+  $("#remindersSummary").textContent = list.length ? String(list.length) : (es ? "ninguno" : "none");
+  $("#reminderChips").innerHTML = list.map((r, i) => `<button class="pill" type="button" data-r="${i}" aria-pressed="${state.preview === r}">${esc(r)}</button>`).join("");
+  $("#addReminders").hidden = !list.length;
+  if (!list.length) { $("#reminderHint").textContent = es ? "Este personaje no usa recordatorios." : "This character has no reminder tokens."; return; }
+  const sample = buildTokenInfo(list.reduce((a, b) => (b.length > a.length ? b : a)));
+  $("#reminderHint").className = "hint" + (sample.letterHeight < 2 ? " warn" : "");
+  $("#reminderHint").textContent = (state.preview != null ? (es ? "Vista previa del recordatorio. Tócalo otra vez para volver al personaje. " : "Previewing the reminder. Tap it again to go back to the character. ") : (es ? "Toca uno para verlo. " : "Tap one to preview it. ")) +
+    `${reminderSpec(state.spec).diameter} mm` + (sample.letterHeight < 2 ? (es ? `; el más largo queda a ${sample.letterHeight.toFixed(1)} mm, pequeño para imprimir.` : `; the longest ends up ${sample.letterHeight.toFixed(1)} mm tall, small to print.`) : ".");
+}
+/** Letter layout only (cheap): how big the reminder word ends up. */
+function buildTokenInfo(text) {
+  return layoutName(state.lib, text, { ...DEFAULT_SPEC, ...reminderSpec(state.spec) });
+}
+
 function selectRole(role) {
-  state.role = role; state.custom = null; state.designId = null;
+  state.role = role; state.custom = null; state.designId = null; state.preview = null;
   $("#printed").value = printed();
   $$("#tokens .tok").forEach((t) => t.setAttribute("aria-current", String(state.lib.roles[+t.dataset.i] === role)));
   render();
@@ -173,7 +193,7 @@ function selectRole(role) {
 function setLang(lang) {
   state.spec.lang = lang; document.documentElement.lang = lang;
   $$(".langs .pill").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.lang === lang)));
-  state.custom = null; $("#printed").value = printed(); renderTray(); render();
+  state.custom = null; state.preview = null; $("#printed").value = printed(); renderTray(); render();
 }
 
 function syncView(v) { $$(".turn .pill").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.view === v))); }
@@ -225,12 +245,28 @@ function wire() {
   $("#pickNone").onclick = () => { state.picked.clear(); renderTokens(); };
   $("#pickAdd").onclick = () => {
     const roles = state.lib.roles.filter((r) => state.picked.has(r.id));
-    roles.forEach((r) => addToQueue(r, null));
-    $("#exportNote").textContent = `Added ${roles.length} to the print queue with the current style.`;
+    const extra = roles.reduce((n, r) => n + addCharacter(r, null), 0);
+    $("#exportNote").textContent = `Added ${roles.length} to the print queue${extra ? ` with ${extra} reminders` : ""}, in the current style.`;
     state.picked.clear(); state.selecting = false; renderTray();
     $("#queueBox").open = true;
   };
-  $("#enqueue").onclick = () => { addToQueue(state.role, state.custom); $("#queueBox").open = true; $("#exportNote").textContent = `Added “${printed()}” to the print queue.`; };
+  $("#enqueue").onclick = () => {
+    const n = addCharacter(state.role, state.custom);
+    $("#queueBox").open = true;
+    $("#exportNote").textContent = `Added “${printed()}”${n ? ` and ${n} reminder${n > 1 ? "s" : ""}` : ""} to the print queue.`;
+  };
+  $("#reminderChips").onclick = (e) => {
+    const b = e.target.closest("[data-r]"); if (!b) return;
+    const r = remindersOf(state.role)[+b.dataset.r];
+    state.preview = state.preview === r ? null : r;
+    viewer.setView("top"); syncView("top"); render();
+  };
+  $("#addReminders").onclick = () => {
+    const list = remindersOf(state.role);
+    list.forEach((r) => addToQueue(state.role, null, r));
+    $("#queueBox").open = true;
+    $("#exportNote").textContent = `Added ${list.length} reminder${list.length > 1 ? "s" : ""} for “${printed()}” to the print queue.`;
+  };
   $("#queue").onclick = (e) => { const b = e.target.closest("[data-unqueue]"); if (b) { state.queue = state.queue.filter((q) => q.key !== b.dataset.unqueue); persistQueue(); renderQueue(); } };
   $("#queueClear").onclick = (e) => {
     if (e.target.dataset.confirm !== "1") { e.target.dataset.confirm = "1"; e.target.textContent = "Clear all?"; return; }
@@ -272,22 +308,38 @@ function loadQueue() {
 function persistQueue() {
   try { localStorage.setItem(QUEUE_KEY, JSON.stringify(state.queue)); } catch { /* storage unavailable: the queue lasts this visit */ }
 }
-function addToQueue(role, text) {
-  state.queue.push({ key: crypto.randomUUID(), roleId: role.id, text, spec: structuredClone(state.spec) });
+/** Queues a token; `reminder` makes it that character's reminder token. */
+function addToQueue(role, text, reminder = null) {
+  state.queue.push({ key: crypto.randomUUID(), roleId: role.id, text, reminder, spec: structuredClone(state.spec) });
   persistQueue();
   renderQueue();
 }
-const queueTitle = (q, role) => q.text ?? roleName(role, q.spec.lang);
+/** Queues a character and, if "Include reminder tokens" is ticked, its reminders. Returns how many reminders. */
+function addCharacter(role, text) {
+  addToQueue(role, text);
+  if (!$("#withReminders").checked) return 0;
+  const list = remindersOf(role);
+  list.forEach((r) => addToQueue(role, null, r));
+  return list.length;
+}
+const isReminder = (q) => q.reminder != null;
+const itemSpec = (q) => (isReminder(q) ? reminderSpec(q.spec) : q.spec);
+/** Text printed on the token. */
+const queueTitle = (q, role) => (isReminder(q) ? q.reminder : q.text ?? roleName(role, q.spec.lang));
+/** Name in lists and in Bambu Studio. */
+const queueLabel = (q, role) => (isReminder(q) ? `${roleName(role, q.spec.lang)}: ${q.reminder}` : queueTitle(q, role));
+const queueGroup = (q, role) => PLATE_LABEL[q.spec.lang][PLATE_GROUP[role.team]] + (isReminder(q) ? (q.spec.lang === "es" ? " · recordatorios" : " reminders") : "");
 
 /** Plate plan without building geometry: which parts exist and their colours. */
 function queuePlan() {
   const items = state.queue.map((q) => {
     const role = state.lib.roles.find((r) => r.id === q.roleId);
-    const spec = { ...DEFAULT_SPEC, ...q.spec, colours: { ...DEFAULT_SPEC.colours, ...q.spec.colours } };
+    const base = itemSpec(q);
+    const spec = { ...DEFAULT_SPEC, ...base, colours: { ...DEFAULT_SPEC.colours, ...base.colours } };
     const team = TEAMS[role.team].colour, pick = (v) => (v === "team" ? team : v);
     const hasBack = spec.back !== "none" && (spec.back !== "custom" || spec.customSvg) && (spec.back !== "seal" || state.lib.sealSvg) && (spec.back !== "edition" || role.edition);
     return {
-      title: queueTitle(q, role), group: PLATE_LABEL[spec.lang][PLATE_GROUP[role.team]],
+      title: queueLabel(q, role), group: queueGroup(q, role),
       token: { spec, parts: { base: 1, front: 1, frame: spec.frame !== "none" ? 1 : null, back: hasBack ? 1 : null },
         colours: { base: pick(spec.colours.base), front: pick(spec.colours.front), frame: pick(spec.colours.frame), back: pick(spec.colours.back) } },
     };
@@ -302,15 +354,15 @@ function renderQueue() {
   $("#bambu").disabled = !n;
   $("#queue").innerHTML = state.queue.map((q) => {
     const role = state.lib.roles.find((r) => r.id === q.roleId);
-    const pic = tokenSvg(state.lib, role, { ...q.spec, diameter: 45 }, { text: queueTitle(q, role) });
-    return `<li><span class="q">${pic}<span>${esc(queueTitle(q, role))}</span></span><button class="del" type="button" data-unqueue="${q.key}" aria-label="Remove ${esc(queueTitle(q, role))}">Remove</button></li>`;
+    const pic = tokenSvg(state.lib, role, itemSpec(q), { text: queueTitle(q, role) });
+    return `<li><span class="q">${pic}<span>${esc(queueLabel(q, role))}</span></span><button class="del" type="button" data-unqueue="${q.key}" aria-label="Remove ${esc(queueLabel(q, role))}">Remove</button></li>`;
   }).join("") || `<li class="hint">Add tokens here, then download them all as one Bambu Studio project. Use “Choose several” in the tray to add many at once.</li>`;
   if (!n) { $("#queuePlan").textContent = ""; return; }
   try {
     const plan = queuePlan();
     const used = [...new Set(plan.plates.flatMap((p) => [...p.slots]))].map((s) => FILAMENT_SLOTS[s].name);
     $("#queuePlan").className = "hint";
-    $("#queuePlan").textContent = `${plan.plates.length} plate${plan.plates.length > 1 ? "s" : ""} (up to ${plan.capacity} tokens, 4 filaments each). Filaments: ${used.join(", ")}.`;
+    $("#queuePlan").textContent = `${plan.plates.length} plate${plan.plates.length > 1 ? "s" : ""}: ${plan.plates.map((p) => `${p.name} (${p.items.length})`).join(", ")}. Filaments: ${used.join(", ")}.`;
   } catch (err) {
     $("#queuePlan").className = "hint warn";
     $("#queuePlan").textContent = err.message;
@@ -324,9 +376,9 @@ async function downloadBambu() {
     const items = [];
     for (const [i, q] of state.queue.entries()) {
       const role = state.lib.roles.find((r) => r.id === q.roleId);
-      out.textContent = `Building ${i + 1} of ${state.queue.length}: ${queueTitle(q, role)}`;
+      out.textContent = `Building ${i + 1} of ${state.queue.length}: ${queueLabel(q, role)}`;
       await new Promise((r) => setTimeout(r));
-      items.push({ token: buildToken(state.lib, role, q.spec, queueTitle(q, role)), title: queueTitle(q, role), group: PLATE_LABEL[q.spec.lang][PLATE_GROUP[role.team]] });
+      items.push({ token: buildToken(state.lib, role, itemSpec(q), queueTitle(q, role)), title: queueLabel(q, role), group: queueGroup(q, role) });
     }
     const { blob, plan, filaments } = await buildBambuProject(items, { onProgress: (d, t) => { out.textContent = `Writing the project: ${d} of ${t}`; } });
     const name = `midnight-mint-${items.length}-tokens.3mf`;
@@ -371,9 +423,9 @@ function importScript(text) {
   const note = $("#importNote");
   try {
     const { name, roles, skipped } = parseScript(text);
-    roles.forEach((r) => addToQueue(r, null));
+    const extra = roles.reduce((n, r) => n + addCharacter(r, null), 0);
     note.className = "hint";
-    note.textContent = `Added ${roles.length} characters${name ? ` from “${name}”` : ""}.` +
+    note.textContent = `Added ${roles.length} characters${extra ? ` and ${extra} reminders` : ""}${name ? ` from “${name}”` : ""}.` +
       (skipped.length ? ` Skipped ${skipped.length} not in the library (homebrew?): ${skipped.slice(0, 6).join(", ")}${skipped.length > 6 ? "…" : ""}.` : "");
     $("#pasteBox").hidden = true; $("#pasteToggle").setAttribute("aria-expanded", "false"); $("#scriptText").value = "";
   } catch (err) {

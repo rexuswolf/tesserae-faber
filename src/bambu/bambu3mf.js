@@ -40,13 +40,30 @@ function tokenSlots(token) {
 /** Tokens per row on a plate for this diameter. */
 const perRowFor = (diameter) => Math.max(1, Math.floor((BED - 2 * MARGIN + GAP) / (diameter + GAP)));
 
+// Deepest prime tower measured (4 filaments, A1 settings): about 35 mm plus brim.
+const TOWER_DEPTH = 40;
+
 /**
- * How many tokens of this diameter fit on one plate. The last grid slot
- * (bottom-right) is kept free for the prime tower.
+ * Grid positions (mm, plate coordinates) for tokens of this diameter, filling
+ * rows from the top-left. The bottom of the last column is kept free for the
+ * prime tower: as many slots as its depth needs (1 for 45 mm, 2 for 32 mm).
  */
+function slotsFor(diameter) {
+  const n = perRowFor(diameter), pitch = diameter + GAP, first = MARGIN + diameter / 2;
+  const reserved = Math.min(n, Math.ceil((TOWER_DEPTH + 2 - MARGIN + GAP) / pitch));
+  const out = [];
+  for (let row = 0; row < n; row++) {
+    for (let col = 0; col < n; col++) {
+      if (col === n - 1 && row >= n - reserved) continue;
+      out.push({ x: first + col * pitch, y: BED - first - row * pitch });
+    }
+  }
+  return out.length ? out : [{ x: BED / 2, y: BED / 2 }];
+}
+
+/** How many tokens of this diameter fit on one plate (leaving room for the tower). */
 export function perPlate(diameter) {
-  const n = perRowFor(diameter);
-  return Math.max(1, n * n - 1);
+  return slotsFor(diameter).length;
 }
 
 /**
@@ -56,26 +73,27 @@ export function perPlate(diameter) {
  * @param items [{token, title, group}] group is a label such as "Good".
  */
 export function planPlates(items) {
-  const diameter = Math.max(...items.map((i) => i.token.spec.diameter));
-  const capacity = perPlate(diameter);
   const groups = [];
   for (const it of items) if (!groups.includes(it.group)) groups.push(it.group);
   const plates = [];
   for (const group of groups) {
+    // Each group has its own grid: reminder tokens are smaller, so more fit per plate.
+    const diameter = Math.max(...items.filter((it) => it.group === group).map((it) => it.token.spec.diameter));
+    const capacity = perPlate(diameter);
     const members = items.filter((it) => it.group === group).map((it) => ({ ...it, slots: tokenSlots(it.token) }))
       .sort((a, b) => [...a.slots].sort().join().localeCompare([...b.slots].sort().join()) || a.title.localeCompare(b.title));
     const mine = [];
     for (const it of members) {
       if (it.slots.size > AMS_SLOTS) throw new Error(`${it.title} needs ${it.slots.size} filaments; the AMS lite holds ${AMS_SLOTS}`);
       let plate = mine.find((p) => p.items.length < capacity && new Set([...p.slots, ...it.slots]).size <= AMS_SLOTS);
-      if (!plate) { plate = { group, items: [], slots: new Set() }; mine.push(plate); }
+      if (!plate) { plate = { group, diameter, capacity, items: [], slots: new Set() }; mine.push(plate); }
       plate.items.push(it);
       it.slots.forEach((sl) => plate.slots.add(sl));
     }
     mine.forEach((p, i) => { p.name = mine.length > 1 ? `${group} ${i + 1}` : group; });
     plates.push(...mine);
   }
-  return { plates, capacity, diameter };
+  return { plates };
 }
 
 /** Where the prime tower goes on every plate: the free bottom-right slot. */
@@ -121,7 +139,7 @@ const XML = `<?xml version="1.0" encoding="UTF-8"?>\n`;
 
 // ------------------------------------------------------------ settings
 
-function projectSettings(used, plateCount, diameter) {
+function projectSettings(used, plates) {
   const s = structuredClone(template.settings);
   for (const key of template.perFilament) s[key] = used.map((slot) => template.settings[key][slot]);
   const n = used.length;
@@ -132,11 +150,11 @@ function projectSettings(used, plateCount, diameter) {
   // Bambu Studio may switch the prime tower on when it loads your presets, so plan
   // for it: a small tower in the slot we keep free on every plate. On the A1 most
   // purging goes down the waste chute; the tower only takes prime_volume per change.
-  const spot = towerSpot(diameter);
+  const spots = plates.map((p) => towerSpot(p.diameter));
   s.enable_prime_tower = "1";
   s.prime_tower_width = "35";
-  s.wipe_tower_x = Array(plateCount).fill(spot.x.toFixed(1));
-  s.wipe_tower_y = Array(plateCount).fill(spot.y.toFixed(1));
+  s.wipe_tower_x = spots.map((t) => t.x.toFixed(1));
+  s.wipe_tower_y = spots.map((t) => t.y.toFixed(1));
   return s;
 }
 
@@ -152,9 +170,6 @@ export async function buildBambuProject(items, { faceDown = true, onProgress = (
   const usedSlots = [...new Set(plan.plates.flatMap((p) => [...p.slots]))].sort((a, b) => a - b);
   const extruder = (slot) => usedSlots.indexOf(slot) + 1;
   const cols = Math.ceil(Math.sqrt(plan.plates.length));
-  const pitch = plan.diameter + GAP;
-  const perRow = perRowFor(plan.diameter);
-  const first = MARGIN + plan.diameter / 2;
 
   const zip = new JSZip();
   let nextId = 1, identify = 100;
@@ -163,9 +178,10 @@ export async function buildBambuProject(items, { faceDown = true, onProgress = (
 
   for (const [pi, plate] of plan.plates.entries()) {
     const px = (pi % cols) * PLATE_STRIDE, py = -Math.floor(pi / cols) * PLATE_STRIDE;
+    const slots = slotsFor(plate.diameter);
     const instances = [];
     for (const [ti, it] of plate.items.entries()) {
-      const x = first + (ti % perRow) * pitch, y = BED - first - Math.floor(ti / perRow) * pitch;
+      const { x, y } = slots[ti];
       const { token } = it;
       const file = `/3D/Objects/token_${pi + 1}_${ti + 1}.model`;
       const partXml = [], components = [], partsCfg = [];
@@ -238,7 +254,7 @@ ${rels.map((r, i) => ` <Relationship Target="${r}" Id="rel-${i + 1}" Type="http:
 ${objectsCfg.join("\n")}
 ${platesCfg.join("\n")}
 </config>`);
-  zip.file("Metadata/project_settings.config", JSON.stringify(projectSettings(usedSlots, plan.plates.length, plan.diameter), null, 4));
+  zip.file("Metadata/project_settings.config", JSON.stringify(projectSettings(usedSlots, plan.plates), null, 4));
   zip.file("Metadata/slice_info.config", `${XML}<config>
   <header>
     <header_item key="X-BBL-Client-Type" value="slicer"/>
