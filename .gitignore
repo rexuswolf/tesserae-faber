@@ -1,0 +1,8 @@
+node_modules
+dist
+.firebase
+*.log
+.DS_Store
+# The role library holds The Pandemonium Institute's artwork: it lives in
+# Firestore (invite-only), never in the public site or the repo.
+admin-data/

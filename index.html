@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Midnight Mint</title>
+<meta name="description" content="Design 3D-printable character tokens for your Blood on the Clocktower group. A free, community-made tool.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%232a0f20' stroke='%23c9a227' stroke-width='2'/%3E%3Cpath d='M16 6v10l5 4' stroke='%23efe6d6' stroke-width='2.4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gloock&family=Instrument+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+<div class="table" id="app" hidden>
+  <main class="stage">
+    <div class="brand">Midnight Mint</div>
+    <div class="title" id="ghost" aria-hidden="true"></div>
+    <canvas id="view" aria-label="The token in 3D. Drag to turn it."></canvas>
+    <div class="caption">
+      <h1 id="name">&nbsp;</h1>
+      <p id="sub"></p>
+    </div>
+    <div class="turn" role="group" aria-label="View">
+      <button class="pill" type="button" data-view="angle" aria-pressed="true">Angle</button>
+      <button class="pill" type="button" data-view="top" aria-pressed="false">Front</button>
+      <button class="pill" type="button" data-view="back" aria-pressed="false">Back</button>
+    </div>
+  </main>
+
+  <aside class="drawer">
+    <div class="head">
+      <div class="langs" role="group" aria-label="Language on the token">
+        <button class="pill" type="button" data-lang="es" aria-pressed="true">Español</button>
+        <button class="pill" type="button" data-lang="en" aria-pressed="false">English</button>
+      </div>
+      <details class="me">
+        <summary aria-label="Your account"><img id="avatar" alt="" referrerpolicy="no-referrer"></summary>
+        <div class="menu">
+          <p id="meEmail"></p>
+          <button type="button" id="openAdmin" hidden>Library and invites</button>
+          <button type="button" id="signOut">Sign out</button>
+        </div>
+      </details>
+    </div>
+    <div class="body">
+      <details>
+        <summary>My tokens <small id="savedSummary"></small></summary>
+        <div class="rows">
+          <ul class="saved" id="saved"></ul>
+        </div>
+      </details>
+      <details open>
+        <summary>Name <small id="nameSummary"></small></summary>
+        <div class="rows">
+          <input class="text" type="text" id="printed" aria-label="Name on the token" autocomplete="off">
+          <p class="hint" id="nameHint"></p>
+          <div class="row"><label for="textSize">Letter height</label><output data-for="textSize"></output><input type="range" id="textSize" min="2" max="6" step="0.1" value="4"></div>
+          <div class="row"><label for="spacing">Spacing</label><output data-for="spacing"></output><input type="range" id="spacing" min="0.8" max="2" step="0.05" value="1.1"></div>
+          <div class="row"><label for="maxArc">Longest arc</label><output data-for="maxArc"></output><input type="range" id="maxArc" min="90" max="240" step="5" value="180"></div>
+        </div>
+      </details>
+      <details>
+        <summary>Frame <small id="frameSummary"></small></summary>
+        <div class="rows">
+          <div class="choices" data-choice="frame"></div>
+          <div class="row"><label for="frameWidth">Width</label><output data-for="frameWidth"></output><input type="range" id="frameWidth" min="0.4" max="2" step="0.1" value="0.8"></div>
+          <div class="metal" data-colour="frame" aria-label="Frame filament"></div>
+        </div>
+      </details>
+      <details>
+        <summary>Back <small id="backSummary"></small></summary>
+        <div class="rows">
+          <div class="choices" data-choice="back"></div>
+          <input type="file" id="upload" accept=".svg,image/svg+xml" hidden aria-label="Your SVG pattern">
+          <p class="hint" id="uploadHint" hidden></p>
+          <div class="metal" data-colour="back" aria-label="Back filament"></div>
+        </div>
+      </details>
+      <details>
+        <summary>Coin <small id="coinSummary"></small></summary>
+        <div class="rows">
+          <div class="row"><label for="diameter">Diameter</label><output data-for="diameter"></output><input type="range" id="diameter" min="30" max="60" step="1" value="45"></div>
+          <div class="row"><label for="height">Thickness</label><output data-for="height"></output><input type="range" id="height" min="1.2" max="4" step="0.2" value="2"></div>
+          <div class="row"><label for="depth">Inlay depth</label><output data-for="depth"></output><input type="range" id="depth" min="0.2" max="0.8" step="0.2" value="0.2"></div>
+          <div class="row"><label for="iconScale">Icon size</label><output data-for="iconScale"></output><input type="range" id="iconScale" min="0.6" max="1.2" step="0.05" value="1"></div>
+        </div>
+      </details>
+    </div>
+    <div class="actions">
+      <button class="forge" id="download" type="button">Forge this token</button>
+      <button class="pill" id="save" type="button">Save</button>
+    </div>
+    <p class="hint note" id="exportNote">Downloads the STLs, face-down and ready for Bambu Studio.</p>
+    <footer class="ccc">
+      <img src="/ccc-sleeve.png" alt="Community Created Content" width="48" height="48">
+      <p>A free, community-made tool. Not affiliated with or endorsed by The Pandemonium Institute. Character art © The Pandemonium Institute.</p>
+    </footer>
+  </aside>
+
+  <section class="tray" aria-label="Characters">
+    <div class="teams" id="teams"></div>
+    <div class="tokens" id="tokens"></div>
+  </section>
+</div>
+
+<div class="gate" id="gate">
+  <div class="gate-card">
+    <p class="mark">Midnight Mint</p>
+    <h2 id="gateTitle">Opening the grimoire…</h2>
+    <p id="gateText"></p>
+    <button class="forge" type="button" id="gateAction" hidden></button>
+    <button class="pill" type="button" id="gateSecondary" hidden></button>
+    <footer class="ccc">
+      <img src="/ccc-sleeve.png" alt="Community Created Content" width="48" height="48">
+      <p>A free, community-made tool for printing your own character tokens. Not affiliated with or endorsed by The Pandemonium Institute.</p>
+    </footer>
+  </div>
+</div>
+
+<dialog id="admin" aria-labelledby="adminTitle">
+  <form method="dialog" class="close"><button class="pill" aria-label="Close">Close</button></form>
+  <h2 id="adminTitle">Library and invites</h2>
+  <section>
+    <h3>Character library</h3>
+    <p class="hint" id="libraryState"></p>
+    <label class="pill file">Upload roles_data.json<input type="file" id="libraryFile" accept="application/json,.json" hidden></label>
+    <label class="pill file">Upload seal.svg<input type="file" id="sealFile" accept=".svg,image/svg+xml" hidden></label>
+  </section>
+  <section>
+    <h3>Invited people</h3>
+    <form id="inviteForm" class="invite">
+      <input class="text" type="email" id="inviteEmail" placeholder="friend@example.com" required aria-label="Email to invite">
+      <button class="pill" type="submit">Invite</button>
+    </form>
+    <p class="hint" id="inviteHint">They sign in with this Google account.</p>
+    <ul class="invites" id="invites"></ul>
+  </section>
+</dialog>
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>
