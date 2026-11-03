@@ -100,7 +100,9 @@ const STR = {
     "range.frameWidth": "Grosor",
     "range.diameter": "Diámetro",
     "range.height": "Grosor de la moneda",
-    "range.depth": "Profundidad de las incrustaciones",
+    "range.depth": "Grosor del color",
+    "depth.help": "El color va hundido y a ras de la moneda: cuanto más grueso, más opaco (útil con colores claros sobre negro).",
+    "depth.clamped": ({ max, core }) => `Con este grosor de moneda caben como mucho ${max} mm de color, dejando ${core} mm de base negra. Sube el grosor de la moneda para más.`,
     "range.iconScale": "Tamaño del icono",
 
     // reminders
@@ -330,7 +332,9 @@ const STR = {
     "range.frameWidth": "Width",
     "range.diameter": "Diameter",
     "range.height": "Thickness",
-    "range.depth": "Inlay depth",
+    "range.depth": "Colour thickness",
+    "depth.help": "The colour is sunk flush into the coin: thicker means more opaque (useful for light colours on black).",
+    "depth.clamped": ({ max, core }) => `With this coin thickness the colour can be at most ${max} mm, leaving ${core} mm of black base. Make the coin thicker for more.`,
     "range.iconScale": "Icon size",
 
     "reminders.none": "none",

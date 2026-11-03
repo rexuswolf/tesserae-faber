@@ -432,8 +432,23 @@ function buildBase(spec) {
  * @returns {{parts: {base, front, frame, back}, colours, name}} geometries are
  *   null for parts the spec leaves out; `name` describes the curved text layout.
  */
+/** Keep at least this much black coin between the coloured inlays. */
+export const MIN_CORE = 0.4;
+
+/**
+ * Inlay depth that fits: the front (and the back, if it has a pattern) go into
+ * the coin, leaving at least MIN_CORE of base. Returns { depth, clamped }.
+ */
+export function fittingDepth(spec) {
+  const faces = spec.back && spec.back !== "none" ? 2 : 1;
+  const max = Math.max(0.2, Math.floor(((spec.height - MIN_CORE) / faces) * 5) / 5);   // whole 0.2 mm layers
+  return { depth: Math.min(spec.depth, max), clamped: spec.depth > max, max };
+}
+
 export function buildToken(lib, role, spec, text) {
   spec = { ...DEFAULT_SPEC, ...spec, colours: { ...DEFAULT_SPEC.colours, ...spec?.colours } };
+  const fit = fittingDepth(spec);
+  spec = { ...spec, depth: fit.depth };
   text ??= roleName(role, spec.lang);
   const front = buildFront(lib, role, text, spec);
   return {
@@ -441,6 +456,7 @@ export function buildToken(lib, role, spec, text) {
     colours: partColours(role, spec),
     name: front.name,
     spec,
+    depthClamped: fit.clamped ? fit.max : null,
   };
 }
 

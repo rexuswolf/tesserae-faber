@@ -279,6 +279,10 @@ function renderWorkshop() {
     $("#styleFields").disabled = !editing;
     syncControls(editing ?? state.spec);
 
+    $("#depthHint").className = "hint" + (token.depthClamped ? " warn" : "");
+    $("#depthHint").textContent = token.depthClamped
+      ? t("depth.clamped", { max: token.depthClamped.toFixed(1), core: "0.4" })
+      : t("depth.help");
     const n = token.name;
     $("#nameHint").className = "hint" + (n.letterHeight < 2.5 ? " warn" : "");
     $("#nameHint").textContent = t("name.hint", { arc: n.total.toFixed(0), mm: n.letterHeight.toFixed(1), shrunk: n.scale < 1, small: n.letterHeight < 2.5 });
