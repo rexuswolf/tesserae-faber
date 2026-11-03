@@ -271,32 +271,52 @@ export function layoutName(lib, text, spec) {
 }
 
 /**
- * Edition back: a rim, the edition name along the top (reading normally when you
- * look at the back) and the edition's initials in the centre. Angles in degrees.
+ * Edition back: the edition's full name in the centre, one word per line, as
+ * large as fits inside a fine double rim, with a small star above and below.
+ * Filled shapes in coin coordinates (mm, y up), shared by the 3D model and 2D.
  */
-function editionLayout(lib, role, spec) {
+function editionBack(lib, role, spec) {
   const ed = EDITIONS[role.edition];
   if (!ed) return null;
-  const R = spec.diameter / 2;
-  const name = ed.name[spec.lang] || ed.name.en;
-  const chars = [...name.toUpperCase()];
-  let em = 2.8 / lib.capHeight;
-  const radius = R - 1.4 - 0.9 - 2.8;            // baseline; letters reach out towards the rim
-  const adv = (c) => (c === " " ? Math.max(glyph(lib, " ").advance, 0.45) : glyph(lib, c).advance);
-  let widths = chars.map((c) => adv(c) * em * 1.08);
-  let total = widths.reduce((a, b) => a + b, 0) / radius * 180 / Math.PI;
-  const maxArc = 150;
-  if (total > maxArc) { em *= maxArc / total; widths = widths.map((w) => w * maxArc / total); total = maxArc; }
-  const angles = [];
-  let a = 90 + total / 2;                          // start on the left, move clockwise
-  for (const w of widths) { angles.push(a - (w / radius) * 90 / Math.PI); a -= (w / radius) * 180 / Math.PI; }
-  const markShapes = lib.font.generateShapes(ed.mark, 1);
-  const box = boundsOf(markShapes), size = new THREE.Vector2(); box.getSize(size);
-  const markScale = Math.min((spec.diameter * 0.24) / Math.max(size.y, 1e-6), (spec.diameter * 0.52) / Math.max(size.x, 1e-6));
-  return {
-    name, chars, angles, em, radius, R, mark: ed.mark, markShapes, markScale,
-    markCx: (box.min.x + box.max.x) / 2, markCy: (box.min.y + box.max.y) / 2, markY: -spec.diameter * 0.04,
+  const R = spec.diameter / 2, out = R - 0.7;
+  const shapes = [annulus(out, out - 0.6), annulus(out - 1.2, out - 1.65)];
+  const words = (ed.name[spec.lang] || ed.name.en).toUpperCase().split(/\s+/);
+  const track = 0.08;                                     // letter spacing, in em
+  const lineW = (w, em) => [...w].reduce((a, c) => a + glyph(lib, c).advance * em * (1 + track), 0) - glyph(lib, w.at(-1)).advance * em * track;
+  const ri = out - 1.65 - 1.8;                            // keep clear of the inner rim
+  const n = words.length, gap = 0.55;                     // line gap, in cap heights
+  // Largest cap height that keeps every line (and the stars) inside the circle.
+  const layout = (h) => {
+    const em = h / lib.capHeight, H = n * h + (n - 1) * gap * h, star = Math.min(1.7, h * 0.45);
+    const lines = words.map((w, i) => ({ w, width: lineW(w, em), base: H / 2 - h - i * (1 + gap) * h }));
+    const fits = lines.every((l) => Math.hypot(l.width / 2, Math.max(Math.abs(l.base), Math.abs(l.base + h * 1.25))) <= ri)
+      && H / 2 + h * 0.7 + 2 * star <= ri;
+    return { em, H, star, lines, fits };
   };
+  let lo = 1, hi = spec.diameter * 0.17;
+  for (let i = 0; i < 30; i++) { const m = (lo + hi) / 2; if (layout(m).fits) lo = m; else hi = m; }
+  const L = layout(lo), h = lo;
+  const place = (src, k, dx, dy) => src.map((sh) => {
+    const move = (pts) => pts.map((q) => new THREE.Vector2(q.x * k + dx, q.y * k + dy));
+    const o = new THREE.Shape(move(sh.getPoints(6)));
+    o.holes = sh.holes.map((hp) => new THREE.Path(move(hp.getPoints(6))));
+    return o;
+  });
+  for (const l of L.lines) {
+    let x = -l.width / 2;
+    for (const c of l.w) {
+      const g = glyph(lib, c);
+      shapes.push(...place(g.shapes, L.em, x, l.base));
+      x += g.advance * L.em * (1 + track);
+    }
+  }
+  // Stars above and below the name, each flanked by two dots.
+  const sy = L.H / 2 + h * 0.7 + L.star;
+  for (const y of [sy, -sy]) {
+    shapes.push(sparkle(0, y, L.star, L.star * 0.32));
+    for (const x of [-1, 1]) shapes.push(disc(Math.max(0.3, L.star * 0.2), x * L.star * 2.1, y));
+  }
+  return shapes;
 }
 
 /**
@@ -376,17 +396,8 @@ function buildBack(lib, role, text, spec) {
       shapes.push(circleShape(R * 0.16));
       return extrude(shapes, d, chain(mirror), 32);
     case "edition": {
-      const L = editionLayout(lib, role, spec);
-      if (!L) return null;
-      const parts = [extrude([ringShape(R - 0.6, R - 1.4)], d, chain(mirror), 32)];
-      L.chars.forEach((c, i) => {
-        if (c === " ") return;
-        const g = glyph(lib, c), a = THREE.MathUtils.degToRad(L.angles[i]);
-        parts.push(extrude(g.shapes, d, chain(mirror,
-          T(L.radius * Math.cos(a), L.radius * Math.sin(a), 0), RZ(a - Math.PI / 2), S(L.em, L.em, 1), T(-g.center, 0, 0)), 4));
-      });
-      parts.push(extrude(L.markShapes, d, chain(mirror, T(0, L.markY, 0), S(L.markScale, L.markScale, 1), T(-L.markCx, -L.markCy, 0)), 5));
-      return merge(parts);
+      const ed = editionBack(lib, role, spec);
+      return ed ? extrude(ed, d, chain(mirror), 32) : null;
     }
     case "name": {
       const t = (text || "").toUpperCase();
@@ -996,17 +1007,8 @@ export function tokenSvg(lib, role, spec, { side = "front", text } = {}) {
     const back = { seal: "Seal", clock: "Clock", rings: "Rings", name: "Name", custom: "Custom" }[spec.back];
     const designed = backDesign(spec.back, R);
     if (designed) body += `<path fill="${c.back}" fill-rule="nonzero" d="${shapesToPath(designed, 0, 0, 48)}"/>`;
-    const L = spec.back === "edition" ? editionLayout(lib, role, spec) : null;
-    if (L) {
-      body += `<circle r="${R - 1}" fill="none" stroke="${c.back}" stroke-width="0.8"/>`;
-      L.chars.forEach((ch, i) => {
-        if (ch === " ") return;
-        const a = L.angles[i], x = L.radius * Math.cos((a * Math.PI) / 180), y = -L.radius * Math.sin((a * Math.PI) / 180);
-        body += letterSvg(lib, ch, x, y, 90 - a, L.em, c.back);
-      });
-      const markEm = L.markScale;
-      body += `<g transform="translate(0 ${(-L.markY).toFixed(3)}) scale(${markEm.toFixed(4)})"><path fill="${c.back}" fill-rule="evenodd" d="${shapesToPath(L.markShapes, -L.markCx, -L.markCy)}"/></g>`;
-    }
+    const ed = spec.back === "edition" ? editionBack(lib, role, spec) : null;
+    if (ed) body += `<path fill="${c.back}" fill-rule="evenodd" d="${shapesToPath(ed, 0, 0, 48)}"/>`;
     if (spec.back === "seal" && lib.sealSvg) body += `<g fill="${c.back}" transform="scale(${spec.diameter / TRACE_VIEW}) translate(${-TRACE_VIEW / 2} ${-TRACE_VIEW / 2})">${lib.sealSvg.replace(/^[\s\S]*?<g /, "<g ").replace(/fill="#000000"/, "").replace(/<\/svg>\s*$/, "")}</g>`;
     else if (back && !designed) body += `<text y="1.5" text-anchor="middle" font-size="5" fill="${c.back}" font-family="Dumbledor">${esc(back === "Name" ? label.toUpperCase() : back.toUpperCase())}</text>`;
   }
