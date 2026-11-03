@@ -1,7 +1,7 @@
 import JSZip from "jszip";
 import {
   loadLibrary, buildToken, createViewer, tokenSvg, roleName, addTokenToZip, saveFile,
-  TEAMS, FRAME_STYLES, BACK_STYLES, FILAMENTS, DEFAULT_SPEC,
+  TEAMS, EDITIONS, FRAME_STYLES, BACK_STYLES, FILAMENTS, DEFAULT_SPEC,
 } from "./engine/token-engine.js";
 import {
   onUser, signIn, signOutUser, isAdmin, isInvited, loadRoles, uploadRoles, loadSeal, uploadSeal,
@@ -108,7 +108,8 @@ function render() {
     const lang = state.spec.lang;
     $("#ghost").textContent = printed();
     $("#name").textContent = printed() || " ";
-    $("#sub").textContent = `${TEAMS[state.role.team].label[lang]}${state.role.en !== printed() ? ` · ${state.role.en}` : ""}`;
+    const edition = EDITIONS[state.role.edition]?.name[lang];
+    $("#sub").textContent = [TEAMS[state.role.team].label[lang], edition, state.role.en !== printed() ? state.role.en : null].filter(Boolean).join(" · ");
     const n = token.name;
     $("#nameHint").className = "hint" + (n.letterHeight < 2.5 ? " warn" : "");
     $("#nameHint").textContent = `${n.total.toFixed(0)}° of the rim, letters ${n.letterHeight.toFixed(1)} mm${n.scale < 1 ? " (shrunk to fit)" : ""}.` + (n.letterHeight < 2.5 ? " Small for a 0.4 mm nozzle." : "");

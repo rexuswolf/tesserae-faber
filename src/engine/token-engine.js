@@ -43,12 +43,23 @@ export const FRAME_STYLES = [
 
 export const BACK_STYLES = [
   { id: "none", label: "Plain" },
+  { id: "edition", label: "Edition" },
   { id: "seal", label: "Clocktower seal" },
   { id: "clock", label: "Clock face" },
   { id: "rings", label: "Rings" },
   { id: "name", label: "Role name" },
   { id: "custom", label: "Your SVG" },
 ];
+
+/** Editions as coded in TPI's roles.json, with the mark used on token backs. */
+export const EDITIONS = {
+  tb: { name: { en: "Trouble Brewing", es: "Trouble Brewing" }, mark: "TB" },
+  bmr: { name: { en: "Bad Moon Rising", es: "Bad Moon Rising" }, mark: "BMR" },
+  snv: { name: { en: "Sects & Violets", es: "Sects & Violets" }, mark: "S&V" },
+  carousel: { name: { en: "The Carousel", es: "The Carousel" }, mark: "C" },
+  fabled: { name: { en: "Fabled", es: "Fábulas" }, mark: "F" },
+  loric: { name: { en: "Loric", es: "Lóricos" }, mark: "L" },
+};
 
 export const FILAMENTS = {
   black: "#1d1c21",
@@ -233,6 +244,35 @@ export function layoutName(lib, text, spec) {
   return { chars, angles, radius, em: em * scale, total, scale, letterHeight: spec.textSize * scale, margin };
 }
 
+/**
+ * Edition back: a rim, the edition name along the top (reading normally when you
+ * look at the back) and the edition's initials in the centre. Angles in degrees.
+ */
+function editionLayout(lib, role, spec) {
+  const ed = EDITIONS[role.edition];
+  if (!ed) return null;
+  const R = spec.diameter / 2;
+  const name = ed.name[spec.lang] || ed.name.en;
+  const chars = [...name.toUpperCase()];
+  let em = 2.8 / lib.capHeight;
+  const radius = R - 1.4 - 0.9 - 2.8;            // baseline; letters reach out towards the rim
+  const adv = (c) => (c === " " ? Math.max(glyph(lib, " ").advance, 0.45) : glyph(lib, c).advance);
+  let widths = chars.map((c) => adv(c) * em * 1.08);
+  let total = widths.reduce((a, b) => a + b, 0) / radius * 180 / Math.PI;
+  const maxArc = 150;
+  if (total > maxArc) { em *= maxArc / total; widths = widths.map((w) => w * maxArc / total); total = maxArc; }
+  const angles = [];
+  let a = 90 + total / 2;                          // start on the left, move clockwise
+  for (const w of widths) { angles.push(a - (w / radius) * 90 / Math.PI); a -= (w / radius) * 180 / Math.PI; }
+  const markShapes = lib.font.generateShapes(ed.mark, 1);
+  const box = boundsOf(markShapes), size = new THREE.Vector2(); box.getSize(size);
+  const markScale = Math.min((spec.diameter * 0.24) / Math.max(size.y, 1e-6), (spec.diameter * 0.52) / Math.max(size.x, 1e-6));
+  return {
+    name, chars, angles, em, radius, R, mark: ed.mark, markShapes, markScale,
+    markCx: (box.min.x + box.max.x) / 2, markCy: (box.min.y + box.max.y) / 2, markY: -spec.diameter * 0.04,
+  };
+}
+
 function iconShapes(lib, role) {
   if (!lib.icons.has(role.en)) {
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${TRACE_VIEW} ${TRACE_VIEW}"><g transform="${role.g}">${role.d.map((d) => `<path d="${d}"/>`).join("")}</g></svg>`;
@@ -318,6 +358,19 @@ function buildBack(lib, role, text, spec) {
       for (const [o, i] of [[R - 0.6, R - 1.6], [R * 0.72, R * 0.72 - 0.8], [R * 0.44, R * 0.44 - 0.8]]) shapes.push(ringShape(o, i));
       shapes.push(circleShape(R * 0.16));
       return extrude(shapes, d, chain(mirror), 32);
+    case "edition": {
+      const L = editionLayout(lib, role, spec);
+      if (!L) return null;
+      const parts = [extrude([ringShape(R - 0.6, R - 1.4)], d, chain(mirror), 32)];
+      L.chars.forEach((c, i) => {
+        if (c === " ") return;
+        const g = glyph(lib, c), a = THREE.MathUtils.degToRad(L.angles[i]);
+        parts.push(extrude(g.shapes, d, chain(mirror,
+          T(L.radius * Math.cos(a), L.radius * Math.sin(a), 0), RZ(a - Math.PI / 2), S(L.em, L.em, 1), T(-g.center, 0, 0)), 4));
+      });
+      parts.push(extrude(L.markShapes, d, chain(mirror, T(0, L.markY, 0), S(L.markScale, L.markScale, 1), T(-L.markCx, -L.markCy, 0)), 5));
+      return merge(parts);
+    }
     case "name": {
       const t = (text || "").toUpperCase();
       if (!t.trim()) return null;
@@ -471,6 +524,17 @@ export function tokenSvg(lib, role, spec, { side = "front", text } = {}) {
     }
   } else {
     const back = { seal: "Seal", clock: "Clock", rings: "Rings", name: "Name", custom: "Custom" }[spec.back];
+    const L = spec.back === "edition" ? editionLayout(lib, role, spec) : null;
+    if (L) {
+      body += `<circle r="${R - 1}" fill="none" stroke="${c.back}" stroke-width="0.8"/>`;
+      L.chars.forEach((ch, i) => {
+        if (ch === " ") return;
+        const a = L.angles[i], x = L.radius * Math.cos((a * Math.PI) / 180), y = -L.radius * Math.sin((a * Math.PI) / 180);
+        body += `<text x="${x.toFixed(2)}" y="${y.toFixed(2)}" transform="rotate(${(90 - a).toFixed(1)} ${x.toFixed(2)} ${y.toFixed(2)})" font-size="${L.em.toFixed(2)}" text-anchor="middle" fill="${c.back}" font-family="Dumbledor">${esc(ch)}</text>`;
+      });
+      const markEm = L.markScale;
+      body += `<text x="0" y="${(-(L.markY) + L.markCy * markEm).toFixed(2)}" font-size="${markEm.toFixed(2)}" text-anchor="middle" fill="${c.back}" font-family="Dumbledor">${esc(L.mark)}</text>`;
+    }
     if (spec.back === "seal" && lib.sealSvg) body += `<g fill="${c.back}" transform="scale(${spec.diameter / TRACE_VIEW}) translate(${-TRACE_VIEW / 2} ${-TRACE_VIEW / 2})">${lib.sealSvg.replace(/^[\s\S]*?<g /, "<g ").replace(/fill="#000000"/, "").replace(/<\/svg>\s*$/, "")}</g>`;
     else if (back) body += `<text y="1.5" text-anchor="middle" font-size="5" fill="${c.back}" font-family="Dumbledor">${esc(back === "Name" ? label.toUpperCase() : back.toUpperCase())}</text>`;
   }
