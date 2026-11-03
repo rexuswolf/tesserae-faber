@@ -10,7 +10,7 @@ const STR = {
   es: {
     // script sheet and workshop
     "spine.aria": "Ediciones",
-    "ccc.short": "Hecho por la comunidad. Sin relación con The Pandemonium Institute. Ilustraciones © TPI.",
+    "ccc.short": "Herramienta de la comunidad, no oficial. Sin relación con The Pandemonium Institute. Ilustraciones © TPI.",
     "ed.count": ({ c, r }) => `${c} personajes · ${r} rec.`,
     "edition.lead.tb": "La edición de iniciación. Un pueblo, un demonio y mucha desconfianza.",
     "edition.lead.bmr": "Muertes que no se cuentan, protecciones y venganzas.",
@@ -238,7 +238,7 @@ const STR = {
   en: {
     // script sheet and workshop
     "spine.aria": "Editions",
-    "ccc.short": "Community-made. Not affiliated with The Pandemonium Institute. Art © TPI.",
+    "ccc.short": "A community tool, not official. Not affiliated with The Pandemonium Institute. Art © TPI.",
     "ed.count": ({ c, r }) => `${c} characters · ${r} rem.`,
     "edition.lead.tb": "The starter edition. One town, one demon and a lot of distrust.",
     "edition.lead.bmr": "Deaths that don't add up, protection and revenge.",

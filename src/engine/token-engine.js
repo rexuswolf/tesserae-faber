@@ -292,9 +292,15 @@ function editionLayout(lib, role, spec) {
   };
 }
 
+/**
+ * The icon's SVG markup in the traced 127.56-unit square: traced path data
+ * (role.d), or a vector icon's markup (role.body), placed by role.g.
+ */
+const iconMarkup = (role) => role.body ?? role.d.map((d) => `<path d="${d}"/>`).join("");
+
 function iconShapes(lib, role) {
   if (!lib.icons.has(role.en)) {
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${TRACE_VIEW} ${TRACE_VIEW}"><g transform="${role.g}">${role.d.map((d) => `<path d="${d}"/>`).join("")}</g></svg>`;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${TRACE_VIEW} ${TRACE_VIEW}"><g transform="${role.g}">${iconMarkup(role)}</g></svg>`;
     lib.icons.set(role.en, parseSvgShapes(svg));
   }
   return lib.icons.get(role.en);
@@ -520,7 +526,7 @@ export function tokenSvg(lib, role, spec, { side = "front", text } = {}) {
   const k = spec.diameter * spec.iconScale / TRACE_VIEW;
   let body = "";
   if (side === "front") {
-    body += `<g fill="${c.front}" transform="translate(0 ${-(spec.iconOffsetY || 0)}) scale(${k}) translate(${-TRACE_VIEW / 2} ${-TRACE_VIEW / 2})"><g transform="${role.g}">${role.d.map((d) => `<path d="${d}"/>`).join("")}</g></g>`;
+    body += `<g fill="${c.front}" transform="translate(0 ${-(spec.iconOffsetY || 0)}) scale(${k}) translate(${-TRACE_VIEW / 2} ${-TRACE_VIEW / 2})"><g transform="${role.g}">${iconMarkup(role)}</g></g>`;
     const L = layoutName(lib, label, spec);
     // SVG y points down: angle a in engine space is -a on screen.
     L.chars.forEach((ch, i) => {
