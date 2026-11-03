@@ -37,7 +37,11 @@ const state = {
   edition: "tb", team: "all",
   sel: null,              // { key, role, reminder: index | null }
   tab: "set",
-  spec: loadJSON(STYLE_KEY, null) || { ...structuredClone(DEFAULT_SPEC), colours: { ...DEFAULT_SPEC.colours, frame: FILAMENTS.gold } },
+  // Default set style: "Impresión rápida" (black coin, team colour, thin team rim, no back).
+  spec: loadJSON(STYLE_KEY, null) || {
+    ...structuredClone(DEFAULT_SPEC), style: "classic", frame: "rim", frameWidth: 0.8, back: "none", depth: 0.2,
+    colours: { ...DEFAULT_SPEC.colours, base: FILAMENTS.black, front: "team", frame: "team" },
+  },
   overrides: new Map(Object.entries(loadJSON(OVERRIDES_KEY, {}))),   // key -> { text?, spec? }
   queue: [], designs: [],
 };
@@ -302,7 +306,9 @@ function syncControls(spec) {
   }
   $("#styleSummary").textContent = t(`style.${s.style}`);
   $("#styleHint").textContent = t(`style.${s.style}.help`);
-  $("#windowDepthRow").hidden = s.style !== "window";
+  $("#windowFinishRow").hidden = s.style !== "window";
+  $("#windowDepthRow").hidden = s.style !== "window" || s.windowFinish === "flat";
+  $("#styleHint").textContent = t(s.style === "window" ? `windowFinish.${s.windowFinish}.help` : `style.${s.style}.help`);
   // The curved-name controls don't apply to the window style.
   for (const id of ["spacing", "maxArc"]) $("#" + id).closest(".row").hidden = s.style === "window";
   $("#frameSummary").textContent = t(`frame.${s.frame}`);
@@ -332,6 +338,7 @@ function buildChoices() {
     $(`[data-choice=${key}]`).innerHTML = list.map((s) => `<button class="pill" type="button" data-v="${s.id}">${esc(t(`${key}.${s.id}`))}</button>`).join("");
   };
   make("style", TOKEN_STYLES);
+  make("windowFinish", [{ id: "relief" }, { id: "flat" }]);
   make("frame", FRAME_STYLES);
   make("back", BACK_STYLES.filter((s) => s.id !== "seal" || state.lib?.sealSvg));
   for (const box of $$(".metal")) {
@@ -367,7 +374,7 @@ function wire() {
   $("#wsClose").onclick = () => $("#workshop").classList.remove("open");
   $$(".turn .pill").forEach((b) => b.onclick = () => { viewer.setView(b.dataset.view); syncView(b.dataset.view); });
   $$(".tabs [data-tab]").forEach((b) => b.onclick = () => { state.tab = b.dataset.tab; renderWorkshop(); });
-  for (const key of ["style", "frame", "back"]) {
+  for (const key of ["style", "windowFinish", "frame", "back"]) {
     $(`[data-choice=${key}]`).onclick = (e) => {
       const b = e.target.closest("button"); if (!b) return;
       if (key === "back" && b.dataset.v === "custom" && !editingSpec()?.customSvg) { $("#upload").click(); return; }
@@ -500,8 +507,8 @@ function queuePlan() {
     const hasBack = spec.back !== "none" && (spec.back !== "custom" || spec.customSvg) && (spec.back !== "seal" || state.lib.sealSvg) && (spec.back !== "edition" || role.edition);
     return {
       title: queueLabel(q, role), group: queueGroup(q, role),
-      token: { spec, parts: { base: 1, front: 1, frame: spec.frame !== "none" ? 1 : null, back: hasBack ? 1 : null },
-        colours: { base: pick(spec.colours.base), front: pick(spec.colours.front), frame: pick(spec.colours.frame), back: pick(spec.colours.back) } },
+      token: { spec, parts: { base: 1, front: 1, icon: spec.style === "window" && spec.windowFinish === "flat" ? 1 : null, frame: spec.frame !== "none" ? 1 : null, back: hasBack ? 1 : null },
+        colours: { base: pick(spec.colours.base), front: pick(spec.colours.front), icon: pick(spec.colours.base), frame: pick(spec.colours.frame), back: pick(spec.colours.back) } },
     };
   });
   return planPlates(items);

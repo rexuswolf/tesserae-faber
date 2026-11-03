@@ -75,7 +75,9 @@ export const TOKEN_STYLES = [{ id: "classic" }, { id: "window" }];
 
 export const DEFAULT_SPEC = {
   style: "classic",
-  windowDepth: 0.8,    // mm; how deep the window is (window style)
+  windowDepth: 0.8,    // mm; how deep the window is (window style, relief finish)
+  windowFinish: "relief",   // "relief": icon stands in a recessed window (printed face-up)
+                            // "flat": everything flush, nothing to feel by touch (printed face-down)
   lang: "es",
   diameter: 45,
   height: 2,
@@ -139,7 +141,7 @@ export function partColours(role, spec) {
   const team = TEAMS[role.team].colour;
   const c = { ...DEFAULT_SPEC.colours, ...spec.colours };
   const pick = (v) => (v === "team" ? team : v);
-  return { base: pick(c.base), front: pick(c.front), frame: pick(c.frame), back: pick(c.back) };
+  return { base: pick(c.base), front: pick(c.front), icon: pick(c.base), frame: pick(c.frame), back: pick(c.back) };
 }
 
 // ---------------------------------------------------------------- geometry helpers
@@ -529,7 +531,11 @@ function windowIconMatrix(lib, role, W, z, spec) {
   return { shapes, k, cy, bcx, bcy, m: chain(T(0, cy, z), S(k, -k, 1), T(-bcx, -bcy, 0)) };
 }
 
+/** Is this token printed face-up? Only the window style with relief. */
+export const printsFaceUp = (spec) => spec.style === "window" && spec.windowFinish !== "flat";
+
 function buildWindowToken(lib, role, text, spec) {
+  if (spec.windowFinish === "flat") return buildFlatWindowToken(lib, role, text, spec);
   const H = spec.height, p = windowDepthFor(spec);
   const W = windowLayout(lib, text, spec);
   const pts = windowPoints(W.Rw, W.cutY);
@@ -553,6 +559,29 @@ function buildWindowToken(lib, role, text, spec) {
   });
   return {
     base, front: merge([floor, ...letters]),
+    name: { letterHeight: W.cap, scale: W.cap / spec.textSize, total: null, lines: W.lines.length },
+  };
+}
+
+/**
+ * Flat window: the same layout, but every colour is a flush inlay, so the face
+ * is smooth to the touch (players can't feel which character they drew).
+ * The icon is its own part in the coin colour, laid over the window.
+ */
+function buildFlatWindowToken(lib, role, text, spec) {
+  const H = spec.height, d = spec.depth;
+  const W = windowLayout(lib, text, spec);
+  const I = windowIconMatrix(lib, role, W, H - d, spec);
+  const window = extrude([new THREE.Shape(windowPoints(W.Rw, W.cutY))], d, T(0, 0, H - d), 48);
+  const letters = W.lines.map((line) => {
+    const shapes = lib.font.generateShapes(line.text, W.em);
+    const box = boundsOf(shapes);
+    return extrude(shapes, d, T(-(box.min.x + box.max.x) / 2, line.y, H - d), 4);
+  });
+  return {
+    base: buildBase(spec),
+    front: merge([window, ...letters]),
+    icon: extrude(I.shapes, d, I.m, 5),
     name: { letterHeight: W.cap, scale: W.cap / spec.textSize, total: null, lines: W.lines.length },
   };
 }
@@ -597,7 +626,7 @@ export function buildToken(lib, role, spec, text) {
   if (spec.style === "window") {
     const w = buildWindowToken(lib, role, text, spec);
     return {
-      parts: { base: w.base, front: w.front, frame: buildFrame(spec), back: buildBack(lib, role, text, spec) },
+      parts: { base: w.base, front: w.front, icon: w.icon || null, frame: buildFrame(spec), back: buildBack(lib, role, text, spec) },
       colours: partColours(role, spec), name: w.name, spec, depthClamped: fit.clamped ? fit.max : null,
     };
   }
@@ -628,12 +657,13 @@ export function createViewer(canvas, { background = null } = {}) {
   const under = new THREE.DirectionalLight(0xffffff, 1.0); under.position.set(40, 60, -120); scene.add(under);
 
   const meshes = {};
-  for (const name of ["base", "front", "frame", "back"]) {
+  for (const name of ["base", "front", "icon", "frame", "back"]) {
     meshes[name] = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshStandardMaterial({ roughness: 0.6, metalness: 0.05 }));
     scene.add(meshes[name]);
   }
   // Inlays are flush with the coin; nudge them out so the preview doesn't flicker.
   meshes.front.position.z = meshes.frame.position.z = 0.015;
+  meshes.icon.position.z = 0.03;   // over the flat window
   meshes.back.position.z = -0.015;
   let diameter = 45;
 
@@ -752,7 +782,7 @@ const slug = (s) => s.normalize("NFD").replace(/\p{M}/gu, "").replace(/[^A-Za-z0
 
 function stl(geom, spec, faceDown) {
   const g = geom.clone();
-  if (faceDown && spec.style !== "window") {   // the window style prints face-up
+  if (faceDown && !printsFaceUp(spec)) {   // the relief window prints face-up
     g.applyMatrix4(M().makeRotationX(Math.PI));
     g.translate(0, 0, spec.height);
   }
@@ -765,7 +795,7 @@ export function addTokenToZip(zip, token, role, text, { faceDown = true } = {}) 
   const name = `${TEAMS[role.team].file}_${slug(text) || slug(role.en)}`;
   const dir = zip.folder(name);
   const lines = [];
-  const order = ["base", "front", "frame", "back"];
+  const order = ["base", "front", "icon", "frame", "back"];
   order.forEach((part, i) => {
     if (!token.parts[part]) return;
     const file = `${i + 1}_${part}.stl`;

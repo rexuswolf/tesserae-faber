@@ -20,7 +20,8 @@ export const FILAMENT_SLOTS = [
   { hex: "#9a6a3a", name: "Bronze" },
   { hex: "#ece9e2", name: "White" },
 ];
-const PARTS = ["base", "front", "frame", "back"];
+// Later parts win where parts overlap: the icon sits over the (flat) window.
+const PARTS = ["base", "front", "icon", "frame", "back"];
 const BED = 256;                 // A1 build plate, mm
 const PLATE_STRIDE = BED * 1.2;  // Bambu Studio lays plates out on this grid
 const MARGIN = 8, GAP = 3;
@@ -190,7 +191,8 @@ export async function buildBambuProject(items, { faceDown = true, onProgress = (
         if (!geom) continue;
         const id = nextId++;
         // The window style has its relief on top, so it prints face-up.
-        partXml.push(meshXml(id, meshOf(geom, token.spec.height, faceDown && token.spec.style !== "window")));
+        const faceUp = token.spec.style === "window" && token.spec.windowFinish !== "flat";
+        partXml.push(meshXml(id, meshOf(geom, token.spec.height, faceDown && !faceUp)));
         components.push(`<component p:path="${file}" objectid="${id}" transform="1 0 0 0 1 0 0 0 1 ${x.toFixed(3)} ${y.toFixed(3)} 0"/>`);
         partsCfg.push(`    <part id="${id}" subtype="normal_part">
       <metadata key="name" value="${part}"/>
