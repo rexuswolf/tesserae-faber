@@ -47,3 +47,19 @@ setTimeout(() => {
     d.open = true; d.scrollIntoView();
   }, 800);
 }, 5000);
+
+// Test-only: #showframe opens the frame section; #frame=laurel picks one
+setTimeout(() => {
+  const h = location.hash;
+  if (!h.includes("showframe")) return;
+  const d = [...document.querySelectorAll(".ws-body details")].find((x) => x.querySelector("[data-choice=frame]"));
+  d.open = true; d.scrollIntoView();
+  const m = h.match(/frame=(\w+)/); if (m) setTimeout(() => document.querySelector(`[data-choice=frame] [data-v="${m[1]}"]`)?.click(), 300);
+}, 5800);
+
+// Test-only: #open=frame,base opens the sections holding those colour rows and scrolls to the first
+setTimeout(() => {
+  const m = location.hash.match(/open=([\w,]+)/); if (!m) return;
+  const ds = m[1].split(",").map((k) => document.querySelector(`[data-colour=${k}]`)?.closest("details")).filter(Boolean);
+  ds.forEach((d) => { d.open = true; }); ds[0]?.scrollIntoView();
+}, 5800);

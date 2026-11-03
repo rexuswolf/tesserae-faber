@@ -150,11 +150,14 @@ summary small { font-family: var(--ui); font-size: 12.5px; color: var(--dust); }
 [data-choice=back] { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .back-tile { border: 1px solid transparent; background: none; border-radius: 12px; padding: 6px 2px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11.5px; color: var(--dust); text-align: center; line-height: 1.15; }
 .back-tile svg, .upload-tile { width: 56px; height: 56px; }
+[data-choice=frame] { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.frame-tile svg { width: 76px; height: 76px; }
 .upload-tile { display: grid; place-items: center; border-radius: 50%; border: 1px dashed var(--seam); font-size: 12px; }
 .back-tile:hover { background: rgba(239, 230, 214, .05); }
 .back-tile[aria-pressed=true] { border-color: var(--brass); color: var(--bone); background: rgba(201, 162, 39, .08); }
-.metal { display: flex; gap: 8px; }
-.metal button { width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; }
+.metal { display: flex; flex-wrap: wrap; gap: 6px; }
+.metal-label { margin: 0 0 -4px; font-size: 13px; color: var(--dust); }
+.metal button { width: 24px; height: 24px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; box-shadow: inset 0 0 0 1px rgba(239, 230, 214, .22); }
 .metal button[aria-pressed=true] { border-color: var(--bone); }
 .metal .team { background: conic-gradient(#2f86e0 0 25%, #b3191e 0 50%, #8a3d9e 0 75%, #d4a72c 0); }
 .note { padding: 0 18px 16px; }

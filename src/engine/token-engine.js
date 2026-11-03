@@ -39,6 +39,11 @@ export const FRAME_STYLES = [
   { id: "double", label: "Double rim" },
   { id: "clock", label: "Clock ticks" },
   { id: "beads", label: "Beads" },
+  { id: "acunado", label: "Milled edge" },
+  { id: "cordon", label: "Rope" },
+  { id: "fases", label: "Moon phases" },
+  { id: "firmamento", label: "Stars" },
+  { id: "laurel", label: "Laurel" },
 ];
 
 export const BACK_STYLES = [
@@ -110,7 +115,7 @@ export function reminderSpec(spec) {
     margin: 1.5,
     maxArc: 240,
     frameWidth: Math.min(spec.frameWidth ?? 0.8, 0.6),
-    back: "none",
+    // Same back as the character tokens: the designed backs scale with the coin.
   };
 }
 
@@ -236,21 +241,14 @@ function glyph(lib, ch) {
 
 /** Inner edge of the frame (mm from centre), so text can stay clear of it. */
 function frameInner(spec) {
-  const R = spec.diameter / 2, w = spec.frameWidth;
-  switch (spec.frame) {
-    case "rim": return R - 0.4 - w;
-    case "double": return R - 0.4 - w - 0.6 - w * 0.6;
-    case "clock": return R - 0.4 - w - 1.4;
-    case "beads": return R - 0.4 - w - 0.5 - 1.0;
-    default: return R;
-  }
+  return frameDesign(spec)?.inner ?? spec.diameter / 2;
 }
 
 /** Where each letter of the curved name goes; shared by 3D and 2D renderers. */
 export function layoutName(lib, text, spec) {
   const chars = [...(text || "").toUpperCase()];
   const R = spec.diameter / 2;
-  const margin = Math.max(spec.margin, R - frameInner(spec) + 0.5);
+  const margin = Math.max(spec.margin, R - frameInner(spec) + 0.9);   // clear of the frame ornament
   const radius = R - margin;
   const em = spec.textSize / lib.capHeight;
   const widths = chars.map((c) => (c === " " ? Math.max(glyph(lib, " ").advance, 0.45) : glyph(lib, c).advance) * em * spec.spacing);
@@ -339,27 +337,10 @@ function buildFront(lib, role, text, spec) {
 function buildFrame(spec) {
   const R = spec.diameter / 2, w = spec.frameWidth, z = spec.height - spec.depth;
   const out = R - 0.4;
-  const shapes = [];
-  if (spec.frame === "none") return null;
-  shapes.push(ringShape(out, out - w));
-  if (spec.frame === "double") shapes.push(ringShape(out - w - 0.6, out - w - 0.6 - w * 0.6));
-  if (spec.frame === "clock") {
-    for (let h = 0; h < 12; h++) {
-      const a = (h / 12) * Math.PI * 2;
-      const long = h % 3 === 0;
-      shapes.push(radialBar(out - w - (long ? 1.4 : 1.0), out - w + 0.01, long ? 0.8 : 0.5, a));
-    }
-  }
-  if (spec.frame === "beads") {
-    const rb = out - w - 0.5 - 0.5, n = Math.round((2 * Math.PI * rb) / 2.2);
-    for (let i = 0; i < n; i++) {
-      const a = (i / n) * Math.PI * 2;
-      const s = new THREE.Shape();
-      s.absarc(rb * Math.cos(a), rb * Math.sin(a), 0.5, 0, Math.PI * 2, false);
-      shapes.push(s);
-    }
-  }
-  return extrude(shapes, spec.depth, T(0, 0, z), 24);
+  const design = frameDesign(spec);
+  if (!design) return null;
+  void out; void w;
+  return extrude(design.shapes, spec.depth, T(0, 0, z), 24);
 }
 
 /** Fits arbitrary shapes into a circle of radius r (used for uploaded SVGs). */
@@ -518,9 +499,9 @@ function letterSvg(lib, ch, x, y, deg, em, fill) {
 }
 
 /** SVG path data for font shapes (y up), moved by (dx, y) and flipped to SVG's y-down. */
-function shapesToPath(shapes, dx, y) {
+function shapesToPath(shapes, dx, y, div = 6) {
   const ring = (pts) => pts.map((pt, i) => `${i ? "L" : "M"}${(pt.x + dx).toFixed(2)} ${(-(pt.y + y)).toFixed(2)}`).join("") + "Z";
-  return shapes.map((sh) => ring(sh.getPoints(6)) + sh.holes.map((h) => ring(h.getPoints(6))).join("")).join("");
+  return shapes.map((sh) => ring(sh.getPoints(div)) + sh.holes.map((h) => ring(h.getPoints(div))).join("")).join("");
 }
 
 /** Matrix that fits the role's icon into the window (from its SVG coordinates). */
@@ -647,6 +628,139 @@ function crescent(cx, cy, r, bx, by, br, n = 120) {
 
 /** A beaded border: n small discs on a circle. */
 const beads = (r, n, size) => Array.from({ length: n }, (_, i) => disc(size, ...pt(r, (i * TAU) / n).toArray()));
+
+// ---------------------------------------------------------------- designed frames
+//
+// The frame is a band of ornament just inside the coin's edge. `inner` is where
+// it ends, so the curved name always sits clear of it. Nothing is thinner than
+// ~0.45 mm. All outlines are wound the same way so overlaps add up (SVG nonzero).
+
+/** Same winding for every hole-less outline, so overlapping shapes merge in 2D. */
+function ccw(sh) {
+  if (sh.holes.length) return sh;
+  const pts = sh.getPoints(8);
+  return THREE.ShapeUtils.isClockWise(pts) ? new THREE.Shape(pts.reverse()) : sh;
+}
+/** A band between two radii from angle a0 to a1 (radians, a0 < a1). */
+function arcBand(rOut, rIn, a0, a1, n = 96) {
+  const pts = [];
+  for (let i = 0; i <= n; i++) pts.push(pt(rOut, a0 + ((a1 - a0) * i) / n));
+  for (let i = n; i >= 0; i--) pts.push(pt(rIn, a0 + ((a1 - a0) * i) / n));
+  return polygon(pts);
+}
+/** A pointed leaf from base (x, y) along direction `dir` (radians). */
+function leaf(x, y, dir, len, width, n = 14) {
+  const ax = Math.cos(dir), ay = Math.sin(dir), nx = -ay, ny = ax, side = [];
+  for (let i = 0; i <= n; i++) {
+    const t = i / n, h = (width / 2) * Math.sin(Math.PI * t) ** 0.8;
+    side.push([x + ax * len * t, y + ay * len * t, h]);
+  }
+  const left = side.map(([px, py, h]) => new THREE.Vector2(px + nx * h, py + ny * h));
+  const right = side.slice(1, -1).reverse().map(([px, py, h]) => new THREE.Vector2(px - nx * h, py - ny * h));
+  return polygon([...left, ...right]);
+}
+/** Lit part of a moon of radius r at (x, y): phase 0 new, 0.5 full, 1 new again. */
+function moonPhase(x, y, r, phase) {
+  const lit = 1 - Math.abs(1 - 2 * phase);            // 0 (new) .. 1 (full)
+  const waxing = phase < 0.5 ? 1 : -1;                 // light on the right while waxing
+  if (lit > 0.97) return [disc(r, x, y)];
+  if (lit < 0.03) return [annulus(r, r - 0.45, x, y)];  // new moon: just the outline
+  // The shadow is a disc the same size, slid across the moon.
+  const off = 2 * r * lit;
+  return [crescent(x, y, r, x - waxing * off, y, r * (lit > 0.5 ? 1 : 1.04))];
+}
+
+/** Filled shapes for the front frame and its inner edge, or null for none. */
+export function frameDesign(spec) {
+  const R = spec.diameter / 2, w = spec.frameWidth, out = R - 0.4, edge = out - w;
+  const rim = annulus(out, edge, 0, 0);
+  let sh = [rim], inner = edge;
+  switch (spec.frame) {
+    case "none": return null;
+    case "rim": break;
+    case "double": {
+      const t = Math.max(0.45, w * 0.6);
+      sh.push(annulus(edge - 0.6, edge - 0.6 - t)); inner = edge - 0.6 - t;
+      break;
+    }
+    case "clock": {
+      // A watch chapter ring: 60 minute ticks, bolder tapered hour bars.
+      const len = 1.5;
+      for (let m = 0; m < 60; m++) {
+        const a = Math.PI / 2 - (m * TAU) / 60;
+        if (m % 5 === 0) sh.push(taper(edge - len, edge + 0.05, a, m % 15 === 0 ? 0.6 : 0.5, m % 15 === 0 ? 1.0 : 0.8));
+        else sh.push(taper(edge - 0.75, edge + 0.05, a, 0.45, 0.45));
+      }
+      inner = edge - len;
+      break;
+    }
+    case "beads": {
+      const rb = edge - 0.95, n = Math.round((TAU * rb) / 1.85);
+      sh.push(...beads(rb, n, 0.55)); inner = rb - 0.55;
+      break;
+    }
+    case "acunado": {
+      // Milled coin edge: fine reeds between the rim and a thin inner fillet.
+      const r1 = edge - 1.25, n = Math.round((TAU * edge) / 1.05);
+      for (let i = 0; i < n; i++) sh.push(taper(r1, edge + 0.05, (i * TAU) / n, 0.45, 0.55));
+      sh.push(annulus(r1 + 0.05, r1 - 0.45)); inner = r1 - 0.45;
+      break;
+    }
+    case "cordon": {
+      // Twisted rope: slanted strands between the rim and a fine inner fillet.
+      const r1 = edge - 0.35, r2 = r1 - 1.3, n = Math.round((TAU * r1) / 1.25), da = TAU / n, skew = da * 0.9;
+      for (let i = 0; i < n; i++) {
+        const a = i * da, a2 = a + da * 0.58;
+        sh.push(polygon([pt(r2, a), pt(r2, a2), pt(r1, a2 + skew), pt(r1, a + skew)]));
+      }
+      sh.push(annulus(r2 - 0.3, r2 - 0.75)); inner = r2 - 0.75;
+      break;
+    }
+    case "fases": {
+      // The moon's phases around the coin: full at the top, new at the bottom,
+      // with a row of small stars between them.
+      const rm = edge - 1.6, mr = 1.25;
+      for (let k = 0; k < 8; k++) {
+        const a = Math.PI / 2 - (k * TAU) / 8;
+        sh.push(...moonPhase(...pt(rm, a).toArray(), mr, (0.5 + k / 8) % 1));
+        for (const f of [0.32, 0.5, 0.68]) sh.push(disc(f === 0.5 ? 0.4 : 0.3, ...pt(rm, a - (f * TAU) / 8).toArray()));
+      }
+      inner = rm - mr - 0.2;
+      break;
+    }
+    case "firmamento": {
+      // A night sky band: four-pointed stars, large and small, with dots between.
+      const rs = edge - 1.35, n = 12;
+      for (let i = 0; i < n * 2; i++) {
+        const a = Math.PI / 2 - (i * TAU) / (n * 2);
+        if (i % 2) sh.push(disc(0.3, ...pt(rs, a).toArray()));
+        else sh.push(sparkle(...pt(rs, a).toArray(), i % 4 ? 0.85 : 1.2, i % 4 ? 0.3 : 0.38, a));
+      }
+      inner = rs - 1.2;
+      break;
+    }
+    case "laurel": {
+      // Two laurel branches rising from a knot at the bottom, open at the top.
+      const rl = edge - 1.55, a0 = -Math.PI / 2 + 0.07, a1 = Math.PI / 2 - 0.2;
+      const branch = [arcBand(rl + 0.23, rl - 0.23, a0, a1)];
+      const steps = Math.floor(((a1 - a0) * rl) / 1.7);
+      for (let i = 0; i < steps; i++) {
+        const a = a0 + 0.1 + (i / steps) * (a1 - a0 - 0.12), tangent = a + Math.PI / 2;
+        const size = 1 - 0.3 * (i / steps);                       // leaves shrink towards the tip
+        const [x, y] = pt(rl, a).toArray();
+        branch.push(leaf(x, y, tangent - 0.62, 1.9 * size, 0.95 * size), leaf(x, y, tangent + 0.62, 1.9 * size, 0.95 * size));
+      }
+      const [tx, ty] = pt(rl, a1).toArray();
+      branch.push(leaf(tx, ty, a1 + Math.PI / 2, 1.3, 0.75));     // the branch's top leaf
+      const mirrorX = (s) => polygon(s.getPoints(8).map((p) => new THREE.Vector2(-p.x, p.y)));
+      sh.push(...branch, ...branch.map(mirrorX), disc(0.8, ...pt(rl, -Math.PI / 2).toArray()));
+      inner = rl - 1.45;
+      break;
+    }
+    default: break;
+  }
+  return { shapes: sh.map(ccw), inner };
+}
 
 /** Filled shapes for a designed back, or null if `id` isn't one of them. */
 export function backDesign(id, R) {
@@ -876,22 +990,12 @@ export function tokenSvg(lib, role, spec, { side = "front", text } = {}) {
       const x = L.radius * Math.cos((a * Math.PI) / 180), y = -L.radius * Math.sin((a * Math.PI) / 180);
       body += letterSvg(lib, ch, x, y, -(a + 90), L.em, c.front);
     });
-    const out = R - 0.4, w = spec.frameWidth;
-    const ring = (o, i, col) => `<circle r="${((o + i) / 2).toFixed(2)}" fill="none" stroke="${col}" stroke-width="${(o - i).toFixed(2)}"/>`;
-    if (spec.frame !== "none") body += ring(out, out - w, c.frame);
-    if (spec.frame === "double") body += ring(out - w - 0.6, out - w - 0.6 - w * 0.6, c.frame);
-    if (spec.frame === "clock") for (let h = 0; h < 12; h++) {
-      const long = h % 3 === 0, a = (h / 12) * 360;
-      body += `<rect x="${(out - w - (long ? 1.4 : 1.0)).toFixed(2)}" y="${(long ? -0.4 : -0.25)}" width="${long ? 1.4 : 1.0}" height="${long ? 0.8 : 0.5}" fill="${c.frame}" transform="rotate(${a})"/>`;
-    }
-    if (spec.frame === "beads") {
-      const rb = out - w - 1.0, n = Math.round((2 * Math.PI * rb) / 2.2);
-      for (let i = 0; i < n; i++) body += `<circle cx="${(rb * Math.cos((i / n) * 2 * Math.PI)).toFixed(2)}" cy="${(rb * Math.sin((i / n) * 2 * Math.PI)).toFixed(2)}" r="0.5" fill="${c.frame}"/>`;
-    }
+    const fd = frameDesign(spec);
+    if (fd) body += `<path fill="${c.frame}" fill-rule="nonzero" d="${shapesToPath(fd.shapes, 0, 0, 48)}"/>`;
   } else {
     const back = { seal: "Seal", clock: "Clock", rings: "Rings", name: "Name", custom: "Custom" }[spec.back];
     const designed = backDesign(spec.back, R);
-    if (designed) body += `<path fill="${c.back}" fill-rule="nonzero" d="${shapesToPath(designed, 0, 0)}"/>`;
+    if (designed) body += `<path fill="${c.back}" fill-rule="nonzero" d="${shapesToPath(designed, 0, 0, 48)}"/>`;
     const L = spec.back === "edition" ? editionLayout(lib, role, spec) : null;
     if (L) {
       body += `<circle r="${R - 1}" fill="none" stroke="${c.back}" stroke-width="0.8"/>`;

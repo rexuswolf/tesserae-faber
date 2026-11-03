@@ -46,6 +46,10 @@ const state = {
   queue: [], designs: [],
 };
 let viewer = null;
+
+/** Filament colours offered for the coin, frame and back (all of them print on the A1). */
+const COLOUR_CHOICES = ["Black", "White", "Gold", "Silver", "Bronze", "Blue", "Red", "Purple", "Yellow", "Green"]
+  .map((name) => ({ id: name.toLowerCase(), hex: FILAMENT_SLOTS.find((f) => f.name === name).hex }));
 let gateState = null;
 
 /** Premade designs. Applying one replaces the style being edited (set or token). */
@@ -294,6 +298,7 @@ function renderWorkshop() {
     $("#styleFields").disabled = !editing;
     renderPresets(role, editing);
     renderBackTiles(role, editing ?? state.spec);
+    renderFrameTiles(role, editing ?? state.spec);
     syncControls(editing ?? state.spec);
 
     $("#depthHint").className = "hint" + (token.depthClamped ? " warn" : "");
@@ -307,6 +312,17 @@ function renderWorkshop() {
       : t("name.hint", { arc: n.total.toFixed(0), mm: n.letterHeight.toFixed(1), shrunk: n.scale < 1, small: n.letterHeight < 2.5 });
     $("#nameSummary").textContent = `${n.letterHeight.toFixed(1)} mm`;
   });
+}
+
+/** The frame designs, each drawn on the selected character in the current colours. */
+function renderFrameTiles(role, spec) {
+  const s = { ...DEFAULT_SPEC, ...spec, colours: { ...DEFAULT_SPEC.colours, ...spec.colours }, diameter: 45 };
+  const text = roleName(role, uiLang());
+  const list = s.style === "window" ? FRAME_STYLES.filter((f) => f.id === "none" || f.id === "rim") : FRAME_STYLES;
+  $("[data-choice=frame]").innerHTML = list.map((f) =>
+    `<button class="back-tile frame-tile" type="button" data-v="${f.id}" aria-pressed="${(s.style === "window" && s.frame !== "none" ? "rim" : s.frame) === f.id}">${
+      tokenSvg(state.lib, role, { ...s, frame: f.id, frameWidth: f.id === "rim" || f.id === "double" ? Math.max(s.frameWidth, 0.8) : s.frameWidth }, { text })
+    }<span>${esc(t(`frame.${f.id}`))}</span></button>`).join("");
 }
 
 /** The back designs as small coin backs, in the colours of the style being edited. */
@@ -371,12 +387,13 @@ function buildChoices() {
   };
   make("style", TOKEN_STYLES);
   make("windowFinish", [{ id: "relief" }, { id: "flat" }]);
-  make("frame", FRAME_STYLES);
+  // Frames are drawn as coin tiles by renderFrameTiles().
   // Backs are drawn as coin tiles by renderBackTiles().
   for (const box of $$(".metal")) {
-    // The back never takes the team colour: it would show the team from behind.
-    const opts = box.dataset.colour === "back" ? ["gold", "silver", "bronze", "white", "black"] : ["team", "gold", "silver", "bronze", "white", "black"];
-    box.innerHTML = opts.map((o) => `<button type="button" class="${o === "team" ? "team" : ""}" data-v="${o === "team" ? "team" : FILAMENTS[o]}" style="${o === "team" ? "" : `background:${FILAMENTS[o]}`}" aria-label="${esc(t(`metal.${o}`))}" title="${esc(t(`metal.${o}`))}"></button>`).join("");
+    // Every filament the Bambu export knows. Only the frame can take the team colour:
+    // on the coin or the back it would show the team from behind.
+    const opts = [...(box.dataset.colour === "frame" ? [{ id: "team", hex: "team" }] : []), ...COLOUR_CHOICES];
+    box.innerHTML = opts.map((o) => `<button type="button" class="${o.id === "team" ? "team" : ""}" data-v="${o.hex}" style="${o.id === "team" ? "" : `background:${o.hex}`}" aria-label="${esc(t(`metal.${o.id}`))}" title="${esc(t(`metal.${o.id}`))}"></button>`).join("");
   }
 }
 
