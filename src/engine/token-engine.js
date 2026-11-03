@@ -893,7 +893,7 @@ export function magnetLayout(spec) {
   const hole = upLayer(mt + 0.2);                // 0.2 mm headroom so the nozzle never touches it
   const radius = (md + 0.3) / 2;                 // 0.3 mm play so it drops in
   if (spec.magnet === "pocket") {
-    return { kind: "pocket", md, mt, radius, z0: 0, z1: hole, minHeight: mm2(upLayer(hole + SHELL + front)) };
+    return { kind: "pocket", md, mt, radius, faceUp, z0: 0, z1: hole, minHeight: mm2(upLayer(hole + SHELL + front)) };
   }
   // Print coordinates: z' up from the bed. Face-down prints have the front on the bed.
   const bottom = faceUp ? back : front, top = faceUp ? front : back;
@@ -904,7 +904,7 @@ export function magnetLayout(spec) {
   const c0 = mm2(Math.max(lo, Math.floor((lo + hi) / 2 / LAYER + 1e-6) * LAYER));
   const c1 = mm2(c0 + hole);
   return {
-    kind: "hidden", md, mt, radius, minHeight, pauseZ: mm2(c1 + LAYER),
+    kind: "hidden", md, mt, radius, faceUp, minHeight, pauseZ: mm2(c1 + LAYER),
     z0: faceUp ? c0 : mm2(H - c1), z1: faceUp ? c1 : mm2(H - c0),
   };
 }
@@ -942,6 +942,17 @@ export function buildToken(lib, role, spec, text) {
       g.rotateX(Math.PI / 2); g.translate(0, 0, -0.04); return g;
     })() : null,
   };
+  if (magnet) {
+    // Preview only (X-ray view): the magnet where it rests, and the outline of its hole.
+    // It rests on the cavity floor as printed: the face side for face-down prints.
+    const bottom = magnet.kind === "hidden" && magnet.faceUp ? magnet.z0 : magnet.z1 - magnet.mt;
+    const body = new THREE.CylinderGeometry(magnet.md / 2, magnet.md / 2, magnet.mt, 48);
+    body.rotateX(Math.PI / 2); body.translate(0, 0, bottom + magnet.mt / 2);
+    extras.magnetBody = body;
+    const hole = new THREE.CylinderGeometry(magnet.radius, magnet.radius, magnet.z1 - magnet.z0, 64);
+    hole.rotateX(Math.PI / 2); hole.translate(0, 0, (magnet.z0 + magnet.z1) / 2);
+    extras.cavity = new THREE.EdgesGeometry(hole, 20);
+  }
   const colours = { ...partColours(role, spec), hole: "#0b090c" };
   if (spec.style === "window") {
     const w = buildWindowToken(lib, role, text, spec);
@@ -986,6 +997,24 @@ export function createViewer(canvas, { background = null } = {}) {
   meshes.front.position.z = meshes.frame.position.z = 0.015;
   meshes.icon.position.z = 0.03;   // over the flat window
   meshes.back.position.z = -0.015;
+  // X-ray view: the coin turns see-through and shows the magnet inside.
+  const magnetMesh = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshStandardMaterial({ color: 0xc8ced6, emissive: 0x30343a, roughness: 0.25, metalness: 0.8 }));
+  const cavityLines = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xc9a227 }));
+  // The coin's outline, so its edges still read when it is see-through.
+  const coinLines = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xefe6d6, transparent: true, opacity: 0.55 }));
+  magnetMesh.visible = cavityLines.visible = coinLines.visible = false;
+  magnetMesh.renderOrder = cavityLines.renderOrder = -1;    // drawn before the see-through coin
+  scene.add(magnetMesh, cavityLines, coinLines);
+  let xray = false;
+  function applyXray() {
+    for (const mesh of Object.values(meshes)) {
+      mesh.material.transparent = xray;
+      mesh.material.opacity = xray ? 0.2 : 1;
+      mesh.material.depthWrite = !xray;
+      mesh.material.needsUpdate = true;
+    }
+    magnetMesh.visible = cavityLines.visible = coinLines.visible = xray && magnetMesh.geometry.attributes.position != null;
+  }
   let diameter = 45;
 
   function resize() {
@@ -1008,6 +1037,7 @@ export function createViewer(canvas, { background = null } = {}) {
     const d = diameter;
     if (kind === "top") camera.position.set(0, -0.001, d * 2.5);
     else if (kind === "back") camera.position.set(0, 0.001, -d * 2.5);
+    else if (kind === "side") camera.position.set(d * 0.3, -d * 1.25, d * 0.42);
     else camera.position.set(0, -d * 1.5, d * 1.85);
     controls.target.set(0, 0, 0);
     controls.update();
@@ -1021,7 +1051,14 @@ export function createViewer(canvas, { background = null } = {}) {
         mesh.geometry = token.parts[name] || new THREE.BufferGeometry();
         mesh.material.color.set(token.colours[name]);
       }
+      magnetMesh.geometry.dispose(); cavityLines.geometry.dispose();
+      magnetMesh.geometry = token.parts.magnetBody || new THREE.BufferGeometry();
+      cavityLines.geometry = token.parts.cavity || new THREE.BufferGeometry();
+      coinLines.geometry.dispose();
+      coinLines.geometry = token.parts.base && token.parts.magnetBody ? new THREE.EdgesGeometry(token.parts.base, 20) : new THREE.BufferGeometry();
+      applyXray();
     },
+    setXray(on) { xray = on; applyXray(); },
     setView,
     controls,
     dispose() { running = false; renderer.dispose(); },

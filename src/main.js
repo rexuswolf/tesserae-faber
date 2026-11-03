@@ -282,6 +282,9 @@ function renderWorkshop() {
     const token = buildToken(state.lib, role, spec, text);
     state.token = token;
     viewer.setToken(token);
+    // X-ray only makes sense with a magnet inside.
+    $("#xray").hidden = !token.magnet;
+    if (!token.magnet && $("#xray").getAttribute("aria-pressed") === "true") { $("#xray").setAttribute("aria-pressed", "false"); viewer.setXray(false); }
 
     $("#name").textContent = text;
     $("#sub").textContent = [isRem ? textFor(charKey(role), role, null) : null, TEAMS[role.team].label[lang], EDITIONS[role.edition]?.name[lang],
@@ -391,7 +394,7 @@ let sheetTimer = 0;
 function scheduleSheet() { clearTimeout(sheetTimer); sheetTimer = setTimeout(() => { renderSheet(); renderQueue(); }, 180); }
 function storeOverrides() { storeJSON(OVERRIDES_KEY, Object.fromEntries(state.overrides)); }
 
-function syncView(v) { $$(".turn .pill").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.view === v))); }
+function syncView(v) { $$(".turn .pill[data-view]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.view === v))); }
 
 function buildChoices() {
   const make = (key, list) => {
@@ -436,7 +439,13 @@ function wire() {
 
   // workshop
   $("#wsClose").onclick = () => $("#workshop").classList.remove("open");
-  $$(".turn .pill").forEach((b) => b.onclick = () => { viewer.setView(b.dataset.view); syncView(b.dataset.view); });
+  $$(".turn .pill[data-view]").forEach((b) => b.onclick = () => { viewer.setView(b.dataset.view); syncView(b.dataset.view); });
+  $("#xray").onclick = () => {
+    const on = $("#xray").getAttribute("aria-pressed") !== "true";
+    $("#xray").setAttribute("aria-pressed", String(on));
+    viewer.setXray(on);
+    if (on) { viewer.setView("side"); syncView("side"); }
+  };
   $$(".tabs [data-tab]").forEach((b) => b.onclick = () => { state.tab = b.dataset.tab; renderWorkshop(); });
   for (const key of ["style", "windowFinish", "frame", "back", "magnet", "magnetSize"]) {
     $(`[data-choice=${key}]`).onclick = (e) => {

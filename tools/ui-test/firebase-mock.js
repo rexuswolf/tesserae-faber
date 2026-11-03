@@ -63,3 +63,6 @@ setTimeout(() => {
   const ds = m[1].split(",").map((k) => document.querySelector(`[data-colour=${k}], [data-choice=${k}]`)?.closest("details")).filter(Boolean);
   ds.forEach((d) => { d.open = true; }); ds[0]?.scrollIntoView();
 }, 5800);
+
+// Test-only: #xray turns on the X-ray view
+setTimeout(() => { if (location.hash.includes("xray")) document.querySelector("#xray")?.click(); }, 6500);
