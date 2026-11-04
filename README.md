@@ -26,7 +26,7 @@ The Pandemonium Institute. Sign in with a Google account to use it.
 - Add a whole edition (or whatever is on screen) to the print queue in one click, with or without its reminders.
 
 **Design them**
-- Ready-made designs to start from: *Impresión rápida*, *Moneda de marfil*, *Alta legibilidad*, plus two magnet designs.
+- Ready-made designs to start from: *Fast print*, *Ivory coin*, *High legibility*, *Glued magnet* and *Hidden magnet*.
 - Two layouts: **classic** (name curved along the edge) and **window** (a framed picture with a straight name).
   The window can be flat, so nobody can feel which character they drew.
 - 9 frame designs, and 6 back designs plus the edition's name or your own SVG, each drawn on your character as you choose.
@@ -104,7 +104,7 @@ and keeps its own terms:
   not affiliated with or endorsed by them. It uses none of the game's original artwork.
 - **Character icons** come from [game-icons.net](https://game-icons.net) under
   [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/). Each icon's author is credited in the app
-  (*Créditos*, at the bottom of the sidebar).
+  (*Credits*, at the bottom of the sidebar).
 - **Fonts**: Gloock, Instrument Sans and UnifrakturMaguntia are under the SIL Open Font License, served by
   Google Fonts. Dumbledor 1 (© GeM), used for the token lettering, is a free font distributed by its author;
   check its terms before reusing it elsewhere.

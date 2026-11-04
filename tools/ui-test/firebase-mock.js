@@ -22,7 +22,8 @@ setTimeout(() => {
   const click = (sel) => document.querySelector(sel)?.click();
   for (const step of location.hash.slice(1).split(",").filter(Boolean)) {
     const [k, v] = step.split("=");
-    if (k === "search") { const i = document.querySelector("#search"); i.value = decodeURIComponent(v); i.dispatchEvent(new Event("input")); }
+    if (k === "lang") click(`[data-lang="${v}"]`);
+    else if (k === "search") { const i = document.querySelector("#search"); i.value = decodeURIComponent(v); i.dispatchEvent(new Event("input")); }
     else if (k === "select") click(`#rows .tok[data-key="${v}"]`);
     else if (k === "ed") click(`#editions [data-ed="${v}"]`);
     else if (k === "token") click('.tabs [data-tab="token"]');
