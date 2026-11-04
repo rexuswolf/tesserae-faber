@@ -346,14 +346,12 @@ function renderSpine() {
     const roles = state.lib.roles.filter((r) => r.edition === e);
     const rem = roles.reduce((n, r) => n + remindersOf(r).length, 0);
     return `<button class="ed" type="button" data-ed="${e}" aria-current="${state.edition === e && !searchQuery()}">
-      <span class="logo"><b>${esc(EDITIONS[e].mark)}</b></span>
       <span>${esc(EDITIONS[e].name[lang])}<small>${esc(t("ed.count", { c: roles.length, r: rem }))}</small></span></button>`;
   }).join("");
   const scripts = loadScripts();
   $("#scripts").innerHTML = scripts.map((sc) => {
     const { roles, missing } = scriptRoles(sc);
     return `<button class="ed" type="button" data-ed="s:${esc(sc.id)}" aria-current="${state.edition === `s:${sc.id}` && !searchQuery()}">
-      <span class="logo"><b class="script-mark">${esc(scriptMark(sc.name))}</b></span>
       <span>${esc(sc.name)}<small>${esc(t("script.count", { n: roles.length, m: missing.length }))}</small></span></button>`;
   }).join("") || `<p class="scripts-empty">${esc(t("script.empty"))} <button type="button" data-script-new>${esc(t("script.emptyAdd"))}</button></p>`;
 }
@@ -362,7 +360,6 @@ function renderSpine() {
 
 /** The sheet shows an edition ("tb") or one of your scripts ("s:<id>"). */
 const scriptOf = (view) => (view?.startsWith("s:") ? loadScripts().find((x) => x.id === view.slice(2)) ?? null : null);
-const scriptMark = (name) => (name.match(/[\p{L}\p{N}]+/gu) || ["?"]).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
 /** A script's characters that are in the library, and the ids that aren't (with their names, when known). */
 function scriptRoles(sc) {
   const byKey = new Map(state.lib.roles.flatMap((r) => [[scriptKey(r.en), r], [scriptKey(r.id), r]]));
