@@ -204,7 +204,15 @@ button, input, select, textarea { font: inherit; color: inherit; }
 #rows .tok .ck { position: absolute; right: -3px; top: -3px; width: 20px; height: 20px; border-radius: 50%; background: var(--brass); color: var(--velvet-deep); font-size: 12px; font-weight: 700; display: none; place-items: center; }
 #rows .tok[aria-pressed=true] .ck { display: grid; }
 #rows .rem .tok .ck { width: 16px; height: 16px; font-size: 10px; }
-#rows .tok .n { position: absolute; left: -4px; bottom: -2px; min-width: 20px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--bone); color: var(--velvet-deep); font-size: 11px; font-weight: 700; display: grid; place-items: center; }
+/* copies: a small stepper under a picked token */
+.tok-w { position: relative; display: inline-flex; flex-direction: column; align-items: center; justify-self: center; }
+.tok-w .cp { position: absolute; left: 50%; bottom: -9px; transform: translateX(-50%); display: inline-flex; align-items: center; height: 22px; border-radius: 11px; background: var(--bone); color: var(--velvet-deep); box-shadow: 0 2px 6px rgba(0, 0, 0, .45); font-size: 12px; font-weight: 700; z-index: 1; }
+.tok-w .cp button { border: 0; background: none; color: inherit; font: inherit; width: 24px; height: 22px; cursor: pointer; display: grid; place-items: center; }
+.tok-w .cp button:hover { color: var(--brass); }
+.tok-w .cp b { min-width: 12px; text-align: center; font-variant-numeric: tabular-nums; }
+.rem .tok-w .cp { height: 18px; font-size: 11px; bottom: -7px; }
+.rem .tok-w .cp button { width: 19px; height: 18px; }
+.rem .tok-w + span { margin-top: 6px; }
 .who { cursor: pointer; }
 .team-h .pick-team { margin-left: auto; border: 0; background: none; padding: 0; color: var(--dust); font: inherit; font-size: 12.5px; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
 .team-h .pick-team:hover { color: var(--bone); }
@@ -213,7 +221,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .tok:hover svg { transform: scale(1.06); }
 .tok[aria-current=true] svg { box-shadow: 0 0 0 3px var(--brass); }
 .tok .mark { position: absolute; top: -2px; right: -4px; background: var(--brass); color: var(--velvet-deep); border-radius: 999px; font-size: 10px; font-weight: 700; padding: 0 5px; line-height: 16px; }
-#rows .row > .tok svg { width: 70px; height: 70px; filter: drop-shadow(0 6px 10px rgba(0, 0, 0, .45)); }
+#rows .row > .tok-w svg { width: 70px; height: 70px; filter: drop-shadow(0 6px 10px rgba(0, 0, 0, .45)); }
 .who { cursor: pointer; }
 .who b { display: block; font-family: var(--display); font-weight: 400; font-size: 21px; line-height: 1.1; }
 .who small { color: var(--dust); font-size: 12px; }
@@ -466,8 +474,8 @@ dialog .import { margin-top: 10px; }
   .app[data-step="2"] { grid-template-columns: 360px minmax(0, 1fr); }
   #rows .row { grid-template-columns: 64px minmax(0, 1fr); }
   #rows .row .rems { grid-column: 2; }
-  #rows .row > .tok { grid-row: span 2; align-self: start; }
-  #rows .row > .tok svg { width: 60px; height: 60px; }
+  #rows .row > .tok-w { grid-row: span 2; align-self: start; }
+  #rows .row > .tok-w svg { width: 60px; height: 60px; }
 }
 @media (max-width: 900px) {
   .app, .app[data-step="2"], .app[data-step="3"] { grid-template-columns: minmax(0, 1fr); grid-template-areas: "top" "main" "bar"; }
@@ -553,8 +561,8 @@ dialog .import { margin-top: 10px; }
    reminders under it; no "No reminders" line. */
 @media (max-width: 640px) {
   #rows .row { grid-template-columns: 52px minmax(0, 1fr); grid-template-areas: "tok who" "tok rems"; gap: 6px 12px; padding: 10px 2px; align-items: center; }
-  #rows .row > .tok { grid-area: tok; align-self: start; }
-  #rows .row > .tok svg { width: 52px; height: 52px; }
+  #rows .row > .tok-w { grid-area: tok; align-self: start; }
+  #rows .row > .tok-w svg { width: 52px; height: 52px; }
   #rows .row .who { grid-area: who; align-self: end; min-width: 0; }
   #rows .row .who b { font-size: 19px; overflow-wrap: anywhere; }
   #rows .row .rems { grid-area: rems; gap: 6px; }

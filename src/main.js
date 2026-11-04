@@ -102,6 +102,11 @@ function storeJSON(key, value) { try { localStorage.setItem(key, JSON.stringify(
 
 const charKey = (role) => `c:${role.id}`;
 const remKey = (role, i) => `r:${role.id}:${i}`;
+/** Characters by team, then alphabetically by the name the token shows. */
+const byName = (a, b) => textFor(charKey(a), a, null).localeCompare(textFor(charKey(b), b, null), tokenLang(), { sensitivity: "base" });
+const byTeamName = (a, b) => TEAM_ORDER.indexOf(a.team) - TEAM_ORDER.indexOf(b.team) || byName(a, b);
+/** Token keys in sheet order: team, name, the character before its reminders. */
+const sortKeys = (keys) => [...keys].sort((a, b) => byTeamName(tokenRole(a), tokenRole(b)) || (tokenRem(a) ?? -1) - (tokenRem(b) ?? -1));
 const remindersOf = (role, lang = tokenLang()) => role.reminders?.[lang] || role.reminders?.en || [];
 /** The character's name in the token language, in its feminine form when the token asks for it. */
 const charName = (role, key = charKey(role), lang = tokenLang()) =>
@@ -534,7 +539,7 @@ function renderSheet() {
 
   if (!roles.length) { $("#rows").innerHTML = `<p class="empty">${esc(t("sheet.noResults"))}</p>`; return; }
   $("#rows").innerHTML = TEAM_ORDER.map((team) => {
-    const list = roles.filter((r) => r.team === team);
+    const list = roles.filter((r) => r.team === team).sort(byName);
     if (!list.length) return "";
     const teamOn = list.every((r) => isPicked(charKey(r)));
     return `<div class="team-h"><i style="background:${TEAMS[team].colour}"></i><span>${esc(TEAM_PLURAL[lang][team])}</span><small>${list.length}</small>
@@ -550,7 +555,10 @@ function rowHtml(r, q, remHits) {
     const isRem = reminder != null;
     const spec = { ...specFor(key, isRem), diameter: isRem ? reminderSpec(DEFAULT_SPEC).diameter : 45, back: "none" };
     const own = state.overrides.has(key), copies = state.pick.get(key) || 0;
-    return `<button class="tok" type="button" data-pick="${key}" aria-pressed="${copies > 0}" aria-label="${esc(textFor(key, r, reminder))}">${tokenSvg(state.lib, r, spec, { text: textFor(key, r, reminder) })}<span class="ck" aria-hidden="true">✓</span>${copies > 1 ? `<span class="n">×${copies}</span>` : ""}${own ? `<span class="mark" title="${esc(t("sheet.own"))}">✎</span>` : ""}</button>`;
+    const name = textFor(key, r, reminder);
+    // once picked, a small stepper adds copies; tapping the token still drops it
+    const stepper = copies ? `<span class="cp">${copies > 1 ? `<button type="button" data-less="${key}" aria-label="${esc(t("queue.lessCopy", { name }))}">−</button><b>${copies}</b>` : ""}<button type="button" data-more="${key}" aria-label="${esc(t("queue.moreCopy", { name }))}">+</button></span>` : "";
+    return `<span class="tok-w"><button class="tok" type="button" data-pick="${key}" aria-pressed="${copies > 0}" aria-label="${esc(name)}">${tokenSvg(state.lib, r, spec, { text: name })}<span class="ck" aria-hidden="true">✓</span>${own ? `<span class="mark" title="${esc(t("sheet.own"))}">✎</span>` : ""}</button>${stepper}</span>`;
   };
   const rems = remindersOf(r);
   const other = tokenLang() === "en" ? roleName(r, uiLang() === "en" ? "es" : uiLang()) : r.en;
@@ -762,6 +770,9 @@ function wire() {
   $("#teamChips").onclick = (e) => { const b = e.target.closest("[data-team]"); if (b) { state.team = b.dataset.team; renderSheet(); } };
   // step 1: tap a token to pick it (or drop it); a team or everything shown at once
   $("#rows").onclick = (e) => {
+    const more = e.target.closest("[data-more]"), less = e.target.closest("[data-less]");
+    if (more) { const k = more.dataset.more; state.pick.set(k, (state.pick.get(k) || 0) + 1); picksChanged(); return; }
+    if (less) { const k = less.dataset.less, n = state.pick.get(k) || 0; if (n > 1) state.pick.set(k, n - 1); else state.pick.delete(k); picksChanged(); return; }
     const pick = e.target.closest("[data-pick]"), team = e.target.closest("[data-pick-team]");
     if (pick) { const k = pick.dataset.pick; setPick(k, !isPicked(k)); picksChanged(); return; }
     if (team) {
@@ -1054,7 +1065,7 @@ function renderQueueList() {
   if (!n) { $("#queue").innerHTML = `<div class="q-empty"><h3>${esc(t("pick.nothing"))}</h3><p>${esc(t("pick.help"))}</p></div>`; return; }
   const ids = [...new Set([...state.pick.keys()].map((k) => k.split(":")[1]))];
   $("#queue").innerHTML = TEAM_ORDER.map((team) => {
-    const rows = ids.map(roleById).filter((r) => r.team === team);
+    const rows = ids.map(roleById).filter((r) => r.team === team).sort(byName);
     if (!rows.length) return "";
     return `<h3 class="q-team">${esc(TEAM_PLURAL[lang][team])}</h3>` + rows.map((r) => {
       const ck = charKey(r), copies = state.pick.get(ck) || 0;
@@ -1073,7 +1084,7 @@ function renderQueueList() {
 // ------------------------------------------------------------ step 2: your tokens in the set's design
 
 function renderDesignStage() {
-  const keys = [...state.pick.keys()], total = queueNow().length;
+  const keys = sortKeys(state.pick.keys()), total = queueNow().length;
   $("#designHint").textContent = t("design.hint", { n: total });
   $$("#designStage [data-side]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.side === flow.side)));
   $("#designGrid").innerHTML = keys.map((k) => {
