@@ -103,7 +103,10 @@ function storeJSON(key, value) { try { localStorage.setItem(key, JSON.stringify(
 const charKey = (role) => `c:${role.id}`;
 const remKey = (role, i) => `r:${role.id}:${i}`;
 /** Characters by team, then alphabetically by the name the token shows. */
-const byName = (a, b) => textFor(charKey(a), a, null).localeCompare(textFor(charKey(b), b, null), tokenLang(), { sensitivity: "base" });
+// The token language is a translation id ("es-bumble3ee"); collation needs its language ("es").
+const collators = new Map();
+const collator = (lang = translationById(tokenLang()).lang) => collators.get(lang) ?? collators.set(lang, new Intl.Collator(lang, { sensitivity: "base" })).get(lang);
+const byName = (a, b) => collator().compare(textFor(charKey(a), a, null), textFor(charKey(b), b, null));
 const byTeamName = (a, b) => TEAM_ORDER.indexOf(a.team) - TEAM_ORDER.indexOf(b.team) || byName(a, b);
 /** Token keys in sheet order: team, name, the character before its reminders. */
 const sortKeys = (keys) => [...keys].sort((a, b) => byTeamName(tokenRole(a), tokenRole(b)) || (tokenRem(a) ?? -1) - (tokenRem(b) ?? -1));
