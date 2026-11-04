@@ -6,3 +6,4 @@ dist
 # The role library holds The Pandemonium Institute's artwork: it lives in
 # Firestore (invite-only), never in the public site or the repo.
 admin-data/
+.claude/

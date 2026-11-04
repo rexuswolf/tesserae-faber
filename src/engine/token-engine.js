@@ -892,16 +892,22 @@ export function magnetLayout(spec) {
   const back = spec.back && spec.back !== "none" ? spec.depth : 0;
   const hole = upLayer(mt + 0.2);                // 0.2 mm headroom so the nozzle never touches it
   const radius = (md + 0.3) / 2;                 // 0.3 mm play so it drops in
+  // Plastic needed between the hole and each face. The flush colour inlays are solid
+  // plastic too, so they count towards it; the recessed window (relief finish) doesn't.
+  const faceSide = faceUp ? upLayer(front + SHELL) : upLayer(Math.max(front, SHELL));
+  const backSide = upLayer(Math.max(back, SHELL));
   if (spec.magnet === "pocket") {
-    return { kind: "pocket", md, mt, radius, faceUp, z0: 0, z1: hole, minHeight: mm2(upLayer(hole + SHELL + front)) };
+    return { kind: "pocket", md, mt, radius, faceUp, z0: 0, z1: hole, minHeight: mm2(hole + faceSide) };
   }
   // Print coordinates: z' up from the bed. Face-down prints have the front on the bed.
-  const bottom = faceUp ? back : front, top = faceUp ? front : back;
-  const lo = upLayer(bottom + SHELL);
-  const minHeight = mm2(lo + hole + upLayer(SHELL + top));
+  const lo = faceUp ? backSide : faceSide;       // floor under the cavity
+  const roof = faceUp ? faceSide : backSide;     // roof over it
+  const minHeight = mm2(lo + hole + roof);
   const H = Math.max(spec.height, minHeight);
-  const hi = H - upLayer(SHELL + top) - hole;    // highest start that keeps the roof
-  const c0 = mm2(Math.max(lo, Math.floor((lo + hi) / 2 / LAYER + 1e-6) * LAYER));
+  const hi = mm2(H - roof - hole);               // highest start that keeps the roof
+  // Keep the magnet as close to the back as possible: that's the side that rests
+  // on the metal. Face-down prints have the back on top; face-up ones on the bed.
+  const c0 = faceUp ? lo : hi;
   const c1 = mm2(c0 + hole);
   return {
     kind: "hidden", md, mt, radius, faceUp, minHeight, pauseZ: mm2(c1 + LAYER),
