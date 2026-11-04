@@ -1,5 +1,5 @@
 import {
-  loadLibrary, buildToken, magnetLayout, MAGNET_SIZES, tokenSvg, roleName, saveFile, reminderSpec, layoutName,
+  loadLibrary, buildToken, magnetLayout, MAGNET_SIZES, tokenSvg, roleName, saveFile, reminderSpec, layoutName, nameLetterHeight, SMALL_LETTERS_MM,
   TEAMS, EDITIONS, FRAME_STYLES, BACK_STYLES, TOKEN_STYLES, FILAMENTS, DEFAULT_SPEC,
 } from "./engine/token-engine.js";
 import {
@@ -660,10 +660,11 @@ function renderWorkshop() {
       ? t("depth.clamped", { max: token.depthClamped.toFixed(1), core: "0.4" })
       : t("depth.help");
     const n = token.name;
-    $("#nameHint").className = "hint" + (n.letterHeight < 2.5 ? " warn" : "");
+    const small = n.letterHeight < SMALL_LETTERS_MM;
+    $("#nameHint").className = "hint" + (small ? " warn" : "");
     $("#nameHint").textContent = n.total == null
-      ? t("name.hintWindow", { lines: n.lines, mm: n.letterHeight.toFixed(1), small: n.letterHeight < 2.5 })
-      : t("name.hint", { arc: n.total.toFixed(0), mm: n.letterHeight.toFixed(1), shrunk: n.scale < 1, small: n.letterHeight < 2.5 });
+      ? t("name.hintWindow", { lines: n.lines, mm: n.letterHeight.toFixed(1), small })
+      : t("name.hint", { arc: n.total.toFixed(0), mm: n.letterHeight.toFixed(1), shrunk: n.scale < 1, small });
     $("#nameSummary").textContent = `${n.letterHeight.toFixed(1)} mm`;
   });
 }
@@ -863,7 +864,8 @@ function wire() {
     $("#printNote").textContent = ""; renderQueue();
   });
   $("#printPage").addEventListener("click", (e) => {
-    const w = e.target.closest("[data-way]"), pr = e.target.closest("[data-printer]");
+    const w = e.target.closest("[data-way]"), pr = e.target.closest("[data-printer]"), fix = e.target.closest("[data-fix]");
+    if (fix) { goStep(2); designToken(fix.dataset.fix); return; }
     if (w) { flow.way = w.dataset.way; storeJSON(PRINT_WAY_KEY, flow.way); }
     else if (pr) { flow.printer = printerOf(pr.dataset.printer).id; storeJSON(PRINTER_KEY, flow.printer); }
     else return;
@@ -1216,10 +1218,19 @@ function renderPrintStep() {
     const printers = `<h3 class="q-h">${esc(t("print.printer"))}</h3>
       <div class="printers" role="radiogroup" aria-label="${esc(t("print.printer"))}">${Object.values(PRINTERS).map((pr) => `<button class="pill" type="button" role="radio" data-printer="${pr.id}" aria-checked="${pr.id === printer.id}">${esc(pr.name)}<small>${esc(t("print.bed", { mm: pr.bed }))}</small></button>`).join("")}</div>`;
     if (!plan) { detail.innerHTML = `${printers}<p class="q-note warn">${esc(planError)}</p>`; return; }
+    // Names too small to print cleanly, smallest first, each opening its token in step 2.
+    const dec1 = (v) => v.toFixed(1).replace(".", uiLang() === "es" ? "," : ".");
+    const smalls = [...state.pick.keys()].map((k) => {
+      const q = { pick: k, ...queueEntry(tokenRole(k), tokenRem(k)) }, role = roleById(q.roleId);
+      return { k, mm: nameLetterHeight(state.lib, itemSpec(q), queueTitle(q, role)), label: queueLabel(q, role) };
+    }).filter((x) => x.mm < SMALL_LETTERS_MM).sort((a, b) => a.mm - b.mm);
+    const smallNote = smalls.length ? `<div class="q-note warn small-text"><span aria-hidden="true">⚠</span><div>
+      <p>${esc(t("print.small", { n: smalls.length, mm: dec1(SMALL_LETTERS_MM) }))}</p>
+      <ul>${smalls.map((x) => `<li><button type="button" data-fix="${x.k}">${esc(x.label)}</button> <small>${esc(dec1(x.mm))} mm</small></li>`).join("")}</ul></div></div>` : "";
     const slots = [...new Set(plan.plates.flatMap((p) => [...p.slots]))].sort((a, b) => a - b);
     const dec = uiLang() === "es" ? "," : ".";
     const pauses = [...new Set(queue.map((q) => magnetLayout(itemSpec(q))).filter((m) => m?.kind === "hidden").map((m) => m.pauseZ))].sort((a, b) => a - b);
-    detail.innerHTML = `${printers}<h3 class="q-h">${esc(t("queue.filaments"))}</h3>
+    detail.innerHTML = `${printers}${smallNote}<h3 class="q-h">${esc(t("queue.filaments"))}</h3>
       <p class="q-note">${swatches(slots)}<span>${esc(t("queue.filamentsNote", { list: slots.map(filamentName).join(", ") }))}</span></p>
       ${pauses.length ? `<p class="q-note"><span aria-hidden="true">⏸</span><span>${esc(t("queue.pauses", { z: pauses.map((z) => String(z).replace(".", dec)).join(", ") }))}</span></p>` : ""}
       <h3 class="q-h">${esc(t("queue.platesH", { n: plan.plates.length }))}</h3>

@@ -422,6 +422,11 @@ summary small { font-family: var(--ui); font-size: 12.5px; color: var(--dust); }
 .way small { color: var(--dust); font-size: 12.5px; }
 .way[aria-checked=true] { border-color: var(--brass); background: rgba(201, 162, 39, .1); }
 .way[aria-checked=true] svg { color: var(--brass); }
+.small-text { align-items: flex-start; margin-top: 14px; }
+.small-text p { margin: 0 0 6px; }
+.small-text ul { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.small-text button { border: 0; background: none; padding: 0; color: inherit; font: inherit; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.small-text small { opacity: .75; }
 .printers { display: flex; flex-wrap: wrap; gap: 8px; }
 .printers .pill { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 8px 16px; border-radius: 14px; line-height: 1.25; }
 .printers .pill small { font-size: 11.5px; opacity: .75; }

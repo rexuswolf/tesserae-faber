@@ -927,6 +927,15 @@ function magnetCut(m) {
   return g;
 }
 
+/** Below this letter height (mm) a name may not print cleanly with a 0.4 mm nozzle. */
+export const SMALL_LETTERS_MM = 2.5;
+
+/** How tall the name's letters come out (mm), without building any geometry. */
+export function nameLetterHeight(lib, spec, text) {
+  spec = windowFrame({ ...DEFAULT_SPEC, ...spec, colours: { ...DEFAULT_SPEC.colours, ...spec?.colours } });
+  return spec.style === "window" ? windowLayout(lib, text, spec).cap : layoutName(lib, text, spec).letterHeight;
+}
+
 /** In the window style only a plain rim fits around the window (other frames would float over it). */
 function windowFrame(spec) {
   if (spec.style !== "window" || spec.frame === "none") return spec;
