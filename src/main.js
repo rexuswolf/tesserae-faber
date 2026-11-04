@@ -355,8 +355,9 @@ function drawer(open) {
   $("#scrim").classList.toggle("on", open);
   $("#drawerOpen").setAttribute("aria-expanded", String(open));
   spine.inert = PHONE.matches && !open;
-  if (open) $("#editions [aria-current=true]")?.focus();
-  else if (PHONE.matches && spine.contains(document.activeElement)) $("#drawerOpen").focus();
+  // preventScroll: while the drawer slides in, focusing would scroll the page to reach it
+  if (open) $("#editions [aria-current=true]")?.focus({ preventScroll: true });
+  else if (PHONE.matches && spine.contains(document.activeElement)) $("#drawerOpen").focus({ preventScroll: true });
 }
 
 // ------------------------------------------------------------ sheet
