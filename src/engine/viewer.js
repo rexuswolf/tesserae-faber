@@ -70,6 +70,12 @@ export function createViewer(canvas, { background = null } = {}) {
   let view = "angle";
   function setView(kind = "angle") {
     view = kind;
+    // Drop any spin left from a drag first: with damping on it would keep turning the coin
+    // after the camera is put back (the "Front" view came out tilted). An update without
+    // damping spends it and clears it; then the camera goes where the view says.
+    controls.enableDamping = false;
+    controls.update();
+    controls.enableDamping = true;
     const d = diameter;
     if (kind === "top") camera.position.set(0, -0.001, d * 2.5);
     else if (kind === "back") camera.position.set(0, 0.001, -d * 2.5);
