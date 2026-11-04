@@ -8,7 +8,7 @@ import {
   listInvites, addInvite, removeInvite, listDesigns, saveDesign, deleteDesign, ADMIN_EMAIL,
 } from "./firebase.js";
 import { buildBambuProject, planPlates, FILAMENT_SLOTS } from "./bambu/bambu3mf.js";
-import { t, uiLang, setUiLang } from "./i18n.js";
+import { t, uiLang, setUiLang, LANGUAGES } from "./i18n.js";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -103,13 +103,35 @@ const filamentName = (slot) => t(`filament.${FILAMENT_SLOTS[slot].name}`);
 
 // ------------------------------------------------------------ language
 
+const CHEVRON = '<svg class="chev" viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const CHECK = '<svg class="check" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 8.5 6.5 12 13 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+/** Language menus (sidebar and gate): the current flag, opening a list of every language. */
+function renderLangMenus() {
+  const cur = LANGUAGES.find((l) => l.code === uiLang()) ?? LANGUAGES[0];
+  for (const menu of $$("[data-lang-menu]")) {
+    menu.innerHTML = `<summary aria-label="${esc(t("lang.group"))}: ${esc(cur.name)}" title="${esc(t("lang.group"))}">
+      <img src="${cur.flag}" alt="" width="22" height="22"><span>${cur.code.toUpperCase()}</span>${CHEVRON}</summary>
+      <ul class="lang-list" aria-label="${esc(t("lang.group"))}">${LANGUAGES.map((l) => `<li><button type="button" data-lang="${l.code}" lang="${l.code}" aria-current="${l.code === cur.code}">
+        <img src="${l.flag}" alt="" width="22" height="22"><span>${esc(l.name)}</span>${l.code === cur.code ? CHECK : ""}</button></li>`).join("")}</ul>`;
+  }
+}
 function setLang(lang) {
   setUiLang(lang);
-  $$(".langs .pill").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.lang === lang)));
+  renderLangMenus();
   if (state.lib) { buildChoices(); renderAll(); renderQueue(); renderDesigns(); }
   else if (gateState) gate(gateState());
 }
-$$(".langs .pill").forEach((b) => b.addEventListener("click", () => setLang(b.dataset.lang)));
+document.addEventListener("click", (e) => {
+  const pick = e.target.closest("[data-lang-menu] [data-lang]");
+  if (pick) { pick.closest("details").open = false; setLang(pick.dataset.lang); return; }
+  // Clicking anywhere else closes an open language menu.
+  for (const m of $$("[data-lang-menu][open]")) if (!m.contains(e.target)) m.open = false;
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  for (const m of $$("[data-lang-menu][open]")) { m.open = false; m.querySelector("summary").focus(); }
+});
 setLang(uiLang());
 
 // ------------------------------------------------------------ gate

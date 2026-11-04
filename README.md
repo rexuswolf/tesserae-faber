@@ -105,6 +105,7 @@ and keeps its own terms:
 - **Character icons** come from [game-icons.net](https://game-icons.net) under
   [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/). Each icon's author is credited in the app
   (*Credits*, at the bottom of the sidebar).
+- **Language flags** come from [circle-flags](https://github.com/HatScripts/circle-flags) (MIT).
 - **Fonts**: Gloock, Instrument Sans and UnifrakturMaguntia are under the SIL Open Font License, served by
   Google Fonts. Dumbledor 1 (© GeM), used for the token lettering, is a free font distributed by its author;
   check its terms before reusing it elsewhere.

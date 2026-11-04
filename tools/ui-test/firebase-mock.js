@@ -88,3 +88,6 @@ setTimeout(() => { if (location.hash.includes("xray")) document.querySelector("#
 
 // Test-only: #addshown clicks "+ All" on the sheet
 setTimeout(() => { if (location.hash.includes("addshown")) document.querySelector("#addShownAll")?.click(); }, 6000);
+
+// Test-only: #langmenu opens the language menu
+setTimeout(() => { if (location.hash.includes("langmenu")) { const m = [...document.querySelectorAll("[data-lang-menu]")].find((d) => d.offsetParent); if (m) m.open = true; } }, 6000);

@@ -590,9 +590,19 @@ const STR = {
   },
 };
 
+/**
+ * The interface languages, in menu order. To add one: give it an entry here, a flag in
+ * public/flags/ (circle-flags, "language" set) and its strings in STR above.
+ */
+export const LANGUAGES = [
+  { code: "es", name: "Español", flag: "/flags/es.svg" },
+  { code: "en", name: "English", flag: "/flags/en.svg" },
+];
+const known = (code) => LANGUAGES.some((l) => l.code === code);
+
 const STORE_KEY = "midnight-mint-lang";
 const initial = (() => {
-  try { const saved = localStorage.getItem(STORE_KEY); if (saved === "es" || saved === "en") return saved; } catch { /* no storage */ }
+  try { const saved = localStorage.getItem(STORE_KEY); if (known(saved)) return saved; } catch { /* no storage */ }
   return "es";   // made for a Spanish group; the switch remembers other choices
 })();
 let lang = initial;
@@ -618,7 +628,7 @@ export function applyStatic(root = document) {
 }
 
 export function setUiLang(next) {
-  lang = next === "en" ? "en" : "es";
+  lang = known(next) ? next : "es";
   try { localStorage.setItem(STORE_KEY, lang); } catch { /* no storage */ }
   document.documentElement.lang = lang;
   applyStatic();
