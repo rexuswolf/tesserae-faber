@@ -45,6 +45,7 @@ setTimeout(() => {
     else if (k === "print") window.__mm.goStep(3);
     else if (k === "way") click(`#printPage [data-way="${v}"]`);
     else if (k === "printer") click(`#printPage [data-printer="${v}"]`);
+    else if (k === "nozzle") click(`#printPage [data-nozzle="${v}"]`);
     else if (k === "go") click("#flowNext");
     else if (k === "stl") click("#download");
     else if (k === "design") click(`#presets [data-preset="${v}"]`);

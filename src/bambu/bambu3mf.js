@@ -6,7 +6,7 @@
 // The printer/process/filament settings come from <printer>-template.json, generated once
 // per printer with Bambu Studio by tools/make_bambu_template.py.
 import JSZip from "jszip";
-import { FILAMENT_SLOTS, PARTS, purge, plateStride, printerOf, slotOf, slotsFor, towerSpot, planPlates } from "./plates.js";
+import { FILAMENT_SLOTS, PARTS, purge, nozzleOf, plateStride, printerOf, slotOf, slotsFor, towerSpot, planPlates } from "./plates.js";
 
 export { FILAMENT_SLOTS, AMS_SLOTS, PRINTERS, slotOf, perPlate, planPlates } from "./plates.js";
 
@@ -14,6 +14,8 @@ export { FILAMENT_SLOTS, AMS_SLOTS, PRINTERS, slotOf, perPlate, planPlates } fro
 const TEMPLATES = {
   a1: () => import("./a1-template.json"),
   a1mini: () => import("./a1mini-template.json"),
+  "a1-n02": () => import("./a1-n02-template.json"),
+  "a1mini-n02": () => import("./a1mini-n02-template.json"),
 };
 
 
@@ -53,7 +55,7 @@ const XML = `<?xml version="1.0" encoding="UTF-8"?>\n`;
 
 // ------------------------------------------------------------ settings
 
-function projectSettings(template, used, plates, bed) {
+function projectSettings(template, used, plates, bed, nozzle) {
   const s = structuredClone(template.settings);
   for (const key of template.perFilament) s[key] = used.map((slot) => template.settings[key][slot]);
   const n = used.length;
@@ -76,16 +78,18 @@ function projectSettings(template, used, plates, bed) {
   // layer. Bambu's defaults there (classic walls, 0.5 mm first-layer lines, elephant-foot
   // compensation narrowing every colour region) leave gaps in letters and drop lines thinner
   // than two walls: a plate of reminders got 25 % less inlay plastic than its shapes need.
-  // Arachne varies the line width to fill thin strokes; 0.42 mm lines fit them better.
+  // Arachne varies the line width to fill thin strokes; the nozzle's normal line width
+  // (0.42 mm, or 0.22 on a 0.2 mm nozzle) fits them better than the first layer's wider one.
   s.wall_generator = "arachne";
-  s.initial_layer_line_width = "0.42";
+  s.initial_layer_line_width = nozzle.firstLine;
   s.elefant_foot_compensation = "0";
   // Bambu Studio keeps a project's own values only for the settings listed here as changed
   // from its system presets (process first, then each filament, then the printer); on
   // opening, it resets the rest to the preset. The command-line slicer doesn't, so this
   // only shows in the app.
   const ours = ["elefant_foot_compensation", "initial_layer_line_width", "wall_generator"];
-  s.different_settings_to_system = [ours.join(";"), ...used.map(() => ""), ""];
+  if (nozzle.towerInfillGap) { s.prime_tower_infill_gap = nozzle.towerInfillGap; ours.push("prime_tower_infill_gap"); }
+  s.different_settings_to_system = [ours.sort().join(";"), ...used.map(() => ""), ""];
   s.inherits_group = ["", ...used.map(() => ""), ""];
   return s;
 }
@@ -105,13 +109,14 @@ function firstLayerOrder(plate, usedSlots) {
 }
 
 /**
- * Builds the .3mf for `printer` ("a1" or "a1mini"). `items` are {token, title, group};
+ * Builds the .3mf for `printer` ("a1" or "a1mini") with `nozzle` ("0.4" or "0.2"). `items` are {token, title, group};
  * returns {blob, plan}. `onProgress(done, total)` is called as tokens are written.
  */
-export async function buildBambuProject(items, { printer = "a1", faceDown = true, onProgress = () => {} } = {}) {
+export async function buildBambuProject(items, { printer = "a1", nozzle: nozzleId = "0.4", faceDown = true, onProgress = () => {} } = {}) {
   if (!items.length) throw new Error("add some tokens to the print queue first");
   const { bed, id } = printerOf(printer);
-  const template = (await TEMPLATES[id]()).default;
+  const nozzle = nozzleOf(nozzleId);
+  const template = (await TEMPLATES[id + nozzle.suffix]()).default;
   const plan = planPlates(items, { bed });
   const stride = plateStride(bed);
   const usedSlots = [...new Set(plan.plates.flatMap((p) => [...p.slots]))].sort((a, b) => a - b);
@@ -218,7 +223,7 @@ ${rels.map((r, i) => ` <Relationship Target="${r}" Id="rel-${i + 1}" Type="http:
 ${objectsCfg.join("\n")}
 ${platesCfg.join("\n")}
 </config>`);
-  zip.file("Metadata/project_settings.config", JSON.stringify(projectSettings(template, usedSlots, plan.plates, bed), null, 4));
+  zip.file("Metadata/project_settings.config", JSON.stringify(projectSettings(template, usedSlots, plan.plates, bed, nozzle), null, 4));
   zip.file("Metadata/slice_info.config", `${XML}<config>
   <header>
     <header_item key="X-BBL-Client-Type" value="slicer"/>

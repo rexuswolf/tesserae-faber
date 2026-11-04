@@ -6,7 +6,7 @@ import { infoRoles } from "./info-tokens.js";
 import {
   onUser, signIn, signOutUser, isAdmin, loadRoles, uploadRoles, listAccountDesigns, deleteAccountDesign,
 } from "./firebase.js";
-import { planPlates, FILAMENT_SLOTS, PRINTERS, printerOf } from "./bambu/plates.js";
+import { planPlates, FILAMENT_SLOTS, PRINTERS, printerOf, NOZZLES, nozzleOf } from "./bambu/plates.js";
 import { plateFeatures } from "./bambu/estimate.js";
 import { PAGE, layoutCoins, backX } from "./pdf/layout.js";
 import { t, uiLang, setUiLang, LANGUAGES } from "./i18n.js";
@@ -666,11 +666,11 @@ function renderWorkshop() {
       ? t("depth.clamped", { max: token.depthClamped.toFixed(1), core: "0.4" })
       : t("depth.help");
     const n = token.name;
-    const small = n.letterHeight < SMALL_LETTERS_MM;
+    const small = n.letterHeight < smallLetters();
     $("#nameHint").className = "hint" + (small ? " warn" : "");
     $("#nameHint").textContent = n.total == null
-      ? t("name.hintWindow", { lines: n.lines, mm: n.letterHeight.toFixed(1), small })
-      : t("name.hint", { arc: n.total.toFixed(0), mm: n.letterHeight.toFixed(1), shrunk: n.scale < 1, small });
+      ? t("name.hintWindow", { lines: n.lines, mm: n.letterHeight.toFixed(1), small, nozzle: nozzleMm() })
+      : t("name.hint", { arc: n.total.toFixed(0), mm: n.letterHeight.toFixed(1), shrunk: n.scale < 1, small, nozzle: nozzleMm() });
     $("#nameSummary").textContent = `${n.letterHeight.toFixed(1)} mm`;
   });
 }
@@ -870,10 +870,11 @@ function wire() {
     $("#printNote").textContent = ""; renderQueue();
   });
   $("#printPage").addEventListener("click", (e) => {
-    const w = e.target.closest("[data-way]"), pr = e.target.closest("[data-printer]"), fix = e.target.closest("[data-fix]");
+    const w = e.target.closest("[data-way]"), pr = e.target.closest("[data-printer]"), nz = e.target.closest("[data-nozzle]"), fix = e.target.closest("[data-fix]");
     if (fix) { goStep(2); designToken(fix.dataset.fix); return; }
     if (w) { flow.way = w.dataset.way; storeJSON(PRINT_WAY_KEY, flow.way); }
     else if (pr) { flow.printer = printerOf(pr.dataset.printer).id; storeJSON(PRINTER_KEY, flow.printer); }
+    else if (nz) { flow.nozzle = nozzleOf(nz.dataset.nozzle).id; storeJSON(NOZZLE_KEY, flow.nozzle); }
     else return;
     $("#printNote").textContent = ""; renderQueue();
   });
@@ -1086,15 +1087,19 @@ function tokenVolumes(q) {
   return volumeCache.get(k);
 }
 /** Filament and time per plate of the plan (estimates; Bambu Studio gives the exact figures). */
-const plateEstimates = (plan) => plan.plates.map((p) => plateFeatures(p.items.map((it) => ({ token: it.token, vol: tokenVolumes(it.q) }))));
+const plateEstimates = (plan) => plan.plates.map((p) => plateFeatures(p.items.map((it) => ({ token: it.token, vol: tokenVolumes(it.q) })), flow.nozzle));
 
 
 // ------------------------------------------------------------ steps
 
-const PRINT_WAY_KEY = "midnight-mint-print-way", PRINTER_KEY = "midnight-mint-printer", PAPER_BACKS_KEY = "midnight-mint-paper-backs";
+const PRINT_WAY_KEY = "midnight-mint-print-way", PRINTER_KEY = "midnight-mint-printer", NOZZLE_KEY = "midnight-mint-nozzle", PAPER_BACKS_KEY = "midnight-mint-paper-backs";
 const flow = { way: loadJSON(PRINT_WAY_KEY, "3d") === "paper" ? "paper" : "3d", printer: printerOf(loadJSON(PRINTER_KEY, "a1")).id,
+  nozzle: nozzleOf(loadJSON(NOZZLE_KEY, "0.4")).id,   // 3D: the printer's nozzle, 0.4 mm (standard) or 0.2 mm
   backs: loadJSON(PAPER_BACKS_KEY, true) !== false,   // paper: print the backs too (double-sided)
   side: "front", undo: null };
+/** Letters smaller than this (mm) may not print cleanly: the 3D nozzle's limit; on paper, the 0.4 mm one's. */
+const smallLetters = () => (flow.way === "3d" ? nozzleOf(flow.nozzle).smallLetters : SMALL_LETTERS_MM);
+const nozzleMm = () => String(flow.way === "3d" ? nozzleOf(flow.nozzle).mm : 0.4).replace(".", uiLang() === "es" ? "," : ".");
 const queuePic = (q, role = roleById(q.roleId)) => tokenSvg(state.lib, role, itemSpec(q), { text: queueTitle(q, role) });
 
 /** Moves to step 1 (pick), 2 (design) or 3 (print). Steps 2 and 3 need something picked. */
@@ -1246,16 +1251,18 @@ function renderPrintStep() {
     $("#flowNext").disabled = !plan;
     // which printer: the A1 or the A1 mini (same AMS lite, a smaller bed)
     const printers = `<h3 class="q-h">${esc(t("print.printer"))}</h3>
-      <div class="printers" role="radiogroup" aria-label="${esc(t("print.printer"))}">${Object.values(PRINTERS).map((pr) => `<button class="pill" type="button" role="radio" data-printer="${pr.id}" aria-checked="${pr.id === printer.id}">${esc(pr.name)}<small>${esc(t("print.bed", { mm: pr.bed }))}</small></button>`).join("")}</div>`;
+      <div class="printers" role="radiogroup" aria-label="${esc(t("print.printer"))}">${Object.values(PRINTERS).map((pr) => `<button class="pill" type="button" role="radio" data-printer="${pr.id}" aria-checked="${pr.id === printer.id}">${esc(pr.name)}<small>${esc(t("print.bed", { mm: pr.bed }))}</small></button>`).join("")}</div>
+      <h3 class="q-h">${esc(t("print.nozzle"))}</h3>
+      <div class="printers" role="radiogroup" aria-label="${esc(t("print.nozzle"))}">${Object.values(NOZZLES).map((nz) => `<button class="pill" type="button" role="radio" data-nozzle="${nz.id}" aria-checked="${nz.id === flow.nozzle}">${esc(`${String(nz.mm).replace(".", uiLang() === "es" ? "," : ".")} mm`)}<small>${esc(t(nz.id === "0.4" ? "print.nozzle04" : "print.nozzle02"))}</small></button>`).join("")}</div>`;
     if (!plan) { detail.innerHTML = `${printers}<p class="q-note warn">${esc(planError)}</p>`; return; }
     // Names too small to print cleanly, smallest first, each opening its token in step 2.
     const dec1 = (v) => v.toFixed(1).replace(".", uiLang() === "es" ? "," : ".");
     const smalls = [...state.pick.keys()].map((k) => {
       const q = { pick: k, ...queueEntry(tokenRole(k), tokenRem(k)) }, role = roleById(q.roleId);
       return { k, mm: nameLetterHeight(state.lib, itemSpec(q), queueTitle(q, role), role), label: queueLabel(q, role) };
-    }).filter((x) => x.mm < SMALL_LETTERS_MM).sort((a, b) => a.mm - b.mm);
+    }).filter((x) => x.mm < smallLetters()).sort((a, b) => a.mm - b.mm);
     const smallNote = smalls.length ? `<div class="q-note warn small-text"><span aria-hidden="true">⚠</span><div>
-      <p>${esc(t("print.small", { n: smalls.length, mm: dec1(SMALL_LETTERS_MM) }))}</p>
+      <p>${esc(t("print.small", { n: smalls.length, mm: dec1(smallLetters()) }))}</p>
       <ul>${smalls.map((x) => `<li><button type="button" data-fix="${x.k}">${esc(x.label)}</button> <small>${esc(dec1(x.mm))} mm</small></li>`).join("")}</ul></div></div>` : "";
     const slots = [...new Set(plan.plates.flatMap((p) => [...p.slots]))].sort((a, b) => a - b);
     // Estimates: grams per filament and minutes per plate (Bambu Studio has the exact figures).
@@ -1311,8 +1318,9 @@ async function downloadBambu() {
       items.push({ token: buildToken(state.lib, role, itemSpec(q), queueTitle(q, role)), title: queueLabel(q, role), group: queueGroup(q, role) });
     }
     const printer = printerOf(flow.printer);
-    const { blob, plan, filaments } = await buildBambuProject(items, { printer: printer.id, onProgress: (d, total) => { out.textContent = t("queue.writing", { i: d, n: total }); } });
-    const file = `midnight-mint-${items.length}-tokens-${printer.short.toLowerCase().replace(/\s+/g, "-")}.3mf`;
+    const nozzle = nozzleOf(flow.nozzle);
+    const { blob, plan, filaments } = await buildBambuProject(items, { printer: printer.id, nozzle: nozzle.id, onProgress: (d, total) => { out.textContent = t("queue.writing", { i: d, n: total }); } });
+    const file = `midnight-mint-${items.length}-tokens-${printer.short.toLowerCase().replace(/\s+/g, "-")}${nozzle.id === "0.4" ? "" : `-${nozzle.id}mm`}.3mf`;
     await saveFile(blob, file);
     out.textContent = t("queue.done", { file, n: plan.plates.length, filaments: filaments.map((f) => t(`filament.${f.name}`)).join(", ") });
   } catch (err) {

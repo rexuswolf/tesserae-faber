@@ -1,22 +1,28 @@
 // Rough filament and time for a plate, without slicing: what the Print step shows before
 // the download. Calibrated against Bambu Studio's own slicing (A1 and A1 mini, PLA Basic,
-// 0.20 mm layers, 15 % infill) on three designs: grams within 5 % on average for the
-// filaments that matter (3 g or more), 18 % at worst.
-import { purge, slotOf } from "./plates.js";
+// Bambu's standard profile for each nozzle, 15 % infill): grams within 5 % on average for
+// the filaments that matter (3 g or more).
+import { nozzleOf, purge, slotOf } from "./plates.js";
 
 export const DENSITY = 1.26;     // g/cm³, Bambu PLA Basic (filament_density in the templates)
-const LAYER = 0.2;               // mm
-// The coin's body: solid top and bottom shells (5 + 3 layers), 15 % infill between, plus walls.
-const SHELLS = 8 * LAYER, INFILL = 0.15;
+const INFILL = 0.15;
+// Per nozzle: the profile's layer height and solid shells (top + bottom layers), and the
+// time model, a least-squares fit on plates sliced by Bambu Studio.
 export const CAL = {
-  walls: 0.04,                   // extra share of the body for the walls
-  // Minutes, a least-squares fit on 29 plates sliced by Bambu Studio (Fast print on the A1 and
-  // A1 mini, Ivory coin, Hidden magnet, all of Trouble Brewing; and info cards on both):
-  // within 3 % on average, 17 % at worst. Cards' big solid faces take a few minutes more each.
-  t0: 3.00, perToken: 1.60, perBodyMm3: 0.00106, perInlayMm3: 0.0139, perSwap: 2.86, perCard: 3.26,
+  // 0.20 mm layers, 5 + 3 shells. 29 plates (Fast print on the A1 and A1 mini, Ivory coin,
+  // Hidden magnet, all of Trouble Brewing; and info cards on both): within 3 % on average,
+  // 17 % at worst. Cards' big solid faces take a few minutes more each.
+  "0.4": { layer: 0.2, shells: 8, walls: 0.04,
+    t0: 3.00, perToken: 1.60, perBodyMm3: 0.00106, perInlayMm3: 0.0139, perSwap: 2.86, perCard: 3.26 },
+  // 0.10 mm layers, 7 + 5 shells. 36 plates (Fast print and Ivory coin on the A1 and A1 mini,
+  // Hidden magnet on the A1 mini, all of Trouble Brewing): within 4 % on average, 13 % at
+  // worst; grams 3 % under on average. No cards in that set: perCard scales the 0.4 mm one
+  // like perToken (×3.3).
+  "0.2": { layer: 0.1, shells: 12, walls: 0.04,
+    t0: 9.43, perToken: 5.34, perBodyMm3: 0.00559, perInlayMm3: 0.0391, perSwap: 5.02, perCard: 10.9 },
 };
 /** Share of a body this thick (mm) that the slicer fills. */
-const bodyFill = (h) => Math.min(1, (Math.min(h, SHELLS) + Math.max(0, h - SHELLS) * INFILL) / h + CAL.walls);
+const bodyFill = (h, c) => { const sh = c.shells * c.layer; return Math.min(1, (Math.min(h, sh) + Math.max(0, h - sh) * INFILL) / h + c.walls); };
 
 const FACE = ["front", "icon", "frame"], BACK = ["back"];
 
@@ -25,7 +31,8 @@ const FACE = ["front", "icon", "frame"], BACK = ["back"];
  * Returns the colour changes, grams per filament slot and minutes, plus the inputs the
  * time is fitted on.
  */
-export function plateFeatures(items) {
+export function plateFeatures(items, nozzle = "0.4") {
+  const c = CAL[nozzleOf(nozzle).id];
   let n = 0, cards = 0, body = 0, inlay = 0, layers = 1;
   const face = new Set(), back = new Set(), mm3 = new Map();
   const add = (slot, v) => mm3.set(slot, (mm3.get(slot) || 0) + v);
@@ -34,7 +41,7 @@ export function plateFeatures(items) {
     n++; if (token.foot) cards++; body += vol.base;   // the coin as built: a magnet may have made it thicker than its spec
     const footArea = token.foot ? token.foot.w * token.foot.h : Math.PI * (spec.diameter / 2) ** 2;   // a card, or a coin
     const h = vol.base / footArea;
-    layers = Math.max(layers, Math.round(spec.depth / LAYER));
+    layers = Math.max(layers, Math.round(spec.depth / c.layer));
     let inlays = 0;
     for (const part of [...FACE, ...BACK]) {
       if (!vol[part]) continue;
@@ -42,7 +49,7 @@ export function plateFeatures(items) {
       add(slot, vol[part]); inlays += vol[part];
       if (slot !== base) (FACE.includes(part) ? face : back).add(slot);
     }
-    add(base, Math.max(0, vol.base - inlays - (vol.magnet || 0)) * bodyFill(h));
+    add(base, Math.max(0, vol.base - inlays - (vol.magnet || 0)) * bodyFill(h, c));
     face.add(base); back.add(base);
     inlay += inlays;
   }
@@ -65,8 +72,8 @@ export function plateFeatures(items) {
   const slots = [...mm3.keys()];
   const grams = slots.sort((a, b) => a - b).map((s) => [s, (mm3.get(s) * DENSITY) / 1000]);
   // Time also counts the plate's first load of an inlay colour: it takes as long as a
-  // change (CAL.perSwap was fitted that way), though its purge isn't in the plate's grams.
+  // change (perSwap was fitted that way), though its purge isn't in the plate's grams.
   const loads = swaps + (faceOrder.length > 1 ? 1 : 0);   // + the first load
-  const minutes = CAL.t0 + CAL.perToken * n + CAL.perCard * cards + CAL.perBodyMm3 * body + CAL.perInlayMm3 * inlay + CAL.perSwap * loads;
-  return { n, cards, body, inlay, swaps, grams, minutes };
+  const minutes = c.t0 + c.perToken * n + c.perCard * cards + c.perBodyMm3 * body + c.perInlayMm3 * inlay + c.perSwap * loads;
+  return { n, cards, body, inlay, swaps, loads, grams, minutes };
 }

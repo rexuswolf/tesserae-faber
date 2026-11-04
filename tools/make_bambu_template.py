@@ -1,20 +1,24 @@
 """
-Generates src/bambu/<printer>-template.json: Bambu Studio project settings for a Bambu Lab
-A1 or A1 mini (0.4 mm nozzle, 0.20 mm layers, PLA Basic) with one filament per Midnight
-Mint colour. The browser trims it to the filaments a project actually uses.
+Generates src/bambu/<id>-template.json: Bambu Studio project settings for a Bambu Lab
+A1 or A1 mini with Bambu's standard profile for its nozzle (0.4 mm: 0.20 mm layers;
+0.2 mm: 0.10 mm layers) and PLA Basic, one filament per Midnight Mint colour. The
+browser trims it to the filaments a project actually uses.
 
-Run once per printer (needs Bambu Studio installed):
-  python3 tools/make_bambu_template.py <any.stl> [a1|a1mini]     (default a1)
+Run once per printer and nozzle (needs Bambu Studio installed):
+  python3 tools/make_bambu_template.py <any.stl> [a1|a1mini|a1-n02|a1mini-n02]     (default a1)
 """
 import json, os, subprocess, sys, tempfile, zipfile
 
 APP = "/Applications/BambuStudio.app"
 CLI = f"{APP}/Contents/MacOS/BambuStudio"
 PROFILES = f"{APP}/Contents/Resources/profiles/BBL"
-# printer id -> (machine, process, filament profile, bed size in mm). Ids match PRINTERS in src/bambu/plates.js.
+# template id -> (machine, process, filament profile, bed size in mm). The ids are the printer's
+# (PRINTERS in src/bambu/plates.js), plus "-n02" for the 0.2 mm nozzle (NOZZLES there).
 PRINTERS = {
     "a1": ("Bambu Lab A1 0.4 nozzle", "0.20mm Standard @BBL A1", "Bambu PLA Basic @BBL A1", 256),
     "a1mini": ("Bambu Lab A1 mini 0.4 nozzle", "0.20mm Standard @BBL A1M", "Bambu PLA Basic @BBL A1M", 180),
+    "a1-n02": ("Bambu Lab A1 0.2 nozzle", "0.10mm Standard @BBL A1 0.2 nozzle", "Bambu PLA Basic @BBL A1 0.2 nozzle", 256),
+    "a1mini-n02": ("Bambu Lab A1 mini 0.2 nozzle", "0.10mm Standard @BBL A1M 0.2 nozzle", "Bambu PLA Basic @BBL A1M 0.2 nozzle", 180),
 }
 # Must match FILAMENT_SLOTS in src/bambu/bambu3mf.js (order = filament number).
 COLOURS = ["#1d1c21", "#2f86e0", "#b3191e", "#8a3d9e", "#d4a72c", "#3f9651", "#c9a227", "#a7adb4", "#9a6a3a", "#ece9e2"]

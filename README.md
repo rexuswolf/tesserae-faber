@@ -67,7 +67,8 @@
   their own), then **print**: see the plates (with their filaments) or the A4 sheets before you download.
 - **Bambu Lab A1 or A1 mini, with AMS lite**: download a ready-to-print `.3mf`. Every part already has its filament,
   tokens are grouped onto plates by team with at most 4 colours each, and hidden magnets come with their pause.
-  The A1 mini's smaller plate holds 8 characters or 14 reminders (the A1: 24 and 34). Before you download, each
+  The A1 mini's smaller plate holds 8 characters or 14 reminders (the A1: 24 and 34). Choose the nozzle too:
+  the standard 0.4 mm, or 0.2 mm for finer lettering (0.10 mm layers, slower). Before you download, each
   plate shows its estimated filament and time (calibrated against Bambu Studio), and names too small to print are flagged.
 - **Any other printer**: download a token's STL files from the workshop, one per colour, with instructions.
 - **Paper**: download a double-sided A4 PDF at real size. Each back lands behind its front, with cut guides.
@@ -113,9 +114,11 @@ and `node tools/upload-library.mjs` replaces the library with it.
 - `src/engine/token-engine.js`: the token geometry (three.js), the 3D viewer, 2D thumbnails and STL export.
   A token is a coin plus flush coloured inlays (name and icon, frame, back), so each colour is its own part.
 - `src/bambu/bambu3mf.js`: the Bambu Studio project writer (plates, filaments, prime tower, magnet pauses).
-  Its printer settings come from `a1-template.json` and `a1mini-template.json`, generated with Bambu Studio by
-  `tools/make_bambu_template.py <any.stl> [a1|a1mini]`. On top of them it asks for Arachne walls and 0.42 mm
-  first-layer lines (the lettering is the first layer), prints each plate's inlay colours before the coin's,
+  Its printer settings come from one template per printer and nozzle (`a1`, `a1mini`, and `-n02` for 0.2 mm),
+  generated with Bambu Studio by `tools/make_bambu_template.py <any.stl> [a1|a1mini|a1-n02|a1mini-n02]`. On top of
+  them it asks for Arachne walls and first-layer lines at the nozzle's normal width (the lettering is the first
+  layer), a denser prime tower on the 0.2 mm nozzle so it keeps to its space, prints each plate's inlay colours
+  before the coin's,
   and purges what Bambu Studio's own auto-calculation gives for each pair of colours plus 20 %
   (`src/bambu/flush.json`, from `tools/make_flush_table.py`).
 - `src/pdf/print-pdf.js`: the double-sided A4 PDF, loaded only when you ask for it.

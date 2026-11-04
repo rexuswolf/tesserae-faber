@@ -26,6 +26,21 @@ export const PRINTERS = {
   a1mini: { id: "a1mini", name: "Bambu Lab A1 mini", short: "A1 mini", bed: 180 },
 };
 export const printerOf = (id) => PRINTERS[id] ?? PRINTERS.a1;
+/**
+ * The nozzles both printers take, each with Bambu's standard profile for it
+ * (tools/make_bambu_template.py writes <printer><suffix>-template.json): its layer height,
+ * the first layer's line width we ask for (the lettering is the first layer, see
+ * bambu3mf.js) and the smallest letters it prints cleanly, which scale with the nozzle.
+ */
+export const NOZZLES = {
+  "0.4": { id: "0.4", mm: 0.4, suffix: "", layer: 0.2, firstLine: "0.42", smallLetters: 2.5, towerInfillGap: null },
+  // On 0.10 mm layers Bambu's square prime tower grows: an Ivory plate's (three colours a
+  // layer, the most a face has) measured 56.6 mm and went off the bed, against 43.9 on the
+  // 0.4 mm nozzle. Its infill at 100 % gap instead of 150 % brings it to 47.8, which fits the
+  // space kept for it (towerSpot).
+  "0.2": { id: "0.2", mm: 0.2, suffix: "-n02", layer: 0.1, firstLine: "0.22", smallLetters: 1.25, towerInfillGap: "100%" },
+};
+export const nozzleOf = (id) => NOZZLES[id] ?? NOZZLES["0.4"];
 const A1_BED = PRINTERS.a1.bed;
 /** Bambu Studio lays a project's plates out on a grid of the bed plus a fifth. */
 export const plateStride = (bed = A1_BED) => bed * 1.2;
