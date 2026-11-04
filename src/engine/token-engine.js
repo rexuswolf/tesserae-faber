@@ -44,6 +44,9 @@ export const FRAME_STYLES = [
   { id: "fases", label: "Moon phases" },
   { id: "firmamento", label: "Stars" },
   { id: "laurel", label: "Laurel" },
+  { id: "espinas", label: "Thorns" },
+  { id: "runas", label: "Runes" },
+  { id: "colmillos", label: "Fangs" },
 ];
 
 export const BACK_STYLES = [
@@ -788,6 +791,35 @@ export function frameDesign(spec) {
         else sh.push(sparkle(...pt(rs, a).toArray(), i % 4 ? 0.85 : 1.2, i % 4 ? 0.3 : 0.38, a));
       }
       inner = rs - 1.2;
+      break;
+    }
+    case "espinas": {
+      // A crown of thorns: spikes pointing in from the rim.
+      const n = Math.round((TAU * edge) / 2.6);
+      for (let i = 0; i < n; i++) sh.push(taper(edge + 0.05, edge - 1.7, (i * TAU) / n, 0.9, 0.12));
+      inner = edge - 1.7;
+      break;
+    }
+    case "colmillos": {
+      // Fangs: long and short teeth in turn, pointing in.
+      const n = 2 * Math.round((TAU * edge) / 7);
+      for (let i = 0; i < n; i++) sh.push(taper(edge + 0.05, edge - (i % 2 ? 1.5 : 2.6), (i * TAU) / n, i % 2 ? 0.9 : 1.3, 0.12));
+      inner = edge - 2.6;
+      break;
+    }
+    case "runas": {
+      // Rune-like marks (made up, no real alphabet) between the rim and a thin inner ring.
+      const r0 = edge - 0.5, r1 = edge - 2.0, rIn = r1 - 0.5, n = Math.round((TAU * edge) / 3.2), w = 0.5;
+      const bar = (p, q) => { const d = q.clone().sub(p).normalize(), nn = new THREE.Vector2(-d.y, d.x).multiplyScalar(w / 2);
+        return polygon([p.clone().add(nn), q.clone().add(nn), q.clone().sub(nn), p.clone().sub(nn)]); };
+      const da = 0.55 / edge;                                   // ~0.55 mm either side of a mark's axis
+      for (let i = 0; i < n; i++) {
+        const a = (i * TAU) / n, A = (r, k) => pt(r, a + k * da), mid = (r0 + r1) / 2;
+        const marks = [[[A(r0, 0), A(r1, 0)], [A(r0, 0), A(mid, 1.4)]], [[A(r0, -1), A(r1, -1)], [A(r0, 1), A(r1, 1)], [A(mid, -1), A(mid, 1)]],
+          [[A(r0, -1), A(r1, 1)], [A(r0, 1), A(r1, -1)]], [[A(r0, -1), A(r1, 0)], [A(r1, 0), A(r0, 1)]]][i % 4];
+        for (const [p, q] of marks) sh.push(bar(p, q));
+      }
+      sh.push(annulus(r1 - 0.05, rIn)); inner = rIn;
       break;
     }
     case "laurel": {
