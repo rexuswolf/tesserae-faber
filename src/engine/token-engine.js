@@ -794,7 +794,7 @@ function backShapes(id, R) {
         if (h % 3 === 0) sh.push(taper(out - 6.2, out - 3.2, a, 1.5, 0.9));
         else sh.push(sparkle(...pt(out - 4.1, a).toArray(), 0.9, 0.38, a));
       }
-      const moonY = out - 6.0;                                    // crescent at XII, 1 mm clear of the ring
+      const moonY = out - 5.45;                                   // crescent at XII, ~0.45 mm below the ring
       sh.push(crescent(0, moonY, 2.3, 1.06, moonY + 0.55, 1.96));
       const minute = Math.PI / 2 + (5 * TAU) / 60, hour = Math.PI / 2 + (0.08 * TAU) / 12;
       sh.push(taper(-2.6, R * 0.6, minute, 1.8, 0.6), taper(-2.0, R * 0.38, hour, 2.6, 0.9), disc(1.7), annulus(2.7, 2.15));
