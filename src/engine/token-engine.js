@@ -732,7 +732,7 @@ export function frameDesign(spec) {
     case "fases": {
       // The moon's phases around the coin: full at the top, new at the bottom,
       // with a row of small stars between them.
-      const rm = edge - 1.6, mr = 1.25;
+      const rm = edge - 1.9, mr = 1.2;              // 0.7 mm clear of the rim
       for (let k = 0; k < 8; k++) {
         const a = Math.PI / 2 - (k * TAU) / 8;
         sh.push(...moonPhase(...pt(rm, a).toArray(), mr, (0.5 + k / 8) % 1));
@@ -777,6 +777,11 @@ export function frameDesign(spec) {
 
 /** Filled shapes for a designed back, or null if `id` isn't one of them. */
 export function backDesign(id, R) {
+  return backShapes(id, R)?.map(ccw) ?? null;
+}
+
+// Same winding for every outline (ccw), so overlapping hands and hub merge in 2D.
+function backShapes(id, R) {
   const out = R - 0.7;
   switch (id) {
     case "medianoche": {
@@ -789,8 +794,8 @@ export function backDesign(id, R) {
         if (h % 3 === 0) sh.push(taper(out - 6.2, out - 3.2, a, 1.5, 0.9));
         else sh.push(sparkle(...pt(out - 4.1, a).toArray(), 0.9, 0.38, a));
       }
-      const moonY = out - 5.4;                                    // crescent at XII
-      sh.push(crescent(0, moonY, 2.7, 1.25, moonY + 0.65, 2.3));
+      const moonY = out - 6.0;                                    // crescent at XII, 1 mm clear of the ring
+      sh.push(crescent(0, moonY, 2.3, 1.06, moonY + 0.55, 1.96));
       const minute = Math.PI / 2 + (5 * TAU) / 60, hour = Math.PI / 2 + (0.08 * TAU) / 12;
       sh.push(taper(-2.6, R * 0.6, minute, 1.8, 0.6), taper(-2.0, R * 0.38, hour, 2.6, 0.9), disc(1.7), annulus(2.7, 2.15));
       return sh;
