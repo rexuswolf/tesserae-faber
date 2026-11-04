@@ -15,7 +15,9 @@ export function createViewer(canvas, { background = null } = {}) {
   controls.enableDamping = true;
   scene.add(new THREE.HemisphereLight(0xffffff, 0x3a3440, 1.3));
   const key = new THREE.DirectionalLight(0xffffff, 2.4); key.position.set(-70, -90, 150); scene.add(key);
-  const under = new THREE.DirectionalLight(0xffffff, 1.0); under.position.set(40, 60, -120); scene.add(under);
+  // The back gets the same key light, mirrored: as bright as the front, and lit from the same
+  // side of the screen in the "back" view (that camera sees x flipped).
+  const backKey = new THREE.DirectionalLight(0xffffff, 2.4); backKey.position.set(70, -90, -150); scene.add(backKey);
 
   const meshes = {};
   for (const name of ["base", "front", "icon", "frame", "back", "hole"]) {
