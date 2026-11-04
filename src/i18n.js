@@ -706,7 +706,7 @@ const known = (code) => LANGUAGES.some((l) => l.code === code);
 const STORE_KEY = "midnight-mint-lang";
 const initial = (() => {
   try { const saved = localStorage.getItem(STORE_KEY); if (known(saved)) return saved; } catch { /* no storage */ }
-  return "es";   // made for a Spanish group; the switch remembers other choices
+  return "en";   // a first visit is in English; the switch remembers other choices
 })();
 let lang = initial;
 
@@ -731,7 +731,7 @@ export function applyStatic(root = document) {
 }
 
 export function setUiLang(next) {
-  lang = known(next) ? next : "es";
+  lang = known(next) ? next : "en";
   try { localStorage.setItem(STORE_KEY, lang); } catch { /* no storage */ }
   document.documentElement.lang = lang;
   applyStatic();
