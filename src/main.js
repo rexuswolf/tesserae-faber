@@ -91,7 +91,7 @@ const PRESETS = [
   { id: "rapida", spec: { style: "classic", frame: "rim", frameWidth: 0.8, back: "none", depth: 0.2, magnet: "none",
     colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } } },
   { id: "marfil", spec: { style: "classic", frame: "rim", frameWidth: 1.0, back: "guilloche", depth: 0.4, magnet: "none",
-    colours: { base: FILAMENTS.white, front: "team", frame: FILAMENTS.bronze, back: FILAMENTS.bronze } } },
+    colours: { base: FILAMENTS.white, front: "team", frame: "team", back: FILAMENTS.bronze } } },
   { id: "legible", spec: { style: "window", windowFinish: "flat", textSize: 6, frame: "none", back: "none", depth: 0.4, magnet: "none",
     colours: { base: FILAMENTS.white, front: "team", frame: "team", back: FILAMENTS.gold } } },
   // Magnets: an open pocket to glue into, or one sealed inside during a pause.
