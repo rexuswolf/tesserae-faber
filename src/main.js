@@ -825,6 +825,11 @@ function wire() {
   };
   $("#designStage").addEventListener("click", (e) => { const b = e.target.closest("[data-side]"); if (b) { flow.side = b.dataset.side; renderDesignStage(); } });
   // step 3: how to print
+  $("#printPage").addEventListener("change", (e) => {
+    if (e.target.id !== "paperBacks") return;
+    flow.backs = e.target.checked; storeJSON(PAPER_BACKS_KEY, flow.backs);
+    $("#printNote").textContent = ""; renderQueue();
+  });
   $("#printPage").addEventListener("click", (e) => {
     const w = e.target.closest("[data-way]"), pr = e.target.closest("[data-printer]");
     if (w) { flow.way = w.dataset.way; storeJSON(PRINT_WAY_KEY, flow.way); }
@@ -1015,8 +1020,10 @@ function queuePlan() {
 
 // ------------------------------------------------------------ steps
 
-const PRINT_WAY_KEY = "midnight-mint-print-way", PRINTER_KEY = "midnight-mint-printer";
-const flow = { way: loadJSON(PRINT_WAY_KEY, "3d") === "paper" ? "paper" : "3d", printer: printerOf(loadJSON(PRINTER_KEY, "a1")).id, side: "front", undo: null };
+const PRINT_WAY_KEY = "midnight-mint-print-way", PRINTER_KEY = "midnight-mint-printer", PAPER_BACKS_KEY = "midnight-mint-paper-backs";
+const flow = { way: loadJSON(PRINT_WAY_KEY, "3d") === "paper" ? "paper" : "3d", printer: printerOf(loadJSON(PRINTER_KEY, "a1")).id,
+  backs: loadJSON(PAPER_BACKS_KEY, true) !== false,   // paper: print the backs too (double-sided)
+  side: "front", undo: null };
 const queuePic = (q, role = roleById(q.roleId)) => tokenSvg(state.lib, role, itemSpec(q), { text: queueTitle(q, role) });
 
 /** Moves to step 1 (pick), 2 (design) or 3 (print). Steps 2 and 3 need something picked. */
@@ -1163,7 +1170,7 @@ function renderPrintStep() {
   try { sheets = layoutCoins(queue.map((q) => itemSpec(q).diameter)); } catch { /* shown below */ }
   const printer = printerOf(flow.printer);
   $("#way3dSub").textContent = plan ? t("queue.way3dSub", { printer: printer.name, n: plan.plates.length }) : t("queue.way3dError", { printer: printer.name });
-  $("#wayPaperSub").textContent = t("queue.wayPaperSub", { n: sheets.length });
+  $("#wayPaperSub").textContent = t("queue.wayPaperSub", { n: sheets.length, backs: flow.backs });
   if (way === "3d") {
     $("#flowNext").disabled = !plan;
     // which printer: the A1 or the A1 mini (same AMS lite, a smaller bed)
@@ -1192,9 +1199,11 @@ function renderPrintStep() {
     };
     const face = (page, side) => `<figure><div class="q-sheet">${page.map((c) => coinAt(queue[c.index], side, side === "front" ? c.x : backX(c.x), c)).join("")}</div>
       <figcaption>${esc(t(side === "front" ? "queue.pdfFront" : "queue.pdfBack"))}</figcaption></figure>`;
-    detail.innerHTML = `<h3 class="q-h">${esc(t("queue.sheetsH", { n: sheets.length }))}</h3>
-      ${sheets.map((page, i) => `<div class="q-pair"><h4>${esc(t("queue.sheetN", { i: i + 1, n: sheets.length }))}</h4><div class="q-sheets">${face(page, "front")}${face(page, "back")}</div></div>`).join("")}
-      <ol class="q-howto"><li>${esc(t("queue.howto1"))}</li><li>${esc(t("queue.howto2"))}</li><li>${esc(t("queue.howto3"))}</li></ol>`;
+    const backs = flow.backs;
+    detail.innerHTML = `<label class="switch"><input type="checkbox" id="paperBacks" ${backs ? "checked" : ""}> <span>${esc(t("print.backs"))}</span></label>
+      <h3 class="q-h">${esc(t("queue.sheetsH", { n: sheets.length, backs }))}</h3>
+      ${sheets.map((page, i) => `<div class="q-pair"><h4>${esc(t("queue.sheetN", { i: i + 1, n: sheets.length }))}</h4><div class="q-sheets">${face(page, "front")}${backs ? face(page, "back") : ""}</div></div>`).join("")}
+      <ol class="q-howto"><li>${esc(t(backs ? "queue.howto1" : "queue.howto1Single"))}</li><li>${esc(t("queue.howto2"))}</li><li>${esc(t("queue.howto3"))}</li></ol>`;
   }
 }
 
@@ -1231,12 +1240,12 @@ async function downloadPdf() {
     const { buildPrintPdf } = await import("./pdf/print-pdf.js");   // jsPDF only loads when asked for
     const entries = queueNow().map((q) => { const role = roleById(q.roleId); return { role, spec: itemSpec(q), text: queueTitle(q, role) }; });
     const { blob, sheets } = await buildPrintPdf(state.lib, entries, {
-      labels: { front: t("queue.pdfFront"), back: t("queue.pdfBack") },
+      labels: { front: t("queue.pdfFront"), back: t("queue.pdfBack") }, backs: flow.backs,
       onProgress: (i, n) => { out.textContent = t("queue.pdfWriting", { i, n }); },
     });
-    const file = `midnight-mint-${entries.length}-tokens.pdf`;
+    const file = `midnight-mint-${entries.length}-tokens${flow.backs ? "" : "-fronts"}.pdf`;
     await saveFile(blob, file);
-    out.textContent = t("queue.pdfDone", { file, n: sheets });
+    out.textContent = t(flow.backs ? "queue.pdfDone" : "queue.pdfDoneSingle", { file, n: sheets });
   } catch (err) {
     out.className = "hint warn";
     out.textContent = t("queue.pdfFailed", { message: err.message });

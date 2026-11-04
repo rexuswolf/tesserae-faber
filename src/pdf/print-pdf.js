@@ -34,22 +34,24 @@ async function drawCoin(doc, svg, cx, cy, d) {
  * Builds the PDF.
  *   entries: [{ role, spec, text }]  (spec already resolved: reminders use reminderSpec)
  *   labels:  { front, back } page labels, e.g. "cara" / "dorso"
+ *   backs:   false for fronts only: one page per sheet, printed one-sided
  * Returns { blob, sheets, coins }.
  */
-export async function buildPrintPdf(lib, entries, { labels = { front: "front", back: "back" }, title = "Midnight Mint", onProgress } = {}) {
+export async function buildPrintPdf(lib, entries, { labels = { front: "front", back: "back" }, title = "Midnight Mint", backs = true, onProgress } = {}) {
   // Paper has no magnets: drop the 3D-only pocket from the back.
   const paper = entries.map((e) => ({ ...e, spec: { ...e.spec, magnet: "none" } }));
   const pages = layoutCoins(paper.map((e) => e.spec.diameter));
   const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait", compress: true });
   doc.setProperties({ title, creator: "Midnight Mint" });
-  // Hints for viewers that honour them (Acrobat): real size, duplex on the long edge.
-  doc.viewerPreferences({ PrintScaling: "None", Duplex: "DuplexFlipLongEdge" });
+  // Hints for viewers that honour them (Acrobat): real size, and duplex on the long edge or one-sided.
+  doc.viewerPreferences({ PrintScaling: "None", Duplex: backs ? "DuplexFlipLongEdge" : "Simplex" });
 
-  const total = paper.length * 2;
+  const sides = backs ? ["front", "back"] : ["front"];
+  const total = paper.length * sides.length;
   let done = 0;
   const step = async () => { done++; onProgress?.(done, total); await new Promise((r) => setTimeout(r)); };
   for (const [p, coins] of pages.entries()) {
-    for (const side of ["front", "back"]) {
+    for (const side of sides) {
       if (p || side === "back") doc.addPage("a4", "portrait");
       for (const c of coins) {
         const { role, spec, text } = paper[c.index];
@@ -63,7 +65,7 @@ export async function buildPrintPdf(lib, entries, { labels = { front: "front", b
         for (const c of coins) doc.circle(c.x, c.y, c.d / 2, "S");
       }
       doc.setFontSize(7); doc.setTextColor(150);
-      doc.text(`${title} · ${p + 1}/${pages.length} · ${labels[side]}`, PAGE.w / 2, PAGE.h - FOOTER, { align: "center" });
+      doc.text(`${title} · ${p + 1}/${pages.length}${backs ? ` · ${labels[side]}` : ""}`, PAGE.w / 2, PAGE.h - FOOTER, { align: "center" });
     }
   }
   return { blob: doc.output("blob"), sheets: pages.length, coins: paper.length };
