@@ -21,7 +21,9 @@ The Pandemonium Institute. No account needed: open it and start designing.
 ## Features
 
 **Find your tokens**
-- Every character and reminder token of each edition, in Spanish or English.
+- Every character and reminder token of each edition, in English or in 12 community translations from
+  [Villacuervos](https://villacuervos.es): six Spanish ones, Asturian, Catalan, Valencian, Basque, Galician
+  and Portuguese. Where a translation has them, characters can also take their feminine form.
 - Search by character or reminder text, and filter by team.
 - Add a whole edition (or whatever is on screen) to the print queue in one click, with or without its reminders.
 
@@ -76,7 +78,8 @@ npx vite --config tools/ui-test/vite.config.js   # http://localhost:5198
 ```
 
 The character library lives in Firestore. `admin-data/` (not in git) holds the source files;
-`node tools/upload-library.mjs` replaces the library with `admin-data/roles_game_icons.json`.
+`node tools/fetch-translations.mjs` adds the Villacuervos translations to `admin-data/roles_game_icons.json`,
+and `node tools/upload-library.mjs` replaces the library with it.
 
 ## How it's put together
 
@@ -86,6 +89,7 @@ The character library lives in Firestore. `admin-data/` (not in git) holds the s
   Its printer settings come from `a1-template.json`, generated with Bambu Studio by `tools/make_bambu_template.py`.
 - `src/pdf/print-pdf.js`: the double-sided A4 PDF, loaded only when you ask for it.
 - `src/main.js`, `src/i18n.js`, `src/style.css`: the app, its Spanish and English text, and its look.
+- `src/translations.js`: the languages tokens can be printed in, and who translated each one.
 - `src/firebase.js`, `firestore.rules`: the public character library. Only the admin signs in (open the app with `?admin`) to upload it.
 - `tools/`: test pages and helpers (UI test server, design sheets, icon review, Bambu template).
 
@@ -102,6 +106,9 @@ and keeps its own terms:
 - ***Blood on the Clocktower*** and its character names, editions and rules belong to
   [The Pandemonium Institute](https://bloodontheclocktower.com). Midnight Mint is an unofficial fan tool,
   not affiliated with or endorsed by them. It uses none of the game's original artwork.
+- **Translations** of character names and reminders come from [Villacuervos](https://villacuervos.es)
+  and belong to their translators: Rovortox, Bumble3ee, Castelgard, Chiromyiforme, Pedro and Solrax (Spanish),
+  uriell (Portuguese) and the Villacuervos community (Asturian, Catalan, Valencian, Basque and Galician).
 - **Character icons** come from [game-icons.net](https://game-icons.net) under
   [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/). Each icon's author is credited in the app
   (*Credits*, at the bottom of the sidebar).

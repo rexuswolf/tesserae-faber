@@ -83,6 +83,12 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .search { flex: 0 1 260px; background: rgba(239, 230, 214, .06); border: 1px solid var(--seam); border-radius: 999px; padding: 7px 15px; }
 .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.tlang { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-left: auto; font-size: 13.5px; }
+.tlang label { color: var(--dust); }
+.tlang select { background: rgba(239, 230, 214, .06); color: var(--bone); border: 1px solid var(--seam); border-radius: 999px; padding: 6px 12px; font: inherit; }
+.tlang select option, .tlang select optgroup { background: var(--velvet-deep); color: var(--bone); }
+.tlang small { color: var(--dust); font-size: 12px; }
+.tlang small a { color: var(--dust); text-decoration: underline; text-underline-offset: 2px; }
 #rows { padding: 4px 34px 40px; }
 .team-h { display: flex; align-items: baseline; gap: 10px; margin: 24px 0 2px; padding-bottom: 6px; border-bottom: 1px solid var(--seam); }
 .team-h i { width: 10px; height: 10px; border-radius: 50%; align-self: center; }
@@ -258,6 +264,7 @@ dialog .import { margin-top: 10px; }
   .app { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; }
   .spine { min-width: 0; }
   .search { flex: 1 1 100%; }
+  .tlang { margin-left: 0; }
   .spine { grid-row: 1; flex-direction: row; align-items: center; border-right: 0; border-bottom: 1px solid var(--seam); }
   .spine .brand { padding: 10px 14px; gap: 8px; }
   .spine .wm-mid { font-size: 24px; }
@@ -284,11 +291,24 @@ dialog .import { margin-top: 10px; }
 
 /* credits */
 .ccc a { color: var(--dust); text-decoration: underline; text-underline-offset: 2px; }
-.credits { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-direction: column; gap: 12px; max-height: 60vh; overflow-y: auto; }
-.credits small { color: var(--dust); }
-.credits p { margin: 2px 0 0; font-size: 12.5px; color: var(--dust); line-height: 1.6; }
-.credits a { color: var(--dust); }
+#credits { width: min(620px, calc(100% - 32px)); }
+.credits { max-height: 70vh; overflow-y: auto; padding-right: 4px; }
+.credits > .hint:first-child { margin-top: 0; }
+.credits section + section { border-top: 1px solid var(--seam); margin-top: 18px; }
+.credits h3 { font-family: var(--display); font-weight: 400; font-size: 21px; }
+.credits .hint { line-height: 1.55; }
+.credits a { color: var(--dust); text-decoration: underline; text-underline-offset: 2px; }
 .credits a:hover { color: var(--bone); }
+.credits small { color: var(--dust); }
+.credit-grid { list-style: none; margin: 10px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; }
+.credit-grid li { display: grid; gap: 1px; padding: 9px 12px; border: 1px solid var(--seam); border-radius: 10px; background: rgba(239, 230, 214, .03); position: relative; }
+.credit-grid li b { font-weight: 600; font-size: 14px; }
+.credit-grid li span { font-size: 13px; color: var(--dust); }
+.credit-grid li[aria-current] { border-color: var(--brass); background: rgba(239, 230, 214, .07); }
+.credit-grid li em { position: absolute; top: 8px; right: 10px; font-style: normal; font-size: 11px; color: var(--brass); }
+.credit-icons { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 4px; }
+.credit-icons summary { cursor: pointer; padding: 4px 0; }
+.credit-icons p { margin: 2px 0 8px; font-size: 12.5px; color: var(--dust); line-height: 1.6; }
 
 /* premade designs */
 .presets { display: grid; gap: 8px; padding-bottom: 10px; border-bottom: 1px solid var(--seam); }

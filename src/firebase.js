@@ -40,7 +40,8 @@ export async function uploadRoles(roles, onProgress = () => {}) {
     const batch = writeBatch(db);
     for (const r of valid.slice(i, i + 50)) {
       batch.set(doc(db, "roles", roleId(r.en)), {
-        en: r.en, es: r.es || r.en, team: r.team, edition: r.edition || "", reminders: r.reminders || { en: [], es: [] },
+        en: r.en, es: r.es || r.en, names: r.names || {}, fem: r.fem || {},
+        team: r.team, edition: r.edition || "", reminders: r.reminders || { en: [], es: [] },
         icon: r.icon || "", author: r.author || "", g: r.g || "", body: r.body,
       });
     }

@@ -1,4 +1,5 @@
-// Replaces the Firestore character library with admin-data/roles_game_icons.json,
+// Replaces the Firestore character library with admin-data/roles_game_icons.json
+// (run tools/fetch-translations.mjs first to add the Villacuervos translations),
 // using your firebase-tools login (an owner account, so security rules don't apply).
 // Each document is written whole, so fields from the old library (e.g. traced art) go away.
 import fs from "node:fs";
@@ -22,7 +23,7 @@ const base = `projects/${PROJECT}/databases/(default)/documents`;
 for (let i = 0; i < roles.length; i += 100) {
   const writes = roles.slice(i, i + 100).map((r) => ({
     update: { name: `${base}/roles/${roleId(r.en)}`, fields: value({
-      en: r.en, es: r.es, team: r.team, edition: r.edition || "", reminders: r.reminders || { en: [], es: [] },
+      en: r.en, es: r.es, names: r.names || {}, fem: r.fem || {}, team: r.team, edition: r.edition || "", reminders: r.reminders || { en: [], es: [] },
       icon: r.icon, author: r.author, g: r.g, body: r.body }).mapValue.fields },
   }));
   const res = await fetch(`https://firestore.googleapis.com/v1/${base}:commit`, {

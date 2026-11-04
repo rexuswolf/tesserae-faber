@@ -52,6 +52,11 @@
       <div class="filters">
         <input type="search" id="search" class="search" autocomplete="off" data-i18n-attr="placeholder:sheet.search aria-label:sheet.search">
         <div class="chips" id="teamChips" role="group" data-i18n-attr="aria-label:tray.team"></div>
+        <div class="tlang">
+          <label for="tokenLang" data-i18n="tlang.label"></label>
+          <select id="tokenLang"></select>
+          <small id="tokenLangCredit"></small>
+        </div>
       </div>
     </header>
     <div id="rows"></div>
@@ -96,6 +101,7 @@
         <p class="hint" id="styleScope"></p>
         <div class="token-only" id="tokenOnly">
           <label class="field"><span data-i18n="ws.printedText"></span><input class="text" type="text" id="printed" autocomplete="off"></label>
+          <label class="check" id="femRow" hidden><input type="checkbox" id="fem"> <span id="femLabel"></span></label>
           <label class="check"><input type="checkbox" id="ownStyle"> <span data-i18n="ws.ownStyle"></span></label>
           <button class="link" type="button" id="resetToken" data-i18n="ws.reset"></button>
         </div>
@@ -224,8 +230,7 @@
 <dialog id="credits" aria-labelledby="creditsTitle">
   <form method="dialog" class="close"><button class="pill" data-i18n="admin.close"></button></form>
   <h2 id="creditsTitle" data-i18n="credits.title"></h2>
-  <p class="hint" data-i18n="credits.intro"></p>
-  <ul class="credits" id="creditsList"></ul>
+  <div class="credits" id="creditsBody"></div>
 </dialog>
 
 <dialog id="admin" aria-labelledby="adminTitle">

@@ -8,6 +8,7 @@ import {
 } from "./firebase.js";
 import { buildBambuProject, planPlates, FILAMENT_SLOTS } from "./bambu/bambu3mf.js";
 import { t, uiLang, setUiLang, LANGUAGES } from "./i18n.js";
+import { TRANSLATIONS, VILLACUERVOS_URL, translationById, translationLabel } from "./translations.js";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -20,6 +21,7 @@ const QUEUE_KEY = "midnight-mint-queue";
 const STYLE_KEY = "midnight-mint-style";
 const OVERRIDES_KEY = "midnight-mint-overrides";
 const DESIGNS_KEY = "midnight-mint-designs";
+const TOKEN_LANG_KEY = "midnight-mint-token-lang";
 const EDITION_ORDER = ["tb", "bmr", "snv", "carousel", "fabled", "loric"];
 const TEAM_ORDER = ["townsfolk", "outsider", "minion", "demon", "traveller", "fabled", "loric"];
 const TEAM_PLURAL = {
@@ -85,19 +87,22 @@ function storeJSON(key, value) { try { localStorage.setItem(key, JSON.stringify(
 
 const charKey = (role) => `c:${role.id}`;
 const remKey = (role, i) => `r:${role.id}:${i}`;
-const remindersOf = (role, lang = uiLang()) => role.reminders?.[lang] || role.reminders?.en || [];
+const remindersOf = (role, lang = tokenLang()) => role.reminders?.[lang] || role.reminders?.en || [];
+/** The character's name in the token language, in its feminine form when the token asks for it. */
+const charName = (role, key = charKey(role), lang = tokenLang()) =>
+  (state.overrides.get(key)?.fem && role.fem?.[lang]) || roleName(role, lang);
 
 /** The style a token uses: its own, or the set's; reminders get the reminder layout. */
 function specFor(key, isReminder) {
   const base = state.overrides.get(key)?.spec ?? state.spec;
-  const spec = { ...DEFAULT_SPEC, ...base, colours: { ...DEFAULT_SPEC.colours, ...base.colours }, lang: uiLang() };
+  const spec = { ...DEFAULT_SPEC, ...base, colours: { ...DEFAULT_SPEC.colours, ...base.colours }, lang: tokenLang() };
   return isReminder ? reminderSpec(spec) : spec;
 }
 /** The text printed on a token. */
 function textFor(key, role, reminder) {
   const own = state.overrides.get(key)?.text;
   if (own != null && own !== "") return own;
-  return reminder != null ? remindersOf(role)[reminder] : roleName(role, uiLang());
+  return reminder != null ? remindersOf(role)[reminder] : charName(role, key);
 }
 const filamentName = (slot) => t(`filament.${FILAMENT_SLOTS[slot].name}`);
 
@@ -119,6 +124,7 @@ function renderLangMenus() {
 function setLang(lang) {
   setUiLang(lang);
   renderLangMenus();
+  renderTokenLang();
   if (state.lib) { buildChoices(); renderAll(); renderQueue(); renderDesigns(); }
   else if (gateState) gate(gateState());
 }
@@ -133,6 +139,35 @@ document.addEventListener("keydown", (e) => {
   for (const m of $$("[data-lang-menu][open]")) { m.open = false; m.querySelector("summary").focus(); }
 });
 setLang(uiLang());
+
+// ------------------------------------------------------------ token language
+
+// The language printed on the tokens, apart from the interface language. Until one is
+// picked it follows the interface (Spanish → Rovortox's translation, English → English).
+function tokenLang() {
+  let saved = null;
+  try { saved = localStorage.getItem(TOKEN_LANG_KEY); } catch { /* no storage */ }
+  return TRANSLATIONS.some((x) => x.id === saved) ? saved : uiLang() === "en" ? "en" : "es";
+}
+function renderTokenLang() {
+  const cur = translationById(tokenLang());
+  const option = (x) => `<option value="${x.id}"${x.id === cur.id ? " selected" : ""}>${esc(translationLabel(x))}</option>`;
+  const groups = [...new Set(TRANSLATIONS.map((x) => x.name))];
+  $("#tokenLang").innerHTML = groups.map((name) => {
+    const list = TRANSLATIONS.filter((x) => x.name === name);
+    return list.length > 1 ? `<optgroup label="${esc(name)}">${list.map(option).join("")}</optgroup>` : option(list[0]);
+  }).join("");
+  $("#tokenLang").title = translationLabel(cur);
+  $("#tokenLangCredit").innerHTML = cur.pack
+    ? `${esc(cur.by ? t("tlang.by", { by: cur.by }) : t("tlang.community"))} · <a href="${VILLACUERVOS_URL}" target="_blank" rel="noopener">Villacuervos</a>`
+    : esc(t("tlang.official"));
+}
+function setTokenLang(id) {
+  try { localStorage.setItem(TOKEN_LANG_KEY, id); } catch { /* no storage */ }
+  renderTokenLang();
+  if (state.lib) { renderAll(); renderQueue(); }
+}
+$("#tokenLang").onchange = (e) => setTokenLang(e.target.value);
 
 // ------------------------------------------------------------ gate
 
@@ -257,12 +292,12 @@ function renderSheet() {
     .map(([id, label]) => `<button class="pill" type="button" data-team="${id}" aria-pressed="${state.team === id}">${esc(label)}</button>`).join("");
   if (state.team !== "all") roles = roles.filter((r) => r.team === state.team);
 
-  // search matches the name (both languages) or any reminder text
+  // search matches the name (English, Spanish or the token language) or any reminder text
   const hits = new Map();
   if (q) {
     roles = roles.filter((r) => {
       const remHits = remindersOf(r).map((text, i) => [text, r.reminders?.en?.[i]].some((s) => s && fold(s).includes(q)) ? i : -1).filter((i) => i >= 0);
-      const nameHit = fold(r.en).includes(q) || fold(r.es).includes(q);
+      const nameHit = [r.en, r.es, roleName(r, tokenLang()), r.fem?.[tokenLang()]].some((s) => s && fold(s).includes(q));
       if (remHits.length) hits.set(r.id, new Set(remHits));
       return nameHit || remHits.length;
     });
@@ -294,7 +329,7 @@ function rowHtml(r, q, remHits) {
     return `<button class="tok" type="button" data-key="${key}" aria-current="${state.sel?.key === key}" aria-label="${esc(textFor(key, r, reminder))}">${tokenSvg(state.lib, r, spec, { text: textFor(key, r, reminder) })}${own ? `<span class="mark" title="${esc(t("sheet.own"))}">✎</span>` : ""}</button>`;
   };
   const rems = remindersOf(r);
-  const other = lang === "es" ? r.en : r.es;
+  const other = tokenLang() === "en" ? roleName(r, uiLang() === "en" ? "es" : uiLang()) : r.en;
   return `<div class="row" data-current="${state.sel?.role === r}">
     ${thumb(ck, null)}
     <div class="who" data-key="${ck}"><b>${esc(textFor(ck, r, null))}</b>${other !== textFor(ck, r, null) ? `<small>${esc(other)}</small>` : ""}${q ? `<em>${esc(EDITIONS[r.edition]?.name[lang] || "")}</em>` : ""}</div>
@@ -351,7 +386,10 @@ function renderWorkshop() {
     const own = state.overrides.get(key);
     $("#tokenOnly").hidden = state.tab !== "token";
     $("#printed").value = own?.text ?? "";
-    $("#printed").placeholder = isRem ? remindersOf(role)[reminder] : roleName(role, lang);
+    $("#printed").placeholder = isRem ? remindersOf(role)[reminder] : charName(role, key);
+    const femName = !isRem && role.fem?.[tokenLang()];
+    $("#femRow").hidden = !femName;
+    if (femName) { $("#fem").checked = !!own?.fem; $("#femLabel").textContent = t("ws.fem", { name: femName }); }
     $("#ownStyle").checked = !!own?.spec;
     $("#resetToken").hidden = !own;
     $("#styleScope").textContent = state.tab === "set" ? t("ws.scopeSet") : own?.spec ? t("ws.scopeTokenOn") : t("ws.scopeTokenOff");
@@ -378,7 +416,7 @@ function renderWorkshop() {
 /** The frame designs, each drawn on the selected character in the current colours. */
 function renderFrameTiles(role, spec) {
   const s = { ...DEFAULT_SPEC, ...spec, colours: { ...DEFAULT_SPEC.colours, ...spec.colours }, diameter: 45 };
-  const text = roleName(role, uiLang());
+  const text = textFor(charKey(role), role, null);
   const list = s.style === "window" ? FRAME_STYLES.filter((f) => f.id === "none" || f.id === "rim") : FRAME_STYLES;
   $("[data-choice=frame]").innerHTML = list.map((f) =>
     `<button class="back-tile frame-tile" type="button" data-v="${f.id}" aria-pressed="${(s.style === "window" && s.frame !== "none" ? "rim" : s.frame) === f.id}">${
@@ -402,7 +440,7 @@ function renderPresets(role, editing) {
   if (!editing) return;
   const same = (p) => Object.entries(p.spec).every(([k, v]) => JSON.stringify(k === "colours" ? { ...DEFAULT_SPEC.colours, ...editing.colours, ...v } : v) === JSON.stringify(k === "colours" ? { ...DEFAULT_SPEC.colours, ...editing.colours } : editing[k] ?? DEFAULT_SPEC[k]));
   $("#presets").innerHTML = PRESETS.map((p) =>
-    `<button class="preset" type="button" data-preset="${p.id}" aria-pressed="${same(p)}">${tokenSvg(state.lib, role, { ...presetSpec(p), diameter: 45 }, { text: roleName(role, uiLang()) })}<span>${esc(t(`preset.${p.id}`))}</span><small>${esc(t(`preset.${p.id}.help`))}</small></button>`).join("");
+    `<button class="preset" type="button" data-preset="${p.id}" aria-pressed="${same(p)}">${tokenSvg(state.lib, role, { ...presetSpec(p), diameter: 45 }, { text: textFor(charKey(role), role, null) })}<span>${esc(t(`preset.${p.id}`))}</span><small>${esc(t(`preset.${p.id}.help`))}</small></button>`).join("");
 }
 
 /** Puts a spec's values into the style controls. */
@@ -535,13 +573,19 @@ function wire() {
   // this token only
   $("#printed").oninput = (e) => {
     const own = { ...(state.overrides.get(state.sel.key) || {}), text: e.target.value };
-    if (!own.text && !own.spec) state.overrides.delete(state.sel.key); else state.overrides.set(state.sel.key, own);
+    if (!own.text && !own.spec && !own.fem) state.overrides.delete(state.sel.key); else state.overrides.set(state.sel.key, own);
     storeOverrides(); renderWorkshop(); scheduleSheet();
   };
   $("#ownStyle").onchange = (e) => {
     const own = { ...(state.overrides.get(state.sel.key) || {}) };
     if (e.target.checked) own.spec = structuredClone(state.spec); else delete own.spec;
-    if (!own.text && !own.spec) state.overrides.delete(state.sel.key); else state.overrides.set(state.sel.key, own);
+    if (!own.text && !own.spec && !own.fem) state.overrides.delete(state.sel.key); else state.overrides.set(state.sel.key, own);
+    storeOverrides(); renderWorkshop(); scheduleSheet();
+  };
+  $("#fem").onchange = (e) => {
+    const own = { ...(state.overrides.get(state.sel.key) || {}) };
+    if (e.target.checked) own.fem = true; else delete own.fem;
+    if (!own.text && !own.spec && !own.fem) state.overrides.delete(state.sel.key); else state.overrides.set(state.sel.key, own);
     storeOverrides(); renderWorkshop(); scheduleSheet();
   };
   $("#resetToken").onclick = () => { state.overrides.delete(state.sel.key); storeOverrides(); renderWorkshop(); scheduleSheet(); };
@@ -614,7 +658,7 @@ function addToQueue(role, reminder, { save = true } = {}) {
     reminder: reminder != null ? textFor(key, role, reminder) : null,
     text: reminder == null ? textFor(key, role, null) : null,
     custom: !!own,
-    spec: { ...structuredClone(own?.spec ?? state.spec), lang: uiLang() },
+    spec: { ...structuredClone(own?.spec ?? state.spec), lang: tokenLang() },
   });
   if (save) { persistQueue(); renderQueue(); }
 }
@@ -804,7 +848,7 @@ function renderDesigns() {
   $("#saved").innerHTML = state.designs.map((d) => {
     const role = roleById(d.roleId);
     if (!role) return "";
-    const pic = tokenSvg(state.lib, role, { ...DEFAULT_SPEC, ...d.spec, diameter: 45, colours: { ...DEFAULT_SPEC.colours, ...d.spec.colours } }, { text: d.text || roleName(role, d.spec.lang) });
+    const pic = tokenSvg(state.lib, role, { ...DEFAULT_SPEC, ...d.spec, diameter: 45, colours: { ...DEFAULT_SPEC.colours, ...d.spec.colours } }, { text: d.text || (d.fem && role.fem?.[d.spec.lang]) || roleName(role, d.spec.lang) });
     return `<li><button class="open" type="button" data-open="${d.id}">${pic}<span>${esc(d.title)}</span></button><button class="del" type="button" data-del="${d.id}" aria-label="${esc(t("saved.deleteAria", { name: d.title }))}">${esc(t("saved.delete"))}</button></li>`;
   }).join("") || `<li class="hint">${esc(t("saved.empty"))}</li>`;
 }
@@ -818,7 +862,7 @@ async function save() {
     const spec = specFor(key, false);
     // One saved design per character: saving again updates it.
     const list = readDesigns().filter((d) => d.roleId !== role.id);
-    list.unshift({ id: role.id, roleId: role.id, text: state.overrides.get(key)?.text || null, spec, title, updatedAt: Date.now() });
+    list.unshift({ id: role.id, roleId: role.id, text: state.overrides.get(key)?.text || null, fem: !!state.overrides.get(key)?.fem, spec, title, updatedAt: Date.now() });
     writeDesigns(list);
     $("#saveNote").textContent = t("saved.saved", { name: title });
     refreshDesigns();
@@ -833,7 +877,7 @@ async function onSavedClick(e) {
     const d = state.designs.find((x) => x.id === open.dataset.open);
     const role = roleById(d.roleId);
     const { lang, ...spec } = d.spec;
-    state.overrides.set(charKey(role), { text: d.text || null, spec });
+    state.overrides.set(charKey(role), { text: d.text || null, spec, ...(d.fem ? { fem: true } : {}) });
     storeOverrides();
     if (role.edition) state.edition = role.edition;
     $("#search").value = "";
@@ -857,17 +901,37 @@ const AUTHOR_NAMES = {
 };
 const authorName = (a) => AUTHOR_NAMES[a] || a.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
-/** Credits for the game-icons.net icons in the library (CC BY 3.0 asks for author credit). */
+/**
+ * Credits: the game, the translators (the translation in use first), the icon authors
+ * (CC BY 3.0 asks for author credit) and the fonts and libraries.
+ */
 function openCredits() {
+  const cur = tokenLang();
+  const link = (href, text) => `<a href="${href}" target="_blank" rel="noopener">${esc(text)}</a>`;
+  const translations = [...TRANSLATIONS].sort((a, b) => (b.id === cur) - (a.id === cur)).map((x) => `<li${x.id === cur ? ' aria-current="true"' : ""}>
+    <b>${esc(x.name)}</b><span>${esc(x.pack ? x.by ?? t("credits.community") : t("credits.official"))}${x.fem ? ` <small>· ${esc(t("credits.feminine"))}</small>` : ""}</span>
+    ${x.id === cur ? `<em>${esc(t("credits.inUse"))}</em>` : ""}</li>`).join("");
+
   const byAuthor = new Map();
   for (const r of state.lib?.roles || []) {
     if (!r.icon) continue;
     if (!byAuthor.has(r.author)) byAuthor.set(r.author, new Set());
     byAuthor.get(r.author).add(r.icon);
   }
-  $("#creditsList").innerHTML = [...byAuthor].sort((a, b) => b[1].size - a[1].size).map(([a, icons]) =>
-    `<li><b>${esc(authorName(a))}</b> <small>${esc(t("credits.count", { n: icons.size }))}</small><p>${[...icons].sort().map((i) =>
-      `<a href="https://game-icons.net/1x1/${encodeURIComponent(a)}/${encodeURIComponent(i)}.html" target="_blank" rel="noopener">${esc(i)}</a>`).join(", ")}</p></li>`).join("");
+  const icons = [...byAuthor].sort((a, b) => b[1].size - a[1].size).map(([a, set]) => `<li><details>
+    <summary><b>${esc(authorName(a))}</b> <small>${esc(t("credits.count", { n: set.size }))}</small></summary>
+    <p>${[...set].sort().map((i) => link(`https://game-icons.net/1x1/${encodeURIComponent(a)}/${encodeURIComponent(i)}.html`, i)).join(", ")}</p></details></li>`).join("");
+
+  $("#creditsBody").innerHTML = `<p class="hint">${esc(t("credits.intro"))}</p>
+    <section><h3>${esc(t("credits.translations"))}</h3>
+      <p class="hint">${esc(t("credits.translationsIntro")).replace("Villacuervos", link(VILLACUERVOS_URL, "Villacuervos"))}</p>
+      <ul class="credit-grid">${translations}</ul></section>
+    <section><h3>${esc(t("credits.icons"))}</h3>
+      <p class="hint">${esc(t("credits.iconsIntro")).replace("game-icons.net", link("https://game-icons.net", "game-icons.net"))}</p>
+      <ul class="credit-icons">${icons}</ul></section>
+    <section><h3>${esc(t("credits.more"))}</h3>
+      <p class="hint">${esc(t("credits.moreText"))}</p>
+      <p class="hint">${esc(t("credits.code"))}: ${link("https://github.com/rexuswolf/midnight-mint", "GitHub")} · PolyForm Noncommercial 1.0.0</p></section>`;
   $("#credits").showModal();
 }
 document.addEventListener("click", (e) => { if (e.target.closest("[data-credits]")) { e.preventDefault(); openCredits(); } });

@@ -141,8 +141,8 @@ export async function loadLibrary(roles, { sealSvg = null, assetBase = "/" } = {
   return lib;
 }
 
-/** The name printed for a role in a language ("en" | "es"). */
-export const roleName = (role, lang) => role[lang] || role.en;
+/** The name printed for a role in a translation ("en", "es", "ca", "es-castelgard"…; see translations.js). */
+export const roleName = (role, lang) => role.names?.[lang] || role[lang] || role.en;
 
 /** Resolves "team" colour references. */
 export function partColours(role, spec) {
@@ -282,7 +282,7 @@ function editionBack(lib, role, spec) {
   if (!ed) return null;
   const R = spec.diameter / 2, out = R - 0.7;
   const shapes = [annulus(out, out - 0.6), annulus(out - 1.2, out - 1.65)];
-  const words = (ed.name[spec.lang] || ed.name.en).toUpperCase().split(/\s+/);
+  const words = (ed.name[spec.lang] || ed.name[spec.lang?.split("-")[0]] || ed.name.en).toUpperCase().split(/\s+/);
   const track = 0.08;                                     // letter spacing, in em
   const lineW = (w, em) => [...w].reduce((a, c) => a + glyph(lib, c).advance * em * (1 + track), 0) - glyph(lib, w.at(-1)).advance * em * track;
   const ri = out - 1.65 - 1.8;                            // keep clear of the inner rim

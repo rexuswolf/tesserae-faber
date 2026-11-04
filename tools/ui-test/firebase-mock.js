@@ -35,6 +35,9 @@ setTimeout(() => {
     else if (k === "queue") click("#queueToggle");
     else if (k === "rem") document.querySelector("#withReminders").checked = true;
     else if (k === "pdf") click("#pdf");
+    else if (k === "tlang") { const sel = document.querySelector("#tokenLang"); sel.value = v; sel.dispatchEvent(new Event("change")); }
+    else if (k === "fem") { const c = document.querySelector("#fem"); c.checked = true; c.dispatchEvent(new Event("change")); }
+    else if (k === "credits") click("[data-credits]");
   }
 }, 4000);
 
