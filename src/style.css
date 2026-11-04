@@ -112,6 +112,14 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .ws-top { display: flex; align-items: center; gap: 8px; padding: 14px 18px 8px; }
 .langs { display: flex; gap: 6px; flex: 1; }
 .ws-close { display: none; }
+.ws-top:not(:has(.ws-close:not([hidden]))) { display: none; }
+/* Language and account: app-wide, so they live with the app's chrome, not the token panel. */
+.account { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 18px; border-top: 1px solid var(--seam); }
+.account .langs, .gate-langs { flex: none; gap: 4px; }
+.account .langs .pill, .gate-langs .pill { padding: 4px 11px; font-size: 12.5px; letter-spacing: .04em; }
+.spine .me .menu { top: auto; bottom: 42px; right: auto; left: 0; }
+.gate-langs { position: absolute; top: 18px; right: 20px; }
+.gate-langs[hidden] { display: none; }
 .me { position: relative; }
 .me summary { list-style: none; cursor: pointer; }
 .me summary::-webkit-details-marker { display: none; }
@@ -235,6 +243,8 @@ dialog .import { margin-top: 10px; }
   .ed { grid-template-columns: 44px; gap: 0; }
   .ed span { display: none; }
   .spine .ccc { display: none; }
+  .account { border-top: 0; padding: 6px 12px 6px 4px; flex: none; }
+  .spine .me .menu { bottom: auto; top: 42px; left: auto; right: 0; }
   .sheet { grid-row: 2; grid-column: 1; }
   .sheet-head, #rows { padding-left: 16px; padding-right: 16px; }
   .queuebar { grid-row: 3; }

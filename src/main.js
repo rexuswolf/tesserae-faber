@@ -120,6 +120,8 @@ function gate(cfg) {
   $("#gate").hidden = false;
   $("#gateTitle").textContent = title;
   $("#gateText").textContent = text;
+  // The language switch only matters once there's something to read or do.
+  $(".gate-langs").hidden = !action && !secondary;
   for (const [el, c] of [[$("#gateAction"), action], [$("#gateSecondary"), secondary]]) {
     el.hidden = !c;
     if (c) { el.textContent = c.label; el.onclick = c.run; el.disabled = false; }

@@ -20,6 +20,20 @@
   <nav class="spine" id="spine" data-i18n-attr="aria-label:spine.aria">
     <div class="brand"><img src="/logo-mark.svg" alt="" width="44" height="44"><span class="wordmark"><span class="wm-mid">Midnight</span><span class="wm-mint">Mint</span></span></div>
     <div id="editions"></div>
+    <div class="account">
+      <div class="langs" role="group" data-i18n-attr="aria-label:lang.group">
+        <button class="pill" type="button" data-lang="es" lang="es" aria-label="Español" title="Español">ES</button>
+        <button class="pill" type="button" data-lang="en" lang="en" aria-label="English" title="English">EN</button>
+      </div>
+      <details class="me">
+        <summary data-i18n-attr="aria-label:me.aria"><img id="avatar" alt="" referrerpolicy="no-referrer"></summary>
+        <div class="menu">
+          <p id="meEmail"></p>
+          <button type="button" id="openAdmin" hidden data-i18n="me.admin"></button>
+          <button type="button" id="signOut" data-i18n="me.signOut"></button>
+        </div>
+      </details>
+    </div>
     <footer class="ccc">
       <img src="/ccc-sleeve.png" alt="Community Created Content" width="86" height="34">
       <p><span data-i18n="ccc.short"></span> <a href="#" data-credits data-i18n="credits.link"></a></p>
@@ -48,18 +62,6 @@
   <!-- workshop -->
   <aside class="workshop" id="workshop">
     <div class="ws-top">
-      <div class="langs" role="group" data-i18n-attr="aria-label:lang.group">
-        <button class="pill" type="button" data-lang="es" lang="es">Español</button>
-        <button class="pill" type="button" data-lang="en" lang="en">English</button>
-      </div>
-      <details class="me">
-        <summary data-i18n-attr="aria-label:me.aria"><img id="avatar" alt="" referrerpolicy="no-referrer"></summary>
-        <div class="menu">
-          <p id="meEmail"></p>
-          <button type="button" id="openAdmin" hidden data-i18n="me.admin"></button>
-          <button type="button" id="signOut" data-i18n="me.signOut"></button>
-        </div>
-      </details>
       <button class="pill ws-close" type="button" id="wsClose" data-i18n="ws.close"></button>
     </div>
     <div class="stage-wrap">
@@ -196,23 +198,33 @@
 </div>
 
 <div class="gate" id="gate">
+  <div class="langs gate-langs" role="group" data-i18n-attr="aria-label:lang.group" hidden>
+    <button class="pill" type="button" data-lang="es" lang="es" aria-label="Español" title="Español">ES</button>
+    <button class="pill" type="button" data-lang="en" lang="en" aria-label="English" title="English">EN</button>
+  </div>
   <div class="gate-card">
     <img class="gate-logo" src="/logo-mark.svg" alt="" width="88" height="88">
     <p class="mark wordmark"><span class="wm-mid">Midnight</span><span class="wm-mint">Mint</span></p>
-    <h2 id="gateTitle"></h2>
+    <h2 id="gateTitle">Abriendo el grimorio…</h2>
     <p id="gateText"></p>
     <button class="forge" type="button" id="gateAction" hidden></button>
     <button class="pill" type="button" id="gateSecondary" hidden></button>
-    <div class="langs gate-langs" role="group" data-i18n-attr="aria-label:lang.group">
-      <button class="pill" type="button" data-lang="es" lang="es">Español</button>
-      <button class="pill" type="button" data-lang="en" lang="en">English</button>
-    </div>
     <footer class="ccc">
       <img src="/ccc-sleeve.png" alt="Community Created Content" width="86" height="34">
-      <p data-i18n="ccc.gate"></p>
+      <p id="gateCcc" data-i18n="ccc.gate">Herramienta gratuita hecha por la comunidad para imprimir tus propios tokens de personaje. No está afiliada ni respaldada por The Pandemonium Institute.</p>
     </footer>
   </div>
 </div>
+<script>
+  // Shown before the app code has loaded: switch the loading screen to English if that's the saved language.
+  try {
+    if (localStorage.getItem("midnight-mint-lang") === "en") {
+      document.documentElement.lang = "en";
+      document.getElementById("gateTitle").textContent = "Opening the grimoire…";
+      document.getElementById("gateCcc").textContent = "A free, community-made tool for printing your own character tokens. Not affiliated with or endorsed by The Pandemonium Institute.";
+    }
+  } catch (e) { /* no storage */ }
+</script>
 
 <dialog id="credits" aria-labelledby="creditsTitle">
   <form method="dialog" class="close"><button class="pill" data-i18n="admin.close"></button></form>
