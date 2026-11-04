@@ -50,11 +50,7 @@
       </div>
       <div class="sheet-sub">
         <p id="edLead" class="lead"></p>
-        <div class="tlang">
-          <label for="tokenLang" data-i18n="tlang.label"></label>
-          <select id="tokenLang"></select>
-          <small id="tokenLangCredit"></small>
-        </div>
+        <button class="tlang-trigger" id="tokenLangBtn" type="button" aria-haspopup="dialog"></button>
       </div>
       <div class="filters">
         <input type="search" id="search" class="search" autocomplete="off" data-i18n-attr="placeholder:sheet.search aria-label:sheet.search">
@@ -233,6 +229,22 @@
   <form method="dialog" class="close"><button class="pill" data-i18n="admin.close"></button></form>
   <h2 id="creditsTitle" data-i18n="credits.title"></h2>
   <div class="credits" id="creditsBody"></div>
+</dialog>
+
+<dialog id="tlangDialog" class="tlang-dialog" aria-labelledby="tlangTitle">
+  <div class="tl-head">
+    <form method="dialog" class="close"><button class="pill" data-i18n="admin.close"></button></form>
+    <h2 id="tlangTitle" data-i18n="tlang.title"></h2>
+    <p class="hint" data-i18n="tlang.intro"></p>
+  </div>
+  <div class="tl-split">
+    <div class="tl-list" id="tlangList" role="listbox" data-i18n-attr="aria-label:tlang.title"></div>
+    <div class="tl-stage" id="tlangStage" aria-live="polite"></div>
+  </div>
+  <div class="tl-foot">
+    <button class="pill" type="button" id="tlangCancel" data-i18n="tlang.cancel"></button>
+    <button class="forge" type="button" id="tlangUse"></button>
+  </div>
 </dialog>
 
 <dialog id="admin" aria-labelledby="adminTitle">

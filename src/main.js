@@ -8,7 +8,7 @@ import {
 } from "./firebase.js";
 import { buildBambuProject, planPlates, FILAMENT_SLOTS } from "./bambu/bambu3mf.js";
 import { t, uiLang, setUiLang, LANGUAGES } from "./i18n.js";
-import { TRANSLATIONS, VILLACUERVOS_URL, translationById, translationLabel } from "./translations.js";
+import { TRANSLATIONS, VILLACUERVOS_URL, translationById, translationGroups } from "./translations.js";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -149,25 +149,91 @@ function tokenLang() {
   try { saved = localStorage.getItem(TOKEN_LANG_KEY); } catch { /* no storage */ }
   return TRANSLATIONS.some((x) => x.id === saved) ? saved : uiLang() === "en" ? "en" : "es";
 }
+/** The menu label for a translation: "Español · Rovortox" when its language has several. */
+function isGrouped(x) { return translationGroups().find((g) => g.name === x.name).items.length > 1; }
+function tlName(x) { return isGrouped(x) && x.by ? `${x.name} · ${x.by}` : x.name; }
+function tlCredit(x) { return x.pack ? (x.by ? t("tlang.by", { by: x.by }) : t("tlang.community")) : t("tlang.official"); }
+
+/** The header button: the flag and name of the language the tokens are printed in. */
 function renderTokenLang() {
   const cur = translationById(tokenLang());
-  const option = (x) => `<option value="${x.id}"${x.id === cur.id ? " selected" : ""}>${esc(translationLabel(x))}</option>`;
-  const groups = [...new Set(TRANSLATIONS.map((x) => x.name))];
-  $("#tokenLang").innerHTML = groups.map((name) => {
-    const list = TRANSLATIONS.filter((x) => x.name === name);
-    return list.length > 1 ? `<optgroup label="${esc(name)}">${list.map(option).join("")}</optgroup>` : option(list[0]);
-  }).join("");
-  $("#tokenLang").title = translationLabel(cur);
-  $("#tokenLangCredit").innerHTML = cur.pack
-    ? `${esc(cur.by ? t("tlang.by", { by: cur.by }) : t("tlang.community"))} · <a href="${VILLACUERVOS_URL}" target="_blank" rel="noopener">Villacuervos</a>`
-    : esc(t("tlang.official"));
+  const btn = $("#tokenLangBtn");
+  btn.innerHTML = `<img src="${cur.flag}" alt="" width="30" height="30"><span><small>${esc(t("tlang.label"))}</small><b>${esc(tlName(cur))}</b></span>${CHEVRON}`;
+  btn.setAttribute("aria-label", t("tlang.open", { name: tlName(cur) }));
 }
 function setTokenLang(id) {
   try { localStorage.setItem(TOKEN_LANG_KEY, id); } catch { /* no storage */ }
   renderTokenLang();
   if (state.lib) { renderAll(); renderQueue(); }
 }
-$("#tokenLang").onchange = (e) => setTokenLang(e.target.value);
+
+// The dialog: languages on the left (one with several versions folds open), and on the
+// right the selected character, its reminders and a few of the characters on screen,
+// drawn in the set's style in whichever language is picked or pointed at.
+const tl = { pick: null, open: new Set() };
+function openTokenLang() {
+  tl.pick = tokenLang();
+  tl.open = new Set([translationById(tl.pick).name]);
+  drawTokenLang();
+  $("#tlangDialog").showModal();
+  const sel = $("#tlangList [aria-selected=true]");
+  sel?.scrollIntoView({ block: "nearest" }); sel?.focus();
+}
+function drawTokenLang() {
+  const item = (x, label, sub) => `<button class="tl-item" type="button" role="option" aria-selected="${x.id === tl.pick}" data-id="${x.id}">
+    ${isGrouped(x) ? "" : `<img src="${x.flag}" alt="">`}<b>${esc(label)}</b><small>${esc(sub)}</small>${x.id === tl.pick ? '<i class="dot"></i>' : ""}</button>`;
+  $("#tlangList").innerHTML = translationGroups().map((g) => {
+    if (g.items.length === 1) return item(g.items[0], g.name, tlCredit(g.items[0]));
+    const open = tl.open.has(g.name), here = g.items.find((x) => x.id === tl.pick);
+    return `<div class="tl-group" data-current="${!!here}">
+      <button class="tl-item" type="button" aria-expanded="${open}" data-group="${esc(g.name)}"><img src="${g.flag}" alt="">
+        <b>${esc(g.name)}</b><small>${esc(t("tlang.versions", { n: g.items.length }))}${here ? ` · ${esc(here.by)}` : ""}</small>${CHEVRON}</button>
+      ${open ? `<div class="tl-versions" role="group" aria-label="${esc(g.name)}">${g.items.map((x) => item(x, x.by, tlCredit(x))).join("")}</div>` : ""}</div>`;
+  }).join("");
+  drawTokenLangStage(tl.pick);
+  $("#tlangUse").textContent = t("tlang.use", { name: tlName(translationById(tl.pick)) });
+}
+function drawTokenLangStage(id) {
+  if (!state.lib || !state.sel) return;
+  const x = translationById(id), hero = state.sel.role;
+  const pic = (role, reminder = null) => {
+    const key = reminder == null ? charKey(role) : remKey(role, reminder);
+    const spec = { ...specFor(key, reminder != null), lang: id };
+    const text = reminder == null ? charName(role, key, id) : remindersOf(role, id)[reminder];
+    return { svg: tokenSvg(state.lib, role, spec, { text }), text };
+  };
+  const others = (state.shown || []).filter((r) => r !== hero).slice(0, 3);
+  const strip = [...remindersOf(hero, id).slice(0, 4 - Math.min(3, others.length)).map((_, i) => pic(hero, i)), ...others.map((r) => pic(r))];
+  $("#tlangStage").innerHTML = `<img class="flag-bg" src="${x.flag}" alt="">
+    <div class="tl-hero">${pic(hero).svg}</div>
+    <div class="tl-strip">${strip.map((p) => `<span>${p.svg}${esc(p.text)}</span>`).join("")}</div>
+    <div class="tl-card"><img src="${x.flag}" alt=""><span><b>${esc(tlName(x))}</b>
+      <small>${esc(tlCredit(x))}${x.pack ? ` · <a href="${VILLACUERVOS_URL}" target="_blank" rel="noopener">Villacuervos</a>` : ""}${x.fem ? ` · ${esc(t("credits.feminine"))}` : ""}</small></span></div>`;
+}
+$("#tokenLangBtn").onclick = openTokenLang;
+$("#tlangList").onclick = (e) => {
+  const g = e.target.closest("[data-group]"), b = e.target.closest("[data-id]");
+  if (g) { const n = g.dataset.group; tl.open.has(n) ? tl.open.delete(n) : tl.open.add(n); drawTokenLang(); $(`#tlangList [data-group="${CSS.escape(n)}"]`).focus(); return; }
+  if (b) { tl.pick = b.dataset.id; drawTokenLang(); $(`#tlangList [data-id="${CSS.escape(tl.pick)}"]`).focus(); }
+};
+// Pointing at a language previews it without choosing; a language group previews its first version.
+$("#tlangList").addEventListener("pointerover", (e) => {
+  const b = e.target.closest("[data-id]"), g = e.target.closest("[data-group]");
+  if (b) drawTokenLangStage(b.dataset.id);
+  else if (g) { const grp = translationGroups().find((x) => x.name === g.dataset.group); drawTokenLangStage((grp.items.find((x) => x.id === tl.pick) ?? grp.items[0]).id); }
+});
+$("#tlangList").addEventListener("pointerleave", () => drawTokenLangStage(tl.pick));
+$("#tlangList").addEventListener("keydown", (e) => {
+  if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) return;
+  e.preventDefault();
+  const items = $$("#tlangList .tl-item"), i = items.indexOf(document.activeElement);
+  const next = e.key === "Home" ? 0 : e.key === "End" ? items.length - 1 : Math.max(0, Math.min(items.length - 1, i + (e.key === "ArrowDown" ? 1 : -1)));
+  items[next].focus();
+  if (items[next].dataset.id) drawTokenLangStage(items[next].dataset.id);
+});
+$("#tlangCancel").onclick = () => $("#tlangDialog").close();
+$("#tlangUse").onclick = () => { $("#tlangDialog").close(); if (tl.pick !== tokenLang()) setTokenLang(tl.pick); };
+$("#tlangDialog").addEventListener("click", (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });   // backdrop
 
 // ------------------------------------------------------------ gate
 

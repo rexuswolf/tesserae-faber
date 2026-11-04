@@ -35,7 +35,14 @@ setTimeout(() => {
     else if (k === "queue") click("#queueToggle");
     else if (k === "rem") document.querySelector("#withReminders").checked = true;
     else if (k === "pdf") click("#pdf");
-    else if (k === "tlang") { const sel = document.querySelector("#tokenLang"); sel.value = v; sel.dispatchEvent(new Event("change")); }
+    else if (k === "tlang" || k === "tlpick") {
+      // Open the token language dialog, unfold every group, pick v; "tlang" also confirms.
+      click("#tokenLangBtn");
+      document.querySelectorAll('#tlangList [aria-expanded="false"]').forEach((g) => g.click());
+      click(`#tlangList [data-id="${v}"]`);
+      if (k === "tlang") click("#tlangUse");
+    }
+    else if (k === "tlopen") click("#tokenLangBtn");
     else if (k === "fem") { const c = document.querySelector("#fem"); c.checked = true; c.dispatchEvent(new Event("change")); }
     else if (k === "credits") click("[data-credits]");
   }
