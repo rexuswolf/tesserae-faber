@@ -1,6 +1,7 @@
 // Local test server: the real app with Firebase replaced by a local mock, plus
 // the icon review tool, which saves choices to tools/icon-review/choices.json.
 import fs from "node:fs";
+import { threeBySource } from "../../vite.config.js";
 import { fileURLToPath } from "node:url";
 
 const mock = fileURLToPath(new URL("./firebase-mock.js", import.meta.url));
@@ -29,7 +30,7 @@ const reviewStore = {
 
 export default {
   root: fileURLToPath(new URL("../..", import.meta.url)),
-  resolve: { alias: [{ find: /^\.\/firebase\.js$/, replacement: mock }] },
+  resolve: { alias: [{ find: /^\.\/firebase\.js$/, replacement: mock }, threeBySource] },
   server: { port: 5198, strictPort: true },
   plugins: [reviewStore],
 };

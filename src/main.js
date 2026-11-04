@@ -1,12 +1,11 @@
-import JSZip from "jszip";
 import {
-  loadLibrary, buildToken, createViewer, magnetLayout, MAGNET_SIZES, tokenSvg, roleName, addTokenToZip, saveFile, reminderSpec, layoutName,
+  loadLibrary, buildToken, magnetLayout, MAGNET_SIZES, tokenSvg, roleName, saveFile, reminderSpec, layoutName,
   TEAMS, EDITIONS, FRAME_STYLES, BACK_STYLES, TOKEN_STYLES, FILAMENTS, DEFAULT_SPEC,
 } from "./engine/token-engine.js";
 import {
   onUser, signIn, signOutUser, isAdmin, loadRoles, uploadRoles, listAccountDesigns, deleteAccountDesign,
 } from "./firebase.js";
-import { buildBambuProject, planPlates, FILAMENT_SLOTS } from "./bambu/bambu3mf.js";
+import { planPlates, FILAMENT_SLOTS } from "./bambu/plates.js";
 import { PAGE, layoutCoins, backX } from "./pdf/layout.js";
 import { t, uiLang, setUiLang, LANGUAGES } from "./i18n.js";
 import { TRANSLATIONS, VILLACUERVOS_URL, translationById, translationGroups } from "./translations.js";
@@ -59,7 +58,18 @@ window.addEventListener("vite:preloadError", (e) => {
 });
 setTimeout(() => sessionStorage.removeItem("mm-reloaded"), 10000);
 
+// The 3D preview loads on its own (WebGL and camera controls), so the sheet doesn't wait for
+// it. Until it's ready, calls are remembered and replayed: the latest token, view and X-ray.
 let viewer = null;
+const viewerWaiting = {};
+const view3d = (method, ...args) => { if (viewer) viewer[method](...args); else viewerWaiting[method] = args; };
+function loadViewer() {
+  import("./engine/viewer.js").then(({ createViewer }) => {
+    viewer = createViewer($("#view"));
+    view3d("setView", "angle");
+    for (const m of ["setToken", "setXray", "setView"]) if (viewerWaiting[m]) viewer[m](...viewerWaiting[m]);
+  }).catch((err) => console.error("3D preview failed to load", err));
+}
 
 /** Filament colours offered for the coin, frame and back (all of them print on the A1). */
 const COLOUR_CHOICES = ["Black", "White", "Gold", "Silver", "Bronze", "Blue", "Red", "Purple", "Yellow", "Green"]
@@ -127,7 +137,7 @@ function setLang(lang) {
   setUiLang(lang);
   renderLangMenus();
   renderTokenLang();
-  if (state.lib) { buildChoices(); renderAll(); renderQueue(); renderDesigns(); }
+  if (state.lib) { buildChoices(); renderAll(); renderQueue(); renderDesigns(); if ($("#scriptInvite").open) renderInvite(); }
   else if (gateState) gate(gateState());
 }
 document.addEventListener("click", (e) => {
@@ -166,7 +176,7 @@ function renderTokenLang() {
 function setTokenLang(id) {
   try { localStorage.setItem(TOKEN_LANG_KEY, id); } catch { /* no storage */ }
   renderTokenLang();
-  if (state.lib) { renderAll(); renderQueue(); }
+  if (state.lib) { renderAll(); renderQueue(); if ($("#scriptInvite").open) renderInvite(); }
 }
 
 // The dialog: languages on the left (one with several versions folds open), and on the
@@ -304,8 +314,7 @@ function startApp() {
   renderAccount();
   if (!started) {
     started = true;
-    viewer = createViewer($("#view"));
-    viewer.setView("angle");
+    loadViewer();
     wire();
   }
   const first = state.lib.roles.find((r) => r.en === "Fortune Teller") || state.lib.roles[0];
@@ -410,13 +419,23 @@ function openSharedScript() {
   const shared = readLink(location.hash);
   if (!shared) return;
   history.replaceState(null, "", location.pathname + location.search);   // don't offer it again on reload
-  const data = { name: shared.name || t("script.unnamed"), ids: shared.ids };
-  const { roles, missing } = scriptRoles(data);
-  if (!roles.length) return;
-  $("#scriptInviteText").textContent = t("script.inviteText", { name: data.name, n: roles.length, m: missing.length });
-  $("#scriptInviteTokens").innerHTML = roles.map((r) => `<span>${tokenSvg(state.lib, r, { ...specFor(charKey(r), false), diameter: 45, back: "none" }, { text: charName(r) })}${esc(charName(r))}</span>`).join("");
-  $("#scriptInviteSave").onclick = () => { $("#scriptInvite").close(); const sc = keepScript(data); $("#scriptNote").textContent = t("script.saved", { name: sc.name }); };
+  invite = { name: shared.name || null, ids: shared.ids };
+  if (!scriptRoles(invite).roles.length) { invite = null; return; }
+  renderInvite();
+  $("#scriptInviteSave").onclick = () => {
+    $("#scriptInvite").close();
+    const sc = keepScript({ ...invite, name: invite.name || t("script.unnamed") });
+    $("#scriptNote").textContent = t("script.saved", { name: sc.name });
+  };
   $("#scriptInvite").showModal();
+}
+/** The shared-script prompt's text and tokens, in the current languages (redrawn when they change). */
+let invite = null;
+function renderInvite() {
+  if (!invite) return;
+  const { roles, missing } = scriptRoles(invite);
+  $("#scriptInviteText").textContent = t("script.inviteText", { name: invite.name || t("script.unnamed"), n: roles.length, m: missing.length });
+  $("#scriptInviteTokens").innerHTML = roles.map((r) => `<span>${tokenSvg(state.lib, r, { ...specFor(charKey(r), false), diameter: 45, back: "none" }, { text: charName(r) })}${esc(charName(r))}</span>`).join("");
 }
 async function shareScript() {
   const sc = scriptOf(state.edition);
@@ -539,7 +558,7 @@ function select(key) {
   state.sel = { key, role, reminder: kind === "r" ? +idx : null };
   $$("#rows .tok").forEach((b) => b.setAttribute("aria-current", String(b.dataset.key === key)));
   $$("#rows .row").forEach((row) => row.dataset.current = String(!!row.querySelector(`[data-key="${key}"]`)));
-  if (state.sel.reminder != null) { viewer.setView("top"); syncView("top"); }
+  if (state.sel.reminder != null) { view3d("setView", "top"); syncView("top"); }
   $("#workshop").classList.add("open");
   renderWorkshop();
 }
@@ -563,10 +582,10 @@ function renderWorkshop() {
     const text = textFor(key, role, reminder);
     const token = buildToken(state.lib, role, spec, text);
     state.token = token;
-    viewer.setToken(token);
+    view3d("setToken", token);
     // X-ray only makes sense with a magnet inside.
     $("#xray").hidden = !token.magnet;
-    if (!token.magnet && $("#xray").getAttribute("aria-pressed") === "true") { $("#xray").setAttribute("aria-pressed", "false"); viewer.setXray(false); }
+    if (!token.magnet && $("#xray").getAttribute("aria-pressed") === "true") { $("#xray").setAttribute("aria-pressed", "false"); view3d("setXray", false); }
 
     $("#name").textContent = text;
     $("#sub").textContent = [isRem ? textFor(charKey(role), role, null) : null, TEAMS[role.team].label[lang], EDITIONS[role.edition]?.name[lang],
@@ -754,12 +773,12 @@ function wire() {
 
   // workshop
   $("#wsClose").onclick = () => $("#workshop").classList.remove("open");
-  $$(".turn .pill[data-view]").forEach((b) => b.onclick = () => { viewer.setView(b.dataset.view); syncView(b.dataset.view); });
+  $$(".turn .pill[data-view]").forEach((b) => b.onclick = () => { view3d("setView", b.dataset.view); syncView(b.dataset.view); });
   $("#xray").onclick = () => {
     const on = $("#xray").getAttribute("aria-pressed") !== "true";
     $("#xray").setAttribute("aria-pressed", String(on));
-    viewer.setXray(on);
-    if (on) { viewer.setView("side"); syncView("side"); }
+    view3d("setXray", on);
+    if (on) { view3d("setView", "side"); syncView("side"); }
   };
   $$(".tabs [data-tab]").forEach((b) => b.onclick = () => { state.tab = b.dataset.tab; renderWorkshop(); });
   for (const key of ["style", "windowFinish", "frame", "back", "magnet", "magnetSize"]) {
@@ -767,7 +786,7 @@ function wire() {
       const b = e.target.closest("button"); if (!b) return;
       if (key === "back" && b.dataset.v === "custom" && !editingSpec()?.customSvg) { $("#upload").click(); return; }
       changeStyle((s) => { s[key] = b.dataset.v; });
-      if (key === "back") { viewer.setView("back"); syncView("back"); }
+      if (key === "back") { view3d("setView", "back"); syncView("back"); }
     };
   }
   for (const box of $$(".metal")) box.onclick = (e) => {
@@ -784,7 +803,7 @@ function wire() {
     const svg = await f.text();
     changeStyle((s) => { s.customSvg = svg; s.back = "custom"; });
     hint.className = "hint"; hint.textContent = t("upload.using", { file: f.name });
-    viewer.setView("back"); syncView("back");
+    view3d("setView", "back"); syncView("back");
   };
   $("#presets").onclick = (e) => {
     const b = e.target.closest("[data-preset]"); if (!b) return;
@@ -830,6 +849,7 @@ function wire() {
   $("#queueStep2").onclick = (e) => { const w = e.target.closest("[data-way]"); if (w) { qv.way = w.dataset.way; storeJSON(WAY_KEY, qv.way); $("#printNote").textContent = ""; renderQueue(); } };
   $("#queueAction").onclick = () => (qv.step === 1 ? (qv.step = 2, renderQueue(), $("#queueBody").scrollTo({ top: 0 })) : qv.way === "paper" ? downloadPdf() : downloadBambu());
   $("#queueToast button").onclick = undoRemove;
+  $("#queueRefresh").onclick = refreshQueue;
   $("#queueClear").onclick = (e) => {
     const b = e.currentTarget;
     if (b.dataset.confirm !== "1") { b.dataset.confirm = "1"; b.textContent = t("queue.clearConfirm"); return; }
@@ -851,6 +871,7 @@ async function forge() {
   btn.disabled = true;
   try {
     const { role, reminder, key } = state.sel;
+    const [{ default: JSZip }, { addTokenToZip }] = await Promise.all([import("jszip"), import("./engine/export.js")]);
     const zip = new JSZip();
     const folder = addTokenToZip(zip, state.token, role, textFor(key, role, reminder), { faceDown: true });
     await saveFile(await zip.generateAsync({ type: "blob" }), `${folder}.zip`);
@@ -872,16 +893,50 @@ function persistQueue() { storeJSON(QUEUE_KEY, state.queue); }
  * and text it has right now.
  */
 function addToQueue(role, reminder, { save = true } = {}) {
-  const key = reminder != null ? remKey(role, reminder) : charKey(role);
+  state.queue.push({ key: crypto.randomUUID(), ...queueEntry(role, reminder) });
+  if (save) { persistQueue(); renderQueue(); }
+}
+/** A queue entry as the sheet would make it now: the token language, the set's style (or the token's own) and its text. */
+function queueEntry(role, ri) {
+  const isRem = ri != null, key = isRem ? remKey(role, ri) : charKey(role);
   const own = state.overrides.get(key);
-  state.queue.push({
-    key: crypto.randomUUID(), roleId: role.id,
-    reminder: reminder != null ? textFor(key, role, reminder) : null,
-    text: reminder == null ? textFor(key, role, null) : null,
+  return {
+    roleId: role.id, ri: isRem ? ri : null,
+    reminder: isRem ? textFor(key, role, ri) : null,
+    text: isRem ? null : textFor(key, role, null),
     custom: !!own,
     spec: { ...structuredClone(own?.spec ?? state.spec), lang: tokenLang() },
-  });
-  if (save) { persistQueue(); renderQueue(); }
+  };
+}
+/** Which reminder a queued one is: its index, or (entries from before it was kept) found by its text in any language. */
+function reminderIndex(q, role) {
+  if (q.ri != null) return q.ri;
+  for (const list of Object.values(role.reminders || {})) { const i = list.indexOf(q.reminder); if (i >= 0) return i; }
+  return null;
+}
+/** The entry made again with the current language and style; null when it can't be (a reminder no longer found). */
+function refreshedEntry(q) {
+  const role = roleById(q.roleId);
+  const ri = isReminder(q) ? reminderIndex(q, role) : null;
+  if (isReminder(q) && ri == null) return null;
+  return { key: q.key, ...queueEntry(role, ri) };
+}
+/** What differs between the queue and what the sheet would make now: other languages, other designs. */
+function queueStale() {
+  let lang = 0, design = 0;
+  for (const q of state.queue) {
+    const now = refreshedEntry(q);
+    if (!now) continue;
+    if ((q.spec.lang ?? "es") !== now.spec.lang) lang++;
+    if (JSON.stringify({ ...q.spec, lang: 0 }) !== JSON.stringify({ ...now.spec, lang: 0 }) ) design++;
+  }
+  return { lang, design };
+}
+function refreshQueue() {
+  const before = structuredClone(state.queue);
+  state.queue = state.queue.map((q) => refreshedEntry(q) ?? q);
+  persistQueue(); renderQueue();
+  offerUndo(before, t("queue.refreshed"));
 }
 
 /** Queues every character shown on the sheet, optionally with all their reminders. */
@@ -947,19 +1002,23 @@ function openQueue(step) {
 
 /** Takes items out of the queue, with "Undo" for a few seconds. */
 function removeFromQueue(keys, message) {
-  const gone = state.queue.map((q, i) => [q, i]).filter(([q]) => keys.includes(q.key));
-  if (!gone.length) return;
+  if (!state.queue.some((q) => keys.includes(q.key))) return;
+  const before = structuredClone(state.queue);
   state.queue = state.queue.filter((q) => !keys.includes(q.key));
   persistQueue(); renderQueue();
-  qv.undo = gone;
+  offerUndo(before, message);
+}
+/** Shows "message · Undo" for a few seconds; Undo puts the queue back as it was. */
+function offerUndo(before, message) {
+  qv.undo = before;
   const toast = $("#queueToast");
   $("span", toast).textContent = message;
   toast.hidden = false;
-  clearTimeout(removeFromQueue.timer);
-  removeFromQueue.timer = setTimeout(() => { toast.hidden = true; qv.undo = null; }, 5000);
+  clearTimeout(offerUndo.timer);
+  offerUndo.timer = setTimeout(() => { toast.hidden = true; qv.undo = null; }, 5000);
 }
 function undoRemove() {
-  for (const [q, i] of qv.undo || []) state.queue.splice(Math.min(i, state.queue.length), 0, q);
+  if (qv.undo) state.queue = qv.undo;
   qv.undo = null; $("#queueToast").hidden = true;
   persistQueue(); renderQueue();
 }
@@ -1012,6 +1071,11 @@ function renderQueue() {
 /** Step 1: one row per character (copies with − +), its reminders beside it as chips. */
 function renderQueueList() {
   const lang = uiLang();
+  const stale = state.queue.length ? queueStale() : { lang: 0, design: 0 };
+  $("#queueStale").hidden = !(stale.lang || stale.design);
+  if (stale.lang || stale.design) {
+    $("#queueStaleText").textContent = [stale.lang && t("queue.staleLang", { n: stale.lang, name: tlName(translationById(tokenLang())) }), stale.design && t("queue.staleDesign", { n: stale.design })].filter(Boolean).join(" ");
+  }
   if (!state.queue.length) {
     $("#queue").innerHTML = `<div class="q-empty"><div class="ghosts"><i></i><i></i><i></i></div><h3>${esc(t("queue.emptyTitle"))}</h3><p>${esc(t("queue.emptyText"))}</p></div>`;
     return;
@@ -1083,6 +1147,7 @@ async function downloadBambu() {
   const btn = $("#queueAction"), out = $("#printNote");
   btn.disabled = true;
   try {
+    const { buildBambuProject } = await import("./bambu/bambu3mf.js");   // JSZip and the printer template load only now
     const items = [];
     for (const [i, q] of printOrder().entries()) {
       const role = roleById(q.roleId);

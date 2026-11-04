@@ -338,6 +338,9 @@ summary small { font-family: var(--ui); font-size: 12.5px; color: var(--dust); }
 .switch input:checked { background: var(--brass); }
 .switch input:checked::after { transform: translateX(14px); }
 /* step 1 */
+.q-stale { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; margin: 6px 0 8px; padding: 10px 12px; border: 1px solid rgba(201, 162, 39, .45); border-radius: 12px; background: rgba(201, 162, 39, .08); }
+.q-stale p { margin: 0; flex: 1 1 220px; font-size: 13px; line-height: 1.45; }
+.q-stale .pill { flex: none; }
 .q-team { margin: 16px 0 2px; font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--dust); }
 .q-item { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--seam); }
 .q-item > .pic svg { width: 48px; height: 48px; display: block; }

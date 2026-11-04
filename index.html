@@ -218,6 +218,10 @@
     <p class="qd-steps" id="queueSteps"></p>
     <div class="qd-body" id="queueBody">
       <div id="queueStep1">
+        <div class="q-stale" id="queueStale" hidden>
+          <p id="queueStaleText"></p>
+          <button class="pill" type="button" id="queueRefresh" data-i18n="queue.refresh"></button>
+        </div>
         <label class="switch"><input type="checkbox" id="withReminders"> <span data-i18n="queue.withReminders"></span></label>
         <div id="queue"></div>
       </div>
