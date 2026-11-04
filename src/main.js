@@ -551,6 +551,22 @@ function renderSheet() {
   }).join("");
 }
 
+/** Copies of a picked token: "+", or "− n +" from two copies on. */
+function copyStepper(key, name) {
+  const copies = state.pick.get(key) || 0;
+  if (!copies) return "";
+  return `<span class="cp">${copies > 1 ? `<button type="button" data-less="${key}" aria-label="${esc(t("queue.lessCopy", { name }))}">−</button><b>${copies}</b>` : ""}<button type="button" data-more="${key}" aria-label="${esc(t("queue.moreCopy", { name }))}">+</button></span>`;
+}
+/** A click on a copy stepper: one more or one fewer. True when it was one. */
+function onCopyStep(e) {
+  const more = e.target.closest("[data-more]"), less = e.target.closest("[data-less]");
+  if (more) { const k = more.dataset.more; state.pick.set(k, (state.pick.get(k) || 0) + 1); }
+  else if (less) { const k = less.dataset.less, n = state.pick.get(k) || 0; if (n > 1) state.pick.set(k, n - 1); else state.pick.delete(k); }
+  else return false;
+  picksChanged();
+  return true;
+}
+
 function rowHtml(r, q, remHits) {
   const lang = uiLang(), ck = charKey(r);
   // Each token is a toggle: picked tokens light up with a check, and show their copies.
@@ -560,8 +576,7 @@ function rowHtml(r, q, remHits) {
     const own = state.overrides.has(key), copies = state.pick.get(key) || 0;
     const name = textFor(key, r, reminder);
     // once picked, a small stepper adds copies; tapping the token still drops it
-    const stepper = copies ? `<span class="cp">${copies > 1 ? `<button type="button" data-less="${key}" aria-label="${esc(t("queue.lessCopy", { name }))}">−</button><b>${copies}</b>` : ""}<button type="button" data-more="${key}" aria-label="${esc(t("queue.moreCopy", { name }))}">+</button></span>` : "";
-    return `<span class="tok-w"><button class="tok" type="button" data-pick="${key}" aria-pressed="${copies > 0}" aria-label="${esc(name)}">${tokenSvg(state.lib, r, spec, { text: name })}<span class="ck" aria-hidden="true">✓</span>${own ? `<span class="mark" title="${esc(t("sheet.own"))}">✎</span>` : ""}</button>${stepper}</span>`;
+    return `<span class="tok-w"><button class="tok" type="button" data-pick="${key}" aria-pressed="${copies > 0}" aria-label="${esc(name)}">${tokenSvg(state.lib, r, spec, { text: name })}<span class="ck" aria-hidden="true">✓</span>${own ? `<span class="mark" title="${esc(t("sheet.own"))}">✎</span>` : ""}</button>${copyStepper(key, name)}</span>`;
   };
   const rems = remindersOf(r);
   const other = tokenLang() === "en" ? roleName(r, uiLang() === "en" ? "es" : uiLang()) : r.en;
@@ -773,9 +788,7 @@ function wire() {
   $("#teamChips").onclick = (e) => { const b = e.target.closest("[data-team]"); if (b) { state.team = b.dataset.team; renderSheet(); } };
   // step 1: tap a token to pick it (or drop it); a team or everything shown at once
   $("#rows").onclick = (e) => {
-    const more = e.target.closest("[data-more]"), less = e.target.closest("[data-less]");
-    if (more) { const k = more.dataset.more; state.pick.set(k, (state.pick.get(k) || 0) + 1); picksChanged(); return; }
-    if (less) { const k = less.dataset.less, n = state.pick.get(k) || 0; if (n > 1) state.pick.set(k, n - 1); else state.pick.delete(k); picksChanged(); return; }
+    if (onCopyStep(e)) return;
     const pick = e.target.closest("[data-pick]"), team = e.target.closest("[data-pick-team]");
     if (pick) { const k = pick.dataset.pick; setPick(k, !isPicked(k)); picksChanged(); return; }
     if (team) {
@@ -794,7 +807,7 @@ function wire() {
   $("#flowBack").onclick = () => goStep(state.step - 1);
   $("#flowNext").onclick = () => (state.step < 3 ? goStep(state.step + 1) : flow.way === "paper" ? downloadPdf() : downloadBambu());
   // step 2: your tokens; tap one to give it its own design
-  $("#designGrid").onclick = (e) => { const b = e.target.closest("[data-design]"); if (b) designToken(b.dataset.design); };
+  $("#designGrid").onclick = (e) => { if (onCopyStep(e)) return; const b = e.target.closest("[data-design]"); if (b) designToken(b.dataset.design); };
   $("#designStage").addEventListener("click", (e) => { const b = e.target.closest("[data-side]"); if (b) { flow.side = b.dataset.side; renderDesignStage(); } });
   // step 3: how to print
   $("#printPage").addEventListener("click", (e) => { const w = e.target.closest("[data-way]"); if (w) { flow.way = w.dataset.way; storeJSON(PRINT_WAY_KEY, flow.way); $("#printNote").textContent = ""; renderQueue(); } });
@@ -1091,9 +1104,11 @@ function renderDesignStage() {
   $("#designHint").textContent = t("design.hint", { n: total });
   $$("#designStage [data-side]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.side === flow.side)));
   $("#designGrid").innerHTML = keys.map((k) => {
-    const role = tokenRole(k), ri = tokenRem(k), text = textFor(k, role, ri), copies = state.pick.get(k);
+    const role = tokenRole(k), ri = tokenRem(k), text = textFor(k, role, ri);
     const spec = { ...specFor(k, ri != null), ...(flow.side === "back" ? { magnet: "none" } : {}) };
-    return `<button class="ds-cell${ri != null ? " r" : ""}" type="button" data-design="${k}" aria-current="${state.sel?.key === k}" title="${esc(t("design.tap"))}">${tokenSvg(state.lib, role, spec, { text, side: flow.side })}${state.overrides.has(k) ? `<span class="mark" title="${esc(t("sheet.own"))}">✎</span>` : ""}${copies > 1 ? `<span class="n">×${copies}</span>` : ""}<span>${esc(ri != null ? `${textFor(charKey(role), role, null)}: ${text}` : text)}</span></button>`;
+    const label = ri != null ? `${textFor(charKey(role), role, null)}: ${text}` : text;
+    // the copies stepper sits beside the button (a button can't hold buttons), over the coin's foot
+    return `<div class="ds-item${ri != null ? " r" : ""}"><button class="ds-cell${ri != null ? " r" : ""}" type="button" data-design="${k}" aria-current="${state.sel?.key === k}" title="${esc(t("design.tap"))}">${tokenSvg(state.lib, role, spec, { text, side: flow.side })}${state.overrides.has(k) ? `<span class="mark" title="${esc(t("sheet.own"))}">✎</span>` : ""}<span>${esc(label)}</span></button>${copyStepper(k, label)}</div>`;
   }).join("");
 }
 /** Tapping one of your tokens: the workshop shows it, ready to give it its own design. */

@@ -197,19 +197,21 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .team-h small { color: var(--dust); }
 #rows .row { display: grid; grid-template-columns: 74px minmax(150px, 220px) minmax(0, 1fr); gap: 16px; align-items: center; padding: 10px 6px; border-bottom: 1px solid var(--seam); border-radius: 10px; }
 #rows .row[data-picked=true] { background: rgba(239, 230, 214, .035); }
-/* A token you pick: dimmed until picked, then lit, with a check and its copies. */
-#rows .tok svg { opacity: .55; filter: saturate(.6); transition: opacity .15s, filter .15s, transform .15s; }
-#rows .tok:hover svg { opacity: .85; }
-#rows .tok[aria-pressed=true] svg { opacity: 1; filter: none; box-shadow: 0 0 0 3px var(--brass); }
-#rows .tok .ck { position: absolute; right: -3px; top: -3px; width: 20px; height: 20px; border-radius: 50%; background: var(--brass); color: var(--velvet-deep); font-size: 12px; font-weight: 700; display: none; place-items: center; }
+/* A token you pick: dimmed until picked, then lit, with a check and its copies.
+   No ring round the coin: it would read as part of the design (a frame). */
+#rows .tok svg { opacity: .38; transition: opacity .15s, transform .15s; }
+#rows .tok:hover svg { opacity: .75; }
+#rows .tok[aria-pressed=true] svg { opacity: 1; }
+#rows .tok .ck { position: absolute; right: -3px; top: -3px; width: 20px; height: 20px; border-radius: 50%; background: var(--brass); color: var(--velvet-deep); font-size: 12px; font-weight: 700; display: none; place-items: center; box-shadow: 0 0 0 2px var(--velvet-deep); }
 #rows .tok[aria-pressed=true] .ck { display: grid; }
 #rows .rem .tok .ck { width: 16px; height: 16px; font-size: 10px; }
 /* copies: a small stepper under a picked token */
 .tok-w { position: relative; display: inline-flex; flex-direction: column; align-items: center; justify-self: center; }
-.tok-w .cp { position: absolute; left: 50%; bottom: -9px; transform: translateX(-50%); display: inline-flex; align-items: center; height: 22px; border-radius: 11px; background: var(--bone); color: var(--velvet-deep); box-shadow: 0 2px 6px rgba(0, 0, 0, .45); font-size: 12px; font-weight: 700; z-index: 1; }
-.tok-w .cp button { border: 0; background: none; color: inherit; font: inherit; width: 24px; height: 22px; cursor: pointer; display: grid; place-items: center; }
-.tok-w .cp button:hover { color: var(--brass); }
-.tok-w .cp b { min-width: 12px; text-align: center; font-variant-numeric: tabular-nums; }
+.tok-w .cp, .ds-item .cp { position: absolute; left: 50%; transform: translateX(-50%); display: inline-flex; align-items: center; height: 22px; border-radius: 11px; background: var(--bone); color: var(--velvet-deep); box-shadow: 0 2px 6px rgba(0, 0, 0, .45); font-size: 12px; font-weight: 700; z-index: 1; }
+.tok-w .cp { bottom: -9px; }
+.tok-w .cp button, .ds-item .cp button { border: 0; background: none; color: inherit; font: inherit; width: 24px; height: 22px; cursor: pointer; display: grid; place-items: center; }
+.tok-w .cp button:hover, .ds-item .cp button:hover { color: var(--brass); }
+.tok-w .cp b, .ds-item .cp b { min-width: 12px; text-align: center; font-variant-numeric: tabular-nums; }
 .rem .tok-w .cp { height: 18px; font-size: 11px; bottom: -7px; }
 .rem .tok-w .cp button { width: 19px; height: 18px; }
 .rem .tok-w + span { margin-top: 6px; }
@@ -353,7 +355,10 @@ summary small { font-family: var(--ui); font-size: 12.5px; color: var(--dust); }
 .ds-cell:hover svg { transform: translateY(-3px); }
 .ds-cell[aria-current=true] { background: rgba(201, 162, 39, .12); color: var(--bone); }
 .ds-cell .mark { position: absolute; top: 4px; right: 12px; background: var(--brass); color: var(--velvet-deep); border-radius: 999px; font-size: 10px; font-weight: 700; padding: 0 5px; line-height: 16px; }
-.ds-cell .n { position: absolute; top: 4px; left: 12px; background: var(--bone); color: var(--velvet-deep); border-radius: 999px; font-size: 10.5px; font-weight: 700; padding: 0 5px; line-height: 16px; }
+/* the copies stepper, over the coin's foot: padding 8 + coin − half the stepper */
+.ds-item { position: relative; display: grid; }
+.ds-item .cp { top: 83px; }
+.ds-item.r .cp { top: 71px; }
 
 /* step 3: how to print */
 .print-page { grid-area: main; overflow-y: auto; min-width: 0; padding: 26px 28px 40px; }
@@ -515,7 +520,10 @@ dialog .import { margin-top: 10px; }
   .ds-head { margin-bottom: 8px; }
   .ds-head h2 { font-size: 20px; }
   .ds-grid { display: flex; overflow-x: auto; gap: 4px; padding-bottom: 4px; }
-  .ds-cell { flex: none; width: 80px; }
+  .ds-item { flex: none; }
+  .ds-cell { width: 80px; }
+  .ds-item .cp { top: 59px; }
+  .ds-item.r .cp { top: 51px; }
   .ds-cell svg { width: 62px; height: 62px; } .ds-cell.r svg { width: 46px; height: 46px; margin: 8px 0; }
   .stage { height: 200px; }
   .print-page { padding: 16px 14px 30px; }
