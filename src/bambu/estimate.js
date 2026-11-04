@@ -2,11 +2,10 @@
 // the download. Calibrated against Bambu Studio's own slicing (A1 and A1 mini, PLA Basic,
 // 0.20 mm layers, 15 % infill) on three designs: grams within 5 % on average for the
 // filaments that matter (3 g or more), 18 % at worst.
-import { slotOf } from "./plates.js";
+import { purge, slotOf } from "./plates.js";
 
 export const DENSITY = 1.26;     // g/cm³, Bambu PLA Basic (filament_density in the templates)
 const LAYER = 0.2;               // mm
-const FLUSH = 400;               // mm³ purged per colour change (flush_volumes_matrix in the templates)
 // The coin's body: solid top and bottom shells (5 + 3 layers), 15 % infill between, plus walls.
 const SHELLS = 8 * LAYER, INFILL = 0.15;
 export const CAL = {
@@ -47,12 +46,27 @@ export function plateFeatures(items) {
     face.add(base); back.add(base);
     inlay += inlays;
   }
-  // The AMS swaps within each layer that has several colours, and once back to the coin's.
-  const swaps = layers * (face.size - 1) + layers * (back.size - 1) + (face.size > 1 ? 1 : 0);
-  // Purge: shared out among the plate's filaments.
+  // Colour changes and their purge (of the filament coming in). Each multi-colour layer
+  // carries on with the colour the last one ended on and goes through the others: the face
+  // starts on the inlays' first colour (loaded with the plate's start) and ends its first
+  // layer on the coin's (firstLayerOrder in bambu3mf.js); the next face layers go back the
+  // other way, and the body after them needs the coin's colour. The back's layers likewise.
+  const coin = items.length ? slotOf(items[0].token.colours.base) : 0;
+  let swaps = 0, at = null;
+  const walk = (path) => { for (const b of path) { if (at !== null && at !== b) { swaps++; add(b, purge(at, b)); } at = b; } };
+  const layered = (path) => {
+    if (path.length < 2) return;
+    for (let i = 0; i < layers; i++) walk(i % 2 ? [...path].reverse() : path);
+  };
+  const faceOrder = [...face].filter((s) => s !== coin).concat(coin);
+  layered(faceOrder);
+  walk([coin]);                                        // the body
+  layered([coin, ...[...back].filter((s) => s !== coin)]);
   const slots = [...mm3.keys()];
-  for (const s of slots) add(s, (swaps * FLUSH) / slots.length);
   const grams = slots.sort((a, b) => a - b).map((s) => [s, (mm3.get(s) * DENSITY) / 1000]);
-  const minutes = CAL.t0 + CAL.perToken * n + CAL.perCard * cards + CAL.perBodyMm3 * body + CAL.perInlayMm3 * inlay + CAL.perSwap * swaps;
+  // Time also counts the plate's first load of an inlay colour: it takes as long as a
+  // change (CAL.perSwap was fitted that way), though its purge isn't in the plate's grams.
+  const loads = swaps + (faceOrder.length > 1 ? 1 : 0);   // + the first load
+  const minutes = CAL.t0 + CAL.perToken * n + CAL.perCard * cards + CAL.perBodyMm3 * body + CAL.perInlayMm3 * inlay + CAL.perSwap * loads;
   return { n, cards, body, inlay, swaps, grams, minutes };
 }

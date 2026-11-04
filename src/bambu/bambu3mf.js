@@ -6,7 +6,7 @@
 // The printer/process/filament settings come from <printer>-template.json, generated once
 // per printer with Bambu Studio by tools/make_bambu_template.py.
 import JSZip from "jszip";
-import { FILAMENT_SLOTS, PARTS, plateStride, printerOf, slotOf, slotsFor, towerSpot, planPlates } from "./plates.js";
+import { FILAMENT_SLOTS, PARTS, purge, plateStride, printerOf, slotOf, slotsFor, towerSpot, planPlates } from "./plates.js";
 
 export { FILAMENT_SLOTS, AMS_SLOTS, PRINTERS, slotOf, perPlate, planPlates } from "./plates.js";
 
@@ -60,7 +60,10 @@ function projectSettings(template, used, plates, bed) {
   s.filament_colour = used.map((slot) => FILAMENT_SLOTS[slot].hex.toUpperCase());
   s.filament_map = Array(n).fill("1");
   s.flush_volumes_vector = Array(2 * n).fill("140");
-  s.flush_volumes_matrix = used.flatMap((a) => used.map((b) => (a === b ? "0" : "400")));
+  // Bambu Studio's own auto-calculated purge for each pair of colours (flush.json, from
+  // tools/make_flush_table.py), plus a safety margin: dark after light needs little, light
+  // after dark a lot (Black → White 578 mm³, White → Black 163).
+  s.flush_volumes_matrix = used.flatMap((a) => used.map((b) => String(purge(a, b))));
   // Bambu Studio may switch the prime tower on when it loads your presets, so plan
   // for it: a small tower in the slot we keep free on every plate. On the A1 most
   // purging goes down the waste chute; the tower only takes prime_volume per change.
@@ -81,6 +84,18 @@ function projectSettings(template, used, plates, bed) {
 }
 
 // ------------------------------------------------------------ writer
+
+/**
+ * The order the first layer prints its filaments in (1-based, every filament of the
+ * project): the inlays' colours first, the coin's own last. The layers above are all
+ * coin, so it then carries on without another change; Bambu's automatic order sometimes
+ * starts with the coin and swaps back (one change and its purge more).
+ */
+function firstLayerOrder(plate, usedSlots) {
+  const coin = new Set(plate.items.map((it) => slotOf(it.token.colours.base)));
+  const order = [...usedSlots.filter((s) => !coin.has(s)), ...usedSlots.filter((s) => coin.has(s))];
+  return order.map((s) => usedSlots.indexOf(s) + 1);
+}
 
 /**
  * Builds the .3mf for `printer` ("a1" or "a1mini"). `items` are {token, title, group};
@@ -147,6 +162,8 @@ ${partsCfg.join("\n")}
     <metadata key="plater_id" value="${pi + 1}"/>
     <metadata key="plater_name" value="${esc(plate.name)}"/>
     <metadata key="locked" value="false"/>
+    <metadata key="first_layer_sequence_choice" value="customize"/>
+    <metadata key="first_layer_print_sequence" value="${firstLayerOrder(plate, usedSlots).join(" ")}"/>
     <metadata key="filament_map_mode" value="Auto For Flush"/>
     <metadata key="filament_maps" value="${usedSlots.map(() => 1).join(" ")}"/>
 ${instances.join("\n")}

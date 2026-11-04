@@ -3,6 +3,8 @@
 // in their bed. Shared by the queue's preview and the .3mf writer (bambu3mf.js),
 // which only loads when someone downloads a project.
 
+import FLUSH from "./flush.json";
+
 // Filament number = index + 1. Must match COLOURS in tools/make_bambu_template.py.
 export const FILAMENT_SLOTS = [
   { hex: "#1d1c21", name: "Black" },
@@ -29,6 +31,15 @@ const A1_BED = PRINTERS.a1.bed;
 export const plateStride = (bed = A1_BED) => bed * 1.2;
 const MARGIN = 8, GAP = 3;
 export const AMS_SLOTS = 4;
+
+/**
+ * mm³ to purge going from filament slot `a` to `b`: Bambu Studio's auto-calculated value
+ * (flush.json, from tools/make_flush_table.py) plus 20 % so it never falls short, within
+ * Bambu's 900 cap. Dark after light needs little (White → Black 200), light after dark a
+ * lot (Black → White 700).
+ */
+const FLUSH_MARGIN = 1.2;
+export const purge = (a, b) => (a === b ? 0 : Math.min(900, Math.ceil((FLUSH.matrix[a][b] * FLUSH_MARGIN) / 10) * 10));
 
 export const slotOf = (hex) => {
   const i = FILAMENT_SLOTS.findIndex((s) => s.hex === String(hex).toLowerCase());

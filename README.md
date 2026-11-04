@@ -114,7 +114,10 @@ and `node tools/upload-library.mjs` replaces the library with it.
   A token is a coin plus flush coloured inlays (name and icon, frame, back), so each colour is its own part.
 - `src/bambu/bambu3mf.js`: the Bambu Studio project writer (plates, filaments, prime tower, magnet pauses).
   Its printer settings come from `a1-template.json` and `a1mini-template.json`, generated with Bambu Studio by
-  `tools/make_bambu_template.py <any.stl> [a1|a1mini]`.
+  `tools/make_bambu_template.py <any.stl> [a1|a1mini]`. On top of them it asks for Arachne walls and 0.42 mm
+  first-layer lines (the lettering is the first layer), prints each plate's inlay colours before the coin's,
+  and purges what Bambu Studio's own auto-calculation gives for each pair of colours plus 20 %
+  (`src/bambu/flush.json`, from `tools/make_flush_table.py`).
 - `src/pdf/print-pdf.js`: the double-sided A4 PDF, loaded only when you ask for it.
 - `src/main.js`, `src/i18n.js`, `src/style.css`: the app, its Spanish and English text, and its look.
 - `src/translations.js`: the languages tokens can be printed in, and who translated each one.
