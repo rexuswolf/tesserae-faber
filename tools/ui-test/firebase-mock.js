@@ -1,3 +1,5 @@
+// The test server skips the first-visit guide (it would cover the app), unless the URL asks for it.
+try { if (!location.hash.includes("guide")) localStorage.setItem("midnight-mint-guide-seen", "1"); } catch { /* no storage */ }
 // Test double for src/firebase.js: the local library; signed in as the admin only with ?admin.
 // ?lang=en sets the interface language before the app starts (this module loads before i18n.js).
 { const l = new URLSearchParams(location.search).get("lang"); if (l) try { localStorage.setItem("midnight-mint-lang", l); } catch { /* none */ } }

@@ -347,6 +347,7 @@ function startApp() {
   goStep(1);
   refreshDesigns();
   openSharedScript();
+  if (!guide.wired) { guide.wired = true; wireGuide(); }
 }
 
 /** The account corner: the admin's menu when signed in, a sign-in button only on ?admin. */
@@ -1339,6 +1340,42 @@ async function downloadPdf() {
     out.className = "hint warn";
     out.textContent = t("queue.pdfFailed", { message: err.message });
   } finally { btn.disabled = !state.pick.size; }
+}
+
+// ------------------------------------------------------------ how it works
+
+// A short guide: the three steps, each with a picture of the app in the interface language.
+// It opens by itself on a first visit; the "?" in the top bar opens it again.
+const GUIDE_KEY = "midnight-mint-guide-seen", GUIDE_STEPS = 3;
+const guide = { at: 0 };
+function openGuide() {
+  guide.at = 0;
+  renderGuide();
+  $("#guide").showModal();
+  try { localStorage.setItem(GUIDE_KEY, "1"); } catch { /* no storage */ }
+}
+function renderGuide() {
+  const i = guide.at + 1, lang = uiLang();
+  $("#guideKicker").textContent = t("guide.kicker", { i, n: GUIDE_STEPS, name: t(`flow.step${i}`) });
+  $("#guideTitle").textContent = t(`guide.title${i}`);
+  $("#guideText").textContent = t(`guide.text${i}`);
+  const img = $("#guideShot");
+  img.src = `/guide/${lang === "es" ? "es" : "en"}-${i}.jpg`;
+  img.alt = t(`guide.alt${i}`);
+  $("#guideBack").hidden = guide.at === 0;
+  $("#guideNext").textContent = t(i === GUIDE_STEPS ? "guide.done" : "guide.next");
+  $("#guideDots").innerHTML = Array.from({ length: GUIDE_STEPS }, (_, k) => `<i${k === guide.at ? ' class="on"' : ""}></i>`).join("");
+}
+function wireGuide() {
+  $("#guideOpen").onclick = openGuide;
+  document.addEventListener("click", (e) => { if (e.target.closest("[data-guide]")) { e.preventDefault(); drawer(false); openGuide(); } });
+  $("#guideBack").onclick = () => { guide.at = Math.max(0, guide.at - 1); renderGuide(); };
+  $("#guideNext").onclick = () => { if (guide.at < GUIDE_STEPS - 1) { guide.at++; renderGuide(); } else $("#guide").close(); };
+  $("#guide").addEventListener("click", (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });   // backdrop
+  let seen = null;
+  try { seen = localStorage.getItem(GUIDE_KEY); } catch { /* no storage */ }
+  // A first visit opens it, unless it came with a shared script, which opens its own invite.
+  if (!seen && !location.hash.startsWith("#s=")) openGuide();
 }
 
 // The UI test server drives the flow through these.

@@ -22,6 +22,7 @@
       <svg viewBox="0 0 18 18" width="18" height="18" aria-hidden="true"><path d="M3 5h12M3 9h12M3 13h12" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
     <div class="brand"><img src="/logo-mark.svg" alt="" width="36" height="36"><span class="wordmark"><span class="wm-mid">Midnight</span><span class="wm-mint">Mint</span></span></div>
     <nav class="flow-steps" id="flowSteps" data-i18n-attr="aria-label:flow.aria"></nav>
+    <button class="icon-btn help-btn" id="guideOpen" type="button" aria-haspopup="dialog" data-i18n-attr="aria-label:guide.open;title:guide.open">?</button>
     <button class="tlang-trigger" id="tokenLangBtn" type="button" aria-haspopup="dialog"></button>
   </header>
 
@@ -51,7 +52,7 @@
       </details>
       </span>
     </div>
-    <p class="ccc-line"><span data-i18n="ccc.tiny"></span> · <a href="#" data-credits data-i18n="credits.link"></a><span id="repoLink" hidden> · <a target="_blank" rel="noopener" data-i18n-attr="title:credits.repo">GitHub</a></span></p>
+    <p class="ccc-line"><span data-i18n="ccc.tiny"></span> · <a href="#" data-guide data-i18n="guide.open"></a> · <a href="#" data-credits data-i18n="credits.link"></a><span id="repoLink" hidden> · <a target="_blank" rel="noopener" data-i18n-attr="title:credits.repo">GitHub</a></span></p>
     </footer>
   </nav>
   <div class="scrim" id="scrim"></div>
@@ -266,6 +267,20 @@
     }
   } catch (e) { /* no storage */ }
 </script>
+
+<!-- how it works: the three steps, one at a time, with a picture of each -->
+<dialog id="guide" aria-labelledby="guideTitle">
+  <form method="dialog" class="close"><button class="pill" data-i18n="admin.close"></button></form>
+  <p class="guide-kicker" id="guideKicker"></p>
+  <h2 id="guideTitle"></h2>
+  <img id="guideShot" alt="" width="960" height="600" decoding="async">
+  <p class="guide-text" id="guideText"></p>
+  <div class="guide-nav">
+    <button class="pill" type="button" id="guideBack" data-i18n="guide.back"></button>
+    <span class="guide-dots" id="guideDots" aria-hidden="true"></span>
+    <button class="forge" type="button" id="guideNext"></button>
+  </div>
+</dialog>
 
 <dialog id="credits" aria-labelledby="creditsTitle">
   <form method="dialog" class="close"><button class="pill" data-i18n="admin.close"></button></form>
