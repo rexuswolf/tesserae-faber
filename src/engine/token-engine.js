@@ -124,9 +124,13 @@ export function reminderSpec(spec) {
 
 // ---------------------------------------------------------------- loading
 
+/** The token lettering: Alegreya SC ExtraBold (SIL OFL), chosen for strokes a 0.4 mm nozzle
+ *  can print (tools/font-protos/ measures them). The CSS family serves the few SVG <text>s. */
+export const LETTERING = { file: "AlegreyaSC-ExtraBold.ttf", family: "Midnight Mint Lettering" };
+
 /**
  * Prepares the library: the role list and seal (both from Firestore, invite-only)
- * plus the Dumbledor font, which is served with the site from `assetBase`.
+ * plus the lettering font, which is served with the site from `assetBase`.
  */
 export async function loadLibrary(roles, { sealSvg = null, assetBase = "/" } = {}) {
   const get = async (name, kind) => {
@@ -134,7 +138,7 @@ export async function loadLibrary(roles, { sealSvg = null, assetBase = "/" } = {
     if (!res.ok) throw new Error(`could not load ${name} (${res.status})`);
     return res[kind]();
   };
-  const fontBuf = await get("Dumbledor1_fixed.ttf", "arrayBuffer");
+  const fontBuf = await get(LETTERING.file, "arrayBuffer");
   const font = new Font(new TTFLoader().parse(fontBuf));
   const box = boundsOf(font.generateShapes("H", 1));
   const lib = { roles, font, capHeight: box.max.y - box.min.y || 0.7, sealSvg, glyphs: new Map(), icons: new Map() };
@@ -242,6 +246,34 @@ function glyph(lib, ch) {
   return info;
 }
 
+/** A letter's outline points, in font units, about its advance centre (cached). */
+function glyphPoints(lib, ch) {
+  const g = glyph(lib, ch);
+  g.points ??= g.shapes.flatMap((s) => s.getPoints(4)).map((p) => [p.x - g.center, p.y]);
+  return g.points;
+}
+
+/**
+ * Where the name's ink sits: the middle of the angles its outline covers on the circle,
+ * relative to the bottom (270°), in degrees. Letters stand on the circle at `angles`, tops
+ * towards the centre, as in letterSvg and the 3D name.
+ */
+function inkMidAngle(lib, chars, angles, radius, em) {
+  let lo = Infinity, hi = -Infinity;
+  chars.forEach((ch, i) => {
+    if (ch === " ") return;
+    const a = (angles[i] * Math.PI) / 180, ux = Math.cos(a), uy = Math.sin(a);   // outward
+    for (const [x, y] of glyphPoints(lib, ch)) {
+      // along the circle: x·tangent (towards larger angles); towards the centre: y
+      const t = x * em, r = radius - y * em;
+      const deg = angles[i] + (Math.atan2(t, r) * 180) / Math.PI;
+      if (deg < lo) lo = deg;
+      if (deg > hi) hi = deg;
+    }
+  });
+  return lo <= hi ? (lo + hi) / 2 - 270 : 0;
+}
+
 /** Inner edge of the frame (mm from centre), so text can stay clear of it. */
 function frameInner(spec) {
   return frameDesign(spec)?.inner ?? spec.diameter / 2;
@@ -270,6 +302,11 @@ export function layoutName(lib, text, spec) {
     if (i > 0) a += (steps[i - 1] / radius) * (180 / Math.PI);
     angles.push(a);
   });
+  // Centring on the advance widths leaves the ink off-centre when the end letters have
+  // open sides (MAYOR, SAINT: up to 0.7 mm). Turn the name so its ink, as it sits on the
+  // circle, spans the same angle either side of the bottom.
+  const off = inkMidAngle(lib, chars, angles, radius, em * scale);
+  if (off) for (let i = 0; i < angles.length; i++) angles[i] -= off;
   return { chars, angles, radius, em: em * scale, total, scale, letterHeight: spec.textSize * scale, margin };
 }
 
@@ -1106,7 +1143,7 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 
 /**
  * An SVG picture of the token's front (or back), in millimetres. Uses the font
- * family "Dumbledor" — load engine/engine.css on the page for it.
+ * family LETTERING.family (src/style.css loads it).
  */
 export function tokenSvg(lib, role, spec, { side = "front", text } = {}) {
   if (isCard(role)) return cardSvg(lib, role, spec, side, text);
@@ -1150,7 +1187,7 @@ export function tokenSvg(lib, role, spec, { side = "front", text } = {}) {
     if (pocket?.kind === "pocket") body += `<circle r="${pocket.radius.toFixed(2)}" fill="#0b090c" opacity=".85"/>`;
     if (ed) body += `<path fill="${c.back}" fill-rule="evenodd" d="${shapesToPath(ed, 0, 0, 48)}"/>`;
     if (spec.back === "seal" && lib.sealSvg) body += `<g fill="${c.back}" transform="scale(${spec.diameter / TRACE_VIEW}) translate(${-TRACE_VIEW / 2} ${-TRACE_VIEW / 2})">${lib.sealSvg.replace(/^[\s\S]*?<g /, "<g ").replace(/fill="#000000"/, "").replace(/<\/svg>\s*$/, "")}</g>`;
-    else if (back && !designed) body += `<text y="1.5" text-anchor="middle" font-size="5" fill="${c.back}" font-family="Dumbledor">${esc(back === "Name" ? label.toUpperCase() : back.toUpperCase())}</text>`;
+    else if (back && !designed) body += `<text y="1.5" text-anchor="middle" font-size="5" fill="${c.back}" font-family="${LETTERING.family}">${esc(back === "Name" ? label.toUpperCase() : back.toUpperCase())}</text>`;
   }
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${-R - 0.5} ${-R - 0.5} ${spec.diameter + 1} ${spec.diameter + 1}" role="img" aria-label="${esc(label)} token"><circle r="${R}" fill="${c.base}"/>${body}</svg>`;
 }

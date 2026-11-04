@@ -2,8 +2,8 @@
    spine, one row per character with its reminders, a workshop with the 3D token
    beside it, and the print queue along the bottom. */
 @font-face {
-  font-family: "Dumbledor";
-  src: url("/Dumbledor1_fixed.ttf") format("truetype");
+  font-family: "Midnight Mint Lettering";   /* token lettering, see LETTERING in the engine */
+  src: url("/AlegreyaSC-ExtraBold.ttf") format("truetype");
   font-display: swap;
 }
 :root {

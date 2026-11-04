@@ -142,9 +142,10 @@ and keeps its own terms:
   [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/). Each icon's author is credited in the app
   (*Credits*, at the bottom of the sidebar).
 - **Language flags** come from [circle-flags](https://github.com/HatScripts/circle-flags) (MIT).
-- **Fonts**: Gloock, Instrument Sans and UnifrakturMaguntia are under the SIL Open Font License, served by
-  Google Fonts. Dumbledor 1 (© GeM), used for the token lettering, is a free font distributed by its author;
-  check its terms before reusing it elsewhere.
+- **Fonts**: the token lettering is Alegreya SC ExtraBold by Juan Pablo del Peral (Huerta Tipográfica),
+  under the SIL Open Font License (`public/AlegreyaSC-OFL.txt`); it was picked for strokes a 0.4 mm nozzle
+  can print. Gloock, Instrument Sans and UnifrakturMaguntia are also under the OFL, served by Google Fonts.
+  Dumbledor 1 (© GeM), the earlier lettering, is still in `public/` for the design prototypes in `tools/`.
 - **Libraries**: [three.js](https://threejs.org) (MIT), [Firebase](https://firebase.google.com) (Apache 2.0),
   [JSZip](https://stuk.github.io/jszip/) (MIT or GPLv3), [jsPDF](https://github.com/parallax/jsPDF) (MIT)
   and [svg2pdf.js](https://github.com/yWorks/svg2pdf.js) (MIT).
