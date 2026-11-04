@@ -69,6 +69,14 @@ function projectSettings(template, used, plates, bed) {
   s.prime_tower_width = "35";
   s.wipe_tower_x = spots.map((t) => t.x.toFixed(1));
   s.wipe_tower_y = spots.map((t) => t.y.toFixed(1));
+  // The face is printed first, so the lettering and the icon's fine lines are the first
+  // layer. Bambu's defaults there (classic walls, 0.5 mm first-layer lines, elephant-foot
+  // compensation narrowing every colour region) leave gaps in letters and drop lines thinner
+  // than two walls: a plate of reminders got 25 % less inlay plastic than its shapes need.
+  // Arachne varies the line width to fill thin strokes; 0.42 mm lines fit them better.
+  s.wall_generator = "arachne";
+  s.initial_layer_line_width = "0.42";
+  s.elefant_foot_compensation = "0";
   return s;
 }
 
