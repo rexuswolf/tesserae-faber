@@ -725,6 +725,38 @@ function syncControls(spec) {
   $("#coinSummary").textContent = `${s.diameter} × ${dec2(Math.max(s.height, m?.minHeight ?? 0))} mm`;
   $$("[data-choice] button").forEach((b) => b.setAttribute("aria-pressed", String(s[b.parentElement.dataset.choice] === b.dataset.v)));
   $$(".metal").forEach((box) => $$("button", box).forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === s.colours[box.dataset.colour]))));
+  // The window style's front is the window itself; its relief icon takes the coin's colour.
+  $("#frontColourLabel").textContent = t(s.style === "window" ? "front.colourWindow" : "front.colour");
+  // Reset buttons: shown where a field differs from its default (see baseSpec), never on a hidden field.
+  const { spec: base, name } = baseSpec();
+  for (const b of $$("[data-reset]")) {
+    const k = b.dataset.reset, own = b.closest(".row") || b.previousElementSibling;
+    b.hidden = JSON.stringify(fieldValue(s, k)) === JSON.stringify(fieldValue(base, k)) || !!own?.closest("[hidden]");
+    b.title = name ? t("reset.toPreset", { name }) : t("reset.toSet");
+    b.setAttribute("aria-label", b.title);
+  }
+}
+
+/** A field of a spec by its key: "diameter", "frame" or "colours.base". */
+function fieldValue(spec, key) {
+  if (key.startsWith("colours.")) return { ...DEFAULT_SPEC.colours, ...spec.colours }[key.slice(8)];
+  return spec[key] ?? DEFAULT_SPEC[key];
+}
+/** What a field resets to: the design (preset) it started from, else for a token its set's
+ *  style and for the set "Fast print" (the starting style). `name` is the preset's, if any. */
+function baseSpec() {
+  const p = PRESETS.find((x) => x.id === editingSpec()?.preset);
+  if (p) return { spec: presetSpec(p), name: t(`preset.${p.id}`) };
+  if (state.tab === "token") return { spec: state.spec, name: null };
+  return { spec: presetSpec(PRESETS[0]), name: t(`preset.${PRESETS[0].id}`) };
+}
+function resetField(key) {
+  const { spec: base } = baseSpec(), v = structuredClone(fieldValue(base, key));
+  changeStyle((s) => {
+    if (key.startsWith("colours.")) s.colours = { ...DEFAULT_SPEC.colours, ...s.colours, [key.slice(8)]: v };
+    else s[key] = v;
+    if (key === "back" && v === "custom") s.customSvg = base.customSvg;
+  });
 }
 
 /** Applies a style change to whatever the controls are editing. */
@@ -753,9 +785,9 @@ function buildChoices() {
   // Frames are drawn as coin tiles by renderFrameTiles().
   // Backs are drawn as coin tiles by renderBackTiles().
   for (const box of $$(".metal")) {
-    // Every filament the Bambu export knows. Only the frame can take the team colour:
-    // on the coin or the back it would show the team from behind.
-    const opts = [...(box.dataset.colour === "frame" ? [{ id: "team", hex: "team" }] : []), ...COLOUR_CHOICES];
+    // Every filament the Bambu export knows. The name and icon and the frame can take the team
+    // colour; on the coin or the back it would show the team from behind.
+    const opts = [...(["front", "frame"].includes(box.dataset.colour) ? [{ id: "team", hex: "team" }] : []), ...COLOUR_CHOICES];
     box.innerHTML = opts.map((o) => `<button type="button" class="${o.id === "team" ? "team" : ""}" data-v="${o.hex}" style="${o.id === "team" ? "" : `background:${o.hex}`}" aria-label="${esc(t(`metal.${o.id}`))}" title="${esc(t(`metal.${o.id}`))}"></button>`).join("");
   }
 }
@@ -860,6 +892,13 @@ function wire() {
     changeStyle((s) => { s.colours = { ...DEFAULT_SPEC.colours, ...s.colours, [box.dataset.colour]: b.dataset.v }; });
   };
   for (const id of Object.keys(RANGES)) $("#" + id).oninput = (e) => changeStyle((s) => { s[id] = +e.target.value; });
+  // A reset button for every field: in a slider's row, after a group of choices or colours.
+  const resetBtn = () => Object.assign(document.createElement("button"), { type: "button", className: "reset-f", hidden: true, textContent: "↺" });
+  for (const id of Object.keys(RANGES)) { const b = resetBtn(); b.dataset.reset = id; $(`output[data-for=${id}]`).after(b); }
+  for (const el of $$("#styleFields [data-choice], #styleFields .metal")) {
+    const b = resetBtn(); b.classList.add("group"); b.dataset.reset = el.dataset.choice ?? `colours.${el.dataset.colour}`; el.after(b);
+  }
+  $("#styleFields").addEventListener("click", (e) => { const b = e.target.closest("[data-reset]"); if (b) resetField(b.dataset.reset); });
   $("#upload").onchange = async (e) => {
     const f = e.target.files[0]; e.target.value = "";
     if (!f) return;
@@ -874,7 +913,7 @@ function wire() {
   $("#presets").onclick = (e) => {
     const b = e.target.closest("[data-preset]"); if (!b) return;
     const next = presetSpec(PRESETS.find((p) => p.id === b.dataset.preset));
-    changeStyle((s) => { for (const k of Object.keys(next)) if (k !== "lang" && k !== "customSvg") s[k] = structuredClone(next[k]); });
+    changeStyle((s) => { for (const k of Object.keys(next)) if (k !== "lang" && k !== "customSvg") s[k] = structuredClone(next[k]); s.preset = b.dataset.preset; });
   };
   // this token only
   $("#printed").oninput = (e) => {
@@ -884,7 +923,7 @@ function wire() {
   };
   $("#ownStyle").onchange = (e) => {
     const own = { ...(state.overrides.get(state.sel.key) || {}) };
-    if (e.target.checked) own.spec = structuredClone(state.spec); else delete own.spec;
+    if (e.target.checked) { own.spec = structuredClone(state.spec); delete own.spec.preset; } else delete own.spec;   // resets go to the set's values
     if (!own.text && !own.spec && !own.fem) state.overrides.delete(state.sel.key); else state.overrides.set(state.sel.key, own);
     storeOverrides(); renderWorkshop(); scheduleSheet();
   };
