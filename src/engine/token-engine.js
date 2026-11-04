@@ -927,6 +927,19 @@ function magnetCut(m) {
   return g;
 }
 
+/** A closed mesh's volume (mm³), from its triangles. */
+export function geometryVolume(geom) {
+  if (!geom?.attributes?.position) return 0;
+  const pos = geom.attributes.position, idx = geom.index?.array, n = idx ? idx.length : pos.count;
+  let v = 0;
+  for (let t = 0; t < n; t += 3) {
+    const a = idx ? idx[t] : t, b = idx ? idx[t + 1] : t + 1, c = idx ? idx[t + 2] : t + 2;
+    const ax = pos.getX(a), ay = pos.getY(a), az = pos.getZ(a), bx = pos.getX(b), by = pos.getY(b), bz = pos.getZ(b), cx = pos.getX(c), cy = pos.getY(c), cz = pos.getZ(c);
+    v += ax * (by * cz - bz * cy) - ay * (bx * cz - bz * cx) + az * (bx * cy - by * cx);
+  }
+  return Math.abs(v) / 6;
+}
+
 /** Below this letter height (mm) a name may not print cleanly with a 0.4 mm nozzle. */
 export const SMALL_LETTERS_MM = 2.5;
 

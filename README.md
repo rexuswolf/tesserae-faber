@@ -62,7 +62,8 @@
   their own), then **print**: see the plates (with their filaments) or the A4 sheets before you download.
 - **Bambu Lab A1 or A1 mini, with AMS lite**: download a ready-to-print `.3mf`. Every part already has its filament,
   tokens are grouped onto plates by team with at most 4 colours each, and hidden magnets come with their pause.
-  The A1 mini's smaller plate holds 8 characters or 14 reminders (the A1: 24 and 34).
+  The A1 mini's smaller plate holds 8 characters or 14 reminders (the A1: 24 and 34). Before you download, each
+  plate shows its estimated filament and time (calibrated against Bambu Studio), and names too small to print are flagged.
 - **Any other printer**: download a token's STL files from the workshop, one per colour, with instructions.
 - **Paper**: download a double-sided A4 PDF at real size. Each back lands behind its front, with cut guides.
 

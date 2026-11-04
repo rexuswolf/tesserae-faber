@@ -1,11 +1,12 @@
 import {
-  loadLibrary, buildToken, magnetLayout, MAGNET_SIZES, tokenSvg, roleName, saveFile, reminderSpec, layoutName, nameLetterHeight, SMALL_LETTERS_MM,
+  loadLibrary, buildToken, geometryVolume, magnetLayout, MAGNET_SIZES, tokenSvg, roleName, saveFile, reminderSpec, layoutName, nameLetterHeight, SMALL_LETTERS_MM,
   TEAMS, EDITIONS, FRAME_STYLES, BACK_STYLES, TOKEN_STYLES, FILAMENTS, DEFAULT_SPEC,
 } from "./engine/token-engine.js";
 import {
   onUser, signIn, signOutUser, isAdmin, loadRoles, uploadRoles, listAccountDesigns, deleteAccountDesign,
 } from "./firebase.js";
 import { planPlates, FILAMENT_SLOTS, PRINTERS, printerOf } from "./bambu/plates.js";
+import { plateFeatures } from "./bambu/estimate.js";
 import { PAGE, layoutCoins, backX } from "./pdf/layout.js";
 import { t, uiLang, setUiLang, LANGUAGES } from "./i18n.js";
 import { TRANSLATIONS, VILLACUERVOS_URL, translationById, translationGroups } from "./translations.js";
@@ -1058,6 +1059,21 @@ function queuePlan() {
   return planPlates(items, { bed: printerOf(flow.printer).bed });
 }
 
+/** Each part's volume (mm³) for a queued token, from its real geometry; cached by what shapes it. */
+const volumeCache = new Map();
+function tokenVolumes(q) {
+  const role = roleById(q.roleId), spec = itemSpec(q), text = queueTitle(q, role);
+  const k = JSON.stringify([q.roleId, text, spec]);
+  if (!volumeCache.has(k)) {
+    const { parts } = buildToken(state.lib, role, spec, text);
+    volumeCache.set(k, Object.fromEntries(Object.entries(parts).map(([p, g]) => [p, geometryVolume(g)])));
+    if (volumeCache.size > 500) volumeCache.delete(volumeCache.keys().next().value);
+  }
+  return volumeCache.get(k);
+}
+/** Filament and time per plate of the plan (estimates; Bambu Studio gives the exact figures). */
+const plateEstimates = (plan) => plan.plates.map((p) => plateFeatures(p.items.map((it) => ({ token: it.token, vol: tokenVolumes(it.q) }))));
+
 
 // ------------------------------------------------------------ steps
 
@@ -1228,14 +1244,23 @@ function renderPrintStep() {
       <p>${esc(t("print.small", { n: smalls.length, mm: dec1(SMALL_LETTERS_MM) }))}</p>
       <ul>${smalls.map((x) => `<li><button type="button" data-fix="${x.k}">${esc(x.label)}</button> <small>${esc(dec1(x.mm))} mm</small></li>`).join("")}</ul></div></div>` : "";
     const slots = [...new Set(plan.plates.flatMap((p) => [...p.slots]))].sort((a, b) => a - b);
+    // Estimates: grams per filament and minutes per plate (Bambu Studio has the exact figures).
+    const est = plateEstimates(plan), gramsBy = new Map();
+    for (const e of est) for (const [sl, g] of e.grams) gramsBy.set(sl, (gramsBy.get(sl) || 0) + g);
+    const nb = (s) => s.replace(/ /g, "\u00a0");   // a figure never breaks across lines
+    const fmtG = (g) => nb(`≈ ${g < 10 ? g.toFixed(1).replace(".", dec) : Math.round(g)} g`);
+    const fmtT = (m) => { m = Math.max(5, Math.round(m / 5) * 5); return nb(`≈ ${m >= 60 ? `${Math.floor(m / 60)} h ` : ""}${m % 60 ? `${m % 60} min` : ""}`.trim()); };
+    const totalMin = est.reduce((a, e) => a + e.minutes, 0);
     const dec = uiLang() === "es" ? "," : ".";
     const pauses = [...new Set(queue.map((q) => magnetLayout(itemSpec(q))).filter((m) => m?.kind === "hidden").map((m) => m.pauseZ))].sort((a, b) => a - b);
     detail.innerHTML = `${printers}${smallNote}<h3 class="q-h">${esc(t("queue.filaments"))}</h3>
-      <p class="q-note">${swatches(slots)}<span>${esc(t("queue.filamentsNote", { list: slots.map(filamentName).join(", ") }))}</span></p>
+      <p class="q-note">${swatches(slots)}<span>${esc(t("queue.filamentsNote", { list: slots.map((sl) => `${filamentName(sl)} ${fmtG(gramsBy.get(sl) || 0)}`).join(", ") }))}</span></p>
+      <p class="q-note"><span aria-hidden="true">⏱</span><span>${esc(t("print.estimate", { time: fmtT(totalMin), n: plan.plates.length }))}</span></p>
       ${pauses.length ? `<p class="q-note"><span aria-hidden="true">⏸</span><span>${esc(t("queue.pauses", { z: pauses.map((z) => String(z).replace(".", dec)).join(", ") }))}</span></p>` : ""}
       <h3 class="q-h">${esc(t("queue.platesH", { n: plan.plates.length }))}</h3>
       <div class="q-plates">${plan.plates.map((p, i) => `<article class="q-plate"><header><h3>${esc(t("queue.plateName", { i: i + 1, name: p.name }))}<small>${esc(t("queue.plateFill", { n: p.items.length, cap: p.capacity }))}</small></h3>${swatches([...p.slots].sort((a, b) => a - b))}
-        <span class="q-fill"><i style="width:${Math.round(100 * p.items.length / p.capacity)}%"></i></span></header>
+        <span class="q-fill"><i style="width:${Math.round(100 * p.items.length / p.capacity)}%"></i></span>
+        <p class="q-est">${esc(fmtG(est[i].grams.reduce((a, [, g]) => a + g, 0)))} · ${esc(fmtT(est[i].minutes))}</p></header>
         <div class="q-coins">${p.items.map((it) => `<span class="${isReminder(it.q) ? "r" : ""}" title="${esc(it.title)}">${queuePic(it.q)}</span>`).join("")}</div></article>`).join("")}</div>`;
   } else {
     $("#flowNext").disabled = !sheets.length;
@@ -1304,7 +1329,7 @@ async function downloadPdf() {
 }
 
 // The UI test server drives the flow through these.
-window.__mm = { goStep, designToken };
+window.__mm = { goStep, designToken, estimates: () => plateEstimates(queuePlan()) };
 
 // ------------------------------------------------------------ saved designs
 
