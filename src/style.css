@@ -207,14 +207,13 @@ button, input, select, textarea { font: inherit; color: inherit; }
 #rows .rem .tok .ck { width: 16px; height: 16px; font-size: 10px; }
 /* copies: a small stepper under a picked token */
 .tok-w { position: relative; display: inline-flex; flex-direction: column; align-items: center; justify-self: center; }
-.tok-w .cp, .ds-item .cp { position: absolute; left: 50%; transform: translateX(-50%); display: inline-flex; align-items: center; height: 22px; border-radius: 11px; background: var(--bone); color: var(--velvet-deep); box-shadow: 0 2px 6px rgba(0, 0, 0, .45); font-size: 12px; font-weight: 700; z-index: 1; }
-.tok-w .cp { bottom: -9px; }
+.tok-w .cp, .ds-item .cp { display: inline-flex; align-items: center; height: 22px; border-radius: 11px; background: var(--bone); color: var(--velvet-deep); box-shadow: 0 2px 6px rgba(0, 0, 0, .45); font-size: 12px; font-weight: 700; z-index: 1; }
+.tok-w .cp { margin-top: 5px; }   /* under the coin, never over its printed name */
 .tok-w .cp button, .ds-item .cp button { border: 0; background: none; color: inherit; font: inherit; width: 24px; height: 22px; cursor: pointer; display: grid; place-items: center; }
 .tok-w .cp button:hover, .ds-item .cp button:hover { color: var(--brass); }
 .tok-w .cp b, .ds-item .cp b { min-width: 12px; text-align: center; font-variant-numeric: tabular-nums; }
-.rem .tok-w .cp { height: 18px; font-size: 11px; bottom: -7px; }
+.rem .tok-w .cp { height: 18px; font-size: 11px; margin-top: 4px; }
 .rem .tok-w .cp button { width: 19px; height: 18px; }
-.rem .tok-w + span { margin-top: 6px; }
 .who { cursor: pointer; }
 .team-h .pick-team { margin-left: auto; border: 0; background: none; padding: 0; color: var(--dust); font: inherit; font-size: 12.5px; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
 .team-h .pick-team:hover { color: var(--bone); }
@@ -353,12 +352,15 @@ summary small { font-family: var(--ui); font-size: 12.5px; color: var(--dust); }
 .ds-cell svg { width: 86px; height: 86px; filter: drop-shadow(0 8px 12px rgba(0, 0, 0, .45)); transition: transform .15s; }
 .ds-cell.r svg { width: 62px; height: 62px; margin: 12px 0; }
 .ds-cell:hover svg { transform: translateY(-3px); }
-.ds-cell[aria-current=true] { background: rgba(201, 162, 39, .12); color: var(--bone); }
+/* the open token: the highlight takes in its copies stepper too */
+.ds-item:has(.ds-cell[aria-current=true]) { background: rgba(201, 162, 39, .12); }
+.ds-cell[aria-current=true] { color: var(--bone); }
 .ds-cell .mark { position: absolute; top: 4px; right: 12px; background: var(--brass); color: var(--velvet-deep); border-radius: 999px; font-size: 10px; font-weight: 700; padding: 0 5px; line-height: 16px; }
 /* the copies stepper, over the coin's foot: padding 8 + coin − half the stepper */
-.ds-item { position: relative; display: grid; }
-.ds-item .cp { top: 83px; }
-.ds-item.r .cp { top: 71px; }
+/* the copies stepper: on its own line under the name, never over the coin or its label */
+.ds-item { display: grid; align-content: start; justify-items: center; border-radius: 12px; padding-bottom: 8px; }
+.ds-item .cp { margin-top: -2px; }
+.ds-item > .ds-cell { justify-self: stretch; }
 
 /* step 3: how to print */
 .print-page { grid-area: main; overflow-y: auto; min-width: 0; padding: 26px 28px 40px; }
@@ -522,8 +524,6 @@ dialog .import { margin-top: 10px; }
   .ds-grid { display: flex; overflow-x: auto; gap: 4px; padding-bottom: 4px; }
   .ds-item { flex: none; }
   .ds-cell { width: 80px; }
-  .ds-item .cp { top: 59px; }
-  .ds-item.r .cp { top: 51px; }
   .ds-cell svg { width: 62px; height: 62px; } .ds-cell.r svg { width: 46px; height: 46px; margin: 8px 0; }
   .stage { height: 200px; }
   .print-page { padding: 16px 14px 30px; }
