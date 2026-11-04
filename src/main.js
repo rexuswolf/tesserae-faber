@@ -9,6 +9,7 @@ import {
 import { buildBambuProject, planPlates, FILAMENT_SLOTS } from "./bambu/bambu3mf.js";
 import { t, uiLang, setUiLang, LANGUAGES } from "./i18n.js";
 import { TRANSLATIONS, VILLACUERVOS_URL, translationById, translationGroups } from "./translations.js";
+import { loadScripts, storeScripts, saveScript, scriptLink, readLink, scriptJson, idKey as scriptKey } from "./scripts.js";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -314,6 +315,7 @@ function startApp() {
   renderAll();
   renderQueue();
   refreshDesigns();
+  openSharedScript();
 }
 
 /** The account corner: the admin's menu when signed in, a sign-in button only on ?admin. */
@@ -337,10 +339,100 @@ function renderSpine() {
       <span class="logo"><b>${esc(EDITIONS[e].mark)}</b></span>
       <span>${esc(EDITIONS[e].name[lang])}<small>${esc(t("ed.count", { c: roles.length, r: rem }))}</small></span></button>`;
   }).join("");
+  const scripts = loadScripts();
+  $("#scripts").innerHTML = scripts.map((sc) => {
+    const { roles, missing } = scriptRoles(sc);
+    return `<button class="ed" type="button" data-ed="s:${esc(sc.id)}" aria-current="${state.edition === `s:${sc.id}` && !searchQuery()}">
+      <span class="logo"><b class="script-mark">${esc(scriptMark(sc.name))}</b></span>
+      <span>${esc(sc.name)}<small>${esc(t("script.count", { n: roles.length, m: missing.length }))}</small></span></button>`;
+  }).join("") || `<p class="scripts-empty">${esc(t("script.empty"))} <button type="button" data-script-new>${esc(t("script.emptyAdd"))}</button></p>`;
 }
 
-/** The editions that have characters, in order. */
-const shownEditions = () => EDITION_ORDER.filter((e) => state.lib.roles.some((r) => r.edition === e));
+// ------------------------------------------------------------ scripts
+
+/** The sheet shows an edition ("tb") or one of your scripts ("s:<id>"). */
+const scriptOf = (view) => (view?.startsWith("s:") ? loadScripts().find((x) => x.id === view.slice(2)) ?? null : null);
+const scriptMark = (name) => (name.match(/[\p{L}\p{N}]+/gu) || ["?"]).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
+/** A script's characters that are in the library, and the ids that aren't (with their names, when known). */
+function scriptRoles(sc) {
+  const byKey = new Map(state.lib.roles.flatMap((r) => [[scriptKey(r.en), r], [scriptKey(r.id), r]]));
+  const roles = [], missing = [];
+  for (const id of sc.ids) {
+    const r = byKey.get(id) || (sc.labels?.[id] && byKey.get(scriptKey(sc.labels[id])));
+    if (r) { if (!roles.includes(r)) roles.push(r); } else missing.push(sc.labels?.[id] || id);
+  }
+  return { roles, missing };
+}
+/** Reads a script in the Script Tool's JSON format into a name and ids. */
+function readScriptJson(text) {
+  let data;
+  try { data = JSON.parse(text); } catch { throw new Error(t("import.badJson")); }
+  if (!Array.isArray(data)) throw new Error(t("import.notList"));
+  let name = null;
+  const ids = [], labels = {};
+  for (const entry of data) {
+    const raw = typeof entry === "string" ? entry : entry?.id;
+    if (!raw) continue;
+    if (raw === "_meta") { name = entry.name || null; continue; }
+    const id = scriptKey(raw);
+    if (!id || ids.includes(id)) continue;
+    ids.push(id);
+    if (entry?.name) labels[id] = entry.name;
+  }
+  const script = { name: name?.trim() || t("script.unnamed"), ids, labels };
+  if (!scriptRoles(script).roles.length) throw new Error(t("import.noneKnown"));
+  return script;
+}
+function keepScript(data) {
+  const { list, script } = saveScript(loadScripts(), data);
+  storeScripts(list);
+  goEdition(`s:${script.id}`);
+  return script;
+}
+function openScriptDialog() {
+  $("#scriptDialogText").value = ""; $("#scriptDialogNote").textContent = ""; $("#scriptDialogNote").className = "hint";
+  drawer(false);
+  $("#scriptDialog").showModal();
+}
+function saveFromDialog(text) {
+  try {
+    const script = keepScript(readScriptJson(text));
+    $("#scriptDialog").close();
+    $("#scriptNote").textContent = t("script.saved", { name: script.name });
+  } catch (err) {
+    $("#scriptDialogNote").className = "hint warn";
+    $("#scriptDialogNote").textContent = t("import.failed", { message: err.message });
+  }
+}
+/** A link with a script in it (#s=…): show what it holds and offer to keep it. */
+function openSharedScript() {
+  const shared = readLink(location.hash);
+  if (!shared) return;
+  history.replaceState(null, "", location.pathname + location.search);   // don't offer it again on reload
+  const data = { name: shared.name || t("script.unnamed"), ids: shared.ids };
+  const { roles, missing } = scriptRoles(data);
+  if (!roles.length) return;
+  $("#scriptInviteText").textContent = t("script.inviteText", { name: data.name, n: roles.length, m: missing.length });
+  $("#scriptInviteTokens").innerHTML = roles.map((r) => `<span>${tokenSvg(state.lib, r, { ...specFor(charKey(r), false), diameter: 45, back: "none" }, { text: charName(r) })}${esc(charName(r))}</span>`).join("");
+  $("#scriptInviteSave").onclick = () => { $("#scriptInvite").close(); const sc = keepScript(data); $("#scriptNote").textContent = t("script.saved", { name: sc.name }); };
+  $("#scriptInvite").showModal();
+}
+async function shareScript() {
+  const sc = scriptOf(state.edition);
+  if (!sc) return;
+  const link = scriptLink(sc, location.origin + location.pathname);
+  const note = $("#scriptNote");
+  // Phones get the system share sheet; elsewhere the link goes to the clipboard.
+  if (PHONE.matches && navigator.share) { try { await navigator.share({ title: sc.name, url: link }); return; } catch (err) { if (err.name === "AbortError") return; } }
+  try { await navigator.clipboard.writeText(link); note.textContent = t("script.copied"); }
+  catch {
+    note.innerHTML = `${esc(t("script.copyBy"))} <input class="text" type="text" readonly value="${esc(link)}">`;
+    note.querySelector("input").select();
+  }
+}
+
+/** What the top bar steps through: the editions that have characters, then your scripts. */
+const shownEditions = () => [...EDITION_ORDER.filter((e) => state.lib.roles.some((r) => r.edition === e)), ...loadScripts().map((x) => `s:${x.id}`)];
 function goEdition(ed) {
   if (!ed) return;
   state.edition = ed; state.team = "all"; $("#search").value = "";
@@ -356,7 +448,7 @@ function drawer(open) {
   $("#drawerOpen").setAttribute("aria-expanded", String(open));
   spine.inert = PHONE.matches && !open;
   // preventScroll: while the drawer slides in, focusing would scroll the page to reach it
-  if (open) $("#editions [aria-current=true]")?.focus({ preventScroll: true });
+  if (open) $(".spine-scroll [aria-current=true]")?.focus({ preventScroll: true });
   else if (PHONE.matches && spine.contains(document.activeElement)) $("#drawerOpen").focus({ preventScroll: true });
 }
 
@@ -366,16 +458,27 @@ const searchQuery = () => fold($("#search").value.trim());
 
 function renderSheet() {
   const lang = uiLang(), q = searchQuery();
-  const ed = state.edition;
+  if (state.edition.startsWith("s:") && !scriptOf(state.edition)) state.edition = "tb";   // a deleted script
+  const ed = state.edition, sc = scriptOf(ed), inScript = sc && scriptRoles(sc);
   // header
-  $("#edTitle").textContent = q ? t("sheet.results", { q: $("#search").value.trim() }) : EDITIONS[ed].name[lang];
+  $("#edTitle").textContent = q ? t("sheet.results", { q: $("#search").value.trim() }) : sc ? sc.name : EDITIONS[ed].name[lang];
   $("#topTitle").textContent = $("#edTitle").textContent;
   const eds = shownEditions(), at = eds.indexOf(ed);
   $("#edPrev").disabled = at <= 0; $("#edNext").disabled = at >= eds.length - 1;
-  $("#edLead").textContent = q ? t("sheet.leadSearch") : t(`edition.lead.${ed}`);
+  $("#edLead").textContent = q ? t("sheet.leadSearch")
+    : sc ? t("script.lead", { n: inScript.roles.length, eds: new Set(inScript.roles.map((r) => r.edition)).size })
+      + (inScript.missing.length ? t("script.missing", { list: inScript.missing.join(", ") }) : "")
+    : t(`edition.lead.${ed}`);
+  $("#scriptActions").hidden = !sc || !!q;
+  if (sc && $("#scriptActions").dataset.for !== sc.id) {   // a different script: fresh buttons
+    $("#scriptActions").dataset.for = sc.id;
+    $("#scriptNote").textContent = "";
+    $("#scriptDelete").dataset.confirm = ""; $("#scriptDelete").textContent = t("script.delete");
+  }
+  $("#scriptShare").textContent = t(PHONE.matches && navigator.share ? "script.share" : "script.copy");
 
   // which characters
-  let roles = q ? state.lib.roles : state.lib.roles.filter((r) => r.edition === ed);
+  let roles = q ? state.lib.roles : sc ? inScript.roles : state.lib.roles.filter((r) => r.edition === ed);
   const teamsHere = TEAM_ORDER.filter((tm) => roles.some((r) => r.team === tm));
   if (state.team !== "all" && !teamsHere.includes(state.team)) state.team = "all";
   $("#teamChips").innerHTML = [["all", t("team.all")], ...teamsHere.map((tm) => [tm, TEAM_PLURAL[lang][tm]])]
@@ -422,7 +525,7 @@ function rowHtml(r, q, remHits) {
   const other = tokenLang() === "en" ? roleName(r, uiLang() === "en" ? "es" : uiLang()) : r.en;
   return `<div class="row" data-current="${state.sel?.role === r}">
     ${thumb(ck, null)}
-    <div class="who" data-key="${ck}"><b>${esc(textFor(ck, r, null))}</b>${other !== textFor(ck, r, null) ? `<small>${esc(other)}</small>` : ""}${q ? `<em>${esc(EDITIONS[r.edition]?.name[lang] || "")}</em>` : ""}</div>
+    <div class="who" data-key="${ck}"><b>${esc(textFor(ck, r, null))}</b>${other !== textFor(ck, r, null) ? `<small>${esc(other)}</small>` : ""}${q || state.edition.startsWith("s:") ? `<em>${esc(EDITIONS[r.edition]?.name[lang] || "")}</em>` : ""}</div>
     <div class="rems">${rems.length ? rems.map((_, i) => `<div class="rem${remHits?.has(i) ? " hit" : ""}">${thumb(remKey(r, i), i)}<span>${esc(textFor(remKey(r, i), r, i))}</span></div>`).join("") : `<span class="none">${esc(t("sheet.noReminders"))}</span>`}</div>
     <div class="take"><button class="pill" type="button" data-add="${r.id}">${esc(t("sheet.addChar"))}</button>${rems.length ? `<button class="pill" type="button" data-addall="${r.id}">${esc(t("sheet.addAll"))}</button>` : ""}</div>
   </div>`;
@@ -599,11 +702,30 @@ function buildChoices() {
 
 function wire() {
   // spine and sheet
-  $("#editions").onclick = (e) => {
+  $(".spine-scroll").onclick = (e) => {
+    if (e.target.closest("[data-script-new]")) { openScriptDialog(); return; }
     const b = e.target.closest("[data-ed]"); if (!b) return;
     goEdition(b.dataset.ed);
     drawer(false);
   };
+  // scripts
+  $("#scriptNew").onclick = openScriptDialog;
+  $("#scriptDialogCancel").onclick = () => $("#scriptDialog").close();
+  $("#scriptDialogSave").onclick = () => saveFromDialog($("#scriptDialogText").value);
+  $("#scriptDialogFile").onchange = async (e) => { const f = e.target.files[0]; e.target.value = ""; if (f) saveFromDialog(await f.text()); };
+  $("#scriptInviteSkip").onclick = () => $("#scriptInvite").close();
+  $("#scriptShare").onclick = shareScript;
+  $("#scriptJson").onclick = () => {
+    const sc = scriptOf(state.edition); if (!sc) return;
+    saveFile(new Blob([scriptJson(sc)], { type: "application/json" }), `${sc.name.replace(/[\\/:*?"<>|]+/g, "").trim() || "script"}.json`);
+  };
+  $("#scriptDelete").onclick = (e) => {
+    const b = e.currentTarget, sc = scriptOf(state.edition); if (!sc) return;
+    if (b.dataset.confirm !== "1") { b.dataset.confirm = "1"; b.textContent = t("script.deleteConfirm"); return; }
+    storeScripts(loadScripts().filter((x) => x.id !== sc.id));
+    goEdition(EDITION_ORDER.find((x) => state.lib.roles.some((r) => r.edition === x)));
+  };
+  window.addEventListener("hashchange", openSharedScript);
   // phone: the top bar opens the sidebar as a drawer and steps between editions
   $("#drawerOpen").onclick = () => drawer(true);
   $("#scrim").onclick = () => drawer(false);

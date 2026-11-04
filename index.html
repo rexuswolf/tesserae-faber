@@ -32,8 +32,13 @@
        On a phone it is a drawer. -->
   <nav class="spine" id="spine" data-i18n-attr="aria-label:spine.aria">
     <div class="brand"><img src="/logo-mark.svg" alt="" width="44" height="44"><span class="wordmark"><span class="wm-mid">Midnight</span><span class="wm-mint">Mint</span></span></div>
-    <h2 class="spine-h" data-i18n="spine.editions"></h2>
-    <div id="editions"></div>
+    <div class="spine-scroll">
+      <h2 class="spine-h" data-i18n="spine.editions"></h2>
+      <div id="editions"></div>
+      <div class="spine-h spine-sec"><h2 data-i18n="spine.scripts"></h2>
+        <button class="spine-add" type="button" id="scriptNew" data-i18n-attr="aria-label:script.new title:script.new">+</button></div>
+      <div id="scripts"></div>
+    </div>
     <footer class="spine-foot">
     <div class="account">
       <a href="#" class="ccc-link" data-credits data-i18n-attr="title:credits.link"><img src="/ccc-sleeve.png" alt="Community Created Content" width="86" height="34"></a>
@@ -68,6 +73,12 @@
       <div class="sheet-sub">
         <p id="edLead" class="lead"></p>
         <button class="tlang-trigger" id="tokenLangBtn" type="button" aria-haspopup="dialog"></button>
+      </div>
+      <div class="script-actions" id="scriptActions" hidden>
+        <button class="pill" type="button" id="scriptShare"></button>
+        <button class="pill" type="button" id="scriptJson" data-i18n="script.json"></button>
+        <button class="pill danger" type="button" id="scriptDelete" data-i18n="script.delete"></button>
+        <p class="hint" id="scriptNote" aria-live="polite"></p>
       </div>
       <div class="filters">
         <input type="search" id="search" class="search" autocomplete="off" data-i18n-attr="placeholder:sheet.search aria-label:sheet.search">
@@ -262,6 +273,23 @@
     <button class="pill" type="button" id="tlangCancel" data-i18n="tlang.cancel"></button>
     <button class="forge" type="button" id="tlangUse"></button>
   </div>
+</dialog>
+
+<dialog id="scriptDialog" class="script-dialog" aria-labelledby="scriptDialogTitle">
+  <form method="dialog" class="close"><button class="pill" data-i18n="admin.close"></button></form>
+  <h2 id="scriptDialogTitle" data-i18n="script.dialogTitle"></h2>
+  <p class="hint" data-i18n="script.dialogIntro"></p>
+  <label class="pill file"><span data-i18n="script.file"></span><input type="file" id="scriptDialogFile" accept="application/json,.json" hidden></label>
+  <label class="field"><span data-i18n="script.paste"></span><textarea class="text" id="scriptDialogText" rows="5" spellcheck="false" placeholder='[{"id":"_meta","name":"…"},"washerwoman","librarian",…]'></textarea></label>
+  <p class="hint" id="scriptDialogNote" aria-live="polite"></p>
+  <div class="dialog-actions"><button class="pill" type="button" id="scriptDialogCancel" data-i18n="script.cancel"></button><button class="forge" type="button" id="scriptDialogSave" data-i18n="script.add"></button></div>
+</dialog>
+
+<dialog id="scriptInvite" class="script-dialog" aria-labelledby="scriptInviteTitle">
+  <h2 id="scriptInviteTitle" data-i18n="script.inviteTitle"></h2>
+  <p id="scriptInviteText"></p>
+  <div class="invite-tokens" id="scriptInviteTokens"></div>
+  <div class="dialog-actions"><button class="pill" type="button" id="scriptInviteSkip" data-i18n="script.inviteSkip"></button><button class="forge" type="button" id="scriptInviteSave" data-i18n="script.inviteSave"></button></div>
 </dialog>
 
 <dialog id="admin" aria-labelledby="adminTitle">

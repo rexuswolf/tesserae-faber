@@ -19,7 +19,9 @@ export const listAccountDesigns = async () => [], deleteAccountDesign = async ()
 // Test-only scripted clicks, chosen by the URL hash, e.g. #search=envenen,select=c:poisoner,token,own,frame=clock,add
 setTimeout(() => {
   const click = (sel) => document.querySelector(sel)?.click();
-  for (const step of location.hash.slice(1).split(",").filter(Boolean)) {
+  // Steps come from the hash, or from ?t=… when the hash is taken (a shared script link, #s=…).
+  const steps = new URLSearchParams(location.search).get("t") ?? (location.hash.startsWith("#s=") ? "" : location.hash.slice(1));
+  for (const step of steps.split(",").filter(Boolean)) {
     const [k, v] = step.split("=");
     if (k === "lang") click(`[data-lang="${v}"]`);
     else if (k === "search") { const i = document.querySelector("#search"); i.value = decodeURIComponent(v); i.dispatchEvent(new Event("input")); }
@@ -45,6 +47,8 @@ setTimeout(() => {
     else if (k === "tlopen") click("#tokenLangBtn");
     else if (k === "drawer") click("#drawerOpen");
     else if (k === "next") click("#edNext");
+    else if (k === "scriptsave") click("#scriptInviteSave");
+    else if (k === "scriptnew") click("#scriptNew");
     else if (k === "fem") { const c = document.querySelector("#fem"); c.checked = true; c.dispatchEvent(new Event("change")); }
     else if (k === "credits") click("[data-credits]");
   }

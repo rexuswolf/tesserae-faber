@@ -26,6 +26,8 @@ The Pandemonium Institute. No account needed: open it and start designing.
   and Portuguese. Where a translation has them, characters can also take their feminine form.
 - Search by character or reminder text, and filter by team.
 - Add a whole edition (or whatever is on screen) to the print queue in one click, with or without its reminders.
+- Keep your own **scripts**: import the Script Tool's JSON and the script sits beside the editions.
+  Scripts live in your browser; share one with a link (the script travels inside it) or download it as JSON.
 
 **Design them**
 - Ready-made designs to start from: *Fast print*, *Ivory coin*, *High legibility*, *Glued magnet* and *Hidden magnet*.
