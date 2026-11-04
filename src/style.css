@@ -83,11 +83,14 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .search { flex: 0 1 260px; background: rgba(239, 230, 214, .06); border: 1px solid var(--seam); border-radius: 999px; padding: 7px 15px; }
 .chips { display: flex; gap: 6px; flex-wrap: wrap; }
-.tlang { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-left: auto; font-size: 13.5px; }
+/* Token language: a setting for the whole sheet, so it sits beside the lead, apart from the filters. */
+.sheet-sub { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px 32px; flex-wrap: wrap; margin: 8px 0 22px; }
+.sheet-sub .lead { margin: 6px 0 0; flex: 1 1 320px; }
+.tlang { display: grid; grid-template-columns: auto auto; align-items: center; gap: 4px 10px; font-size: 14px; }
 .tlang label { color: var(--dust); }
 .tlang select { background: rgba(239, 230, 214, .06); color: var(--bone); border: 1px solid var(--seam); border-radius: 999px; padding: 6px 12px; font: inherit; }
 .tlang select option, .tlang select optgroup { background: var(--velvet-deep); color: var(--bone); }
-.tlang small { color: var(--dust); font-size: 12px; }
+.tlang small { grid-column: 2; padding-left: 13px; color: var(--dust); font-size: 12px; }
 .tlang small a { color: var(--dust); text-decoration: underline; text-underline-offset: 2px; }
 #rows { padding: 4px 34px 40px; }
 .team-h { display: flex; align-items: baseline; gap: 10px; margin: 24px 0 2px; padding-bottom: 6px; border-bottom: 1px solid var(--seam); }
@@ -264,7 +267,7 @@ dialog .import { margin-top: 10px; }
   .app { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; }
   .spine { min-width: 0; }
   .search { flex: 1 1 100%; }
-  .tlang { margin-left: 0; }
+  .sheet-sub { margin-bottom: 16px; }
   .spine { grid-row: 1; flex-direction: row; align-items: center; border-right: 0; border-bottom: 1px solid var(--seam); }
   .spine .brand { padding: 10px 14px; gap: 8px; }
   .spine .wm-mid { font-size: 24px; }
