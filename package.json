@@ -20,5 +20,6 @@
     "@iconify-json/game-icons": "^1.2.4",
     "firebase-tools": "^15.34.2",
     "vite": "^6.4.5"
-  }
+  },
+  "license": "PolyForm-Noncommercial-1.0.0"
 }

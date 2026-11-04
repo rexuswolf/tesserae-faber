@@ -1,6 +1,8 @@
 // Test double for src/firebase.js: a signed-in admin with the local library.
 export const ADMIN_EMAIL = "admin@example.com";
-const user = { uid: "test", email: ADMIN_EMAIL, photoURL: "" };
+// A plain monogram avatar so screenshots don't show a broken image.
+const AVATAR = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" fill="#4a2340"/><text x="16" y="21" font-family="Georgia,serif" font-size="15" text-anchor="middle" fill="#efe6d6">F</text></svg>');
+const user = { uid: "test", email: ADMIN_EMAIL, photoURL: AVATAR };
 export const onUser = (fn) => setTimeout(() => fn(user), 0);
 export const signIn = async () => {};
 export const signOutUser = async () => {};
