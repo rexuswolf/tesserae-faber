@@ -2,8 +2,10 @@
 // Kept apart from print-pdf.js so the preview doesn't load jsPDF.
 
 export const PAGE = { w: 210, h: 297 };   // A4 portrait, mm
-const MARGIN = 10;                        // home printers can't print to the edge
-const GAP = 3;                            // between coins
+// Tight enough for six rows of 45 mm characters (24 a sheet): most home printers print
+// 8 mm from the edge, and 2 mm between coins still leaves room to cut.
+const MARGIN = 8;                         // home printers can't print to the edge
+const GAP = 2;                            // between coins
 
 /**
  * Places coins of the given diameters on A4 pages: rows of equal coins, each row
