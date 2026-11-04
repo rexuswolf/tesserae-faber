@@ -43,6 +43,8 @@ setTimeout(() => {
       if (k === "tlang") click("#tlangUse");
     }
     else if (k === "tlopen") click("#tokenLangBtn");
+    else if (k === "drawer") click("#drawerOpen");
+    else if (k === "next") click("#edNext");
     else if (k === "fem") { const c = document.querySelector("#fem"); c.checked = true; c.dispatchEvent(new Event("change")); }
     else if (k === "credits") click("[data-credits]");
   }

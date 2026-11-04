@@ -16,9 +16,23 @@
 <body>
 <div class="app" id="app" hidden>
 
-  <!-- editions -->
+  <!-- phone top bar: opens the sidebar as a drawer, and steps between editions -->
+  <header class="topbar" id="topbar">
+    <button class="icon-btn" type="button" id="drawerOpen" aria-controls="spine" aria-expanded="false" data-i18n-attr="aria-label:top.menu">
+      <svg viewBox="0 0 18 18" width="18" height="18" aria-hidden="true"><path d="M3 5h12M3 9h12M3 13h12" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
+    <div class="where">
+      <button class="step" type="button" id="edPrev" data-i18n-attr="aria-label:top.prev">‹</button>
+      <strong id="topTitle"></strong>
+      <button class="step" type="button" id="edNext" data-i18n-attr="aria-label:top.next">›</button>
+    </div>
+    <img src="/logo-mark.svg" alt="Midnight Mint" width="30" height="30">
+  </header>
+
+  <!-- the sidebar: editions (more groups, like scripts, can join them), then language, account and credits.
+       On a phone it is a drawer. -->
   <nav class="spine" id="spine" data-i18n-attr="aria-label:spine.aria">
     <div class="brand"><img src="/logo-mark.svg" alt="" width="44" height="44"><span class="wordmark"><span class="wm-mid">Midnight</span><span class="wm-mint">Mint</span></span></div>
+    <h2 class="spine-h" data-i18n="spine.editions"></h2>
     <div id="editions"></div>
     <div class="account">
       <details class="lang-menu" data-lang-menu></details>
@@ -37,6 +51,7 @@
       <p><span data-i18n="ccc.short"></span> <a href="#" data-credits data-i18n="credits.link"></a></p>
     </footer>
   </nav>
+  <div class="scrim" id="scrim"></div>
 
   <!-- script sheet -->
   <main class="sheet" id="sheet">

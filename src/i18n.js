@@ -10,6 +10,10 @@ const STR = {
   es: {
     // script sheet and workshop
     "spine.aria": "Ediciones",
+    "spine.editions": "Ediciones",
+    "top.menu": "Menú: ediciones, idioma y créditos",
+    "top.prev": "Edición anterior",
+    "top.next": "Edición siguiente",
     "ccc.short": "Herramienta de la comunidad, no oficial. Sin relación con The Pandemonium Institute. Traducciones de Villacuervos, iconos de game-icons.net.",
     "credits.link": "Créditos",
     "credits.title": "Créditos",
@@ -316,6 +320,10 @@ const STR = {
   en: {
     // script sheet and workshop
     "spine.aria": "Editions",
+    "spine.editions": "Editions",
+    "top.menu": "Menu: editions, language and credits",
+    "top.prev": "Previous edition",
+    "top.next": "Next edition",
     "ccc.short": "A community tool, not official. Not affiliated with The Pandemonium Institute. Translations from Villacuervos, icons from game-icons.net.",
     "credits.link": "Credits",
     "credits.title": "Credits",

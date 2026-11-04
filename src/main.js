@@ -339,6 +339,26 @@ function renderSpine() {
   }).join("");
 }
 
+/** The editions that have characters, in order. */
+const shownEditions = () => EDITION_ORDER.filter((e) => state.lib.roles.some((r) => r.edition === e));
+function goEdition(ed) {
+  if (!ed) return;
+  state.edition = ed; state.team = "all"; $("#search").value = "";
+  renderSpine(); renderSheet(); $("#sheet").scrollTo({ top: 0 });
+}
+
+// On a phone the sidebar is a drawer: closed, it is out of reach of the keyboard too.
+const PHONE = matchMedia("(max-width: 900px)");
+function drawer(open) {
+  const spine = $("#spine");
+  spine.classList.toggle("open", open);
+  $("#scrim").classList.toggle("on", open);
+  $("#drawerOpen").setAttribute("aria-expanded", String(open));
+  spine.inert = PHONE.matches && !open;
+  if (open) $("#editions [aria-current=true]")?.focus();
+  else if (PHONE.matches && spine.contains(document.activeElement)) $("#drawerOpen").focus();
+}
+
 // ------------------------------------------------------------ sheet
 
 const searchQuery = () => fold($("#search").value.trim());
@@ -348,6 +368,9 @@ function renderSheet() {
   const ed = state.edition;
   // header
   $("#edTitle").textContent = q ? t("sheet.results", { q: $("#search").value.trim() }) : EDITIONS[ed].name[lang];
+  $("#topTitle").textContent = $("#edTitle").textContent;
+  const eds = shownEditions(), at = eds.indexOf(ed);
+  $("#edPrev").disabled = at <= 0; $("#edNext").disabled = at >= eds.length - 1;
   $("#edLead").textContent = q ? t("sheet.leadSearch") : t(`edition.lead.${ed}`);
 
   // which characters
@@ -577,9 +600,17 @@ function wire() {
   // spine and sheet
   $("#editions").onclick = (e) => {
     const b = e.target.closest("[data-ed]"); if (!b) return;
-    state.edition = b.dataset.ed; state.team = "all"; $("#search").value = "";
-    renderSpine(); renderSheet(); $("#sheet").scrollTo({ top: 0 });
+    goEdition(b.dataset.ed);
+    drawer(false);
   };
+  // phone: the top bar opens the sidebar as a drawer and steps between editions
+  $("#drawerOpen").onclick = () => drawer(true);
+  $("#scrim").onclick = () => drawer(false);
+  $("#edPrev").onclick = () => goEdition(shownEditions()[shownEditions().indexOf(state.edition) - 1]);
+  $("#edNext").onclick = () => goEdition(shownEditions()[shownEditions().indexOf(state.edition) + 1]);
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && $("#spine").classList.contains("open")) drawer(false); });
+  PHONE.addEventListener("change", () => drawer(false));
+  drawer(false);
   $("#search").oninput = () => { renderSpine(); renderSheet(); };
   $("#teamChips").onclick = (e) => { const b = e.target.closest("[data-team]"); if (b) { state.team = b.dataset.team; renderSheet(); } };
   $("#rows").onclick = (e) => {
