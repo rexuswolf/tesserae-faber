@@ -21,18 +21,44 @@ const TEMPLATES = {
 
 // ------------------------------------------------------------ geometry
 
+// Points this close (mm) are one vertex. Every part must come out as a closed surface:
+// Bambu Studio doesn't merge a 3MF's vertices, and slices an open seam unreliably. It
+// sometimes drops a coin's outline on a layer, so the whole token is missing there
+// (bridges over nothing, or "Object can't be printed for empty layer"), changing from one
+// slicing to the next. Three.js leaves such seams: a cylinder's last column sits at
+// x = r·sin 2π ≈ -5e-15, which rounds to "-0.0000" against the first column's "0.0000";
+// and SVG outlines whose last point stops 0.1 µm short of the first. Nothing we model is
+// anywhere near this small (the finest strokes are 0.2 mm).
+const WELD = 2e-4;
+
 /** Indexed mesh in print orientation (face-down), with shared vertices. */
 function meshOf(geom, height, faceDown) {
   const pos = geom.attributes.position;
   const index = geom.index ? geom.index.array : null;
   const count = index ? index.length : pos.count;
-  const map = new Map(), verts = [], tris = [];
+  const cells = new Map(), verts = [], at = [], tris = [];
+  // Vertices by WELD-sized cell (whole numbers, so -0 and 0 are the same cell).
+  const near = (cx, cy, cz, x, y, z) => {
+    const ids = cells.get(`${cx},${cy},${cz}`);
+    if (ids) for (const id of ids) {
+      const p = at[id];
+      if (Math.abs(p[0] - x) <= WELD && Math.abs(p[1] - y) <= WELD && Math.abs(p[2] - z) <= WELD) return id;
+    }
+    return -1;
+  };
   const vid = (i) => {
     let x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
     if (faceDown) { y = -y; z = height - z; }       // 180° about X, sitting on the plate
-    const key = `${x.toFixed(4)},${y.toFixed(4)},${z.toFixed(4)}`;
-    let id = map.get(key);
-    if (id === undefined) { id = verts.length; map.set(key, id); verts.push(key); }
+    const cx = Math.round(x / WELD), cy = Math.round(y / WELD), cz = Math.round(z / WELD);
+    let id = near(cx, cy, cz, x, y, z);
+    // Not in its own cell: a twin may sit just across a boundary.
+    for (let d = 0; id < 0 && d < 27; d++) if (d !== 13) id = near(cx + (d % 3) - 1, cy + ((d / 3 | 0) % 3) - 1, cz + (d / 9 | 0) - 1, x, y, z);
+    if (id >= 0) return id;
+    id = verts.length;
+    at.push([x, y, z]);
+    verts.push(`${x.toFixed(4)},${y.toFixed(4)},${z.toFixed(4)}`);
+    const key = `${cx},${cy},${cz}`;
+    if (cells.has(key)) cells.get(key).push(id); else cells.set(key, [id]);
     return id;
   };
   for (let t = 0; t < count; t += 3) {

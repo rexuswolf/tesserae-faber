@@ -398,11 +398,9 @@ function buildFront(lib, role, text, spec) {
 }
 
 function buildFrame(spec) {
-  const R = spec.diameter / 2, w = spec.frameWidth, z = spec.height - spec.depth;
-  const out = R - 0.4;
+  const z = spec.height - spec.depth;
   const design = frameDesign(spec);
   if (!design) return null;
-  void out; void w;
   return extrude(design.shapes, spec.depth, T(0, 0, z), 24);
 }
 
@@ -724,10 +722,26 @@ function moonPhase(x, y, r, phase) {
   return [crescent(x, y, r, x - waxing * off, y, r * (lit > 0.5 ? 1 : 1.04))];
 }
 
+/** How far inside the coin's edge the frame starts (mm): none, it runs out to the edge. */
+const FRAME_INSET = 0;
+/** Sides of the coin's outline: buildBase's cylinder, or the relief window's extruded circle. */
+const coinSegments = (spec) => (printsFaceUp(spec) ? 96 : 160);
+/**
+ * The frame's outer ring, with the coin outline's own corners: a cylinder of n sides has one
+ * at the bottom (-y), so n divisible by 4 puts them where a circle from angle 0 has its own.
+ * The ring's edge is then exactly the coin's, leaving no slivers of coin poking out past it.
+ */
+function edgeRing(rOut, rIn, n) {
+  const ring = (r) => Array.from({ length: n }, (_, k) => pt(r, (k * TAU) / n));
+  const sh = new THREE.Shape(ring(rOut));
+  sh.holes.push(new THREE.Path(ring(rIn).reverse()));
+  return sh;
+}
+
 /** Filled shapes for the front frame and its inner edge, or null for none. */
 export function frameDesign(spec) {
-  const R = spec.diameter / 2, w = spec.frameWidth, out = R - 0.4, edge = out - w;
-  const rim = annulus(out, edge, 0, 0);
+  const R = spec.diameter / 2, w = spec.frameWidth, out = R - FRAME_INSET, edge = out - w;
+  const rim = edgeRing(out, edge, coinSegments(spec));
   let sh = [rim], inner = edge;
   switch (spec.frame) {
     case "none": return null;
@@ -1197,7 +1211,7 @@ export function tokenSvg(lib, role, spec, { side = "front", text } = {}) {
       const box = boundsOf(shapes), dx = -(box.min.x + box.max.x) / 2;
       body += `<path fill="${c.front}" fill-rule="evenodd" d="${shapesToPath(shapes, dx, line.y)}"/>`;
     }
-    if (spec.frame !== "none") body += `<circle r="${(R - 0.4 - spec.frameWidth / 2).toFixed(2)}" fill="none" stroke="${c.frame}" stroke-width="${spec.frameWidth}"/>`;
+    if (spec.frame !== "none") body += `<circle r="${(R - FRAME_INSET - spec.frameWidth / 2).toFixed(2)}" fill="none" stroke="${c.frame}" stroke-width="${spec.frameWidth}"/>`;
   } else if (side === "front") {
     body += `<g fill="${c.front}" transform="translate(0 ${-(spec.iconOffsetY || 0)}) scale(${k}) translate(${-TRACE_VIEW / 2} ${-TRACE_VIEW / 2})"><g transform="${role.g}">${iconMarkup(role)}</g></g>`;
     const L = layoutName(lib, label, spec);
