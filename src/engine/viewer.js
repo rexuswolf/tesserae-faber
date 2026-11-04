@@ -13,11 +13,14 @@ export function createViewer(canvas, { background = null } = {}) {
   camera.up.set(0, 0, 1);
   const controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true;
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x3a3440, 1.3));
-  const key = new THREE.DirectionalLight(0xffffff, 2.4); key.position.set(-70, -90, 150); scene.add(key);
+  // Bright enough that a face seen straight on ("front" or "back") shows its filament's colour,
+  // as the flat thumbnails do.
+  const KEY = 2.9;
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x3a3440, 1.57));
+  const key = new THREE.DirectionalLight(0xffffff, KEY); key.position.set(-70, -90, 150); scene.add(key);
   // The back gets the same key light, mirrored: as bright as the front, and lit from the same
   // side of the screen in the "back" view (that camera sees x flipped).
-  const backKey = new THREE.DirectionalLight(0xffffff, 2.4); backKey.position.set(70, -90, -150); scene.add(backKey);
+  const backKey = new THREE.DirectionalLight(0xffffff, KEY); backKey.position.set(70, -90, -150); scene.add(backKey);
 
   const meshes = {};
   for (const name of ["base", "front", "icon", "frame", "back", "hole"]) {
