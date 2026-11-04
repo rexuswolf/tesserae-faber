@@ -80,6 +80,13 @@ function projectSettings(template, used, plates, bed) {
   s.wall_generator = "arachne";
   s.initial_layer_line_width = "0.42";
   s.elefant_foot_compensation = "0";
+  // Bambu Studio keeps a project's own values only for the settings listed here as changed
+  // from its system presets (process first, then each filament, then the printer); on
+  // opening, it resets the rest to the preset. The command-line slicer doesn't, so this
+  // only shows in the app.
+  const ours = ["elefant_foot_compensation", "initial_layer_line_width", "wall_generator"];
+  s.different_settings_to_system = [ours.join(";"), ...used.map(() => ""), ""];
+  s.inherits_group = ["", ...used.map(() => ""), ""];
   return s;
 }
 
