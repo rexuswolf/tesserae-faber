@@ -557,11 +557,15 @@ function renderSheet() {
   }).join("");
 }
 
-/** Copies of a picked token: "+", or "− n +" from two copies on. */
-function copyStepper(key, name) {
+/** Copies of a picked token: "+", or "− n +" from two copies on. With `removable`, one copy
+ *  reads "bin 1 +", the bin taking the token out (step 2, where tapping a token opens it). */
+const BIN = `<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4.5h11M6.5 4.5V3h3v1.5M4 4.5l.7 8.5h6.6l.7-8.5M6.8 7v3.5M9.2 7v3.5"/></svg>`;
+function copyStepper(key, name, { removable = false } = {}) {
   const copies = state.pick.get(key) || 0;
   if (!copies) return "";
-  return `<span class="cp">${copies > 1 ? `<button type="button" data-less="${key}" aria-label="${esc(t("queue.lessCopy", { name }))}">−</button><b>${copies}</b>` : ""}<button type="button" data-more="${key}" aria-label="${esc(t("queue.moreCopy", { name }))}">+</button></span>`;
+  const less = copies > 1 ? `<button type="button" data-less="${key}" aria-label="${esc(t("queue.lessCopy", { name }))}">−</button>`
+    : removable ? `<button type="button" class="bin" data-drop="${key}" aria-label="${esc(t("queue.removeAria", { name }))}">${BIN}</button>` : "";
+  return `<span class="cp">${less ? `${less}<b>${copies}</b>` : ""}<button type="button" data-more="${key}" aria-label="${esc(t("queue.moreCopy", { name }))}">+</button></span>`;
 }
 /** A click on a copy stepper: one more or one fewer. True when it was one. */
 function onCopyStep(e) {
@@ -813,7 +817,12 @@ function wire() {
   $("#flowBack").onclick = () => goStep(state.step - 1);
   $("#flowNext").onclick = () => (state.step < 3 ? goStep(state.step + 1) : flow.way === "paper" ? downloadPdf() : downloadBambu());
   // step 2: your tokens; tap one to give it its own design
-  $("#designGrid").onclick = (e) => { if (onCopyStep(e)) return; const b = e.target.closest("[data-design]"); if (b) designToken(b.dataset.design); };
+  $("#designGrid").onclick = (e) => {
+    const drop = e.target.closest("[data-drop]");
+    if (drop) { dropFromDesign(drop.dataset.drop); return; }
+    if (onCopyStep(e)) return;
+    const b = e.target.closest("[data-design]"); if (b) designToken(b.dataset.design);
+  };
   $("#designStage").addEventListener("click", (e) => { const b = e.target.closest("[data-side]"); if (b) { flow.side = b.dataset.side; renderDesignStage(); } });
   // step 3: how to print
   $("#printPage").addEventListener("click", (e) => { const w = e.target.closest("[data-way]"); if (w) { flow.way = w.dataset.way; storeJSON(PRINT_WAY_KEY, flow.way); $("#printNote").textContent = ""; renderQueue(); } });
@@ -884,7 +893,7 @@ function wire() {
   $("#queueClose").onclick = () => $("#queueDrawer").close();
   $("#queueDrawer").addEventListener("click", (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });   // backdrop
   $("#queue").onclick = onQueueClick;
-  $("#queueToast button").onclick = undoPicks;
+  $("#queueToast button").onclick = $("#appToast button").onclick = undoPicks;
   $("#queueClear").onclick = (e) => {
     const b = e.currentTarget;
     if (b.dataset.confirm !== "1") { b.dataset.confirm = "1"; b.textContent = t("queue.clearConfirm"); return; }
@@ -1057,15 +1066,16 @@ function changePicks(mutate, message) {
   mutate();
   picksChanged();
   flow.undo = before;
-  const toast = $("#queueToast");
+  const toast = $("#queueDrawer").open ? $("#queueToast") : $("#appToast");   // a modal drawer hides the page
   $("span", toast).textContent = message;
   toast.hidden = false;
   clearTimeout(changePicks.timer);
+  (toast.id === "appToast" ? $("#queueToast") : $("#appToast")).hidden = true;
   changePicks.timer = setTimeout(() => { toast.hidden = true; flow.undo = null; }, 5000);
 }
 function undoPicks() {
   if (flow.undo) { state.pick = flow.undo; picksChanged(); }
-  flow.undo = null; $("#queueToast").hidden = true;
+  flow.undo = null; $("#queueToast").hidden = $("#appToast").hidden = true;
 }
 function onQueueClick(e) {
   const plus = e.target.closest("[data-plus]"), minus = e.target.closest("[data-minus]"), rm = e.target.closest("[data-unpick]");
@@ -1114,8 +1124,17 @@ function renderDesignStage() {
     const spec = { ...specFor(k, ri != null), ...(flow.side === "back" ? { magnet: "none" } : {}) };
     const label = ri != null ? `${textFor(charKey(role), role, null)}: ${text}` : text;
     // the copies stepper sits beside the button (a button can't hold buttons), over the coin's foot
-    return `<div class="ds-item${ri != null ? " r" : ""}"><button class="ds-cell${ri != null ? " r" : ""}" type="button" data-design="${k}" aria-current="${state.sel?.key === k}" title="${esc(t("design.tap"))}">${tokenSvg(state.lib, role, spec, { text, side: flow.side })}${state.overrides.has(k) ? `<span class="mark" title="${esc(t("sheet.own"))}">✎</span>` : ""}<span>${esc(label)}</span></button>${copyStepper(k, label)}</div>`;
+    return `<div class="ds-item${ri != null ? " r" : ""}"><button class="ds-cell${ri != null ? " r" : ""}" type="button" data-design="${k}" aria-current="${state.sel?.key === k}" title="${esc(t("design.tap"))}">${tokenSvg(state.lib, role, spec, { text, side: flow.side })}${state.overrides.has(k) ? `<span class="mark" title="${esc(t("sheet.own"))}">✎</span>` : ""}<span>${esc(label)}</span></button>${copyStepper(k, label, { removable: true })}</div>`;
   }).join("");
+}
+/** Takes a token out of the selection from step 2, with Undo. The workshop moves on to another
+ *  picked token if it showed this one; with nothing left, back to step 1. */
+function dropFromDesign(key) {
+  const role = tokenRole(key), ri = tokenRem(key);
+  const name = ri != null ? `${textFor(charKey(role), role, null)}: ${textFor(key, role, ri)}` : textFor(key, role, null);
+  changePicks(() => state.pick.delete(key), t("queue.removed", { name }));
+  if (!state.pick.size) { goStep(1); return; }
+  if (!isPicked(state.sel?.key)) { selectToken(sortKeys(state.pick.keys())[0]); renderWorkshop(); renderDesignStage(); }
 }
 /** Tapping one of your tokens: the workshop shows it, ready to give it its own design. */
 function designToken(key) {
