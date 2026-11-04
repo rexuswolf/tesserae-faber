@@ -306,14 +306,89 @@ summary small { font-family: var(--ui); font-size: 12.5px; color: var(--dust); }
 .qb-toggle[aria-expanded=true] { border-color: var(--brass); }
 .stack { display: flex; padding-left: 10px; }
 .stack svg { width: 30px; height: 30px; margin-left: -10px; border-radius: 50%; box-shadow: 0 0 0 2px var(--velvet); }
-.queuebar .hint { flex: 1; }
-.queue-panel { position: fixed; left: var(--spine-w); right: 0; bottom: 58px; z-index: 5; max-height: min(60vh, 520px); overflow-y: auto; background: var(--velvet-mid); border-top: 1px solid var(--seam); box-shadow: 0 -18px 40px rgba(0, 0, 0, .5); padding: 18px 24px; display: flex; flex-direction: column; gap: 10px; }
-.qp-head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-.qp-head h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 26px; }
-.import { display: flex; gap: 8px; flex-wrap: wrap; }
-.paste { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
-.paste textarea { font-size: 13px; resize: vertical; }
-.list.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 4px 18px; }
+.queuebar .hint { flex: 1; margin: 0; }
+.queuebar #queuePrint { padding-inline: 22px; }
+
+/* The queue: a panel from the right (full screen on a phone). Step 1 lists what to print,
+   one row per character; step 2 is how: a 3D printer (plates, filaments) or paper (A4 sheets). */
+.qdrawer { position: fixed; inset: 0 0 0 auto; margin: 0; width: min(540px, 100%); height: 100%; max-height: none; max-width: 100%; padding: 0; border: 0; border-left: 1px solid var(--seam); border-radius: 0; background: var(--velvet-mid); color: var(--bone); box-shadow: -20px 0 50px rgba(0, 0, 0, .5); }
+.qdrawer[open] { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; animation: qd-in .22s ease-out; }
+/* fixed rows, so a hidden steps line or foot doesn't shift the others */
+.qd-head { grid-row: 1; } .qd-steps { grid-row: 2; } .qd-body { grid-row: 3; } .qd-foot { grid-row: 4; }
+.qd-steps[hidden], .qd-foot[hidden] { display: none; }
+.qdrawer::backdrop { background: rgba(10, 3, 8, .6); }
+@keyframes qd-in { from { transform: translateX(30px); opacity: 0; } }
+.qd-head { display: flex; align-items: center; gap: 10px; padding: 16px 20px 6px; }
+.qd-head h2 { margin: 0 auto 0 0; font-family: var(--display); font-weight: 400; font-size: 27px; }
+.qd-head h2 small { font: 400 14px var(--ui); color: var(--dust); margin-left: 8px; }
+.qd-head .icon-btn { flex: none; font-size: 18px; }
+.qd-head [hidden] { display: none; }
+.qd-steps { margin: 0; padding: 0 20px 10px; border-bottom: 1px solid var(--seam); font-size: 12px; color: var(--dust); }
+.qd-steps b { color: var(--bone); font-weight: 600; }
+.qd-steps .off { opacity: .55; }
+.qd-body { overflow-y: auto; padding: 8px 16px 16px 20px; }
+.qd-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 12px 20px 16px; border-top: 1px solid var(--seam); background: var(--velvet); }
+.qd-foot .hint { flex-basis: 100%; margin: 0; }
+.qd-foot .hint:empty { display: none; }
+.qd-sum { margin-right: auto; color: var(--dust); font-size: 13.5px; }
+.qd-foot .forge { padding-inline: 22px; }
+.switch { display: inline-flex; align-items: center; gap: 9px; font-size: 13.5px; color: var(--dust); cursor: pointer; padding: 6px 0 4px; }
+.switch input { appearance: none; flex: none; width: 34px; height: 20px; margin: 0; border-radius: 10px; background: rgba(239, 230, 214, .15); position: relative; cursor: pointer; transition: background .15s; }
+.switch input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: var(--bone); transition: transform .15s; }
+.switch input:checked { background: var(--brass); }
+.switch input:checked::after { transform: translateX(14px); }
+/* step 1 */
+.q-team { margin: 16px 0 2px; font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--dust); }
+.q-item { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--seam); }
+.q-item > .pic svg { width: 48px; height: 48px; display: block; }
+.q-item > .pic { grid-row: span 2; }
+.q-item b { font-family: var(--display); font-weight: 400; font-size: 18px; overflow-wrap: anywhere; }
+.q-item b small { font: 400 12px var(--ui); color: var(--dust); margin-left: 6px; }
+.qty { display: inline-flex; align-items: center; border: 1px solid var(--seam); border-radius: 999px; }
+.qty button { width: 32px; height: 32px; border: 0; border-radius: 50%; background: none; color: var(--dust); font-size: 17px; cursor: pointer; }
+.qty button:hover:not(:disabled) { color: var(--bone); background: rgba(239, 230, 214, .07); }
+.qty button:disabled { opacity: .3; cursor: default; }
+.qty span { min-width: 22px; text-align: center; font-weight: 600; font-size: 14px; }
+.q-rems { grid-column: 2 / -1; display: flex; flex-wrap: wrap; gap: 6px; }
+.q-rem { display: inline-flex; align-items: center; gap: 4px; padding: 2px 3px 2px 2px; border: 1px solid var(--seam); border-radius: 999px; font-size: 12px; color: var(--dust); }
+.q-rem svg { width: 24px; height: 24px; display: block; }
+.q-rem button { width: 20px; height: 20px; border: 0; border-radius: 50%; background: none; color: var(--dust); cursor: pointer; font-size: 13px; line-height: 1; }
+.q-rem button:hover { background: rgba(239, 230, 214, .1); color: var(--bone); }
+.q-empty { display: grid; justify-items: center; text-align: center; gap: 8px; padding: 40px 12px; color: var(--dust); }
+.q-empty .ghosts { display: flex; gap: 10px; }
+.q-empty .ghosts i { width: 44px; height: 44px; border-radius: 50%; border: 2px dashed var(--seam); }
+.q-empty h3 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 22px; color: var(--bone); }
+.q-empty p { margin: 0; max-width: 42ch; }
+/* step 2 */
+.ways { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0 4px; }
+.way { display: grid; gap: 3px; justify-items: start; text-align: left; padding: 14px; border: 1px solid var(--seam); border-radius: 14px; background: none; color: inherit; font: inherit; cursor: pointer; }
+.way svg { color: var(--dust); }
+.way b { font-family: var(--display); font-weight: 400; font-size: 19px; }
+.way small { color: var(--dust); font-size: 12.5px; }
+.way[aria-checked=true] { border-color: var(--brass); background: rgba(201, 162, 39, .1); }
+.way[aria-checked=true] svg { color: var(--brass); }
+.q-h { margin: 18px 0 8px; font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--dust); }
+.q-note { display: flex; gap: 10px; align-items: flex-start; margin: 0 0 8px; padding: 10px 12px; border-radius: 12px; background: rgba(239, 230, 214, .05); font-size: 13px; color: var(--dust); line-height: 1.45; }
+.q-note.warn { color: var(--warn); }
+.sws { display: inline-flex; gap: 4px; flex: none; padding-top: 2px; }
+.sw { width: 13px; height: 13px; border-radius: 50%; box-shadow: 0 0 0 1.5px rgba(239, 230, 214, .35); }
+.q-plate { border: 1px solid var(--seam); border-radius: 14px; padding: 10px 12px 12px; margin-bottom: 10px; background: rgba(239, 230, 214, .025); }
+.q-plate header { display: grid; grid-template-columns: 1fr auto; gap: 5px 10px; align-items: center; margin-bottom: 8px; }
+.q-plate h3 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 17px; }
+.q-plate h3 small { font: 400 12px var(--ui); color: var(--dust); margin-left: 6px; }
+.q-fill { grid-column: 1 / -1; height: 4px; border-radius: 2px; background: rgba(239, 230, 214, .1); overflow: hidden; }
+.q-fill i { display: block; height: 100%; background: var(--brass); }
+.q-coins { display: flex; flex-wrap: wrap; gap: 4px; }
+.q-coins svg { width: 38px; height: 38px; display: block; }
+.q-coins .r svg { width: 30px; height: 30px; }
+.q-sheets { display: flex; gap: 12px; flex-wrap: wrap; }
+.q-sheet { position: relative; width: 136px; aspect-ratio: 210 / 297; background: #f4efe6; border-radius: 3px; box-shadow: 0 8px 18px rgba(0, 0, 0, .45); }
+.q-sheet svg { position: absolute; transform: translate(-50%, -50%); }
+.q-howto { margin: 14px 0 0; padding-left: 18px; color: var(--dust); font-size: 13.5px; line-height: 1.6; }
+.toast { position: absolute; left: 50%; bottom: 84px; transform: translateX(-50%); z-index: 2; display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 18px; border-radius: 999px; background: var(--bone); color: var(--velvet-deep); font-size: 14px; white-space: nowrap; box-shadow: 0 10px 30px rgba(0, 0, 0, .4); }
+.toast[hidden] { display: none; }
+.toast button { border: 0; background: none; color: inherit; font: inherit; font-weight: 600; text-decoration: underline; padding: 4px 10px; cursor: pointer; }
+@media (prefers-reduced-motion: reduce) { .qdrawer[open] { animation: none; } }
 
 /* gate */
 .gate { position: fixed; inset: 0; display: grid; place-items: center; padding: 20px; z-index: 30; background: radial-gradient(120% 90% at 50% 38%, #3b1530 0%, var(--velvet) 45%, var(--velvet-deep) 100%); }
@@ -373,7 +448,7 @@ dialog .import { margin-top: 10px; }
   :root { --spine-w: 0px; }
   .queuebar .hint { display: none; }
   .queuebar { gap: 10px; }
-  .queuebar #pdf { white-space: normal; min-width: 0; line-height: 1.2; padding: 6px 12px; }
+  .queuebar #queuePrint { margin-left: auto; }
   /* the workshop becomes a sheet that slides up when you tap a token */
   .workshop { position: fixed; left: 0; right: 0; bottom: 0; top: 12vh; z-index: 10; border-left: 0; border-top: 1px solid var(--seam); border-radius: 18px 18px 0 0; transform: translateY(105%); transition: transform .25s ease; }
   .workshop.open { transform: none; }

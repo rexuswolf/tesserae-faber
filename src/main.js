@@ -7,6 +7,7 @@ import {
   onUser, signIn, signOutUser, isAdmin, loadRoles, uploadRoles, listAccountDesigns, deleteAccountDesign,
 } from "./firebase.js";
 import { buildBambuProject, planPlates, FILAMENT_SLOTS } from "./bambu/bambu3mf.js";
+import { PAGE, layoutCoins } from "./pdf/layout.js";
 import { t, uiLang, setUiLang, LANGUAGES } from "./i18n.js";
 import { TRANSLATIONS, VILLACUERVOS_URL, translationById, translationGroups } from "./translations.js";
 import { loadScripts, storeScripts, saveScript, scriptLink, readLink, scriptJson, idKey as scriptKey } from "./scripts.js";
@@ -818,23 +819,23 @@ function wire() {
   $("#save").onclick = save;
   $("#saved").onclick = onSavedClick;
 
-  // queue
-  $("#queueToggle").onclick = () => {
-    const open = $("#queuePanel").hidden;
-    $("#queuePanel").hidden = !open; $("#queueToggle").setAttribute("aria-expanded", String(open));
-  };
-  $("#queue").onclick = (e) => { const b = e.target.closest("[data-unqueue]"); if (b) { state.queue = state.queue.filter((q) => q.key !== b.dataset.unqueue); persistQueue(); renderQueue(); } };
+  // queue: step 1 lists what to print, step 2 is how (3D printer or paper)
+  $("#queueToggle").onclick = () => openQueue(1);
+  $("#queuePrint").onclick = () => openQueue(2);
+  $("#queueClose").onclick = () => $("#queueDrawer").close();
+  $("#queueBack").onclick = () => { qv.step = 1; renderQueue(); };
+  $("#queueDrawer").addEventListener("click", (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });   // backdrop
+  $("#queueDrawer").addEventListener("close", () => { $("#printNote").textContent = ""; });
+  $("#queue").onclick = onQueueClick;
+  $("#queueStep2").onclick = (e) => { const w = e.target.closest("[data-way]"); if (w) { qv.way = w.dataset.way; storeJSON(WAY_KEY, qv.way); $("#printNote").textContent = ""; renderQueue(); } };
+  $("#queueAction").onclick = () => (qv.step === 1 ? (qv.step = 2, renderQueue(), $("#queueBody").scrollTo({ top: 0 })) : qv.way === "paper" ? downloadPdf() : downloadBambu());
+  $("#queueToast button").onclick = undoRemove;
   $("#queueClear").onclick = (e) => {
     const b = e.currentTarget;
     if (b.dataset.confirm !== "1") { b.dataset.confirm = "1"; b.textContent = t("queue.clearConfirm"); return; }
     b.dataset.confirm = ""; b.textContent = t("queue.clear");
-    state.queue = []; persistQueue(); renderQueue();
+    removeFromQueue(state.queue.map((q) => q.key), t("queue.cleared"));
   };
-  $("#bambu").onclick = downloadBambu;
-  $("#pdf").onclick = downloadPdf;
-  $("#scriptFile").onchange = async (e) => { const f = e.target.files[0]; e.target.value = ""; if (f) importScript(await f.text()); };
-  $("#pasteToggle").onclick = () => { const box = $("#pasteBox"); box.hidden = !box.hidden; $("#pasteToggle").setAttribute("aria-expanded", String(!box.hidden)); if (!box.hidden) $("#scriptText").focus(); };
-  $("#pasteImport").onclick = () => importScript($("#scriptText").value);
 
   // account
   $("#signOut").onclick = () => { $(".me").open = false; signOutUser(); };
@@ -908,16 +909,21 @@ const queueTitle = (q, role) => (isReminder(q) ? q.reminder : q.text ?? roleName
 const queueLabel = (q, role) => (isReminder(q) ? `${roleName(role, q.spec.lang)}: ${q.reminder}` : queueTitle(q, role));
 const queueGroup = (q, role) => PLATE_LABEL[uiLang()][PLATE_GROUP[role.team]] + (isReminder(q) ? t("queue.reminderSuffix") : "");
 
+/** The queue in print order: good, evil, travellers, fabled, loric; characters before their reminders. */
+const PRINT_GROUPS = ["good", "evil", "traveller", "fabled", "loric"];
+const printOrder = () => state.queue.map((q) => [q, PRINT_GROUPS.indexOf(PLATE_GROUP[roleById(q.roleId).team]) * 2 + (isReminder(q) ? 1 : 0)])
+  .sort((a, b) => a[1] - b[1]).map(([q]) => q);   // a stable sort keeps the queue's order within a group
+
 /** Plate plan without building geometry: which parts exist and their colours. */
 function queuePlan() {
-  const items = state.queue.map((q) => {
+  const items = printOrder().map((q) => {
     const role = roleById(q.roleId);
     const base = itemSpec(q);
     const spec = { ...DEFAULT_SPEC, ...base, colours: { ...DEFAULT_SPEC.colours, ...base.colours } };
     const team = TEAMS[role.team].colour, pick = (v) => (v === "team" ? team : v);
     const hasBack = spec.back !== "none" && (spec.back !== "custom" || spec.customSvg) && (spec.back !== "seal" || state.lib.sealSvg) && (spec.back !== "edition" || role.edition);
     return {
-      title: queueLabel(q, role), group: queueGroup(q, role),
+      q, title: queueLabel(q, role), group: queueGroup(q, role),
       token: { spec, parts: { base: 1, front: 1, icon: spec.style === "window" && spec.windowFinish === "flat" ? 1 : null, frame: spec.frame !== "none" ? 1 : null, back: hasBack ? 1 : null },
         colours: { base: pick(spec.colours.base), front: pick(spec.colours.front), icon: pick(spec.colours.base), frame: pick(spec.colours.frame), back: pick(spec.colours.back) } },
     };
@@ -925,52 +931,163 @@ function queuePlan() {
   return planPlates(items);
 }
 
+// The queue dialog: which step it shows and, in step 2, how to print (remembered).
+const WAY_KEY = "midnight-mint-print-way";
+const qv = { step: 1, way: loadJSON(WAY_KEY, "3d") === "paper" ? "paper" : "3d", undo: null };
+const queuePic = (q, role = roleById(q.roleId)) => tokenSvg(state.lib, role, itemSpec(q), { text: queueTitle(q, role) });
+
+function openQueue(step) {
+  qv.step = state.queue.length ? step : 1;
+  $("#printNote").textContent = "";
+  const dlg = $("#queueDrawer");
+  if (!dlg.open) dlg.showModal();   // first: renderQueue only fills the dialog while it's open
+  renderQueue();
+  $("#queueBody").scrollTo({ top: 0 });
+}
+
+/** Takes items out of the queue, with "Undo" for a few seconds. */
+function removeFromQueue(keys, message) {
+  const gone = state.queue.map((q, i) => [q, i]).filter(([q]) => keys.includes(q.key));
+  if (!gone.length) return;
+  state.queue = state.queue.filter((q) => !keys.includes(q.key));
+  persistQueue(); renderQueue();
+  qv.undo = gone;
+  const toast = $("#queueToast");
+  $("span", toast).textContent = message;
+  toast.hidden = false;
+  clearTimeout(removeFromQueue.timer);
+  removeFromQueue.timer = setTimeout(() => { toast.hidden = true; qv.undo = null; }, 5000);
+}
+function undoRemove() {
+  for (const [q, i] of qv.undo || []) state.queue.splice(Math.min(i, state.queue.length), 0, q);
+  qv.undo = null; $("#queueToast").hidden = true;
+  persistQueue(); renderQueue();
+}
+function onQueueClick(e) {
+  const plus = e.target.closest("[data-plus]"), minus = e.target.closest("[data-minus]"), rm = e.target.closest("[data-unqueue]");
+  if (plus) {
+    // one more copy: the same as the last one (its text and style), or a fresh one
+    const last = state.queue.findLast((q) => q.roleId === plus.dataset.plus && !isReminder(q));
+    if (last) state.queue.push({ ...structuredClone(last), key: crypto.randomUUID() }); else addToQueue(roleById(plus.dataset.plus), null, { save: false });
+    persistQueue(); renderQueue();
+  } else if (minus) {
+    const last = state.queue.findLast((q) => q.roleId === minus.dataset.minus && !isReminder(q));
+    if (last) removeFromQueue([last.key], t("queue.removed", { name: queueLabel(last, roleById(last.roleId)) }));
+  } else if (rm) {
+    const q = state.queue.find((x) => x.key === rm.dataset.unqueue);
+    if (q) removeFromQueue([q.key], t("queue.removed", { name: queueLabel(q, roleById(q.roleId)) }));
+  }
+}
+
 function renderQueue() {
   if (!state.lib) return;
   const n = state.queue.length;
+  const chars = new Set(state.queue.filter((q) => !isReminder(q)).map((q) => q.roleId)).size, rems = state.queue.filter(isReminder).length;
+  // the bar
   $("#queueCount").textContent = n ? t("queue.count", { n }) : t("queue.emptyShort");
-  $("#queueClear").hidden = !n;
-  $("#bambu").disabled = !n;
-  $("#pdf").disabled = !n;
-  const pics = state.queue.map((q) => {
-    const role = roleById(q.roleId);
-    return { q, role, pic: tokenSvg(state.lib, role, itemSpec(q), { text: queueTitle(q, role) }) };
-  });
-  $("#queueStack").innerHTML = pics.slice(-5).map((p) => p.pic).join("");
-  $("#queue").innerHTML = pics.map(({ q, role, pic }) => {
-    const label = queueLabel(q, role);
-    return `<li><span class="open">${pic}<span>${esc(label)}${q.custom ? " ✎" : ""}</span></span><button class="del" type="button" data-unqueue="${q.key}" aria-label="${esc(t("queue.removeAria", { name: label }))}">${esc(t("queue.remove"))}</button></li>`;
-  }).join("") || `<li class="hint">${esc(t("queue.empty"))}</li>`;
-  const plan = $("#queuePlan");
-  if (!n) { plan.className = "hint"; plan.textContent = t("queue.barHint"); return; }
-  try {
-    const p = queuePlan();
-    const used = [...new Set(p.plates.flatMap((x) => [...x.slots]))].map(filamentName);
-    plan.className = "hint";
-    plan.textContent = t("queue.plan", { n: p.plates.length, plates: p.plates.map((x) => `${x.name} (${x.items.length})`).join(", "), filaments: used.join(", ") });
-  } catch (err) {
-    plan.className = "hint warn";
-    plan.textContent = err.message;
+  $("#queueStack").innerHTML = state.queue.slice(-5).map((q) => queuePic(q)).join("");
+  $("#queueSummary").textContent = n ? t("queue.summary", { c: chars, r: rems }) : t("queue.barHint");
+  $("#queuePrint").disabled = !n;
+  if (!$("#queueDrawer").open) return;
+
+  if (!n) qv.step = 1;
+  const step = qv.step;
+  $("#queueBack").hidden = step === 1;
+  $("#queueClear").hidden = step === 2 || !n;
+  $("#queueTitle").innerHTML = step === 1 ? `${esc(t("queue.title"))}${n ? `<small>${esc(t("queue.count", { n }))}</small>` : ""}` : esc(t("queue.printTitle"));
+  $("#queueSteps").innerHTML = n ? `<span class="${step === 1 ? "" : "off"}">1 · <b>${esc(t("queue.stepWhat"))}</b></span> › <span class="${step === 2 ? "" : "off"}">2 · <b>${esc(t("queue.stepHow"))}</b></span>` : "";
+  $("#queueSteps").hidden = !n;
+  $("#queueStep1").hidden = step !== 1;
+  $("#queueStep2").hidden = step !== 2;
+  const action = $("#queueAction");
+  $(".qd-foot").hidden = !n;
+  if (step === 1) {
+    renderQueueList();
+    $("#queueFootSum").textContent = n ? t("queue.count", { n }) : "";
+    action.textContent = t("queue.print");
+    action.disabled = false;
+  } else renderPrintStep();
+}
+
+/** Step 1: one row per character (copies with − +), its reminders beside it as chips. */
+function renderQueueList() {
+  const lang = uiLang();
+  if (!state.queue.length) {
+    $("#queue").innerHTML = `<div class="q-empty"><div class="ghosts"><i></i><i></i><i></i></div><h3>${esc(t("queue.emptyTitle"))}</h3><p>${esc(t("queue.emptyText"))}</p></div>`;
+    return;
+  }
+  const ids = [...new Set(state.queue.map((q) => q.roleId))];
+  $("#queue").innerHTML = TEAM_ORDER.map((team) => {
+    const rows = ids.map(roleById).filter((r) => r.team === team);
+    if (!rows.length) return "";
+    const copies = (r) => state.queue.filter((q) => q.roleId === r.id && !isReminder(q));
+    return `<h3 class="q-team">${esc(TEAM_PLURAL[lang][team])} · ${rows.reduce((k, r) => k + copies(r).length, 0)}</h3>` + rows.map((r) => {
+      const mine = copies(r), rems = state.queue.filter((q) => q.roleId === r.id && isReminder(q));
+      const first = mine[0], name = first ? queueTitle(first, r) : charName(r);
+      const pic = first ? queuePic(first, r) : tokenSvg(state.lib, r, { ...specFor(charKey(r), false), back: "none" }, { text: charName(r) });
+      return `<div class="q-item"><span class="pic">${pic}</span>
+        <b>${esc(name)}${mine.some((q) => q.custom) ? ` <small title="${esc(t("sheet.own"))}">✎</small>` : ""}</b>
+        <span class="qty"><button type="button" data-minus="${r.id}" ${mine.length ? "" : "disabled"} aria-label="${esc(t("queue.lessCopy", { name }))}">−</button><span>${mine.length}</span><button type="button" data-plus="${r.id}" aria-label="${esc(t("queue.moreCopy", { name }))}">+</button></span>
+        ${rems.length ? `<div class="q-rems">${rems.map((q) => `<span class="q-rem">${queuePic(q, r)}${esc(q.reminder)}<button type="button" data-unqueue="${q.key}" aria-label="${esc(t("queue.removeAria", { name: queueLabel(q, r) }))}">×</button></span>`).join("")}</div>` : ""}
+      </div>`;
+    }).join("");
+  }).join("");
+}
+
+/** Step 2: how to print. A 3D printer shows the plates and filaments; paper shows the A4 sheets. */
+function renderPrintStep() {
+  const way = qv.way, action = $("#queueAction"), detail = $("#printDetail");
+  $$("#queueStep2 [data-way]").forEach((b) => b.setAttribute("aria-checked", String(b.dataset.way === way)));
+  const swatches = (slots) => `<span class="sws">${slots.map((sl) => `<i class="sw" style="background:${FILAMENT_SLOTS[sl].hex}" title="${esc(filamentName(sl))}"></i>`).join("")}</span>`;
+  let plan = null, planError = null, sheets = [];
+  try { plan = queuePlan(); } catch (err) { planError = err.message; }
+  try { sheets = layoutCoins(state.queue.map((q) => itemSpec(q).diameter)); } catch { /* shown below */ }
+  $("#way3dSub").textContent = plan ? t("queue.way3dSub", { n: plan.plates.length }) : t("queue.way3dError");
+  $("#wayPaperSub").textContent = t("queue.wayPaperSub", { n: sheets.length });
+  if (way === "3d") {
+    action.textContent = t("queue.download");
+    action.disabled = !plan;
+    if (!plan) { detail.innerHTML = `<p class="q-note warn">${esc(planError)}</p>`; $("#queueFootSum").textContent = ""; return; }
+    const slots = [...new Set(plan.plates.flatMap((p) => [...p.slots]))].sort((a, b) => a - b);
+    const dec = uiLang() === "es" ? "," : ".";
+    const pauses = [...new Set(state.queue.map((q) => magnetLayout(itemSpec(q))).filter((m) => m?.kind === "hidden").map((m) => m.pauseZ))].sort((a, b) => a - b);
+    detail.innerHTML = `<h3 class="q-h">${esc(t("queue.filaments"))}</h3>
+      <p class="q-note">${swatches(slots)}<span>${esc(t("queue.filamentsNote", { list: slots.map(filamentName).join(", ") }))}</span></p>
+      ${pauses.length ? `<p class="q-note"><span aria-hidden="true">⏸</span><span>${esc(t("queue.pauses", { z: pauses.map((z) => String(z).replace(".", dec)).join(", ") }))}</span></p>` : ""}
+      <h3 class="q-h">${esc(t("queue.platesH", { n: plan.plates.length }))}</h3>
+      ${plan.plates.map((p, i) => `<article class="q-plate"><header><h3>${esc(t("queue.plateName", { i: i + 1, name: p.name }))}<small>${esc(t("queue.plateFill", { n: p.items.length, cap: p.capacity }))}</small></h3>${swatches([...p.slots].sort((a, b) => a - b))}
+        <span class="q-fill"><i style="width:${Math.round(100 * p.items.length / p.capacity)}%"></i></span></header>
+        <div class="q-coins">${p.items.map((it) => `<span class="${isReminder(it.q) ? "r" : ""}" title="${esc(it.title)}">${queuePic(it.q)}</span>`).join("")}</div></article>`).join("")}`;
+    $("#queueFootSum").textContent = t("queue.sum3d", { n: plan.plates.length });
+  } else {
+    action.textContent = t("queue.downloadPdf");
+    action.disabled = !sheets.length;
+    const W = 136, k = W / PAGE.w;   // the preview's scale, px per mm
+    detail.innerHTML = `<h3 class="q-h">${esc(t("queue.sheetsH", { n: sheets.length }))}</h3>
+      <div class="q-sheets">${sheets.map((page) => `<div class="q-sheet">${page.map((c) => {
+        const q = state.queue[c.index];
+        return queuePic(q).replace("<svg", `<svg style="left:${c.x * k}px;top:${c.y * k}px;width:${c.d * k}px;height:${c.d * k}px"`);
+      }).join("")}</div>`).join("")}</div>
+      <ol class="q-howto"><li>${esc(t("queue.howto1"))}</li><li>${esc(t("queue.howto2"))}</li><li>${esc(t("queue.howto3"))}</li></ol>`;
+    $("#queueFootSum").textContent = t("queue.sumPaper", { n: sheets.length });
   }
 }
 
 async function downloadBambu() {
-  const btn = $("#bambu"), out = $("#queuePlan");
+  const btn = $("#queueAction"), out = $("#printNote");
   btn.disabled = true;
   try {
     const items = [];
-    for (const [i, q] of state.queue.entries()) {
+    for (const [i, q] of printOrder().entries()) {
       const role = roleById(q.roleId);
-      out.textContent = t("queue.building", { i: i + 1, n: state.queue.length, name: queueLabel(q, role) });
+      out.className = "hint"; out.textContent = t("queue.building", { i: i + 1, n: state.queue.length, name: queueLabel(q, role) });
       await new Promise((r) => setTimeout(r));
       items.push({ token: buildToken(state.lib, role, itemSpec(q), queueTitle(q, role)), title: queueLabel(q, role), group: queueGroup(q, role) });
     }
-    const { blob, plan, filaments, pauses } = await buildBambuProject(items, { onProgress: (d, total) => { out.textContent = t("queue.writing", { i: d, n: total }); } });
+    const { blob, plan, filaments } = await buildBambuProject(items, { onProgress: (d, total) => { out.textContent = t("queue.writing", { i: d, n: total }); } });
     const file = `midnight-mint-${items.length}-tokens.3mf`;
     await saveFile(blob, file);
-    out.className = "hint";
-    out.textContent = t("queue.done", { file, n: plan.plates.length, filaments: filaments.map((f) => t(`filament.${f.name}`)).join(", ") })
-      + (pauses.length ? " " + t("queue.pauses", { z: pauses.map((z) => String(z).replace(".", uiLang() === "es" ? "," : ".")).join(", ") }) : "");
+    out.textContent = t("queue.done", { file, n: plan.plates.length, filaments: filaments.map((f) => t(`filament.${f.name}`)).join(", ") });
   } catch (err) {
     out.className = "hint warn";
     out.textContent = t("queue.failed", { message: err.message });
@@ -979,7 +1096,7 @@ async function downloadBambu() {
 
 /** The queue as an A4 PDF of paper tokens: fronts and backs on alternate pages, for duplex printing. */
 async function downloadPdf() {
-  const btn = $("#pdf"), out = $("#queuePlan");
+  const btn = $("#queueAction"), out = $("#printNote");
   btn.disabled = true;
   try {
     out.className = "hint"; out.textContent = t("queue.pdfLoading");
@@ -996,49 +1113,6 @@ async function downloadPdf() {
     out.className = "hint warn";
     out.textContent = t("queue.pdfFailed", { message: err.message });
   } finally { btn.disabled = !state.queue.length; }
-}
-
-// ------------------------------------------------------------ script import
-
-const idKey = (s) => fold(s).replace(/[^a-z0-9]/g, "");
-
-/**
- * Reads a script in the official Script Tool format: an array whose entries are
- * character ids ("washerwoman") or objects ({"id": "washerwoman"}), with an
- * optional {"id": "_meta", "name": …} entry. Ids are matched loosely.
- */
-function parseScript(text) {
-  let data;
-  try { data = JSON.parse(text); } catch { throw new Error(t("import.badJson")); }
-  if (!Array.isArray(data)) throw new Error(t("import.notList"));
-  const byKey = new Map(state.lib.roles.flatMap((r) => [[idKey(r.en), r], [idKey(r.id), r]]));
-  let name = null;
-  const roles = [], skipped = [];
-  for (const entry of data) {
-    const id = typeof entry === "string" ? entry : entry?.id;
-    if (!id) continue;
-    if (id === "_meta") { name = entry.name || null; continue; }
-    const role = byKey.get(idKey(id)) || (entry?.name && byKey.get(idKey(entry.name)));
-    if (role) { if (!roles.includes(role)) roles.push(role); }
-    else skipped.push(entry?.name || id);
-  }
-  if (!roles.length) throw new Error(t("import.noneKnown"));
-  return { name, roles, skipped };
-}
-
-function importScript(text) {
-  const out = $("#importNote");
-  try {
-    const { name, roles, skipped } = parseScript(text);
-    const extra = roles.reduce((n, r) => n + addCharacter(r), 0);
-    out.className = "hint";
-    out.textContent = t("import.done", { n: roles.length, extra, name }) +
-      (skipped.length ? t("import.skipped", { n: skipped.length, list: skipped.slice(0, 6).join(", ") + (skipped.length > 6 ? "…" : "") }) : "");
-    $("#pasteBox").hidden = true; $("#pasteToggle").setAttribute("aria-expanded", "false"); $("#scriptText").value = "";
-  } catch (err) {
-    out.className = "hint warn";
-    out.textContent = t("import.failed", { message: err.message });
-  }
 }
 
 // ------------------------------------------------------------ saved designs

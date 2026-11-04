@@ -50,6 +50,8 @@ The Pandemonium Institute. No account needed: open it and start designing.
 ![X-ray view of a token with a hidden 6×2 mm magnet](docs/screenshots/magnet.png)
 
 **Print them**
+- Gather tokens in the **print queue**: one line per character with its copies and reminders. Then choose how to print,
+  and see the plates (with their filaments) or the A4 sheets before you download.
 - **Bambu Lab A1 with AMS lite**: download a ready-to-print `.3mf`. Every part already has its filament,
   tokens are grouped onto plates by team with at most 4 colours each, and hidden magnets come with their pause.
 - **Any other printer**: download STL files, one per colour, with instructions.

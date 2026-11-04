@@ -200,31 +200,42 @@
 
   <!-- queue -->
   <footer class="queuebar" id="queuebar">
-    <button class="qb-toggle" type="button" id="queueToggle" aria-expanded="false" aria-controls="queuePanel">
+    <button class="qb-toggle" type="button" id="queueToggle" aria-haspopup="dialog">
       <span class="stack" id="queueStack"></span>
       <span id="queueCount"></span>
     </button>
-    <p class="hint" id="queuePlan"></p>
-    <button class="pill" id="pdf" type="button" disabled data-i18n="queue.pdf" data-i18n-attr="title:queue.pdfTip"></button>
-    <button class="forge" id="bambu" type="button" disabled data-i18n="queue.download"></button>
+    <p class="hint" id="queueSummary"></p>
+    <button class="forge" id="queuePrint" type="button" disabled data-i18n="queue.print"></button>
   </footer>
-  <section class="queue-panel" id="queuePanel" hidden>
-    <div class="qp-head">
-      <h2 data-i18n="sec.queue"></h2>
-      <div class="import">
-        <label class="pill file"><span data-i18n="queue.import"></span><input type="file" id="scriptFile" accept="application/json,.json" hidden></label>
-        <button class="pill" type="button" id="pasteToggle" aria-expanded="false" data-i18n="queue.paste"></button>
-        <button class="pill" id="queueClear" type="button" hidden data-i18n="queue.clear"></button>
+  <!-- the queue: what to print (step 1), then how (step 2: 3D printer or paper) -->
+  <dialog class="qdrawer" id="queueDrawer" aria-labelledby="queueTitle">
+    <div class="qd-head">
+      <button class="icon-btn" type="button" id="queueBack" data-i18n-attr="aria-label:queue.back">‹</button>
+      <h2 id="queueTitle"></h2>
+      <button class="pill" type="button" id="queueClear" data-i18n="queue.clear"></button>
+      <button class="icon-btn" type="button" id="queueClose" data-i18n-attr="aria-label:admin.close">×</button>
+    </div>
+    <p class="qd-steps" id="queueSteps"></p>
+    <div class="qd-body" id="queueBody">
+      <div id="queueStep1">
+        <label class="switch"><input type="checkbox" id="withReminders"> <span data-i18n="queue.withReminders"></span></label>
+        <div id="queue"></div>
+      </div>
+      <div id="queueStep2" hidden>
+        <div class="ways" role="radiogroup" data-i18n-attr="aria-label:queue.howAria">
+          <button class="way" type="button" role="radio" data-way="3d"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M4 3h16v4H4zM6 7v8h12V7M9 15v3h6v-3M3 21h18M12 10v2"/></svg><b data-i18n="queue.way3d"></b><small id="way3dSub"></small></button>
+          <button class="way" type="button" role="radio" data-way="paper"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M6 2h9l4 4v16H6z"/><path d="M15 2v4h4"/><circle cx="10" cy="11" r="2"/><circle cx="15" cy="11" r="2"/><circle cx="10" cy="16" r="2"/><circle cx="15" cy="16" r="2"/></svg><b data-i18n="queue.wayPaper"></b><small id="wayPaperSub"></small></button>
+        </div>
+        <div id="printDetail"></div>
       </div>
     </div>
-    <div class="paste" id="pasteBox" hidden>
-      <textarea class="text" id="scriptText" rows="3" placeholder='[{"id":"_meta","name":"…"},"washerwoman","librarian",…]' data-i18n-attr="aria-label:queue.pasteAria"></textarea>
-      <button class="pill" type="button" id="pasteImport" data-i18n="queue.pasteImport"></button>
+    <div class="qd-foot">
+      <p class="hint" id="printNote" aria-live="polite"></p>
+      <span class="qd-sum" id="queueFootSum"></span>
+      <button class="forge" type="button" id="queueAction"></button>
     </div>
-    <label class="check"><input type="checkbox" id="withReminders"> <span data-i18n="queue.withReminders"></span></label>
-    <p class="hint" id="importNote" data-i18n="queue.importHelp"></p>
-    <ul class="list grid" id="queue"></ul>
-  </section>
+    <div class="toast" id="queueToast" hidden><span></span><button type="button" data-i18n="queue.undo"></button></div>
+  </dialog>
 </div>
 
 <div class="gate" id="gate">

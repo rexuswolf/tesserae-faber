@@ -36,7 +36,10 @@ setTimeout(() => {
     else if (k === "addall") click(`#rows [data-addall="${v}"]`);
     else if (k === "queue") click("#queueToggle");
     else if (k === "rem") document.querySelector("#withReminders").checked = true;
-    else if (k === "pdf") click("#pdf");
+    else if (k === "pdf") { click("#queuePrint"); click('#queueStep2 [data-way="paper"]'); click("#queueAction"); }
+    else if (k === "print") click("#queuePrint");
+    else if (k === "way") click(`#queueStep2 [data-way="${v}"]`);
+    else if (k === "go") click("#queueAction");
     else if (k === "tlang" || k === "tlpick") {
       // Open the token language dialog, unfold every group, pick v; "tlang" also confirms.
       click("#tokenLangBtn");
