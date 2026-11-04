@@ -1,7 +1,8 @@
 import {
   loadLibrary, buildToken, geometryVolume, magnetLayout, MAGNET_SIZES, tokenSvg, roleName, saveFile, reminderSpec, layoutName, nameLetterHeight, SMALL_LETTERS_MM,
-  TEAMS, EDITIONS, FRAME_STYLES, BACK_STYLES, TOKEN_STYLES, FILAMENTS, DEFAULT_SPEC,
+  TEAMS, EDITIONS, FRAME_STYLES, BACK_STYLES, TOKEN_STYLES, FILAMENTS, DEFAULT_SPEC, CARD, isCard,
 } from "./engine/token-engine.js";
+import { infoRoles } from "./info-tokens.js";
 import {
   onUser, signIn, signOutUser, isAdmin, loadRoles, uploadRoles, listAccountDesigns, deleteAccountDesign,
 } from "./firebase.js";
@@ -29,16 +30,16 @@ const STYLE_KEY = "midnight-mint-style";
 const OVERRIDES_KEY = "midnight-mint-overrides";
 const DESIGNS_KEY = "midnight-mint-designs";
 const TOKEN_LANG_KEY = "midnight-mint-token-lang";
-const EDITION_ORDER = ["tb", "bmr", "snv", "carousel", "fabled", "loric"];
-const TEAM_ORDER = ["townsfolk", "outsider", "minion", "demon", "traveller", "fabled", "loric"];
+const EDITION_ORDER = ["tb", "bmr", "snv", "carousel", "fabled", "loric", "grimoire"];
+const TEAM_ORDER = ["townsfolk", "outsider", "minion", "demon", "traveller", "fabled", "loric", "info"];
 const TEAM_PLURAL = {
-  es: { townsfolk: "Aldeanos", outsider: "Forasteros", minion: "Esbirros", demon: "Demonios", traveller: "Viajeros", fabled: "Fábulas", loric: "Lóricos" },
-  en: { townsfolk: "Townsfolk", outsider: "Outsiders", minion: "Minions", demon: "Demons", traveller: "Travellers", fabled: "Fabled", loric: "Loric" },
+  es: { townsfolk: "Aldeanos", outsider: "Forasteros", minion: "Esbirros", demon: "Demonios", traveller: "Viajeros", fabled: "Fábulas", loric: "Lóricos", info: "Fichas de información" },
+  en: { townsfolk: "Townsfolk", outsider: "Outsiders", minion: "Minions", demon: "Demons", traveller: "Travellers", fabled: "Fabled", loric: "Loric", info: "Info tokens" },
 };
-const PLATE_GROUP = { townsfolk: "good", outsider: "good", minion: "evil", demon: "evil", traveller: "traveller", fabled: "fabled", loric: "loric" };
+const PLATE_GROUP = { townsfolk: "good", outsider: "good", minion: "evil", demon: "evil", traveller: "traveller", fabled: "fabled", loric: "loric", info: "info" };
 const PLATE_LABEL = {
-  es: { good: "Aldeanos y forasteros", evil: "Esbirros y demonios", traveller: "Viajeros", fabled: "Fábulas", loric: "Lóricos" },
-  en: { good: "Townsfolk & outsiders", evil: "Minions & demons", traveller: "Travellers", fabled: "Fabled", loric: "Loric" },
+  es: { good: "Aldeanos y forasteros", evil: "Esbirros y demonios", traveller: "Viajeros", fabled: "Fábulas", loric: "Lóricos", info: "Fichas de información" },
+  en: { good: "Townsfolk & outsiders", evil: "Minions & demons", traveller: "Travellers", fabled: "Fabled", loric: "Loric", info: "Info tokens" },
 };
 
 const state = {
@@ -292,6 +293,7 @@ async function boot() {
     const broken = !roles.length ? "empty" : roles.some((r) => !r.body) ? "oldLibrary" : null;
     if (broken) return libraryGate(broken);
     state.lib = await loadLibrary(roles);
+    state.lib.roles.push(...infoRoles());   // the grimoire's info tokens: cards, an edition of their own
     gateState = null;
     startApp();
   } catch (err) {
@@ -365,7 +367,7 @@ function renderSpine() {
     const roles = state.lib.roles.filter((r) => r.edition === e);
     const rem = roles.reduce((n, r) => n + remindersOf(r).length, 0);
     return `<button class="ed" type="button" data-ed="${e}" aria-current="${state.edition === e && !searchQuery()}">
-      <span>${esc(EDITIONS[e].name[lang])}<small>${esc(t("ed.count", { c: roles.length, r: rem }))}</small></span>${pickedBadge(roles)}</button>`;
+      <span>${esc(EDITIONS[e].name[lang])}<small>${esc(e === "grimoire" ? t("ed.countInfo", { n: roles.length }) : t("ed.count", { c: roles.length, r: rem }))}</small></span>${pickedBadge(roles)}</button>`;
   }).join("");
   const scripts = loadScripts();
   $("#scripts").innerHTML = scripts.map((sc) => {
@@ -540,7 +542,7 @@ function renderSheet() {
   const remKeys = roles.flatMap((r) => remindersOf(r).map((_, i) => remKey(r, i)));
   const allChars = roles.length > 0 && roles.every((r) => isPicked(charKey(r))), allRems = remKeys.every(isPicked);
   $("#pickAll").hidden = !roles.length;
-  $("#pickChars").textContent = t("pick.chars", { n: roles.length });
+  $("#pickChars").textContent = t(roles.length && roles.every(isCard) ? "pick.cards" : "pick.chars", { n: roles.length });
   $("#pickChars").setAttribute("aria-pressed", String(allChars && !remKeys.some(isPicked)));
   $("#pickWithRems").textContent = t("pick.withRems", { n: roles.length + remKeys.length });
   $("#pickWithRems").setAttribute("aria-pressed", String(allChars && remKeys.length > 0 && allRems));
@@ -587,11 +589,11 @@ function rowHtml(r, q, remHits) {
     const own = state.overrides.has(key), copies = state.pick.get(key) || 0;
     const name = textFor(key, r, reminder);
     // once picked, a small stepper adds copies; tapping the token still drops it
-    return `<span class="tok-w"><button class="tok" type="button" data-pick="${key}" aria-pressed="${copies > 0}" aria-label="${esc(name)}">${tokenSvg(state.lib, r, spec, { text: name })}<span class="ck" aria-hidden="true">✓</span>${own ? `<span class="mark" title="${esc(t("sheet.own"))}">✎</span>` : ""}</button>${copyStepper(key, name)}</span>`;
+    return `<span class="tok-w"><button class="tok${isCard(r) ? " card" : ""}" type="button" data-pick="${key}" aria-pressed="${copies > 0}" aria-label="${esc(name)}">${tokenSvg(state.lib, r, spec, { text: name })}<span class="ck" aria-hidden="true">✓</span>${own ? `<span class="mark" title="${esc(t("sheet.own"))}">✎</span>` : ""}</button>${copyStepper(key, name)}</span>`;
   };
   const rems = remindersOf(r);
   const other = tokenLang() === "en" ? roleName(r, uiLang() === "en" ? "es" : uiLang()) : r.en;
-  return `<div class="row" data-picked="${isPicked(ck)}">
+  return `<div class="row${isCard(r) ? " info" : ""}" data-picked="${isPicked(ck)}">
     ${thumb(ck, null)}
     <div class="who" data-pick="${ck}"><b>${esc(textFor(ck, r, null))}</b>${other !== textFor(ck, r, null) ? `<small>${esc(other)}</small>` : ""}${q || state.edition.startsWith("s:") ? `<em>${esc(EDITIONS[r.edition]?.name[lang] || "")}</em>` : ""}</div>
     <div class="rems">${rems.length ? rems.map((_, i) => `<div class="rem${remHits?.has(i) ? " hit" : ""}">${thumb(remKey(r, i), i)}<span>${esc(textFor(remKey(r, i), r, i))}</span></div>`).join("") : `<span class="none">${esc(t("sheet.noReminders"))}</span>`}</div>
@@ -651,9 +653,11 @@ function renderWorkshop() {
     $("#styleScope").textContent = state.tab === "set" ? t("ws.scopeSet") : own?.spec ? t("ws.scopeTokenOn") : t("ws.scopeTokenOff");
     const editing = editingSpec();
     $("#styleFields").disabled = !editing;
-    renderPresets(role, editing);
-    renderBackTiles(role, editing ?? state.spec);
-    renderFrameTiles(role, editing ?? state.spec);
+    // The design tiles show a coin: a card shows them on a character.
+    const tileRole = isCard(role) ? state.lib.roles.find((r) => !isCard(r) && r.edition === "tb") ?? role : role;
+    renderPresets(tileRole, editing);
+    renderBackTiles(tileRole, editing ?? state.spec);
+    renderFrameTiles(tileRole, editing ?? state.spec);
     syncControls(editing ?? state.spec);
 
     $("#depthHint").className = "hint" + (token.depthClamped ? " warn" : "");
@@ -1038,7 +1042,7 @@ const queueLabel = (q, role) => (isReminder(q) ? `${roleName(role, q.spec.lang)}
 const queueGroup = (q, role) => PLATE_LABEL[uiLang()][PLATE_GROUP[role.team]] + (isReminder(q) ? t("queue.reminderSuffix") : "");
 
 /** The queue in print order: good, evil, travellers, fabled, loric; characters before their reminders. */
-const PRINT_GROUPS = ["good", "evil", "traveller", "fabled", "loric"];
+const PRINT_GROUPS = ["good", "evil", "traveller", "fabled", "loric", "info"];
 const printOrder = () => queueNow().map((q) => [q, PRINT_GROUPS.indexOf(PLATE_GROUP[roleById(q.roleId).team]) * 2 + (isReminder(q) ? 1 : 0)])
   .sort((a, b) => a[1] - b[1]).map(([q]) => q);   // a stable sort keeps the queue's order within a group
 
@@ -1050,6 +1054,11 @@ function queuePlan() {
     const spec = { ...DEFAULT_SPEC, ...base, colours: { ...DEFAULT_SPEC.colours, ...base.colours } };
     const team = TEAMS[role.team].colour, pick = (v) => (v === "team" ? team : v);
     const hasBack = spec.back !== "none" && (spec.back !== "custom" || spec.customSvg) && (spec.back !== "seal" || state.lib.sealSvg) && (spec.back !== "edition" || role.edition);
+    if (isCard(role)) return {   // a card: its body, the phrase and the set's frame; no back
+      q, title: queueLabel(q, role), group: queueGroup(q, role),
+      token: { spec, foot: { w: CARD.w, h: CARD.h }, parts: { base: 1, front: 1, icon: null, frame: spec.frame !== "none" ? 1 : null, back: null },
+        colours: { base: pick(spec.colours.base), front: pick(spec.colours.front), icon: pick(spec.colours.base), frame: pick(spec.colours.frame), back: pick(spec.colours.back) } },
+    };
     return {
       q, title: queueLabel(q, role), group: queueGroup(q, role),
       token: { spec, parts: { base: 1, front: 1, icon: spec.style === "window" && spec.windowFinish === "flat" ? 1 : null, frame: spec.frame !== "none" ? 1 : null, back: hasBack ? 1 : null },
@@ -1058,6 +1067,10 @@ function queuePlan() {
   });
   return planPlates(items, { bed: printerOf(flow.printer).bed });
 }
+
+/** A queued token's footprint: a coin's diameter, or a card's size. */
+const isCardEntry = (q) => isCard(roleById(q.roleId));
+const paperSize = (q) => (isCardEntry(q) ? CARD : itemSpec(q).diameter);
 
 /** Each part's volume (mm³) for a queued token, from its real geometry; cached by what shapes it. */
 const volumeCache = new Map();
@@ -1194,7 +1207,7 @@ function renderDesignStage() {
     const spec = { ...specFor(k, ri != null), ...(flow.side === "back" ? { magnet: "none" } : {}) };
     const label = ri != null ? `${textFor(charKey(role), role, null)}: ${text}` : text;
     // the copies stepper sits beside the button (a button can't hold buttons), over the coin's foot
-    return `<div class="ds-item${ri != null ? " r" : ""}"><button class="ds-cell${ri != null ? " r" : ""}" type="button" data-design="${k}" aria-current="${state.sel?.key === k}" title="${esc(t("design.tap"))}">${tokenSvg(state.lib, role, spec, { text, side: flow.side })}${state.overrides.has(k) ? `<span class="mark" title="${esc(t("sheet.own"))}">✎</span>` : ""}<span>${esc(label)}</span></button>${copyStepper(k, label, { removable: true })}</div>`;
+    return `<div class="ds-item${ri != null ? " r" : ""}"><button class="ds-cell${ri != null ? " r" : ""}${isCard(role) ? " card" : ""}" type="button" data-design="${k}" aria-current="${state.sel?.key === k}" title="${esc(t("design.tap"))}">${tokenSvg(state.lib, role, spec, { text, side: flow.side })}${state.overrides.has(k) ? `<span class="mark" title="${esc(t("sheet.own"))}">✎</span>` : ""}<span>${esc(label)}</span></button>${copyStepper(k, label, { removable: true })}</div>`;
   }).join("");
 }
 /** Takes a token out of the selection from step 2, with Undo. The workshop moves on to another
@@ -1224,7 +1237,7 @@ function renderPrintStep() {
   const swatches = (slots) => `<span class="sws">${slots.map((sl) => `<i class="sw" style="background:${FILAMENT_SLOTS[sl].hex}" title="${esc(filamentName(sl))}"></i>`).join("")}</span>`;
   let plan = null, planError = null, sheets = [];
   try { plan = queuePlan(); } catch (err) { planError = err.message; }
-  try { sheets = layoutCoins(queue.map((q) => itemSpec(q).diameter)); } catch { /* shown below */ }
+  try { sheets = layoutCoins(queue.map(paperSize)); } catch { /* shown below */ }
   const printer = printerOf(flow.printer);
   $("#way3dSub").textContent = plan ? t("queue.way3dSub", { printer: printer.name, n: plan.plates.length }) : t("queue.way3dError", { printer: printer.name });
   $("#wayPaperSub").textContent = t("queue.wayPaperSub", { n: sheets.length, backs: flow.backs });
@@ -1238,7 +1251,7 @@ function renderPrintStep() {
     const dec1 = (v) => v.toFixed(1).replace(".", uiLang() === "es" ? "," : ".");
     const smalls = [...state.pick.keys()].map((k) => {
       const q = { pick: k, ...queueEntry(tokenRole(k), tokenRem(k)) }, role = roleById(q.roleId);
-      return { k, mm: nameLetterHeight(state.lib, itemSpec(q), queueTitle(q, role)), label: queueLabel(q, role) };
+      return { k, mm: nameLetterHeight(state.lib, itemSpec(q), queueTitle(q, role), role), label: queueLabel(q, role) };
     }).filter((x) => x.mm < SMALL_LETTERS_MM).sort((a, b) => a.mm - b.mm);
     const smallNote = smalls.length ? `<div class="q-note warn small-text"><span aria-hidden="true">⚠</span><div>
       <p>${esc(t("print.small", { n: smalls.length, mm: dec1(SMALL_LETTERS_MM) }))}</p>
@@ -1271,7 +1284,7 @@ function renderPrintStep() {
     const coinAt = (q, side, x, c) => {
       const role = roleById(q.roleId), spec = { ...itemSpec(q), magnet: "none" };
       return tokenSvg(state.lib, role, spec, { side, text: queueTitle(q, role) })
-        .replace("<svg", `<svg style="left:${pctW(x)};top:${pctH(c.y)};width:${pctW(c.d)};height:${pctH(c.d)}"`);
+        .replace("<svg", `<svg style="left:${pctW(x)};top:${pctH(c.y)};width:${pctW(c.w)};height:${pctH(c.h)}"`);
     };
     const face = (page, side) => `<figure><div class="q-sheet">${page.map((c) => coinAt(queue[c.index], side, side === "front" ? c.x : backX(c.x), c)).join("")}</div>
       <figcaption>${esc(t(side === "front" ? "queue.pdfFront" : "queue.pdfBack"))}</figcaption></figure>`;

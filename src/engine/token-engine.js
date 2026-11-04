@@ -29,6 +29,8 @@ export const TEAMS = {
   traveller: { label: { en: "Travellers", es: "Viajeros" }, colour: "#8a3d9e", file: "purple" },
   fabled: { label: { en: "Fabled", es: "Fábulas" }, colour: "#d4a72c", file: "yellow" },
   loric: { label: { en: "Loric", es: "Lóricos" }, colour: "#3f9651", file: "green" },
+  // The grimoire's info tokens (cards): their "team colour" is gold, a filament the export knows.
+  info: { label: { en: "Info tokens", es: "Fichas de información" }, colour: "#c9a227", file: "yellow" },
 };
 
 export const FRAME_STYLES = [
@@ -63,6 +65,7 @@ export const EDITIONS = {
   carousel: { name: { en: "The Carousel", es: "The Carousel" }, mark: "C" },
   fabled: { name: { en: "Fabled", es: "Fábulas" }, mark: "F" },
   loric: { name: { en: "Loric", es: "Lóricos" }, mark: "L" },
+  grimoire: { name: { en: "Grimoire", es: "Grimorio" }, mark: "G" },
 };
 
 export const FILAMENTS = {
@@ -944,9 +947,102 @@ export function geometryVolume(geom) {
 export const SMALL_LETTERS_MM = 2.5;
 
 /** How tall the name's letters come out (mm), without building any geometry. */
-export function nameLetterHeight(lib, spec, text) {
+export function nameLetterHeight(lib, spec, text, role = null) {
+  if (isCard(role)) return cardLayout(lib, text, cardSpec(spec)).cap;
   spec = windowFrame({ ...DEFAULT_SPEC, ...spec, colours: { ...DEFAULT_SPEC.colours, ...spec?.colours } });
   return spec.style === "window" ? windowLayout(lib, text, spec).cap : layoutName(lib, text, spec).letterHeight;
+}
+
+// ---------------------------------------------------------------- info cards
+
+/**
+ * The grimoire's info tokens ("This is the Demon"…) are rounded cards, not coins: a body
+ * in the coin colour, the phrase and the set's frame as flush inlays, printed face-down
+ * like the classic coins. Roles with kind "info" are drawn this way.
+ */
+export const CARD = { w: 85, h: 55, r: 4 };
+const CARD_PAD = 7, CARD_MAX_CAP = 8, CARD_PITCH = 1.6, CARD_FRAME_INSET = 1.2;
+export const isCard = (role) => role?.kind === "info";
+
+/** A card's spec: the set's colours, frame, height and depth; no style, back or magnet of its own. */
+function cardSpec(spec) {
+  const s = { ...DEFAULT_SPEC, ...spec, colours: { ...DEFAULT_SPEC.colours, ...spec?.colours } };
+  // `diameter` is the card's long side, so the 3D view frames it like a coin that size.
+  return { ...s, style: "classic", back: "none", magnet: "none", diameter: CARD.w, depth: Math.min(s.depth, s.height - 0.4) };
+}
+
+function roundedRect(w, h, r) {
+  const s = new THREE.Shape(), x = -w / 2, y = -h / 2;
+  s.moveTo(x + r, y);
+  s.lineTo(x + w - r, y); s.absarc(x + w - r, y + r, r, -Math.PI / 2, 0, false);
+  s.lineTo(x + w, y + h - r); s.absarc(x + w - r, y + h - r, r, 0, Math.PI / 2, false);
+  s.lineTo(x + r, y + h); s.absarc(x + r, y + h - r, r, Math.PI / 2, Math.PI, false);
+  s.lineTo(x, y + r); s.absarc(x + r, y + r, r, Math.PI, Math.PI * 1.5, false);
+  return s;
+}
+
+/** The phrase in up to 3 balanced lines, at the biggest letters that fit inside the padding. */
+export function cardLayout(lib, text, spec) {
+  const words = (text || "").toUpperCase().trim().split(/\s+/).filter(Boolean);
+  const width = (line) => { const b = boundsOf(lib.font.generateShapes(line, 1)); return b.max.x - b.min.x; };
+  const W = CARD.w - 2 * CARD_PAD, H = CARD.h - 2 * CARD_PAD;
+  let best = null;
+  // every way to cut the words into 1–3 lines
+  const splits = (n, k) => (k === 1 ? [[n]] : Array.from({ length: n - k + 1 }, (_, i) => i + 1).flatMap((a) => splits(n - a, k - 1).map((r) => [a, ...r])));
+  for (let k = 1; k <= Math.min(3, words.length || 1); k++) {
+    for (const sizes of splits(Math.max(1, words.length), k)) {
+      let at = 0;
+      const lines = sizes.map((n) => { const l = words.slice(at, at + n).join(" "); at += n; return l; });
+      const em = Math.min(W / Math.max(...lines.map(width), 1e-6), (CARD_MAX_CAP / lib.capHeight),
+        H / (lib.capHeight * (1 + (k - 1) * CARD_PITCH)));
+      if (!best || em > best.em + 1e-6) best = { em, lines };
+    }
+  }
+  const cap = best.em * lib.capHeight, pitch = cap * CARD_PITCH, total = cap + (best.lines.length - 1) * pitch;
+  return { em: best.em, cap, lines: best.lines.map((l, i) => ({ text: l, y: total / 2 - cap - i * pitch })) };
+}
+
+function cardFrameShape(spec) {
+  if (spec.frame === "none") return null;
+  const fw = Math.min(Math.max(spec.frameWidth, 0.4), 2), i = CARD_FRAME_INSET;
+  const outer = roundedRect(CARD.w - 2 * i, CARD.h - 2 * i, CARD.r - i);
+  outer.holes.push(roundedRect(CARD.w - 2 * (i + fw), CARD.h - 2 * (i + fw), Math.max(0.5, CARD.r - i - fw)));
+  return outer;
+}
+
+function buildCard(lib, role, spec, text) {
+  spec = cardSpec(spec);
+  text ??= roleName(role, spec.lang);
+  const H = spec.height, d = spec.depth;
+  const L = cardLayout(lib, text, spec);
+  const letters = L.lines.map((line) => {
+    const shapes = lib.font.generateShapes(line.text, L.em), box = boundsOf(shapes);
+    return extrude(shapes, d, T(-(box.min.x + box.max.x) / 2, line.y, H - d), 4);
+  });
+  const frame = cardFrameShape(spec);
+  return {
+    parts: { base: extrude([roundedRect(CARD.w, CARD.h, CARD.r)], H, T(0, 0, 0), 16), front: merge(letters), frame: frame ? extrude([frame], d, T(0, 0, H - d), 16) : null, back: null },
+    colours: { ...partColours(role, spec), hole: "#0b090c" },
+    name: { letterHeight: L.cap, scale: 1, total: null, lines: L.lines.length },
+    spec, magnet: null, depthClamped: null, card: true, foot: { w: CARD.w, h: CARD.h },
+  };
+}
+
+function cardSvg(lib, role, spec, side, text) {
+  spec = cardSpec(spec);
+  const c = partColours(role, spec), label = text ?? roleName(role, spec.lang);
+  const { w, h, r } = CARD;
+  let body = "";
+  if (side === "front") {
+    const L = cardLayout(lib, label, spec);
+    for (const line of L.lines) {
+      const shapes = lib.font.generateShapes(line.text, L.em), box = boundsOf(shapes);
+      body += `<path fill="${c.front}" fill-rule="evenodd" d="${shapesToPath(shapes, -(box.min.x + box.max.x) / 2, line.y)}"/>`;
+    }
+    const fw = Math.min(Math.max(spec.frameWidth, 0.4), 2), i = CARD_FRAME_INSET + fw / 2;
+    if (spec.frame !== "none") body += `<rect x="${-w / 2 + i}" y="${-h / 2 + i}" width="${w - 2 * i}" height="${h - 2 * i}" rx="${Math.max(0.5, r - i)}" fill="none" stroke="${c.frame}" stroke-width="${fw}"/>`;
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${-w / 2 - 0.5} ${-h / 2 - 0.5} ${w + 1} ${h + 1}" role="img" aria-label="${esc(label)}"><rect x="${-w / 2}" y="${-h / 2}" width="${w}" height="${h}" rx="${r}" fill="${c.base}"/>${body}</svg>`;
 }
 
 /** In the window style only a plain rim fits around the window (other frames would float over it). */
@@ -957,6 +1053,7 @@ function windowFrame(spec) {
 }
 
 export function buildToken(lib, role, spec, text) {
+  if (isCard(role)) return buildCard(lib, role, spec, text);
   spec = windowFrame({ ...DEFAULT_SPEC, ...spec, colours: { ...DEFAULT_SPEC.colours, ...spec?.colours } });
   // A magnet may need a thicker coin.
   const need = magnetLayout(spec)?.minHeight ?? 0;
@@ -1012,6 +1109,7 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
  * family "Dumbledor" — load engine/engine.css on the page for it.
  */
 export function tokenSvg(lib, role, spec, { side = "front", text } = {}) {
+  if (isCard(role)) return cardSvg(lib, role, spec, side, text);
   spec = windowFrame({ ...DEFAULT_SPEC, ...spec, colours: { ...DEFAULT_SPEC.colours, ...spec?.colours } });
   const c = partColours(role, spec);
   const R = spec.diameter / 2;

@@ -222,6 +222,11 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .tok:hover svg { transform: scale(1.06); }
 .tok[aria-current=true] svg { box-shadow: 0 0 0 3px var(--brass); }
 .tok .mark { position: absolute; top: -2px; right: -4px; background: var(--brass); color: var(--velvet-deep); border-radius: 999px; font-size: 10px; font-weight: 700; padding: 0 5px; line-height: 16px; }
+/* info cards: a wider thumbnail, and no reminders */
+#rows .row.info .rems { display: none; }
+#rows .tok.card svg, #rows .row > .tok-w .tok.card svg { width: 96px; height: auto; border-radius: 6px; }
+#rows .row.info { grid-template-columns: 104px minmax(0, 1fr); }
+.ds-cell.card svg, .ds-cell.card.r svg { width: 120px; height: auto; border-radius: 6px; margin: 0; }
 #rows .row > .tok-w svg { width: 70px; height: 70px; filter: drop-shadow(0 6px 10px rgba(0, 0, 0, .45)); }
 .who { cursor: pointer; }
 .who b { display: block; font-family: var(--display); font-weight: 400; font-size: 21px; line-height: 1.1; }

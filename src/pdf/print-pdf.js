@@ -8,7 +8,7 @@
 // so it doesn't weigh on the app's first load.
 import { jsPDF } from "jspdf";
 import { svg2pdf } from "svg2pdf.js";
-import { tokenSvg } from "../engine/token-engine.js";
+import { tokenSvg, CARD, isCard } from "../engine/token-engine.js";
 import { PAGE, layoutCoins, backX } from "./layout.js";
 
 export { PAGE, layoutCoins, backX };
@@ -18,16 +18,20 @@ const BLEED = 1.2;                        // coin colour past the cut line, both
 const FOOTER = 6;                         // page label baseline, inside the bottom margin
 
 const parser = typeof DOMParser !== "undefined" ? new DOMParser() : null;
-const baseColour = (svg) => svg.match(/^<svg[^>]*><circle r="[^"]*" fill="(#[0-9a-fA-F]{6})"/)?.[1] ?? null;
+// The token's colour: the first shape of tokenSvg (a coin's circle, a card's rect).
+const baseColour = (svg) => svg.match(/^<svg[^>]*><(?:circle|rect)[^>]* fill="(#[0-9a-fA-F]{6})"/)?.[1] ?? null;
 
-async function drawCoin(doc, svg, cx, cy, d) {
-  // Bleed: a slightly bigger disc in the coin colour under the design.
+/** A coin or a card (c from layoutCoins), with a little bleed in its colour under it. */
+async function drawToken(doc, svg, cx, c) {
   const fill = baseColour(svg);
-  if (fill) { doc.setFillColor(fill); doc.circle(cx, cy, d / 2 + BLEED, "F"); }
-  // tokenSvg's viewBox is the coin plus 0.5 mm all round.
+  if (fill) {
+    doc.setFillColor(fill);
+    if (c.card) doc.roundedRect(cx - c.w / 2 - BLEED, c.y - c.h / 2 - BLEED, c.w + 2 * BLEED, c.h + 2 * BLEED, c.r + BLEED, c.r + BLEED, "F");
+    else doc.circle(cx, c.y, c.d / 2 + BLEED, "F");
+  }
+  // tokenSvg's viewBox is the token plus 0.5 mm all round.
   const el = parser.parseFromString(svg, "image/svg+xml").documentElement;
-  const box = d + 1;
-  await svg2pdf(el, doc, { x: cx - box / 2, y: cy - box / 2, width: box, height: box });
+  await svg2pdf(el, doc, { x: cx - c.w / 2 - 0.5, y: c.y - c.h / 2 - 0.5, width: c.w + 1, height: c.h + 1 });
 }
 
 /**
@@ -40,7 +44,7 @@ async function drawCoin(doc, svg, cx, cy, d) {
 export async function buildPrintPdf(lib, entries, { labels = { front: "front", back: "back" }, title = "Midnight Mint", backs = true, onProgress } = {}) {
   // Paper has no magnets: drop the 3D-only pocket from the back.
   const paper = entries.map((e) => ({ ...e, spec: { ...e.spec, magnet: "none" } }));
-  const pages = layoutCoins(paper.map((e) => e.spec.diameter));
+  const pages = layoutCoins(paper.map((e) => (isCard(e.role) ? CARD : e.spec.diameter)));
   const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait", compress: true });
   doc.setProperties({ title, creator: "Midnight Mint" });
   // Hints for viewers that honour them (Acrobat): real size, and duplex on the long edge or one-sided.
@@ -56,13 +60,16 @@ export async function buildPrintPdf(lib, entries, { labels = { front: "front", b
       for (const c of coins) {
         const { role, spec, text } = paper[c.index];
         const svg = tokenSvg(lib, role, spec, { side, text });
-        await drawCoin(doc, svg, side === "front" ? c.x : backX(c.x), c.y, c.d);
+        await drawToken(doc, svg, side === "front" ? c.x : backX(c.x), c);
         await step();
       }
-      // Cut guides on the front only: a thin grey circle on the edge of each coin.
+      // Cut guides on the front only: a thin grey line on the edge of each token.
       if (side === "front") {
         doc.setDrawColor(150); doc.setLineWidth(0.15);
-        for (const c of coins) doc.circle(c.x, c.y, c.d / 2, "S");
+        for (const c of coins) {
+          if (c.card) doc.roundedRect(c.x - c.w / 2, c.y - c.h / 2, c.w, c.h, c.r, c.r, "S");
+          else doc.circle(c.x, c.y, c.d / 2, "S");
+        }
       }
       doc.setFontSize(7); doc.setTextColor(150);
       doc.text(`${title} · ${p + 1}/${pages.length}${backs ? ` · ${labels[side]}` : ""}`, PAGE.w / 2, PAGE.h - FOOTER, { align: "center" });

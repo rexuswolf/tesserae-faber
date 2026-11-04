@@ -64,7 +64,7 @@ function projectSettings(template, used, plates, bed) {
   // Bambu Studio may switch the prime tower on when it loads your presets, so plan
   // for it: a small tower in the slot we keep free on every plate. On the A1 most
   // purging goes down the waste chute; the tower only takes prime_volume per change.
-  const spots = plates.map((p) => towerSpot(p.diameter, bed));
+  const spots = plates.map((p) => towerSpot(p.foot, bed));
   s.enable_prime_tower = "1";
   s.prime_tower_width = "35";
   s.wipe_tower_x = spots.map((t) => t.x.toFixed(1));
@@ -95,7 +95,7 @@ export async function buildBambuProject(items, { printer = "a1", faceDown = true
 
   for (const [pi, plate] of plan.plates.entries()) {
     const px = (pi % cols) * stride, py = -Math.floor(pi / cols) * stride;
-    const slots = slotsFor(plate.diameter, bed);
+    const slots = slotsFor(plate.foot, bed);
     const instances = [];
     for (const [ti, it] of plate.items.entries()) {
       const { x, y } = slots[ti];

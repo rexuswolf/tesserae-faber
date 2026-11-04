@@ -8,30 +8,35 @@ const MARGIN = 8;                         // home printers can't print to the ed
 const GAP = 2;                            // between coins
 
 /**
- * Places coins of the given diameters on A4 pages: rows of equal coins, each row
- * centred, the biggest coins first; when a page has no room left for another row
- * of those, smaller coins (reminders) fill the space below. Returns pages of
- * { index, x, y, d } with (x, y) the coin's centre in mm from the page's top-left.
+ * Places tokens on A4 pages: coins given by their diameter, or cards as { w, h, r }.
+ * Rows of equal tokens, each row centred, the biggest first; when a page has no room
+ * left for another row of those, smaller ones (reminders) fill the space below.
+ * Returns pages of { index, x, y, w, h, d, r, card } with (x, y) the token's centre in
+ * mm from the page's top-left (d is a coin's diameter, r a card's corner radius).
  */
-export function layoutCoins(diameters) {
-  const groups = new Map();   // diameter -> indices still to place, in queue order
-  diameters.forEach((d, index) => { if (!groups.has(d)) groups.set(d, []); groups.get(d).push(index); });
-  const sizes = [...groups.keys()].sort((a, b) => b - a);
-  const left = () => sizes.some((d) => groups.get(d).length);
+export function layoutCoins(sizes) {
+  const groups = new Map();   // "w×h" -> { w, h, r, card, indices still to place, in queue order }
+  sizes.forEach((s, index) => {
+    const it = typeof s === "number" ? { w: s, h: s, r: s / 2, card: false } : { ...s, card: true };
+    const k = `${it.w}×${it.h}×${it.card}`;
+    if (!groups.has(k)) groups.set(k, { ...it, left: [] });
+    groups.get(k).left.push(index);
+  });
+  const kinds = [...groups.values()].sort((a, b) => b.h - a.h || b.w - a.w);
   const pages = [];
-  while (left()) {
+  while (kinds.some((g) => g.left.length)) {
     const page = [];
     let y = MARGIN;
     for (;;) {
-      const d = sizes.find((s) => groups.get(s).length && y + s <= PAGE.h - MARGIN);
-      if (d == null) break;
-      const cols = Math.max(1, Math.floor((PAGE.w - 2 * MARGIN + GAP) / (d + GAP)));
-      const row = groups.get(d).splice(0, cols);
-      let x = (PAGE.w - (row.length * d + (row.length - 1) * GAP)) / 2;
-      for (const index of row) { page.push({ index, x: x + d / 2, y: y + d / 2, d }); x += d + GAP; }
-      y += d + GAP;
+      const g = kinds.find((k) => k.left.length && y + k.h <= PAGE.h - MARGIN);
+      if (!g) break;
+      const cols = Math.max(1, Math.floor((PAGE.w - 2 * MARGIN + GAP) / (g.w + GAP)));
+      const row = g.left.splice(0, cols);
+      let x = (PAGE.w - (row.length * g.w + (row.length - 1) * GAP)) / 2;
+      for (const index of row) { page.push({ index, x: x + g.w / 2, y: y + g.h / 2, w: g.w, h: g.h, d: g.w, r: g.r, card: g.card }); x += g.w + GAP; }
+      y += g.h + GAP;
     }
-    if (!page.length) throw new Error(`a ${sizes.find((s) => groups.get(s).length)} mm token doesn't fit on A4`);
+    if (!page.length) throw new Error(`a ${kinds.find((k) => k.left.length).w} mm token doesn't fit on A4`);
     pages.push(page);
   }
   return pages;

@@ -67,7 +67,9 @@ export function createViewer(canvas, { background = null } = {}) {
     requestAnimationFrame(loop);
   })();
 
+  let view = "angle";
   function setView(kind = "angle") {
+    view = kind;
     const d = diameter;
     if (kind === "top") camera.position.set(0, -0.001, d * 2.5);
     else if (kind === "back") camera.position.set(0, 0.001, -d * 2.5);
@@ -79,7 +81,10 @@ export function createViewer(canvas, { background = null } = {}) {
 
   return {
     setToken(token) {
+      // A token of another size (a card after a coin): frame it again, from the same side.
+      const resize = token.spec.diameter !== diameter;
       diameter = token.spec.diameter;
+      if (resize) setView(view);
       for (const [name, mesh] of Object.entries(meshes)) {
         mesh.geometry.dispose();
         mesh.geometry = token.parts[name] || new THREE.BufferGeometry();

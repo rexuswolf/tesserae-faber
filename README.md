@@ -57,6 +57,11 @@
 
 ![X-ray view of a token with a hidden 6×2 mm magnet](docs/screenshots/magnet.png)
 
+**Info tokens**
+- The **Grimoire** edition has the 10 info tokens the Storyteller shows players ("This is the Demon", "You are"…)
+  as 85 × 55 mm cards, in the set's colours and frame. English is the game's wording; Spanish is the app's own.
+  They print like the coins: 8 a plate on the A1, 2 on the A1 mini, 8 an A4 sheet.
+
 **Print them**
 - Three steps: **pick** the tokens (tap them, add copies), **design** them (one design for the set, or one of
   their own), then **print**: see the plates (with their filaments) or the A4 sheets before you download.
