@@ -151,7 +151,7 @@ function tokenLang() {
 }
 /** The menu label for a translation: "Español · Rovortox" when its language has several. */
 function isGrouped(x) { return translationGroups().find((g) => g.name === x.name).items.length > 1; }
-function tlName(x) { return isGrouped(x) && x.by ? `${x.name} · ${x.by}` : x.name; }
+function tlName(x) { return x.version ? `${x.name} · ${x.version}` : x.name; }
 function tlCredit(x) { return x.pack ? (x.by ? t("tlang.by", { by: x.by }) : t("tlang.community")) : t("tlang.official"); }
 
 /** The header button: the flag and name of the language the tokens are printed in. */
@@ -187,8 +187,8 @@ function drawTokenLang() {
     const open = tl.open.has(g.name), here = g.items.find((x) => x.id === tl.pick);
     return `<div class="tl-group" data-current="${!!here}">
       <button class="tl-item" type="button" aria-expanded="${open}" data-group="${esc(g.name)}"><img src="${g.flag}" alt="">
-        <b>${esc(g.name)}</b><small>${esc(t("tlang.versions", { n: g.items.length }))}${here ? ` · ${esc(here.by)}` : ""}</small>${CHEVRON}</button>
-      ${open ? `<div class="tl-versions" role="group" aria-label="${esc(g.name)}">${g.items.map((x) => item(x, x.by, tlCredit(x))).join("")}</div>` : ""}</div>`;
+        <b>${esc(g.name)}</b><small>${esc(t("tlang.versions", { n: g.items.length }))}${here ? ` · ${esc(here.version)}` : ""}</small>${CHEVRON}</button>
+      ${open ? `<div class="tl-versions" role="group" aria-label="${esc(g.name)}">${g.items.map((x) => item(x, x.version, tlCredit(x))).join("")}</div>` : ""}</div>`;
   }).join("");
   drawTokenLangStage(tl.pick);
   $("#tlangUse").textContent = t("tlang.use", { name: tlName(translationById(tl.pick)) });
@@ -975,7 +975,7 @@ function openCredits() {
   const cur = tokenLang();
   const link = (href, text) => `<a href="${href}" target="_blank" rel="noopener">${esc(text)}</a>`;
   const translations = [...TRANSLATIONS].sort((a, b) => (b.id === cur) - (a.id === cur)).map((x) => `<li${x.id === cur ? ' aria-current="true"' : ""}>
-    <b>${esc(x.name)}</b><span>${esc(x.pack ? x.by ?? t("credits.community") : t("credits.official"))}${x.fem ? ` <small>· ${esc(t("credits.feminine"))}</small>` : ""}</span>
+    <b>${esc(tlName(x))}</b><span>${esc(x.pack ? x.by ?? t("credits.community") : t("credits.official"))}${x.fem ? ` <small>· ${esc(t("credits.feminine"))}</small>` : ""}</span>
     ${x.id === cur ? `<em>${esc(t("credits.inUse"))}</em>` : ""}</li>`).join("");
 
   const byAuthor = new Map();

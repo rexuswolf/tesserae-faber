@@ -107,8 +107,9 @@ and keeps its own terms:
   [The Pandemonium Institute](https://bloodontheclocktower.com). Midnight Mint is an unofficial fan tool,
   not affiliated with or endorsed by them. It uses none of the game's original artwork.
 - **Translations** of character names and reminders come from [Villacuervos](https://villacuervos.es)
-  and belong to their translators: Rovortox, Bumble3ee, Castelgard, Chiromyiforme, Pedro and Solrax (Spanish),
-  uriell (Portuguese) and the Villacuervos community (Asturian, Catalan, Valencian, Basque and Galician).
+  and belong to their translators. Spanish: Roberto (the Rovortox and Bumble3ee versions), Castelgard,
+  Chiromyiforme, Pedro and Carlos (Solrax). Asturian: Hugo. Catalan: Ren. Valencian: Carlos. Basque: JUMA.
+  Galician: Dumis. Portuguese: uriell.
 - **Character icons** come from [game-icons.net](https://game-icons.net) under
   [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/). Each icon's author is credited in the app
   (*Credits*, at the bottom of the sidebar).
