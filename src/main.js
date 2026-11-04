@@ -18,6 +18,10 @@ const fold = (s) => String(s).toLowerCase().normalize("NFD").replace(/\p{M}/gu, 
 
 const RANGES = { diameter: [0, " mm"], height: [1, " mm"], depth: [1, " mm"], windowDepth: [1, " mm"], iconScale: [2, "×"], textSize: [1, " mm"], spacing: [2, "×"], maxArc: [0, "°"], frameWidth: [1, " mm"] };
 const MAX_SVG = 300000;
+// The source code. Its links (sidebar footer and credits) stay hidden while the repository
+// is private, so nobody lands on GitHub's 404: set REPO_PUBLIC to true once it is published.
+const REPO_URL = "https://github.com/rexuswolf/midnight-mint";
+const REPO_PUBLIC = false;
 const QUEUE_KEY = "midnight-mint-queue";   // the old print queue, read once to carry it over
 const PICK_KEY = "midnight-mint-picks";
 const STYLE_KEY = "midnight-mint-style";
@@ -320,6 +324,8 @@ onUser(async (user) => {
 
 let started = false;
 function startApp() {
+  $("#repoLink").hidden = !REPO_PUBLIC;
+  $("#repoLink a").href = REPO_URL;
   $("#gate").hidden = true;
   $("#app").hidden = false;
   renderAccount();
@@ -1321,7 +1327,7 @@ function openCredits() {
       <ul class="credit-icons">${icons}</ul></section>
     <section><h3>${esc(t("credits.more"))}</h3>
       <p class="hint">${esc(t("credits.moreText"))}</p>
-      <p class="hint">${esc(t("credits.code"))}: ${link("https://github.com/rexuswolf/midnight-mint", "GitHub")} · PolyForm Noncommercial 1.0.0</p></section>`;
+      <p class="hint">${esc(t("credits.code"))}: ${REPO_PUBLIC ? `${link(REPO_URL, "GitHub")} · ` : ""}PolyForm Noncommercial 1.0.0</p></section>`;
   $("#credits").showModal();
 }
 document.addEventListener("click", (e) => { if (e.target.closest("[data-credits]")) { e.preventDefault(); openCredits(); } });
