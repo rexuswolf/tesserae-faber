@@ -1191,11 +1191,12 @@ function renderPrintStep() {
     $("#flowNext").disabled = !sheets.length;
     // Each sheet as the PDF prints it: the front, and the back with every coin's reverse at the
     // mirrored x (printed double-sided on the long edge, it lands behind its front). Paper has no magnets.
-    const W = 120, k = W / PAGE.w;   // the preview's scale, px per mm
+    // Positions and sizes in % of the sheet, so the preview matches whatever width the CSS gives it.
+    const pctW = (mm) => `${(100 * mm / PAGE.w).toFixed(3)}%`, pctH = (mm) => `${(100 * mm / PAGE.h).toFixed(3)}%`;
     const coinAt = (q, side, x, c) => {
       const role = roleById(q.roleId), spec = { ...itemSpec(q), magnet: "none" };
       return tokenSvg(state.lib, role, spec, { side, text: queueTitle(q, role) })
-        .replace("<svg", `<svg style="left:${x * k}px;top:${c.y * k}px;width:${c.d * k}px;height:${c.d * k}px"`);
+        .replace("<svg", `<svg style="left:${pctW(x)};top:${pctH(c.y)};width:${pctW(c.d)};height:${pctH(c.d)}"`);
     };
     const face = (page, side) => `<figure><div class="q-sheet">${page.map((c) => coinAt(queue[c.index], side, side === "front" ? c.x : backX(c.x), c)).join("")}</div>
       <figcaption>${esc(t(side === "front" ? "queue.pdfFront" : "queue.pdfBack"))}</figcaption></figure>`;
