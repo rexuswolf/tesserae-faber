@@ -16,22 +16,18 @@
 <body>
 <div class="app" id="app" hidden>
 
-  <!-- phone top bar: opens the sidebar as a drawer, and steps between editions -->
+  <!-- top bar: the three steps (pick, design, print) and the token language -->
   <header class="topbar" id="topbar">
     <button class="icon-btn" type="button" id="drawerOpen" aria-controls="spine" aria-expanded="false" data-i18n-attr="aria-label:top.menu">
       <svg viewBox="0 0 18 18" width="18" height="18" aria-hidden="true"><path d="M3 5h12M3 9h12M3 13h12" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
-    <div class="where">
-      <button class="step" type="button" id="edPrev" data-i18n-attr="aria-label:top.prev">‹</button>
-      <strong id="topTitle"></strong>
-      <button class="step" type="button" id="edNext" data-i18n-attr="aria-label:top.next">›</button>
-    </div>
-    <img src="/logo-mark.svg" alt="Midnight Mint" width="30" height="30">
+    <div class="brand"><img src="/logo-mark.svg" alt="" width="36" height="36"><span class="wordmark"><span class="wm-mid">Midnight</span><span class="wm-mint">Mint</span></span></div>
+    <nav class="flow-steps" id="flowSteps" data-i18n-attr="aria-label:flow.aria"></nav>
+    <button class="tlang-trigger" id="tokenLangBtn" type="button" aria-haspopup="dialog"></button>
   </header>
 
   <!-- the sidebar: editions (more groups, like scripts, can join them), then language, account and credits.
        On a phone it is a drawer. -->
   <nav class="spine" id="spine" data-i18n-attr="aria-label:spine.aria">
-    <div class="brand"><img src="/logo-mark.svg" alt="" width="44" height="44"><span class="wordmark"><span class="wm-mid">Midnight</span><span class="wm-mint">Mint</span></span></div>
     <div class="spine-scroll">
       <h2 class="spine-h" data-i18n="spine.editions"></h2>
       <div id="editions"></div>
@@ -65,14 +61,12 @@
     <header class="sheet-head">
       <div class="sheet-title">
         <h1 id="edTitle"></h1>
-        <div class="take-all" id="takeAll">
-          <button class="pill" type="button" id="addShownChars"></button>
-          <button class="pill" type="button" id="addShownAll"></button>
-        </div>
       </div>
-      <div class="sheet-sub">
-        <p id="edLead" class="lead"></p>
-        <button class="tlang-trigger" id="tokenLangBtn" type="button" aria-haspopup="dialog"></button>
+      <p id="edLead" class="lead"></p>
+      <div class="pick-all" id="pickAll">
+        <button class="pill" type="button" data-pick-all="chars" id="pickChars"></button>
+        <button class="pill" type="button" data-pick-all="all" id="pickWithRems"></button>
+        <button class="pill" type="button" data-pick-all="none" id="pickNone" data-i18n="pick.none"></button>
       </div>
       <div class="script-actions" id="scriptActions" hidden>
         <button class="pill" type="button" id="scriptShare"></button>
@@ -90,9 +84,6 @@
 
   <!-- workshop -->
   <aside class="workshop" id="workshop">
-    <div class="ws-top">
-      <button class="pill ws-close" type="button" id="wsClose" data-i18n="ws.close"></button>
-    </div>
     <div class="stage-wrap">
     <div class="stage">
       <canvas id="view" data-i18n-attr="aria-label:view.aria"></canvas>
@@ -109,7 +100,6 @@
       <p id="sub"></p>
     </div>
     <div class="ws-actions">
-      <button class="forge" id="enqueue" type="button"></button>
       <button class="pill" id="download" type="button" data-i18n="act.stl"></button>
     </div>
     <div class="tabs" role="tablist">
@@ -198,46 +188,51 @@
     <p class="hint note" id="exportNote"></p>
   </aside>
 
-  <!-- queue -->
+  <!-- step 2: the picked tokens, in the set's design; tap one to give it its own -->
+  <section class="design-stage" id="designStage">
+    <header class="ds-head">
+      <h2 data-i18n="design.title"></h2>
+      <p class="hint" id="designHint"></p>
+      <div class="ds-side" role="group" data-i18n-attr="aria-label:view.group">
+        <button class="pill" type="button" data-side="front" aria-pressed="true" data-i18n="design.front"></button>
+        <button class="pill" type="button" data-side="back" aria-pressed="false" data-i18n="design.back"></button>
+      </div>
+    </header>
+    <div class="ds-grid" id="designGrid"></div>
+  </section>
+
+  <!-- step 3: how to print -->
+  <section class="print-page" id="printPage">
+    <div class="pp-in">
+      <h2 data-i18n="print.title"></h2>
+      <p class="hint" id="printLead"></p>
+      <div class="ways" role="radiogroup" data-i18n-attr="aria-label:queue.howAria">
+        <button class="way" type="button" role="radio" data-way="3d"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M4 3h16v4H4zM6 7v8h12V7M9 15v3h6v-3M3 21h18M12 10v2"/></svg><b data-i18n="queue.way3d"></b><small id="way3dSub"></small></button>
+        <button class="way" type="button" role="radio" data-way="paper"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M6 2h9l4 4v16H6z"/><path d="M15 2v4h4"/><circle cx="10" cy="11" r="2"/><circle cx="15" cy="11" r="2"/><circle cx="10" cy="16" r="2"/><circle cx="15" cy="16" r="2"/></svg><b data-i18n="queue.wayPaper"></b><small id="wayPaperSub"></small></button>
+      </div>
+      <div id="printDetail"></div>
+      <p class="hint" id="printNote" aria-live="polite"></p>
+    </div>
+  </section>
+
+  <!-- the selection and the way on -->
   <footer class="queuebar" id="queuebar">
     <button class="qb-toggle" type="button" id="queueToggle" aria-haspopup="dialog">
       <span class="stack" id="queueStack"></span>
       <span id="queueCount"></span>
     </button>
     <p class="hint" id="queueSummary"></p>
-    <button class="forge" id="queuePrint" type="button" disabled data-i18n="queue.print"></button>
+    <button class="flow-back" type="button" id="flowBack"></button>
+    <button class="forge" type="button" id="flowNext"></button>
   </footer>
-  <!-- the queue: what to print (step 1), then how (step 2: 3D printer or paper) -->
+  <!-- your selection: characters with their copies and reminders -->
   <dialog class="qdrawer" id="queueDrawer" aria-labelledby="queueTitle">
     <div class="qd-head">
-      <button class="icon-btn" type="button" id="queueBack" data-i18n-attr="aria-label:queue.back">‹</button>
       <h2 id="queueTitle"></h2>
       <button class="pill" type="button" id="queueClear" data-i18n="queue.clear"></button>
       <button class="icon-btn" type="button" id="queueClose" data-i18n-attr="aria-label:admin.close">×</button>
     </div>
-    <p class="qd-steps" id="queueSteps"></p>
-    <div class="qd-body" id="queueBody">
-      <div id="queueStep1">
-        <div class="q-stale" id="queueStale" hidden>
-          <p id="queueStaleText"></p>
-          <button class="pill" type="button" id="queueRefresh" data-i18n="queue.refresh"></button>
-        </div>
-        <label class="switch"><input type="checkbox" id="withReminders"> <span data-i18n="queue.withReminders"></span></label>
-        <div id="queue"></div>
-      </div>
-      <div id="queueStep2" hidden>
-        <div class="ways" role="radiogroup" data-i18n-attr="aria-label:queue.howAria">
-          <button class="way" type="button" role="radio" data-way="3d"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M4 3h16v4H4zM6 7v8h12V7M9 15v3h6v-3M3 21h18M12 10v2"/></svg><b data-i18n="queue.way3d"></b><small id="way3dSub"></small></button>
-          <button class="way" type="button" role="radio" data-way="paper"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M6 2h9l4 4v16H6z"/><path d="M15 2v4h4"/><circle cx="10" cy="11" r="2"/><circle cx="15" cy="11" r="2"/><circle cx="10" cy="16" r="2"/><circle cx="15" cy="16" r="2"/></svg><b data-i18n="queue.wayPaper"></b><small id="wayPaperSub"></small></button>
-        </div>
-        <div id="printDetail"></div>
-      </div>
-    </div>
-    <div class="qd-foot">
-      <p class="hint" id="printNote" aria-live="polite"></p>
-      <span class="qd-sum" id="queueFootSum"></span>
-      <button class="forge" type="button" id="queueAction"></button>
-    </div>
+    <div class="qd-body" id="queueBody"><div id="queue"></div></div>
     <div class="toast" id="queueToast" hidden><span></span><button type="button" data-i18n="queue.undo"></button></div>
   </dialog>
 </div>

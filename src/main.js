@@ -18,7 +18,8 @@ const fold = (s) => String(s).toLowerCase().normalize("NFD").replace(/\p{M}/gu, 
 
 const RANGES = { diameter: [0, " mm"], height: [1, " mm"], depth: [1, " mm"], windowDepth: [1, " mm"], iconScale: [2, "×"], textSize: [1, " mm"], spacing: [2, "×"], maxArc: [0, "°"], frameWidth: [1, " mm"] };
 const MAX_SVG = 300000;
-const QUEUE_KEY = "midnight-mint-queue";
+const QUEUE_KEY = "midnight-mint-queue";   // the old print queue, read once to carry it over
+const PICK_KEY = "midnight-mint-picks";
 const STYLE_KEY = "midnight-mint-style";
 const OVERRIDES_KEY = "midnight-mint-overrides";
 const DESIGNS_KEY = "midnight-mint-designs";
@@ -46,7 +47,9 @@ const state = {
     colours: { ...DEFAULT_SPEC.colours, base: FILAMENTS.black, front: "team", frame: "team" },
   },
   overrides: new Map(Object.entries(loadJSON(OVERRIDES_KEY, {}))),   // key -> { text?, spec? }
-  queue: [], designs: [],
+  step: 1,
+  pick: new Map(),         // token key ("c:imp", "r:imp:0") -> copies
+  designs: [],
 };
 // After a deploy, a page opened earlier may ask for code files that no longer
 // exist (their names change with each version). Reload once to get the new ones.
@@ -321,9 +324,10 @@ function startApp() {
   if (!state.sel) state.sel = { key: charKey(first), role: first, reminder: null };
   state.edition = state.sel.role.edition || "tb";
   buildChoices();
-  loadQueue();
+  state.pick = loadPicks();
+  persistPicks();
   renderAll();
-  renderQueue();
+  goStep(1);
   refreshDesigns();
   openSharedScript();
 }
@@ -346,14 +350,22 @@ function renderSpine() {
     const roles = state.lib.roles.filter((r) => r.edition === e);
     const rem = roles.reduce((n, r) => n + remindersOf(r).length, 0);
     return `<button class="ed" type="button" data-ed="${e}" aria-current="${state.edition === e && !searchQuery()}">
-      <span>${esc(EDITIONS[e].name[lang])}<small>${esc(t("ed.count", { c: roles.length, r: rem }))}</small></span></button>`;
+      <span>${esc(EDITIONS[e].name[lang])}<small>${esc(t("ed.count", { c: roles.length, r: rem }))}</small></span>${pickedBadge(roles)}</button>`;
   }).join("");
   const scripts = loadScripts();
   $("#scripts").innerHTML = scripts.map((sc) => {
     const { roles, missing } = scriptRoles(sc);
     return `<button class="ed" type="button" data-ed="s:${esc(sc.id)}" aria-current="${state.edition === `s:${sc.id}` && !searchQuery()}">
-      <span>${esc(sc.name)}<small>${esc(t("script.count", { n: roles.length, m: missing.length }))}</small></span></button>`;
+      <span>${esc(sc.name)}<small>${esc(t("script.count", { n: roles.length, m: missing.length }))}</small></span>${pickedBadge(roles)}</button>`;
   }).join("") || `<p class="scripts-empty">${esc(t("script.empty"))} <button type="button" data-script-new>${esc(t("script.emptyAdd"))}</button></p>`;
+}
+
+/** How many tokens of these characters (with copies and reminders) are picked, as a badge. */
+function pickedBadge(roles) {
+  const ids = new Set(roles.map((r) => r.id));
+  let n = 0;
+  for (const [k, c] of state.pick) if (ids.has(k.split(":")[1])) n += c;
+  return n ? `<span class="got" aria-label="${esc(t("pick.badge", { n }))}">${n}</span>` : "";
 }
 
 // ------------------------------------------------------------ scripts
@@ -448,8 +460,6 @@ async function shareScript() {
   }
 }
 
-/** What the top bar steps through: the editions that have characters, then your scripts. */
-const shownEditions = () => [...EDITION_ORDER.filter((e) => state.lib.roles.some((r) => r.edition === e)), ...loadScripts().map((x) => `s:${x.id}`)];
 function goEdition(ed) {
   if (!ed) return;
   state.edition = ed; state.team = "all"; $("#search").value = "";
@@ -479,9 +489,6 @@ function renderSheet() {
   const ed = state.edition, sc = scriptOf(ed), inScript = sc && scriptRoles(sc);
   // header
   $("#edTitle").textContent = q ? t("sheet.results", { q: $("#search").value.trim() }) : sc ? sc.name : EDITIONS[ed].name[lang];
-  $("#topTitle").textContent = $("#edTitle").textContent;
-  const eds = shownEditions(), at = eds.indexOf(ed);
-  $("#edPrev").disabled = at <= 0; $("#edNext").disabled = at >= eds.length - 1;
   $("#edLead").textContent = q ? t("sheet.leadSearch")
     : sc ? t("script.lead", { n: inScript.roles.length, eds: new Set(inScript.roles.map((r) => r.edition)).size })
       + (inScript.missing.length ? t("script.missing", { list: inScript.missing.join(", ") }) : "")
@@ -513,51 +520,54 @@ function renderSheet() {
     });
   }
 
-  // "Add everything shown": the characters on screen (edition, team filter, search).
+  // Pick everything shown: the characters on screen (edition, team filter, search), with or without reminders.
   state.shown = roles;
-  const remCount = roles.reduce((n, r) => n + remindersOf(r).length, 0);
-  $("#takeAll").hidden = !roles.length;
-  $("#addShownChars").textContent = t("sheet.addShownChars", { n: roles.length });
-  $("#addShownAll").textContent = t("sheet.addShownAll", { n: roles.length + remCount });
-  $("#addShownAll").hidden = !remCount;
+  const remKeys = roles.flatMap((r) => remindersOf(r).map((_, i) => remKey(r, i)));
+  const allChars = roles.length > 0 && roles.every((r) => isPicked(charKey(r))), allRems = remKeys.every(isPicked);
+  $("#pickAll").hidden = !roles.length;
+  $("#pickChars").textContent = t("pick.chars", { n: roles.length });
+  $("#pickChars").setAttribute("aria-pressed", String(allChars && !remKeys.some(isPicked)));
+  $("#pickWithRems").textContent = t("pick.withRems", { n: roles.length + remKeys.length });
+  $("#pickWithRems").setAttribute("aria-pressed", String(allChars && remKeys.length > 0 && allRems));
+  $("#pickWithRems").hidden = !remKeys.length;
+  $("#pickNone").hidden = !roles.some((r) => isPicked(charKey(r))) && !remKeys.some(isPicked);
 
   if (!roles.length) { $("#rows").innerHTML = `<p class="empty">${esc(t("sheet.noResults"))}</p>`; return; }
   $("#rows").innerHTML = TEAM_ORDER.map((team) => {
     const list = roles.filter((r) => r.team === team);
     if (!list.length) return "";
-    return `<div class="team-h"><i style="background:${TEAMS[team].colour}"></i><span>${esc(TEAM_PLURAL[lang][team])}</span><small>${list.length}</small></div>` +
+    const teamOn = list.every((r) => isPicked(charKey(r)));
+    return `<div class="team-h"><i style="background:${TEAMS[team].colour}"></i><span>${esc(TEAM_PLURAL[lang][team])}</span><small>${list.length}</small>
+      <button class="pick-team" type="button" data-pick-team="${team}">${esc(t(teamOn ? "pick.teamOff" : "pick.team"))}</button></div>` +
       list.map((r) => rowHtml(r, q, hits.get(r.id))).join("");
   }).join("");
 }
 
 function rowHtml(r, q, remHits) {
   const lang = uiLang(), ck = charKey(r);
+  // Each token is a toggle: picked tokens light up with a check, and show their copies.
   const thumb = (key, reminder) => {
     const isRem = reminder != null;
     const spec = { ...specFor(key, isRem), diameter: isRem ? reminderSpec(DEFAULT_SPEC).diameter : 45, back: "none" };
-    const own = state.overrides.has(key);
-    return `<button class="tok" type="button" data-key="${key}" aria-current="${state.sel?.key === key}" aria-label="${esc(textFor(key, r, reminder))}">${tokenSvg(state.lib, r, spec, { text: textFor(key, r, reminder) })}${own ? `<span class="mark" title="${esc(t("sheet.own"))}">✎</span>` : ""}</button>`;
+    const own = state.overrides.has(key), copies = state.pick.get(key) || 0;
+    return `<button class="tok" type="button" data-pick="${key}" aria-pressed="${copies > 0}" aria-label="${esc(textFor(key, r, reminder))}">${tokenSvg(state.lib, r, spec, { text: textFor(key, r, reminder) })}<span class="ck" aria-hidden="true">✓</span>${copies > 1 ? `<span class="n">×${copies}</span>` : ""}${own ? `<span class="mark" title="${esc(t("sheet.own"))}">✎</span>` : ""}</button>`;
   };
   const rems = remindersOf(r);
   const other = tokenLang() === "en" ? roleName(r, uiLang() === "en" ? "es" : uiLang()) : r.en;
-  return `<div class="row" data-current="${state.sel?.role === r}">
+  return `<div class="row" data-picked="${isPicked(ck)}">
     ${thumb(ck, null)}
-    <div class="who" data-key="${ck}"><b>${esc(textFor(ck, r, null))}</b>${other !== textFor(ck, r, null) ? `<small>${esc(other)}</small>` : ""}${q || state.edition.startsWith("s:") ? `<em>${esc(EDITIONS[r.edition]?.name[lang] || "")}</em>` : ""}</div>
+    <div class="who" data-pick="${ck}"><b>${esc(textFor(ck, r, null))}</b>${other !== textFor(ck, r, null) ? `<small>${esc(other)}</small>` : ""}${q || state.edition.startsWith("s:") ? `<em>${esc(EDITIONS[r.edition]?.name[lang] || "")}</em>` : ""}</div>
     <div class="rems">${rems.length ? rems.map((_, i) => `<div class="rem${remHits?.has(i) ? " hit" : ""}">${thumb(remKey(r, i), i)}<span>${esc(textFor(remKey(r, i), r, i))}</span></div>`).join("") : `<span class="none">${esc(t("sheet.noReminders"))}</span>`}</div>
-    <div class="take"><button class="pill" type="button" data-add="${r.id}">${esc(t("sheet.addChar"))}</button>${rems.length ? `<button class="pill" type="button" data-addall="${r.id}">${esc(t("sheet.addAll"))}</button>` : ""}</div>
   </div>`;
 }
 
-function select(key) {
-  const [kind, id, idx] = key.split(":");
-  const role = state.lib.roles.find((r) => r.id === id);
+/** The token the workshop shows (step 2). */
+function selectToken(key) {
+  const role = key && tokenRole(key);
   if (!role) return;
-  state.sel = { key, role, reminder: kind === "r" ? +idx : null };
-  $$("#rows .tok").forEach((b) => b.setAttribute("aria-current", String(b.dataset.key === key)));
-  $$("#rows .row").forEach((row) => row.dataset.current = String(!!row.querySelector(`[data-key="${key}"]`)));
-  if (state.sel.reminder != null) { view3d("setView", "top"); syncView("top"); }
-  $("#workshop").classList.add("open");
-  renderWorkshop();
+  const was = state.sel?.reminder;
+  state.sel = { key, role, reminder: tokenRem(key) };
+  if (state.sel.reminder != null && was == null) { view3d("setView", "top"); syncView("top"); }
 }
 
 // ------------------------------------------------------------ workshop
@@ -587,7 +597,6 @@ function renderWorkshop() {
     $("#name").textContent = text;
     $("#sub").textContent = [isRem ? textFor(charKey(role), role, null) : null, TEAMS[role.team].label[lang], EDITIONS[role.edition]?.name[lang],
       role.en !== text && !isRem ? role.en : null].filter(Boolean).join(" · ");
-    $("#enqueue").textContent = t(isRem ? "act.addReminder" : "act.addChar");
 
     // tabs
     $$(".tabs [data-tab]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === state.tab)));
@@ -692,7 +701,7 @@ function changeStyle(mutate) {
   scheduleSheet();
 }
 let sheetTimer = 0;
-function scheduleSheet() { clearTimeout(sheetTimer); sheetTimer = setTimeout(() => { renderSheet(); renderQueue(); }, 180); }
+function scheduleSheet() { clearTimeout(sheetTimer); sheetTimer = setTimeout(() => { renderSheet(); renderSpine(); renderQueue(); }, 180); }
 function storeOverrides() { storeJSON(OVERRIDES_KEY, Object.fromEntries(state.overrides)); }
 
 function syncView(v) { $$(".turn .pill[data-view]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.view === v))); }
@@ -743,33 +752,40 @@ function wire() {
     goEdition(EDITION_ORDER.find((x) => state.lib.roles.some((r) => r.edition === x)));
   };
   window.addEventListener("hashchange", openSharedScript);
-  // phone: the top bar opens the sidebar as a drawer and steps between editions
+  // phone: the top bar opens the sidebar as a drawer (step 1)
   $("#drawerOpen").onclick = () => drawer(true);
   $("#scrim").onclick = () => drawer(false);
-  $("#edPrev").onclick = () => goEdition(shownEditions()[shownEditions().indexOf(state.edition) - 1]);
-  $("#edNext").onclick = () => goEdition(shownEditions()[shownEditions().indexOf(state.edition) + 1]);
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && $("#spine").classList.contains("open")) drawer(false); });
   PHONE.addEventListener("change", () => drawer(false));
   drawer(false);
   $("#search").oninput = () => { renderSpine(); renderSheet(); };
   $("#teamChips").onclick = (e) => { const b = e.target.closest("[data-team]"); if (b) { state.team = b.dataset.team; renderSheet(); } };
+  // step 1: tap a token to pick it (or drop it); a team or everything shown at once
   $("#rows").onclick = (e) => {
-    const add = e.target.closest("[data-add]"), all = e.target.closest("[data-addall]"), pick = e.target.closest("[data-key]");
-    if (add) { const r = roleById(add.dataset.add); const n = addCharacter(r); note(t("act.queued", { name: textFor(charKey(r), r, null), n })); return; }
-    if (all) {
-      const r = roleById(all.dataset.addall);
-      addToQueue(r, null); remindersOf(r).forEach((_, i) => addToQueue(r, i));
-      note(t("act.queued", { name: textFor(charKey(r), r, null), n: remindersOf(r).length }));
-      return;
+    const pick = e.target.closest("[data-pick]"), team = e.target.closest("[data-pick-team]");
+    if (pick) { const k = pick.dataset.pick; setPick(k, !isPicked(k)); picksChanged(); return; }
+    if (team) {
+      const list = (state.shown || []).filter((r) => r.team === team.dataset.pickTeam), on = !list.every((r) => isPicked(charKey(r)));
+      list.forEach((r) => setPick(charKey(r), on)); picksChanged();
     }
-    if (pick) select(pick.dataset.key);
   };
-
-  $("#addShownChars").onclick = () => addShown(false);
-  $("#addShownAll").onclick = () => addShown(true);
+  $("#pickAll").onclick = (e) => {
+    const b = e.target.closest("[data-pick-all]"); if (!b) return;
+    const how = b.dataset.pickAll, roles = state.shown || [];
+    const apply = () => { for (const r of roles) { setPick(charKey(r), how !== "none"); remindersOf(r).forEach((_, i) => setPick(remKey(r, i), how === "all")); } };
+    if (how === "none") changePicks(apply, t("pick.cleared")); else { apply(); picksChanged(); }
+  };
+  // the steps
+  $("#flowSteps").onclick = (e) => { const b = e.target.closest("[data-goto]"); if (b && !b.disabled) goStep(+b.dataset.goto); };
+  $("#flowBack").onclick = () => goStep(state.step - 1);
+  $("#flowNext").onclick = () => (state.step < 3 ? goStep(state.step + 1) : flow.way === "paper" ? downloadPdf() : downloadBambu());
+  // step 2: your tokens; tap one to give it its own design
+  $("#designGrid").onclick = (e) => { const b = e.target.closest("[data-design]"); if (b) designToken(b.dataset.design); };
+  $("#designStage").addEventListener("click", (e) => { const b = e.target.closest("[data-side]"); if (b) { flow.side = b.dataset.side; renderDesignStage(); } });
+  // step 3: how to print
+  $("#printPage").addEventListener("click", (e) => { const w = e.target.closest("[data-way]"); if (w) { flow.way = w.dataset.way; storeJSON(PRINT_WAY_KEY, flow.way); $("#printNote").textContent = ""; renderQueue(); } });
 
   // workshop
-  $("#wsClose").onclick = () => $("#workshop").classList.remove("open");
   $$(".turn .pill[data-view]").forEach((b) => b.onclick = () => { view3d("setView", b.dataset.view); syncView(b.dataset.view); });
   $("#xray").onclick = () => {
     const on = $("#xray").getAttribute("aria-pressed") !== "true";
@@ -826,32 +842,21 @@ function wire() {
     storeOverrides(); renderWorkshop(); scheduleSheet();
   };
   $("#resetToken").onclick = () => { state.overrides.delete(state.sel.key); storeOverrides(); renderWorkshop(); scheduleSheet(); };
-  $("#enqueue").onclick = () => {
-    const { role, reminder } = state.sel;
-    if (reminder != null) { addToQueue(role, reminder); note(t("reminders.added", { n: 1, name: textFor(charKey(role), role, null) })); }
-    else { const n = addCharacter(role); note(t("act.queued", { name: textFor(charKey(role), role, null), n })); }
-  };
   $("#download").onclick = forge;
   $("#save").onclick = save;
   $("#saved").onclick = onSavedClick;
 
-  // queue: step 1 lists what to print, step 2 is how (3D printer or paper)
-  $("#queueToggle").onclick = () => openQueue(1);
-  $("#queuePrint").onclick = () => openQueue(2);
+  // your selection: copies, reminders, clear
+  $("#queueToggle").onclick = openQueue;
   $("#queueClose").onclick = () => $("#queueDrawer").close();
-  $("#queueBack").onclick = () => { qv.step = 1; renderQueue(); };
   $("#queueDrawer").addEventListener("click", (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });   // backdrop
-  $("#queueDrawer").addEventListener("close", () => { $("#printNote").textContent = ""; });
   $("#queue").onclick = onQueueClick;
-  $("#queueStep2").onclick = (e) => { const w = e.target.closest("[data-way]"); if (w) { qv.way = w.dataset.way; storeJSON(WAY_KEY, qv.way); $("#printNote").textContent = ""; renderQueue(); } };
-  $("#queueAction").onclick = () => (qv.step === 1 ? (qv.step = 2, renderQueue(), $("#queueBody").scrollTo({ top: 0 })) : qv.way === "paper" ? downloadPdf() : downloadBambu());
-  $("#queueToast button").onclick = undoRemove;
-  $("#queueRefresh").onclick = refreshQueue;
+  $("#queueToast button").onclick = undoPicks;
   $("#queueClear").onclick = (e) => {
     const b = e.currentTarget;
     if (b.dataset.confirm !== "1") { b.dataset.confirm = "1"; b.textContent = t("queue.clearConfirm"); return; }
     b.dataset.confirm = ""; b.textContent = t("queue.clear");
-    removeFromQueue(state.queue.map((q) => q.key), t("queue.cleared"));
+    changePicks(() => state.pick.clear(), t("queue.cleared"));
   };
 
   // account
@@ -878,22 +883,48 @@ async function forge() {
   } finally { btn.disabled = false; }
 }
 
-// ------------------------------------------------------------ print queue
+// ------------------------------------------------------------ selection
 
-function loadQueue() {
-  state.queue = loadJSON(QUEUE_KEY, []).filter((q) => q && state.lib.roles.some((r) => r.id === q.roleId) && q.spec);
+// What you picked: token keys ("c:imp", "r:imp:0") with how many copies, in the order picked.
+// Picked tokens always use the set's design (or the token's own), so nothing goes stale.
+function loadPicks() {
+  const saved = loadJSON(PICK_KEY, null);
+  if (Array.isArray(saved)) return new Map(saved.filter(([k, n]) => tokenRole(k) && n > 0));
+  // From the old print queue (entries with a role, a reminder and a frozen style): keep what and how many.
+  const picks = new Map();
+  for (const q of loadJSON(QUEUE_KEY, [])) {
+    const role = q && roleById(q.roleId);
+    if (!role) continue;
+    let ri = q.ri ?? null;
+    if (q.reminder != null && ri == null) for (const list of Object.values(role.reminders || {})) { const i = list.indexOf(q.reminder); if (i >= 0) { ri = i; break; } }
+    if (q.reminder != null && ri == null) continue;
+    const key = ri != null ? remKey(role, ri) : charKey(role);
+    picks.set(key, (picks.get(key) || 0) + 1);
+  }
+  return picks;
 }
-function persistQueue() { storeJSON(QUEUE_KEY, state.queue); }
+function persistPicks() { storeJSON(PICK_KEY, [...state.pick]); }
+/** The role and reminder index a token key stands for. */
+function tokenRole(key) { return roleById(key.split(":")[1]); }
+const tokenRem = (key) => (key.startsWith("r:") ? +key.split(":")[2] : null);
+const isPicked = (key) => state.pick.has(key);
+function setPick(key, on) {
+  if (on) { if (!state.pick.has(key)) state.pick.set(key, 1); }
+  else state.pick.delete(key);
+}
+/** After any change to the selection: save it and redraw what shows it. */
+function picksChanged() { persistPicks(); renderSpine(); renderSheet(); renderQueue(); }
 
-/**
- * Queues a character (reminder = null) or one of its reminders, with the style
- * and text it has right now.
- */
-function addToQueue(role, reminder, { save = true } = {}) {
-  state.queue.push({ key: crypto.randomUUID(), ...queueEntry(role, reminder) });
-  if (save) { persistQueue(); renderQueue(); }
+/** The selection as queue entries, one per copy, in the current language and design. */
+function queueNow() {
+  const out = [];
+  for (const [key, n] of state.pick) {
+    const role = tokenRole(key), ri = tokenRem(key);
+    for (let i = 0; i < n; i++) out.push({ key: `${key}#${i}`, pick: key, ...queueEntry(role, ri) });
+  }
+  return out;
 }
-/** A queue entry as the sheet would make it now: the token language, the set's style (or the token's own) and its text. */
+/** A queue entry as the sheet would draw it now: the token language, the set's style (or the token's own) and its text. */
 function queueEntry(role, ri) {
   const isRem = ri != null, key = isRem ? remKey(role, ri) : charKey(role);
   const own = state.overrides.get(key);
@@ -905,56 +936,6 @@ function queueEntry(role, ri) {
     spec: { ...structuredClone(own?.spec ?? state.spec), lang: tokenLang() },
   };
 }
-/** Which reminder a queued one is: its index, or (entries from before it was kept) found by its text in any language. */
-function reminderIndex(q, role) {
-  if (q.ri != null) return q.ri;
-  for (const list of Object.values(role.reminders || {})) { const i = list.indexOf(q.reminder); if (i >= 0) return i; }
-  return null;
-}
-/** The entry made again with the current language and style; null when it can't be (a reminder no longer found). */
-function refreshedEntry(q) {
-  const role = roleById(q.roleId);
-  const ri = isReminder(q) ? reminderIndex(q, role) : null;
-  if (isReminder(q) && ri == null) return null;
-  return { key: q.key, ...queueEntry(role, ri) };
-}
-/** What differs between the queue and what the sheet would make now: other languages, other designs. */
-function queueStale() {
-  let lang = 0, design = 0;
-  for (const q of state.queue) {
-    const now = refreshedEntry(q);
-    if (!now) continue;
-    if ((q.spec.lang ?? "es") !== now.spec.lang) lang++;
-    if (JSON.stringify({ ...q.spec, lang: 0 }) !== JSON.stringify({ ...now.spec, lang: 0 }) ) design++;
-  }
-  return { lang, design };
-}
-function refreshQueue() {
-  const before = structuredClone(state.queue);
-  state.queue = state.queue.map((q) => refreshedEntry(q) ?? q);
-  persistQueue(); renderQueue();
-  offerUndo(before, t("queue.refreshed"));
-}
-
-/** Queues every character shown on the sheet, optionally with all their reminders. */
-function addShown(withReminders) {
-  const roles = state.shown || [];
-  let rems = 0;
-  for (const r of roles) {
-    addToQueue(r, null, { save: false });
-    if (withReminders) remindersOf(r).forEach((_, i) => { addToQueue(r, i, { save: false }); rems++; });
-  }
-  persistQueue(); renderQueue();
-  note(t("act.queuedMany", { n: roles.length, rems }));
-}
-/** Queues a character and, if "Include reminder tokens" is ticked, its reminders. Returns how many reminders. */
-function addCharacter(role) {
-  addToQueue(role, null);
-  if (!$("#withReminders").checked) return 0;
-  const list = remindersOf(role);
-  list.forEach((_, i) => addToQueue(role, i));
-  return list.length;
-}
 const isReminder = (q) => q.reminder != null;
 const itemSpec = (q) => (isReminder(q) ? reminderSpec({ ...DEFAULT_SPEC, ...q.spec }) : { ...DEFAULT_SPEC, ...q.spec });
 const queueTitle = (q, role) => (isReminder(q) ? q.reminder : q.text ?? roleName(role, q.spec.lang));
@@ -963,7 +944,7 @@ const queueGroup = (q, role) => PLATE_LABEL[uiLang()][PLATE_GROUP[role.team]] + 
 
 /** The queue in print order: good, evil, travellers, fabled, loric; characters before their reminders. */
 const PRINT_GROUPS = ["good", "evil", "traveller", "fabled", "loric"];
-const printOrder = () => state.queue.map((q) => [q, PRINT_GROUPS.indexOf(PLATE_GROUP[roleById(q.roleId).team]) * 2 + (isReminder(q) ? 1 : 0)])
+const printOrder = () => queueNow().map((q) => [q, PRINT_GROUPS.indexOf(PLATE_GROUP[roleById(q.roleId).team]) * 2 + (isReminder(q) ? 1 : 0)])
   .sort((a, b) => a[1] - b[1]).map(([q]) => q);   // a stable sort keeps the queue's order within a group
 
 /** Plate plan without building geometry: which parts exist and their colours. */
@@ -983,146 +964,160 @@ function queuePlan() {
   return planPlates(items);
 }
 
-// The queue dialog: which step it shows and, in step 2, how to print (remembered).
-const WAY_KEY = "midnight-mint-print-way";
-const qv = { step: 1, way: loadJSON(WAY_KEY, "3d") === "paper" ? "paper" : "3d", undo: null };
+
+// ------------------------------------------------------------ steps
+
+const PRINT_WAY_KEY = "midnight-mint-print-way";
+const flow = { way: loadJSON(PRINT_WAY_KEY, "3d") === "paper" ? "paper" : "3d", side: "front", undo: null };
 const queuePic = (q, role = roleById(q.roleId)) => tokenSvg(state.lib, role, itemSpec(q), { text: queueTitle(q, role) });
 
-function openQueue(step) {
-  qv.step = state.queue.length ? step : 1;
-  $("#printNote").textContent = "";
-  const dlg = $("#queueDrawer");
-  if (!dlg.open) dlg.showModal();   // first: renderQueue only fills the dialog while it's open
+/** Moves to step 1 (pick), 2 (design) or 3 (print). Steps 2 and 3 need something picked. */
+function goStep(step) {
+  if (step > 1 && !state.pick.size) step = 1;
+  state.step = step;
+  $("#app").dataset.step = String(step);
+  drawer(false);
+  if (step === 2) {
+    // the workshop shows a picked token, preferably the one already selected
+    if (!state.sel || !isPicked(state.sel.key)) { const k = state.pick.keys().next().value; selectToken(k); }
+    renderWorkshop(); renderDesignStage();
+    $("#designStage").scrollTo?.({ top: 0 });
+  }
+  if (step === 3) { $("#printNote").textContent = ""; renderPrintStep(); $("#printPage").scrollTo({ top: 0 }); }
+  if (step === 1) renderSheet();
   renderQueue();
-  $("#queueBody").scrollTo({ top: 0 });
 }
 
-/** Takes items out of the queue, with "Undo" for a few seconds. */
-function removeFromQueue(keys, message) {
-  if (!state.queue.some((q) => keys.includes(q.key))) return;
-  const before = structuredClone(state.queue);
-  state.queue = state.queue.filter((q) => !keys.includes(q.key));
-  persistQueue(); renderQueue();
-  offerUndo(before, message);
+/** The top bar's steps and the bottom bar: the selection, back and on. */
+function renderQueue() {
+  if (!state.lib) return;
+  const queue = queueNow(), n = queue.length, step = state.step;
+  const chars = new Set([...state.pick.keys()].filter((k) => k.startsWith("c:"))).size, rems = queue.filter(isReminder).length;
+  $("#flowSteps").innerHTML = [1, 2, 3].map((i) => `<button class="flow-step${step > i ? " done" : ""}" type="button" data-goto="${i}" ${step === i ? 'aria-current="step"' : ""} ${i > 1 && !n ? "disabled" : ""}><i>${step > i ? "✓" : i}</i><b>${esc(t(`flow.step${i}`))}</b></button>`).join("");
+  $("#queueCount").textContent = n ? t("queue.count", { n }) : t("pick.nothing");
+  $("#queueStack").innerHTML = [...state.pick.keys()].slice(-5).map((k) => queuePic({ pick: k, ...queueEntry(tokenRole(k), tokenRem(k)) })).join("");
+  $("#queueToggle").disabled = !n;
+  $("#queueSummary").textContent = n ? t("queue.summary", { c: chars, r: rems }) : t("pick.help");
+  $("#flowBack").hidden = step === 1;
+  // on a phone only the chevron shows; the step's name stays as the label
+  $("#flowBack").innerHTML = step > 1 ? `<span aria-hidden="true">‹</span> <span class="fb-l">${esc(t(`flow.step${step - 1}`))}</span>` : "";
+  $("#flowBack").setAttribute("aria-label", step > 1 ? t(`flow.step${step - 1}`) : "");
+  const next = $("#flowNext");
+  next.textContent = step === 1 ? `${t("flow.step2")} ›` : step === 2 ? `${t("flow.step3")} ›` : t(flow.way === "paper" ? "queue.downloadPdf" : "queue.download");
+  next.disabled = !n;
+  if ($("#queueDrawer").open) renderQueueList();
+  if (step === 2) renderDesignStage();
+  if (step === 3) renderPrintStep();
 }
-/** Shows "message · Undo" for a few seconds; Undo puts the queue back as it was. */
-function offerUndo(before, message) {
-  qv.undo = before;
+
+// ------------------------------------------------------------ your selection (the drawer)
+
+function openQueue() {
+  if (!state.pick.size) return;
+  const dlg = $("#queueDrawer");
+  if (!dlg.open) dlg.showModal();
+  renderQueueList();
+}
+/** Changes the selection with "Undo" for a few seconds. */
+function changePicks(mutate, message) {
+  const before = new Map(state.pick);
+  mutate();
+  picksChanged();
+  flow.undo = before;
   const toast = $("#queueToast");
   $("span", toast).textContent = message;
   toast.hidden = false;
-  clearTimeout(offerUndo.timer);
-  offerUndo.timer = setTimeout(() => { toast.hidden = true; qv.undo = null; }, 5000);
+  clearTimeout(changePicks.timer);
+  changePicks.timer = setTimeout(() => { toast.hidden = true; flow.undo = null; }, 5000);
 }
-function undoRemove() {
-  if (qv.undo) state.queue = qv.undo;
-  qv.undo = null; $("#queueToast").hidden = true;
-  persistQueue(); renderQueue();
+function undoPicks() {
+  if (flow.undo) { state.pick = flow.undo; picksChanged(); }
+  flow.undo = null; $("#queueToast").hidden = true;
 }
 function onQueueClick(e) {
-  const plus = e.target.closest("[data-plus]"), minus = e.target.closest("[data-minus]"), rm = e.target.closest("[data-unqueue]");
-  if (plus) {
-    // one more copy: the same as the last one (its text and style), or a fresh one
-    const last = state.queue.findLast((q) => q.roleId === plus.dataset.plus && !isReminder(q));
-    if (last) state.queue.push({ ...structuredClone(last), key: crypto.randomUUID() }); else addToQueue(roleById(plus.dataset.plus), null, { save: false });
-    persistQueue(); renderQueue();
-  } else if (minus) {
-    const last = state.queue.findLast((q) => q.roleId === minus.dataset.minus && !isReminder(q));
-    if (last) removeFromQueue([last.key], t("queue.removed", { name: queueLabel(last, roleById(last.roleId)) }));
+  const plus = e.target.closest("[data-plus]"), minus = e.target.closest("[data-minus]"), rm = e.target.closest("[data-unpick]");
+  if (plus) { const k = plus.dataset.plus; state.pick.set(k, (state.pick.get(k) || 0) + 1); picksChanged(); }
+  else if (minus) {
+    const k = minus.dataset.minus, n = state.pick.get(k) || 0, role = tokenRole(k);
+    changePicks(() => { if (n > 1) state.pick.set(k, n - 1); else state.pick.delete(k); }, t("queue.removed", { name: textFor(k, role, null) }));
   } else if (rm) {
-    const q = state.queue.find((x) => x.key === rm.dataset.unqueue);
-    if (q) removeFromQueue([q.key], t("queue.removed", { name: queueLabel(q, roleById(q.roleId)) }));
+    const k = rm.dataset.unpick, role = tokenRole(k);
+    changePicks(() => state.pick.delete(k), t("queue.removed", { name: `${textFor(charKey(role), role, null)}: ${textFor(k, role, tokenRem(k))}` }));
   }
 }
 
-function renderQueue() {
-  if (!state.lib) return;
-  const n = state.queue.length;
-  const chars = new Set(state.queue.filter((q) => !isReminder(q)).map((q) => q.roleId)).size, rems = state.queue.filter(isReminder).length;
-  // the bar
-  $("#queueCount").textContent = n ? t("queue.count", { n }) : t("queue.emptyShort");
-  $("#queueStack").innerHTML = state.queue.slice(-5).map((q) => queuePic(q)).join("");
-  $("#queueSummary").textContent = n ? t("queue.summary", { c: chars, r: rems }) : t("queue.barHint");
-  $("#queuePrint").disabled = !n;
-  if (!$("#queueDrawer").open) return;
-
-  if (!n) qv.step = 1;
-  const step = qv.step;
-  $("#queueBack").hidden = step === 1;
-  $("#queueClear").hidden = step === 2 || !n;
-  $("#queueTitle").innerHTML = step === 1 ? `${esc(t("queue.title"))}${n ? `<small>${esc(t("queue.count", { n }))}</small>` : ""}` : esc(t("queue.printTitle"));
-  $("#queueSteps").innerHTML = n ? `<span class="${step === 1 ? "" : "off"}">1 · <b>${esc(t("queue.stepWhat"))}</b></span> › <span class="${step === 2 ? "" : "off"}">2 · <b>${esc(t("queue.stepHow"))}</b></span>` : "";
-  $("#queueSteps").hidden = !n;
-  $("#queueStep1").hidden = step !== 1;
-  $("#queueStep2").hidden = step !== 2;
-  const action = $("#queueAction");
-  $(".qd-foot").hidden = !n;
-  if (step === 1) {
-    renderQueueList();
-    $("#queueFootSum").textContent = n ? t("queue.count", { n }) : "";
-    action.textContent = t("queue.print");
-    action.disabled = false;
-  } else renderPrintStep();
-}
-
-/** Step 1: one row per character (copies with − +), its reminders beside it as chips. */
+/** The drawer: one row per character (copies with − +), its picked reminders beside it as chips. */
 function renderQueueList() {
-  const lang = uiLang();
-  const stale = state.queue.length ? queueStale() : { lang: 0, design: 0 };
-  $("#queueStale").hidden = !(stale.lang || stale.design);
-  if (stale.lang || stale.design) {
-    $("#queueStaleText").textContent = [stale.lang && t("queue.staleLang", { n: stale.lang, name: tlName(translationById(tokenLang())) }), stale.design && t("queue.staleDesign", { n: stale.design })].filter(Boolean).join(" ");
-  }
-  if (!state.queue.length) {
-    $("#queue").innerHTML = `<div class="q-empty"><div class="ghosts"><i></i><i></i><i></i></div><h3>${esc(t("queue.emptyTitle"))}</h3><p>${esc(t("queue.emptyText"))}</p></div>`;
-    return;
-  }
-  const ids = [...new Set(state.queue.map((q) => q.roleId))];
+  const lang = uiLang(), n = queueNow().length;
+  $("#queueTitle").innerHTML = `${esc(t("queue.title"))}${n ? `<small>${esc(t("queue.count", { n }))}</small>` : ""}`;
+  $("#queueClear").hidden = !n;
+  if (!n) { $("#queue").innerHTML = `<div class="q-empty"><h3>${esc(t("pick.nothing"))}</h3><p>${esc(t("pick.help"))}</p></div>`; return; }
+  const ids = [...new Set([...state.pick.keys()].map((k) => k.split(":")[1]))];
   $("#queue").innerHTML = TEAM_ORDER.map((team) => {
     const rows = ids.map(roleById).filter((r) => r.team === team);
     if (!rows.length) return "";
-    const copies = (r) => state.queue.filter((q) => q.roleId === r.id && !isReminder(q));
-    return `<h3 class="q-team">${esc(TEAM_PLURAL[lang][team])} · ${rows.reduce((k, r) => k + copies(r).length, 0)}</h3>` + rows.map((r) => {
-      const mine = copies(r), rems = state.queue.filter((q) => q.roleId === r.id && isReminder(q));
-      const first = mine[0], name = first ? queueTitle(first, r) : charName(r);
-      const pic = first ? queuePic(first, r) : tokenSvg(state.lib, r, { ...specFor(charKey(r), false), back: "none" }, { text: charName(r) });
+    return `<h3 class="q-team">${esc(TEAM_PLURAL[lang][team])}</h3>` + rows.map((r) => {
+      const ck = charKey(r), copies = state.pick.get(ck) || 0;
+      const rems = remindersOf(r).map((_, i) => remKey(r, i)).filter(isPicked);
+      const name = textFor(ck, r, null);
+      const pic = tokenSvg(state.lib, r, { ...specFor(ck, false), back: "none" }, { text: name });
       return `<div class="q-item"><span class="pic">${pic}</span>
-        <b>${esc(name)}${mine.some((q) => q.custom) ? ` <small title="${esc(t("sheet.own"))}">✎</small>` : ""}</b>
-        <span class="qty"><button type="button" data-minus="${r.id}" ${mine.length ? "" : "disabled"} aria-label="${esc(t("queue.lessCopy", { name }))}">−</button><span>${mine.length}</span><button type="button" data-plus="${r.id}" aria-label="${esc(t("queue.moreCopy", { name }))}">+</button></span>
-        ${rems.length ? `<div class="q-rems">${rems.map((q) => `<span class="q-rem">${queuePic(q, r)}${esc(q.reminder)}<button type="button" data-unqueue="${q.key}" aria-label="${esc(t("queue.removeAria", { name: queueLabel(q, r) }))}">×</button></span>`).join("")}</div>` : ""}
+        <b>${esc(name)}${state.overrides.has(ck) ? ` <small title="${esc(t("sheet.own"))}">✎</small>` : ""}</b>
+        <span class="qty"><button type="button" data-minus="${ck}" ${copies ? "" : "disabled"} aria-label="${esc(t("queue.lessCopy", { name }))}">−</button><span>${copies}</span><button type="button" data-plus="${ck}" aria-label="${esc(t("queue.moreCopy", { name }))}">+</button></span>
+        ${rems.length ? `<div class="q-rems">${rems.map((k) => { const ri = tokenRem(k), w = textFor(k, r, ri); return `<span class="q-rem">${tokenSvg(state.lib, r, specFor(k, true), { text: w })}${esc(w)}${(state.pick.get(k) || 1) > 1 ? ` ×${state.pick.get(k)}` : ""}<button type="button" data-unpick="${k}" aria-label="${esc(t("queue.removeAria", { name: `${name}: ${w}` }))}">×</button></span>`; }).join("")}</div>` : ""}
       </div>`;
     }).join("");
   }).join("");
 }
 
-/** Step 2: how to print. A 3D printer shows the plates and filaments; paper shows the A4 sheets. */
+// ------------------------------------------------------------ step 2: your tokens in the set's design
+
+function renderDesignStage() {
+  const keys = [...state.pick.keys()], total = queueNow().length;
+  $("#designHint").textContent = t("design.hint", { n: total });
+  $$("#designStage [data-side]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.side === flow.side)));
+  $("#designGrid").innerHTML = keys.map((k) => {
+    const role = tokenRole(k), ri = tokenRem(k), text = textFor(k, role, ri), copies = state.pick.get(k);
+    const spec = { ...specFor(k, ri != null), ...(flow.side === "back" ? { magnet: "none" } : {}) };
+    return `<button class="ds-cell${ri != null ? " r" : ""}" type="button" data-design="${k}" aria-current="${state.sel?.key === k}" title="${esc(t("design.tap"))}">${tokenSvg(state.lib, role, spec, { text, side: flow.side })}${state.overrides.has(k) ? `<span class="mark" title="${esc(t("sheet.own"))}">✎</span>` : ""}${copies > 1 ? `<span class="n">×${copies}</span>` : ""}<span>${esc(ri != null ? `${textFor(charKey(role), role, null)}: ${text}` : text)}</span></button>`;
+  }).join("");
+}
+/** Tapping one of your tokens: the workshop shows it, ready to give it its own design. */
+function designToken(key) {
+  selectToken(key);
+  state.tab = "token";
+  renderWorkshop(); renderDesignStage();
+  if (PHONE.matches) $("#workshop").scrollTo({ top: 0, behavior: "smooth" });
+}
+
+// ------------------------------------------------------------ step 3: how to print
+
+/** Step 3: how to print. A 3D printer shows the plates and filaments; paper shows the A4 sheets (fronts and backs). */
 function renderPrintStep() {
-  const way = qv.way, action = $("#queueAction"), detail = $("#printDetail");
-  $$("#queueStep2 [data-way]").forEach((b) => b.setAttribute("aria-checked", String(b.dataset.way === way)));
+  const queue = queueNow(), way = flow.way, detail = $("#printDetail");
+  $("#printLead").textContent = t("print.lead", { n: queue.length });
+  $$("#printPage [data-way]").forEach((b) => b.setAttribute("aria-checked", String(b.dataset.way === way)));
   const swatches = (slots) => `<span class="sws">${slots.map((sl) => `<i class="sw" style="background:${FILAMENT_SLOTS[sl].hex}" title="${esc(filamentName(sl))}"></i>`).join("")}</span>`;
   let plan = null, planError = null, sheets = [];
   try { plan = queuePlan(); } catch (err) { planError = err.message; }
-  try { sheets = layoutCoins(state.queue.map((q) => itemSpec(q).diameter)); } catch { /* shown below */ }
+  try { sheets = layoutCoins(queue.map((q) => itemSpec(q).diameter)); } catch { /* shown below */ }
   $("#way3dSub").textContent = plan ? t("queue.way3dSub", { n: plan.plates.length }) : t("queue.way3dError");
   $("#wayPaperSub").textContent = t("queue.wayPaperSub", { n: sheets.length });
   if (way === "3d") {
-    action.textContent = t("queue.download");
-    action.disabled = !plan;
-    if (!plan) { detail.innerHTML = `<p class="q-note warn">${esc(planError)}</p>`; $("#queueFootSum").textContent = ""; return; }
+    $("#flowNext").disabled = !plan;
+    if (!plan) { detail.innerHTML = `<p class="q-note warn">${esc(planError)}</p>`; return; }
     const slots = [...new Set(plan.plates.flatMap((p) => [...p.slots]))].sort((a, b) => a - b);
     const dec = uiLang() === "es" ? "," : ".";
-    const pauses = [...new Set(state.queue.map((q) => magnetLayout(itemSpec(q))).filter((m) => m?.kind === "hidden").map((m) => m.pauseZ))].sort((a, b) => a - b);
+    const pauses = [...new Set(queue.map((q) => magnetLayout(itemSpec(q))).filter((m) => m?.kind === "hidden").map((m) => m.pauseZ))].sort((a, b) => a - b);
     detail.innerHTML = `<h3 class="q-h">${esc(t("queue.filaments"))}</h3>
       <p class="q-note">${swatches(slots)}<span>${esc(t("queue.filamentsNote", { list: slots.map(filamentName).join(", ") }))}</span></p>
       ${pauses.length ? `<p class="q-note"><span aria-hidden="true">⏸</span><span>${esc(t("queue.pauses", { z: pauses.map((z) => String(z).replace(".", dec)).join(", ") }))}</span></p>` : ""}
       <h3 class="q-h">${esc(t("queue.platesH", { n: plan.plates.length }))}</h3>
-      ${plan.plates.map((p, i) => `<article class="q-plate"><header><h3>${esc(t("queue.plateName", { i: i + 1, name: p.name }))}<small>${esc(t("queue.plateFill", { n: p.items.length, cap: p.capacity }))}</small></h3>${swatches([...p.slots].sort((a, b) => a - b))}
+      <div class="q-plates">${plan.plates.map((p, i) => `<article class="q-plate"><header><h3>${esc(t("queue.plateName", { i: i + 1, name: p.name }))}<small>${esc(t("queue.plateFill", { n: p.items.length, cap: p.capacity }))}</small></h3>${swatches([...p.slots].sort((a, b) => a - b))}
         <span class="q-fill"><i style="width:${Math.round(100 * p.items.length / p.capacity)}%"></i></span></header>
-        <div class="q-coins">${p.items.map((it) => `<span class="${isReminder(it.q) ? "r" : ""}" title="${esc(it.title)}">${queuePic(it.q)}</span>`).join("")}</div></article>`).join("")}`;
-    $("#queueFootSum").textContent = t("queue.sum3d", { n: plan.plates.length });
+        <div class="q-coins">${p.items.map((it) => `<span class="${isReminder(it.q) ? "r" : ""}" title="${esc(it.title)}">${queuePic(it.q)}</span>`).join("")}</div></article>`).join("")}</div>`;
   } else {
-    action.textContent = t("queue.downloadPdf");
-    action.disabled = !sheets.length;
+    $("#flowNext").disabled = !sheets.length;
     // Each sheet as the PDF prints it: the front, and the back with every coin's reverse at the
     // mirrored x (printed double-sided on the long edge, it lands behind its front). Paper has no magnets.
     const W = 120, k = W / PAGE.w;   // the preview's scale, px per mm
@@ -1131,24 +1126,24 @@ function renderPrintStep() {
       return tokenSvg(state.lib, role, spec, { side, text: queueTitle(q, role) })
         .replace("<svg", `<svg style="left:${x * k}px;top:${c.y * k}px;width:${c.d * k}px;height:${c.d * k}px"`);
     };
-    const face = (page, side) => `<figure><div class="q-sheet">${page.map((c) => coinAt(state.queue[c.index], side, side === "front" ? c.x : backX(c.x), c)).join("")}</div>
+    const face = (page, side) => `<figure><div class="q-sheet">${page.map((c) => coinAt(queue[c.index], side, side === "front" ? c.x : backX(c.x), c)).join("")}</div>
       <figcaption>${esc(t(side === "front" ? "queue.pdfFront" : "queue.pdfBack"))}</figcaption></figure>`;
     detail.innerHTML = `<h3 class="q-h">${esc(t("queue.sheetsH", { n: sheets.length }))}</h3>
       ${sheets.map((page, i) => `<div class="q-pair"><h4>${esc(t("queue.sheetN", { i: i + 1, n: sheets.length }))}</h4><div class="q-sheets">${face(page, "front")}${face(page, "back")}</div></div>`).join("")}
       <ol class="q-howto"><li>${esc(t("queue.howto1"))}</li><li>${esc(t("queue.howto2"))}</li><li>${esc(t("queue.howto3"))}</li></ol>`;
-    $("#queueFootSum").textContent = t("queue.sumPaper", { n: sheets.length });
   }
 }
 
 async function downloadBambu() {
-  const btn = $("#queueAction"), out = $("#printNote");
+  const btn = $("#flowNext"), out = $("#printNote");
   btn.disabled = true;
   try {
     const { buildBambuProject } = await import("./bambu/bambu3mf.js");   // JSZip and the printer template load only now
     const items = [];
-    for (const [i, q] of printOrder().entries()) {
+    const order = printOrder();
+    for (const [i, q] of order.entries()) {
       const role = roleById(q.roleId);
-      out.className = "hint"; out.textContent = t("queue.building", { i: i + 1, n: state.queue.length, name: queueLabel(q, role) });
+      out.className = "hint"; out.textContent = t("queue.building", { i: i + 1, n: order.length, name: queueLabel(q, role) });
       await new Promise((r) => setTimeout(r));
       items.push({ token: buildToken(state.lib, role, itemSpec(q), queueTitle(q, role)), title: queueLabel(q, role), group: queueGroup(q, role) });
     }
@@ -1164,12 +1159,12 @@ async function downloadBambu() {
 
 /** The queue as an A4 PDF of paper tokens: fronts and backs on alternate pages, for duplex printing. */
 async function downloadPdf() {
-  const btn = $("#queueAction"), out = $("#printNote");
+  const btn = $("#flowNext"), out = $("#printNote");
   btn.disabled = true;
   try {
     out.className = "hint"; out.textContent = t("queue.pdfLoading");
     const { buildPrintPdf } = await import("./pdf/print-pdf.js");   // jsPDF only loads when asked for
-    const entries = state.queue.map((q) => { const role = roleById(q.roleId); return { role, spec: itemSpec(q), text: queueTitle(q, role) }; });
+    const entries = queueNow().map((q) => { const role = roleById(q.roleId); return { role, spec: itemSpec(q), text: queueTitle(q, role) }; });
     const { blob, sheets } = await buildPrintPdf(state.lib, entries, {
       labels: { front: t("queue.pdfFront"), back: t("queue.pdfBack") },
       onProgress: (i, n) => { out.textContent = t("queue.pdfWriting", { i, n }); },
@@ -1180,8 +1175,11 @@ async function downloadPdf() {
   } catch (err) {
     out.className = "hint warn";
     out.textContent = t("queue.pdfFailed", { message: err.message });
-  } finally { btn.disabled = !state.queue.length; }
+  } finally { btn.disabled = !state.pick.size; }
 }
+
+// The UI test server drives the flow through these.
+window.__mm = { goStep, designToken };
 
 // ------------------------------------------------------------ saved designs
 
@@ -1244,7 +1242,8 @@ async function onSavedClick(e) {
     if (role.edition) state.edition = role.edition;
     $("#search").value = "";
     state.tab = "token";
-    renderSpine(); renderSheet(); select(charKey(role));
+    renderSpine(); renderSheet();
+    if (state.step === 2) { selectToken(charKey(role)); renderWorkshop(); renderDesignStage(); }
     $("#saveNote").textContent = t("saved.opened", { name: d.title });
   }
   if (del) {

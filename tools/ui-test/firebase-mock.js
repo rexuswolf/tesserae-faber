@@ -27,22 +27,22 @@ setTimeout(() => {
     const [k, v] = step.split("=");
     if (k === "lang") click(`[data-lang="${v}"]`);
     else if (k === "search") { const i = document.querySelector("#search"); i.value = decodeURIComponent(v); i.dispatchEvent(new Event("input")); }
-    else if (k === "select") click(`#rows .tok[data-key="${v}"]`);
+    else if (k === "select") { window.__mm.goStep(2); window.__mm.designToken(v); }   // a token in step 2's workshop
+    else if (k === "pick") click(`#rows [data-pick="${v}"]`);
+    else if (k === "step") window.__mm.goStep(+v);
     else if (k === "ed") click(`#editions [data-ed="${v}"]`);
     else if (k === "token") click('.tabs [data-tab="token"]');
     else if (k === "own") { const c = document.querySelector("#ownStyle"); c.checked = true; c.dispatchEvent(new Event("change")); }
     else if (k === "frame") click(`[data-choice="frame"] [data-v="${v}"]`);
     else if (k === "style") click(`[data-choice="style"] [data-v="${v}"]`);
     else if (k === "finish") click(`[data-choice="windowFinish"] [data-v="${v}"]`);
-    else if (k === "add") click("#enqueue");
-    else if (k === "addall") click(`#rows [data-addall="${v}"]`);
+    else if (k === "addall") { click(`#rows .tok[data-pick="c:${v}"]`); document.querySelectorAll(`#rows .tok[data-pick^="r:${v}:"]`).forEach((b) => b.click()); }   // a character and its reminders
+    else if (k === "pickall") click(`#pickAll [data-pick-all="${v}"]`);
     else if (k === "queue") click("#queueToggle");
-    else if (k === "rem") document.querySelector("#withReminders").checked = true;
-    else if (k === "pdf") { click("#queuePrint"); click('#queueStep2 [data-way="paper"]'); click("#queueAction"); }
-    else if (k === "print") click("#queuePrint");
-    else if (k === "way") click(`#queueStep2 [data-way="${v}"]`);
-    else if (k === "go") click("#queueAction");
-    else if (k === "refresh") click("#queueRefresh");
+    else if (k === "pdf") { window.__mm.goStep(3); click('#printPage [data-way="paper"]'); click("#flowNext"); }
+    else if (k === "print") window.__mm.goStep(3);
+    else if (k === "way") click(`#printPage [data-way="${v}"]`);
+    else if (k === "go") click("#flowNext");
     else if (k === "stl") click("#download");
     else if (k === "design") click(`#presets [data-preset="${v}"]`);
     else if (k === "tlang" || k === "tlpick") {
@@ -54,7 +54,6 @@ setTimeout(() => {
     }
     else if (k === "tlopen") click("#tokenLangBtn");
     else if (k === "drawer") click("#drawerOpen");
-    else if (k === "next") click("#edNext");
     else if (k === "scriptsave") click("#scriptInviteSave");
     else if (k === "scriptnew") click("#scriptNew");
     else if (k === "fem") { const c = document.querySelector("#fem"); c.checked = true; c.dispatchEvent(new Event("change")); }
@@ -110,7 +109,6 @@ setTimeout(() => {
 setTimeout(() => { if (location.hash.includes("xray")) document.querySelector("#xray")?.click(); }, 6500);
 
 // Test-only: #addshown clicks "+ All" on the sheet
-setTimeout(() => { if (location.hash.includes("addshown")) document.querySelector("#addShownAll")?.click(); }, 6000);
 
 // Test-only: #langmenu opens the language menu
 setTimeout(() => { if (location.hash.includes("langmenu")) { const m = [...document.querySelectorAll("[data-lang-menu]")].find((d) => d.offsetParent); if (m) m.open = true; } }, 6000);
