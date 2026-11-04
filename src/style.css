@@ -498,3 +498,21 @@ dialog .import { margin-top: 10px; }
 .sheet-title { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .take-all { display: flex; gap: 8px; }
 .take-all[hidden], .take-all [hidden] { display: none; }
+
+/* Phones: one compact block per character. The token on the left, the name with its
+   reminders under it, the add buttons stacked on the right; no "No reminders" line. */
+@media (max-width: 640px) {
+  .row { grid-template-columns: 52px minmax(0, 1fr) auto; grid-template-areas: "tok who take" "tok rems take"; gap: 6px 12px; padding: 10px 2px; align-items: center; }
+  .row > .tok { grid-area: tok; align-self: start; }
+  .row > .tok svg { width: 52px; height: 52px; }
+  .row .who { grid-area: who; align-self: end; min-width: 0; }
+  .row .who b { font-size: 19px; overflow-wrap: anywhere; }
+  .row .rems { grid-area: rems; gap: 6px; }
+  .row .rem { width: 52px; }
+  .row .rem .tok svg { width: 36px; height: 36px; }
+  .row .rem span { font-size: 10.5px; }
+  .row .none { display: none; }
+  .row:has(.none) .who { grid-row: 1 / 3; align-self: center; }
+  .row .take { grid-area: take; flex-direction: column; align-items: stretch; align-self: center; gap: 6px; }
+  .row .take .pill { padding: 6px 10px; text-align: center; }
+}
