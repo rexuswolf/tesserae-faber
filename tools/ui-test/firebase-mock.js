@@ -40,6 +40,7 @@ setTimeout(() => {
     else if (k === "print") click("#queuePrint");
     else if (k === "way") click(`#queueStep2 [data-way="${v}"]`);
     else if (k === "go") click("#queueAction");
+    else if (k === "design") click(`#presets [data-preset="${v}"]`);
     else if (k === "tlang" || k === "tlpick") {
       // Open the token language dialog, unfold every group, pick v; "tlang" also confirms.
       click("#tokenLangBtn");

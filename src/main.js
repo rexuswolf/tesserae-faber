@@ -7,7 +7,7 @@ import {
   onUser, signIn, signOutUser, isAdmin, loadRoles, uploadRoles, listAccountDesigns, deleteAccountDesign,
 } from "./firebase.js";
 import { buildBambuProject, planPlates, FILAMENT_SLOTS } from "./bambu/bambu3mf.js";
-import { PAGE, layoutCoins } from "./pdf/layout.js";
+import { PAGE, layoutCoins, backX } from "./pdf/layout.js";
 import { t, uiLang, setUiLang, LANGUAGES } from "./i18n.js";
 import { TRANSLATIONS, VILLACUERVOS_URL, translationById, translationGroups } from "./translations.js";
 import { loadScripts, storeScripts, saveScript, scriptLink, readLink, scriptJson, idKey as scriptKey } from "./scripts.js";
@@ -1062,12 +1062,18 @@ function renderPrintStep() {
   } else {
     action.textContent = t("queue.downloadPdf");
     action.disabled = !sheets.length;
-    const W = 136, k = W / PAGE.w;   // the preview's scale, px per mm
+    // Each sheet as the PDF prints it: the front, and the back with every coin's reverse at the
+    // mirrored x (printed double-sided on the long edge, it lands behind its front). Paper has no magnets.
+    const W = 120, k = W / PAGE.w;   // the preview's scale, px per mm
+    const coinAt = (q, side, x, c) => {
+      const role = roleById(q.roleId), spec = { ...itemSpec(q), magnet: "none" };
+      return tokenSvg(state.lib, role, spec, { side, text: queueTitle(q, role) })
+        .replace("<svg", `<svg style="left:${x * k}px;top:${c.y * k}px;width:${c.d * k}px;height:${c.d * k}px"`);
+    };
+    const face = (page, side) => `<figure><div class="q-sheet">${page.map((c) => coinAt(state.queue[c.index], side, side === "front" ? c.x : backX(c.x), c)).join("")}</div>
+      <figcaption>${esc(t(side === "front" ? "queue.pdfFront" : "queue.pdfBack"))}</figcaption></figure>`;
     detail.innerHTML = `<h3 class="q-h">${esc(t("queue.sheetsH", { n: sheets.length }))}</h3>
-      <div class="q-sheets">${sheets.map((page) => `<div class="q-sheet">${page.map((c) => {
-        const q = state.queue[c.index];
-        return queuePic(q).replace("<svg", `<svg style="left:${c.x * k}px;top:${c.y * k}px;width:${c.d * k}px;height:${c.d * k}px"`);
-      }).join("")}</div>`).join("")}</div>
+      ${sheets.map((page, i) => `<div class="q-pair"><h4>${esc(t("queue.sheetN", { i: i + 1, n: sheets.length }))}</h4><div class="q-sheets">${face(page, "front")}${face(page, "back")}</div></div>`).join("")}
       <ol class="q-howto"><li>${esc(t("queue.howto1"))}</li><li>${esc(t("queue.howto2"))}</li><li>${esc(t("queue.howto3"))}</li></ol>`;
     $("#queueFootSum").textContent = t("queue.sumPaper", { n: sheets.length });
   }
