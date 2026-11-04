@@ -13,7 +13,7 @@
   <a href="#license-and-credits">License and credits</a>
 </p>
 
-![The app: the Trouble Brewing sheet, the token workshop and the print queue](docs/screenshots/app.png)
+![The app: editions and a saved script in the sidebar, the Trouble Brewing sheet, the token workshop and the print queue](docs/screenshots/app.png)
 
 Midnight Mint is a free, community-made tool. It is not affiliated with or endorsed by
 The Pandemonium Institute. No account needed: open it and start designing.
@@ -28,6 +28,10 @@ The Pandemonium Institute. No account needed: open it and start designing.
 - Add a whole edition (or whatever is on screen) to the print queue in one click, with or without its reminders.
 - Keep your own **scripts**: import the Script Tool's JSON and the script sits beside the editions.
   Scripts live in your browser; share one with a link (the script travels inside it) or download it as JSON.
+
+| Token language | A shared script |
+|---|---|
+| ![Choosing the token language: the list of languages with Spanish unfolded into its six versions, and the tokens redrawn in the one pointed at](docs/screenshots/token-language.png) | ![Opening a shared script link: its 13 tokens and a button to save it](docs/screenshots/script-shared.png) |
 
 **Design them**
 - Ready-made designs to start from: *Fast print*, *Ivory coin*, *High legibility*, *Glued magnet* and *Hidden magnet*.
@@ -54,16 +58,24 @@ The Pandemonium Institute. No account needed: open it and start designing.
   and see the plates (with their filaments) or the A4 sheets before you download.
 - **Bambu Lab A1 with AMS lite**: download a ready-to-print `.3mf`. Every part already has its filament,
   tokens are grouped onto plates by team with at most 4 colours each, and hidden magnets come with their pause.
-- **Any other printer**: download STL files, one per colour, with instructions.
+- **Any other printer**: download a token's STL files from the workshop, one per colour, with instructions.
 - **Paper**: download a double-sided A4 PDF at real size. Each back lands behind its front, with cut guides.
+
+| The queue | 3D printer | Paper |
+|---|---|---|
+| ![The print queue: one row per character, with copies and reminder chips](docs/screenshots/queue-list.png) | ![Printing on a 3D printer: the filaments and the plates, grouped by team](docs/screenshots/queue-print-3d.png) | ![Printing on paper: each A4 sheet's front and back](docs/screenshots/queue-print-paper.png) |
 
 | PDF, fronts | PDF, backs |
 |---|---|
 | ![A4 sheet of token fronts](docs/screenshots/pdf-front.png) | ![The matching sheet of backs, mirrored for double-sided printing](docs/screenshots/pdf-back.png) |
 
-It also works on phones:
+It also works on phones: the sidebar becomes a menu, and the top bar steps between editions.
 
-<p align="center"><img src="docs/screenshots/mobile.png" alt="The app on a phone" width="320"></p>
+<p align="center">
+  <img src="docs/screenshots/mobile.png" alt="The app on a phone: the Trouble Brewing sheet" width="280">
+  &nbsp;
+  <img src="docs/screenshots/mobile-menu.png" alt="The phone menu: editions, scripts, language and credits" width="280">
+</p>
 
 ## Running it locally
 

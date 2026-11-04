@@ -1,4 +1,6 @@
 // Test double for src/firebase.js: the local library; signed in as the admin only with ?admin.
+// ?lang=en sets the interface language before the app starts (this module loads before i18n.js).
+{ const l = new URLSearchParams(location.search).get("lang"); if (l) try { localStorage.setItem("midnight-mint-lang", l); } catch { /* none */ } }
 export const ADMIN_EMAIL = "admin@example.com";
 // A plain monogram avatar so screenshots don't show a broken image.
 const AVATAR = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" fill="#4a2340"/><text x="16" y="21" font-family="Georgia,serif" font-size="15" text-anchor="middle" fill="#efe6d6">F</text></svg>');
