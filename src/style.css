@@ -44,7 +44,10 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 /* spine */
 .spine { grid-row: 1; grid-column: 1; background: var(--velvet); border-right: 1px solid var(--seam); display: flex; flex-direction: column; min-height: 0; }
-.spine .brand { display: flex; align-items: center; gap: 12px; padding: 18px 18px 14px; }
+.spine .brand { display: flex; align-items: center; gap: 10px; padding: 18px 26px 14px 18px; }
+.spine .brand img { width: 40px; height: 40px; }
+.spine .wm-mid { font-size: 30px; }
+.spine .wm-mint { font-size: 11px; }
 .brand img { flex: none; }
 /* Wordmark "Grimorio": blackletter "Midnight" over a widely spaced "MINT" on a brass rule. */
 .wordmark { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 3px; line-height: 1; }
@@ -227,6 +230,10 @@ dialog .import { margin-top: 10px; }
 /* ---------------------------------------------------------------- narrow screens */
 @media (max-width: 1180px) {
   .app { grid-template-columns: 180px minmax(0, 1fr) 340px; }
+  .spine .brand { padding-right: 22px; gap: 8px; }
+  .spine .brand img { width: 34px; height: 34px; }
+  .spine .wm-mid { font-size: 25px; }
+  .spine .wm-mint { font-size: 9.5px; }
   .row { grid-template-columns: 64px minmax(0, 1fr) auto; }
   .row .rems { grid-column: 2 / -1; }
   .row > .tok svg { width: 60px; height: 60px; }
