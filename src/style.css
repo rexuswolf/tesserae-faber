@@ -137,6 +137,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .gate-langs { position: absolute; top: 18px; right: 20px; }
 .gate-langs[hidden] { display: none; }
 .me { position: relative; }
+.admin-sign-in { border: 1px solid var(--seam); background: none; color: var(--dust); font: inherit; font-size: 12px; padding: 6px 10px; border-radius: 999px; cursor: pointer; }
+.admin-sign-in:hover { color: inherit; border-color: var(--dust); }
+.admin-sign-in[hidden], .me[hidden] { display: none; }
 .me summary { list-style: none; cursor: pointer; }
 .me summary::-webkit-details-marker { display: none; }
 .me img { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--seam); display: block; background: var(--velvet); }

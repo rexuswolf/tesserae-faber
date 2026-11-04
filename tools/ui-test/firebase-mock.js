@@ -1,21 +1,20 @@
-// Test double for src/firebase.js: a signed-in admin with the local library.
+// Test double for src/firebase.js: the local library; signed in as the admin only with ?admin.
 export const ADMIN_EMAIL = "admin@example.com";
 // A plain monogram avatar so screenshots don't show a broken image.
 const AVATAR = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" fill="#4a2340"/><text x="16" y="21" font-family="Georgia,serif" font-size="15" text-anchor="middle" fill="#efe6d6">F</text></svg>');
 const user = { uid: "test", email: ADMIN_EMAIL, photoURL: AVATAR };
-export const onUser = (fn) => setTimeout(() => fn(user), 0);
+const signedIn = new URLSearchParams(location.search).has("admin");
+export const onUser = (fn) => setTimeout(() => fn(signedIn ? user : null), 0);
 export const signIn = async () => {};
 export const signOutUser = async () => {};
-export const isAdmin = () => true;
-export const isInvited = async () => true;
+export const isAdmin = (u) => u?.email === ADMIN_EMAIL;
 export const roleId = (en) => en.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
 export async function loadRoles() {
   const roles = await (await fetch("/admin-data/roles_game_icons.json")).json();
   return roles.map((r) => ({ id: roleId(r.en), ...r }));
 }
 export const uploadRoles = async () => 0;
-export const listInvites = async () => [], addInvite = async (e) => e, removeInvite = async () => {};
-export const listDesigns = async () => [], saveDesign = async () => "d1", deleteDesign = async () => {};
+export const listAccountDesigns = async () => [], deleteAccountDesign = async () => {};
 
 // Test-only scripted clicks, chosen by the URL hash, e.g. #search=envenen,select=c:poisoner,token,own,frame=clock,add
 setTimeout(() => {

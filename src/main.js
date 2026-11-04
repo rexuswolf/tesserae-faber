@@ -4,8 +4,7 @@ import {
   TEAMS, EDITIONS, FRAME_STYLES, BACK_STYLES, TOKEN_STYLES, FILAMENTS, DEFAULT_SPEC,
 } from "./engine/token-engine.js";
 import {
-  onUser, signIn, signOutUser, isAdmin, isInvited, loadRoles, uploadRoles,
-  listInvites, addInvite, removeInvite, listDesigns, saveDesign, deleteDesign, ADMIN_EMAIL,
+  onUser, signIn, signOutUser, isAdmin, loadRoles, uploadRoles, listAccountDesigns, deleteAccountDesign,
 } from "./firebase.js";
 import { buildBambuProject, planPlates, FILAMENT_SLOTS } from "./bambu/bambu3mf.js";
 import { t, uiLang, setUiLang, LANGUAGES } from "./i18n.js";
@@ -20,6 +19,7 @@ const MAX_SVG = 300000;
 const QUEUE_KEY = "midnight-mint-queue";
 const STYLE_KEY = "midnight-mint-style";
 const OVERRIDES_KEY = "midnight-mint-overrides";
+const DESIGNS_KEY = "midnight-mint-designs";
 const EDITION_ORDER = ["tb", "bmr", "snv", "carousel", "fabled", "loric"];
 const TEAM_ORDER = ["townsfolk", "outsider", "minion", "demon", "traveller", "fabled", "loric"];
 const TEAM_PLURAL = {
@@ -151,40 +151,45 @@ function gate(cfg) {
 }
 function showGate(make) { gateState = make; gate(make()); }
 
-onUser(async (user) => {
-  state.user = user;
-  if (!user) {
-    return showGate(() => ({
-      title: t("gate.signedOut.title"), text: t("gate.signedOut.text"),
-      action: { label: t("gate.signIn"), run: () => signIn().catch((e) => { if (e.code !== "auth/popup-closed-by-user") $("#gateText").textContent = t("gate.signInFailed", { message: e.message }); }) },
-    }));
-  }
+// Anyone can use the app without signing in. Only the admin signs in (to upload the
+// library); the sign-in button shows when the page is opened with ?admin.
+const ADMIN_ENTRY = new URLSearchParams(location.search).has("admin");
+const adminSignIn = () => signIn().catch((e) => { if (e.code !== "auth/popup-closed-by-user") $("#gateText").textContent = t("gate.signInFailed", { message: e.message }); });
+
+async function boot() {
   showGate(() => ({ title: t("gate.opening") }));
   try {
-    if (!(await isInvited(user))) {
-      return showGate(() => ({
-        title: t("gate.notInvited.title"), text: t("gate.notInvited.text", { admin: ADMIN_EMAIL, email: user.email }),
-        action: { label: t("gate.signOut"), run: signOutUser },
-      }));
-    }
     const roles = await loadRoles();
-    if (!roles.length) {
-      return showGate(() => (isAdmin(user)
-        ? { title: t("gate.empty.title"), text: t("gate.empty.text"), action: { label: t("gate.empty.open"), run: openAdmin }, secondary: { label: t("gate.signOut"), run: signOutUser } }
-        : { title: t("gate.settingUp.title"), text: t("gate.settingUp.text"), action: { label: t("gate.signOut"), run: signOutUser } }));
-    }
-    if (roles.some((r) => !r.body)) {
-      // The library still has the old official artwork: an admin must upload the new one.
-      return showGate(() => (isAdmin(user)
-        ? { title: t("gate.oldLibrary.title"), text: t("gate.oldLibrary.text"), action: { label: t("gate.empty.open"), run: openAdmin }, secondary: { label: t("gate.signOut"), run: signOutUser } }
-        : { title: t("gate.settingUp.title"), text: t("gate.settingUp.text"), action: { label: t("gate.signOut"), run: signOutUser } }));
-    }
+    const broken = !roles.length ? "empty" : roles.some((r) => !r.body) ? "oldLibrary" : null;
+    if (broken) return libraryGate(broken);
     state.lib = await loadLibrary(roles);
     gateState = null;
     startApp();
   } catch (err) {
     showGate(() => ({ title: t("gate.error.title"), text: t("gate.error.text", { message: err.message }), action: { label: t("gate.reload"), run: () => location.reload() } }));
   }
+}
+/** The library is missing or out of date: the admin can fix it, everyone else waits. */
+function libraryGate(kind) {
+  showGate(() => (isAdmin(state.user)
+    ? { title: t(`gate.${kind}.title`), text: t(`gate.${kind}.text`), action: { label: t("gate.empty.open"), run: openAdmin }, secondary: { label: t("gate.signOut"), run: signOutUser } }
+    : ADMIN_ENTRY
+      ? { title: t("gate.settingUp.title"), text: t("gate.settingUp.text"), action: { label: t("gate.signIn"), run: adminSignIn } }
+      : { title: t("gate.settingUp.title"), text: t("gate.settingUp.text") }));
+}
+
+let firstAuth = true;
+onUser(async (user) => {
+  state.user = user;
+  if (user && !isAdmin(user)) {
+    // An account from when the app needed sign-in: bring its saved designs into this browser, then sign out.
+    await importAccountDesigns(user).catch(() => {});
+    signOutUser();
+    return;
+  }
+  if (firstAuth) { firstAuth = false; boot(); return; }
+  if (state.lib) renderAccount();
+  else boot();
 });
 
 // ------------------------------------------------------------ app
@@ -193,9 +198,7 @@ let started = false;
 function startApp() {
   $("#gate").hidden = true;
   $("#app").hidden = false;
-  $("#avatar").src = state.user.photoURL || "";
-  $("#meEmail").textContent = state.user.email;
-  $("#openAdmin").hidden = !isAdmin(state.user);
+  renderAccount();
   if (!started) {
     started = true;
     viewer = createViewer($("#view"));
@@ -210,6 +213,14 @@ function startApp() {
   renderAll();
   renderQueue();
   refreshDesigns();
+}
+
+/** The account corner: the admin's menu when signed in, a sign-in button only on ?admin. */
+function renderAccount() {
+  const admin = isAdmin(state.user);
+  $(".me").hidden = !admin;
+  $("#adminSignIn").hidden = admin || !ADMIN_ENTRY;
+  if (admin) { $("#avatar").src = state.user.photoURL || ""; $("#meEmail").textContent = state.user.email; }
 }
 
 function renderAll() { renderSpine(); renderSheet(); renderWorkshop(); }
@@ -564,6 +575,7 @@ function wire() {
   // account
   $("#signOut").onclick = () => { $(".me").open = false; signOutUser(); };
   $("#openAdmin").onclick = () => { $(".me").open = false; openAdmin(); };
+  $("#adminSignIn").onclick = adminSignIn;
 }
 
 const roleById = (id) => state.lib.roles.find((r) => r.id === id);
@@ -767,13 +779,24 @@ function importScript(text) {
 
 // ------------------------------------------------------------ saved designs
 
-async function refreshDesigns() {
-  try {
-    state.designs = await listDesigns(state.user.uid);
-    renderDesigns();
-  } catch (err) {
-    $("#saved").innerHTML = `<li class="hint warn">${esc(t("saved.loadFailed", { message: err.message }))}</li>`;
+// Saved designs live in this browser (localStorage), newest first.
+const readDesigns = () => loadJSON(DESIGNS_KEY, []).filter((d) => d && d.id && d.roleId && d.spec);
+const writeDesigns = (list) => storeJSON(DESIGNS_KEY, list);
+function refreshDesigns() { state.designs = readDesigns(); renderDesigns(); }
+
+/** Moves designs saved to an account (before sign-in was dropped) into this browser. */
+async function importAccountDesigns(user) {
+  const remote = await listAccountDesigns(user.uid);
+  if (!remote.length) return;
+  const list = readDesigns();
+  for (const d of remote) {
+    if (list.some((x) => x.id === d.id)) continue;
+    const { updatedAt, ...rest } = d;
+    list.push({ ...rest, updatedAt: updatedAt?.toMillis?.() ?? Date.now() });
   }
+  writeDesigns(list.sort((a, b) => b.updatedAt - a.updatedAt));
+  await Promise.all(remote.map((d) => deleteAccountDesign(user.uid, d.id)));
+  if (state.lib) refreshDesigns();
 }
 function renderDesigns() {
   if (!state.lib) return;
@@ -793,9 +816,12 @@ async function save() {
   const title = textFor(key, role, null);
   try {
     const spec = specFor(key, false);
-    await saveDesign(state.user.uid, { roleId: role.id, text: state.overrides.get(key)?.text || null, spec, title });
+    // One saved design per character: saving again updates it.
+    const list = readDesigns().filter((d) => d.roleId !== role.id);
+    list.unshift({ id: role.id, roleId: role.id, text: state.overrides.get(key)?.text || null, spec, title, updatedAt: Date.now() });
+    writeDesigns(list);
     $("#saveNote").textContent = t("saved.saved", { name: title });
-    await refreshDesigns();
+    refreshDesigns();
   } catch (err) {
     $("#saveNote").textContent = t("saved.failed", { message: err.message });
   } finally { btn.disabled = false; }
@@ -817,7 +843,7 @@ async function onSavedClick(e) {
   }
   if (del) {
     if (del.dataset.confirm !== "1") { del.dataset.confirm = "1"; del.textContent = t("saved.deleteConfirm"); return; }
-    await deleteDesign(state.user.uid, del.dataset.del);
+    writeDesigns(readDesigns().filter((d) => d.id !== del.dataset.del));
     refreshDesigns();
   }
 }
@@ -853,27 +879,7 @@ async function openAdmin() {
   if (!dlg.open) dlg.showModal();
   const roles = state.lib?.roles.length ?? (await loadRoles()).length;
   $("#libraryState").textContent = roles ? t("admin.libraryState", { n: roles }) : t("admin.libraryEmpty");
-  renderInvites();
 }
-async function renderInvites() {
-  try {
-    const list = await listInvites();
-    $("#invites").innerHTML = list.map((i) => `<li><span>${esc(i.email)}</span><button type="button" data-remove="${esc(i.email)}">${esc(t("admin.remove"))}</button></li>`).join("") || `<li class="hint">${esc(t("admin.nobody"))}</li>`;
-  } catch (err) { $("#invites").innerHTML = `<li class="hint warn">${esc(err.message)}</li>`; }
-}
-$("#invites").onclick = async (e) => {
-  const b = e.target.closest("[data-remove]"); if (!b) return;
-  if (b.dataset.confirm !== "1") { b.dataset.confirm = "1"; b.textContent = t("admin.removeConfirm"); return; }
-  await removeInvite(b.dataset.remove); renderInvites();
-};
-$("#inviteForm").onsubmit = async (e) => {
-  e.preventDefault();
-  try {
-    const address = await addInvite($("#inviteEmail").value);
-    $("#inviteHint").textContent = t("admin.invitedOne", { email: address });
-    $("#inviteEmail").value = ""; renderInvites();
-  } catch (err) { $("#inviteHint").textContent = err.message; }
-};
 $("#libraryFile").onchange = async (e) => {
   const f = e.target.files[0]; e.target.value = "";
   if (!f) return;

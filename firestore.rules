@@ -1,8 +1,7 @@
 rules_version = '2';
 
-// Midnight Mint is open to anyone signed in with Google. The character library
-// has no TPI artwork (icons from game-icons.net, CC BY 3.0). The allowlist is kept
-// so the app can go back to invite-only by switching invited() below.
+// Midnight Mint needs no sign-in: anyone can read the character library.
+// Only the admin account can write to it. Saved designs live in each browser.
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -15,40 +14,23 @@ service cloud.firestore {
     function isAdmin() {
       return signedIn() && email() == 'admin@example.invalid';
     }
-    function invited() {
-      return signedIn();   // open to everyone signed in
-      // Invite-only: return isAdmin() || (signedIn() && exists(/databases/$(database)/documents/allowlist/$(email())));
-    }
-
-    // One document per invited email address (the document id is the lower-case email).
-    match /allowlist/{address} {
-      allow read: if isAdmin() || (signedIn() && email() == address);
-      allow write: if isAdmin();
-    }
 
     // The character library: names, team and traced icon paths.
     match /roles/{roleId} {
-      allow read: if invited();
+      allow read: if true;
       allow write: if isAdmin();
     }
 
     // Other library artwork, such as the seal used on token backs.
     match /library/{assetId} {
-      allow read: if invited();
+      allow read: if true;
       allow write: if isAdmin();
     }
 
-    // Each person's saved token designs.
+    // Designs saved to accounts before the app went sign-in free: their owner can
+    // still read and delete them (the app moves them into the browser), never add more.
     match /users/{uid}/designs/{designId} {
-      allow read, delete: if invited() && request.auth.uid == uid;
-      allow create, update: if invited() && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['roleId', 'text', 'spec', 'title', 'updatedAt'])
-        && request.resource.data.roleId is string
-        && request.resource.data.title is string && request.resource.data.title.size() <= 120
-        && request.resource.data.spec is map
-        && (!('customSvg' in request.resource.data.spec)
-            || request.resource.data.spec.customSvg == null
-            || request.resource.data.spec.customSvg.size() <= 300000);
+      allow read, delete: if signedIn() && request.auth.uid == uid;
     }
 
     match /{document=**} {

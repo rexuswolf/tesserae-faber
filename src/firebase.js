@@ -1,9 +1,9 @@
-// Firebase: Google sign-in, the invite list, the role library and saved designs.
+// Firebase: the public role library, and Google sign-in for the admin (the only account that can upload).
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut } from "firebase/auth";
 import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
-  collection, doc, getDoc, getDocs, setDoc, deleteDoc, writeBatch, serverTimestamp, query, orderBy,
+  collection, doc, getDocs, deleteDoc, writeBatch,
 } from "firebase/firestore";
 import config from "./firebase-config.json";
 
@@ -19,16 +19,6 @@ export const signIn = () => signInWithPopup(auth, new GoogleAuthProvider());
 export const signOutUser = () => signOut(auth);
 export const isAdmin = (user) => user?.email?.toLowerCase() === ADMIN_EMAIL;
 
-/** The app is open to anyone signed in. Set to true to go back to invite-only. */
-export const INVITE_ONLY = false;
-
-/** True when this person may use the app. */
-export async function isInvited(user) {
-  if (!user) return false;
-  if (isAdmin(user) || !INVITE_ONLY) return true;
-  const snap = await getDoc(doc(db, "allowlist", user.email.toLowerCase()));
-  return snap.exists();
-}
 
 // ------------------------------------------------------------ role library
 
@@ -62,31 +52,12 @@ export async function uploadRoles(roles, onProgress = () => {}) {
 
 
 
-// ------------------------------------------------------------ invites
 
-export async function listInvites() {
-  const snap = await getDocs(collection(db, "allowlist"));
-  return snap.docs.map((d) => ({ email: d.id, ...d.data() }));
-}
-export async function addInvite(email) {
-  const address = email.trim().toLowerCase();
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(address)) throw new Error(`"${email}" isn't an email address`);
-  await setDoc(doc(db, "allowlist", address), { addedAt: serverTimestamp() });
-  return address;
-}
-export const removeInvite = (email) => deleteDoc(doc(db, "allowlist", email));
+// ------------------------------------------------------------ old saved designs
 
-// ------------------------------------------------------------ saved designs
-
-const designs = (uid) => collection(db, "users", uid, "designs");
-
-export async function listDesigns(uid) {
-  const snap = await getDocs(query(designs(uid), orderBy("updatedAt", "desc")));
+/** Designs saved to an account before the app went sign-in free: read once, to move them to the browser. */
+export async function listAccountDesigns(uid) {
+  const snap = await getDocs(collection(db, "users", uid, "designs"));
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
-export async function saveDesign(uid, design, id) {
-  const ref = id ? doc(designs(uid), id) : doc(designs(uid));
-  await setDoc(ref, { ...design, updatedAt: serverTimestamp() });
-  return ref.id;
-}
-export const deleteDesign = (uid, id) => deleteDoc(doc(designs(uid), id));
+export const deleteAccountDesign = (uid, id) => deleteDoc(doc(db, "users", uid, "designs", id));

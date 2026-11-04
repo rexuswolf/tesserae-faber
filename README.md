@@ -16,7 +16,7 @@
 ![The app: the Trouble Brewing sheet, the token workshop and the print queue](docs/screenshots/app.png)
 
 Midnight Mint is a free, community-made tool. It is not affiliated with or endorsed by
-The Pandemonium Institute. Sign in with a Google account to use it.
+The Pandemonium Institute. No account needed: open it and start designing.
 
 ## Features
 
@@ -32,7 +32,7 @@ The Pandemonium Institute. Sign in with a Google account to use it.
 - 9 frame designs, and 6 back designs plus the edition's name or your own SVG, each drawn on your character as you choose.
 - Any of the 10 filament colours for the coin, the frame and the back; the name and icon take the team colour.
 - A live 3D preview you can turn around, with front and back views.
-- Style the whole set at once, or give a single token its own look, and save designs to your account.
+- Style the whole set at once, or give a single token its own look, and save designs in your browser.
 
 | Frames | Backs |
 |---|---|
@@ -86,7 +86,7 @@ The character library lives in Firestore. `admin-data/` (not in git) holds the s
   Its printer settings come from `a1-template.json`, generated with Bambu Studio by `tools/make_bambu_template.py`.
 - `src/pdf/print-pdf.js`: the double-sided A4 PDF, loaded only when you ask for it.
 - `src/main.js`, `src/i18n.js`, `src/style.css`: the app, its Spanish and English text, and its look.
-- `src/firebase.js`, `firestore.rules`: Google sign-in, the character library and saved designs.
+- `src/firebase.js`, `firestore.rules`: the public character library. Only the admin signs in (open the app with `?admin`) to upload it.
 - `tools/`: test pages and helpers (UI test server, design sheets, icon review, Bambu template).
 
 ## License and credits
