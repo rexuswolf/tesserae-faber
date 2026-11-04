@@ -511,6 +511,7 @@ function wire() {
     state.queue = []; persistQueue(); renderQueue();
   };
   $("#bambu").onclick = downloadBambu;
+  $("#pdf").onclick = downloadPdf;
   $("#scriptFile").onchange = async (e) => { const f = e.target.files[0]; e.target.value = ""; if (f) importScript(await f.text()); };
   $("#pasteToggle").onclick = () => { const box = $("#pasteBox"); box.hidden = !box.hidden; $("#pasteToggle").setAttribute("aria-expanded", String(!box.hidden)); if (!box.hidden) $("#scriptText").focus(); };
   $("#pasteImport").onclick = () => importScript($("#scriptText").value);
@@ -598,6 +599,7 @@ function renderQueue() {
   $("#queueCount").textContent = n ? t("queue.count", { n }) : t("queue.emptyShort");
   $("#queueClear").hidden = !n;
   $("#bambu").disabled = !n;
+  $("#pdf").disabled = !n;
   const pics = state.queue.map((q) => {
     const role = roleById(q.roleId);
     return { q, role, pic: tokenSvg(state.lib, role, itemSpec(q), { text: queueTitle(q, role) }) };
@@ -641,6 +643,27 @@ async function downloadBambu() {
     out.className = "hint warn";
     out.textContent = t("queue.failed", { message: err.message });
   } finally { btn.disabled = false; }
+}
+
+/** The queue as an A4 PDF of paper tokens: fronts and backs on alternate pages, for duplex printing. */
+async function downloadPdf() {
+  const btn = $("#pdf"), out = $("#queuePlan");
+  btn.disabled = true;
+  try {
+    out.className = "hint"; out.textContent = t("queue.pdfLoading");
+    const { buildPrintPdf } = await import("./pdf/print-pdf.js");   // jsPDF only loads when asked for
+    const entries = state.queue.map((q) => { const role = roleById(q.roleId); return { role, spec: itemSpec(q), text: queueTitle(q, role) }; });
+    const { blob, sheets } = await buildPrintPdf(state.lib, entries, {
+      labels: { front: t("queue.pdfFront"), back: t("queue.pdfBack") },
+      onProgress: (i, n) => { out.textContent = t("queue.pdfWriting", { i, n }); },
+    });
+    const file = `midnight-mint-${entries.length}-tokens.pdf`;
+    await saveFile(blob, file);
+    out.textContent = t("queue.pdfDone", { file, n: sheets });
+  } catch (err) {
+    out.className = "hint warn";
+    out.textContent = t("queue.pdfFailed", { message: err.message });
+  } finally { btn.disabled = !state.queue.length; }
 }
 
 // ------------------------------------------------------------ script import

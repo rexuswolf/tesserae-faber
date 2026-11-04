@@ -31,8 +31,24 @@ setTimeout(() => {
     else if (k === "add") click("#enqueue");
     else if (k === "addall") click(`#rows [data-addall="${v}"]`);
     else if (k === "queue") click("#queueToggle");
+    else if (k === "rem") document.querySelector("#withReminders").checked = true;
+    else if (k === "pdf") click("#pdf");
   }
 }, 4000);
+
+// Test-only: #pdfdump writes every downloaded PDF as base64 into <pre id="pdfdump"> (read it with --dump-dom)
+if (location.hash.includes("pdfdump")) {
+  const make = URL.createObjectURL;
+  URL.createObjectURL = (blob) => {
+    if (blob?.type === "application/pdf") blob.arrayBuffer().then((buf) => {
+      const b = new Uint8Array(buf); let s = "";
+      for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode(...b.subarray(i, i + 0x8000));
+      const pre = document.createElement("pre"); pre.id = "pdfdump"; pre.textContent = "B64:" + btoa(s);
+      document.body.append(pre);
+    });
+    return make(blob);
+  };
+}
 
 
 // Test-only: #scrollws scrolls the workshop to the bottom
