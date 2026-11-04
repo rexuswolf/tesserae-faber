@@ -257,3 +257,8 @@ dialog .import { margin-top: 10px; }
 .preset[aria-pressed=true] { border-color: var(--brass); background: rgba(201, 162, 39, .1); }
 @media (max-width: 1180px) { .spine .brand span span { display: inline; } }
 @media (max-width: 900px) { .spine .brand img { width: 24px; height: 24px; } }
+
+/* add everything shown on the sheet */
+.sheet-title { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.take-all { display: flex; gap: 8px; }
+.take-all[hidden], .take-all [hidden] { display: none; }

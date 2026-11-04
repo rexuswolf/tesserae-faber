@@ -206,6 +206,9 @@ const STR = {
     "act.note": "Descarga los STL, boca abajo y listos para Bambu Studio.",
     "act.downloaded": ({ file }) => `Descargado ${file}.`,
     "act.downloadFailed": ({ message }) => `No se pudo preparar la descarga: ${message}`,
+    "sheet.addShownChars": ({ n }) => `+ ${plural(n, "1 personaje", `${n} personajes`)}`,
+    "sheet.addShownAll": ({ n }) => `+ Todo (${n})`,
+    "act.queuedMany": ({ n, rems }) => `Añadidos ${plural(n, "1 personaje", `${n} personajes`)}${rems ? ` y ${plural(rems, "1 recordatorio", `${rems} recordatorios`)}` : ""} a la cola de impresión.`,
     "act.queued": ({ name, n }) => `Añadido «${name}»${n ? ` y ${plural(n, "1 recordatorio", `${n} recordatorios`)}` : ""} a la cola de impresión.`,
     "act.queuedMany": ({ n, extra }) => (n
       ? `${plural(n, "Añadido 1 personaje", `Añadidos ${n} personajes`)} a la cola${extra ? `, con ${extra} recordatorios` : ""}, con el estilo actual.`
@@ -493,6 +496,9 @@ const STR = {
     "act.note": "Downloads the STLs, face-down and ready for Bambu Studio.",
     "act.downloaded": ({ file }) => `Downloaded ${file}.`,
     "act.downloadFailed": ({ message }) => `Couldn't build the download: ${message}`,
+    "sheet.addShownChars": ({ n }) => `+ ${n} ${plural(n, "character", "characters")}`,
+    "sheet.addShownAll": ({ n }) => `+ All (${n})`,
+    "act.queuedMany": ({ n, rems }) => `Added ${n} ${plural(n, "character", "characters")}${rems ? ` and ${rems} ${plural(rems, "reminder", "reminders")}` : ""} to the print queue.`,
     "act.queued": ({ name, n }) => `Added “${name}”${n ? ` and ${n} ${plural(n, "reminder", "reminders")}` : ""} to the print queue.`,
     "act.queuedMany": ({ n, extra }) => (n
       ? `Added ${n} ${plural(n, "character", "characters")} to the print queue${extra ? ` with ${extra} reminders` : ""}, in the current style.`

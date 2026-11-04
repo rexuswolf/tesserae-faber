@@ -223,6 +223,14 @@ function renderSheet() {
     });
   }
 
+  // "Add everything shown": the characters on screen (edition, team filter, search).
+  state.shown = roles;
+  const remCount = roles.reduce((n, r) => n + remindersOf(r).length, 0);
+  $("#takeAll").hidden = !roles.length;
+  $("#addShownChars").textContent = t("sheet.addShownChars", { n: roles.length });
+  $("#addShownAll").textContent = t("sheet.addShownAll", { n: roles.length + remCount });
+  $("#addShownAll").hidden = !remCount;
+
   if (!roles.length) { $("#rows").innerHTML = `<p class="empty">${esc(t("sheet.noResults"))}</p>`; return; }
   $("#rows").innerHTML = TEAM_ORDER.map((team) => {
     const list = roles.filter((r) => r.team === team);
@@ -437,6 +445,9 @@ function wire() {
     if (pick) select(pick.dataset.key);
   };
 
+  $("#addShownChars").onclick = () => addShown(false);
+  $("#addShownAll").onclick = () => addShown(true);
+
   // workshop
   $("#wsClose").onclick = () => $("#workshop").classList.remove("open");
   $$(".turn .pill[data-view]").forEach((b) => b.onclick = () => { viewer.setView(b.dataset.view); syncView(b.dataset.view); });
@@ -549,7 +560,7 @@ function persistQueue() { storeJSON(QUEUE_KEY, state.queue); }
  * Queues a character (reminder = null) or one of its reminders, with the style
  * and text it has right now.
  */
-function addToQueue(role, reminder) {
+function addToQueue(role, reminder, { save = true } = {}) {
   const key = reminder != null ? remKey(role, reminder) : charKey(role);
   const own = state.overrides.get(key);
   state.queue.push({
@@ -559,8 +570,19 @@ function addToQueue(role, reminder) {
     custom: !!own,
     spec: { ...structuredClone(own?.spec ?? state.spec), lang: uiLang() },
   });
-  persistQueue();
-  renderQueue();
+  if (save) { persistQueue(); renderQueue(); }
+}
+
+/** Queues every character shown on the sheet, optionally with all their reminders. */
+function addShown(withReminders) {
+  const roles = state.shown || [];
+  let rems = 0;
+  for (const r of roles) {
+    addToQueue(r, null, { save: false });
+    if (withReminders) remindersOf(r).forEach((_, i) => { addToQueue(r, i, { save: false }); rems++; });
+  }
+  persistQueue(); renderQueue();
+  note(t("act.queuedMany", { n: roles.length, rems }));
 }
 /** Queues a character and, if "Include reminder tokens" is ticked, its reminders. Returns how many reminders. */
 function addCharacter(role) {

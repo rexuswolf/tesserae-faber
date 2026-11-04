@@ -82,3 +82,6 @@ setTimeout(() => {
 
 // Test-only: #xray turns on the X-ray view
 setTimeout(() => { if (location.hash.includes("xray")) document.querySelector("#xray")?.click(); }, 6500);
+
+// Test-only: #addshown clicks "+ All" on the sheet
+setTimeout(() => { if (location.hash.includes("addshown")) document.querySelector("#addShownAll")?.click(); }, 6000);
