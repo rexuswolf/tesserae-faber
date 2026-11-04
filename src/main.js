@@ -45,6 +45,16 @@ const state = {
   overrides: new Map(Object.entries(loadJSON(OVERRIDES_KEY, {}))),   // key -> { text?, spec? }
   queue: [], designs: [],
 };
+// After a deploy, a page opened earlier may ask for code files that no longer
+// exist (their names change with each version). Reload once to get the new ones.
+window.addEventListener("vite:preloadError", (e) => {
+  if (sessionStorage.getItem("mm-reloaded")) return;   // don't loop if it really is broken
+  e.preventDefault();
+  sessionStorage.setItem("mm-reloaded", "1");
+  location.reload();
+});
+setTimeout(() => sessionStorage.removeItem("mm-reloaded"), 10000);
+
 let viewer = null;
 
 /** Filament colours offered for the coin, frame and back (all of them print on the A1). */
