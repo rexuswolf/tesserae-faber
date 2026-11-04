@@ -38,7 +38,7 @@
 | ![Choosing the token language: the list of languages with Spanish unfolded into its six versions, and the tokens redrawn in the one pointed at](docs/screenshots/token-language.png) | ![Opening a shared script link: its 13 tokens and a button to save it](docs/screenshots/script-shared.png) |
 
 **Design them**
-- Ready-made designs to start from: *Fast print*, *Ivory coin*, *High legibility*, *Glued magnet* and *Hidden magnet*.
+- Ready-made designs to start from: *Fast print*, *Pitch-black night*, *Midnight*, *Ivory coin* and *High legibility*, all with the frame in the team colour. A magnet (glued into a pocket, or hidden inside with a pause) is a choice of its own and stays when you switch designs.
 - Two layouts: **classic** (name curved along the edge) and **window** (a framed picture with a straight name).
   The window can be flat, so nobody can feel which character they drew.
 - 9 frame designs, and 6 back designs plus the edition's name or your own SVG, each drawn on your character as you choose.

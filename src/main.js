@@ -86,20 +86,24 @@ const COLOUR_CHOICES = ["Black", "White", "Gold", "Silver", "Bronze", "Blue", "R
   .map((name) => ({ id: name.toLowerCase(), hex: FILAMENT_SLOTS.find((f) => f.name === name).hex }));
 let gateState = null;
 
-/** Premade designs. Applying one replaces the style being edited (set or token). */
+/** Premade designs. Applying one replaces the style being edited (set or token), all but its
+ *  magnet, which is a choice of its own. Every design keeps the frame in the team colour, like
+ *  the name, so a token's side reads the same whatever the design. */
 const PRESETS = [
-  { id: "rapida", spec: { style: "classic", frame: "rim", frameWidth: 0.8, back: "none", depth: 0.2, magnet: "none",
+  { id: "rapida", spec: { style: "classic", frame: "rim", frameWidth: 0.8, back: "none", depth: 0.2,
     colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } } },
-  { id: "marfil", spec: { style: "classic", frame: "rim", frameWidth: 1.0, back: "guilloche", depth: 0.4, magnet: "none",
+  { id: "noche", spec: { style: "classic", frame: "fases", frameWidth: 0.8, back: "none", depth: 0.2,
+    colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } } },
+  // The gold midnight clock on the back is light on a dark coin: 0.4 mm covers it.
+  { id: "medianoche", spec: { style: "classic", frame: "firmamento", frameWidth: 0.8, back: "medianoche", depth: 0.4,
+    colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } } },
+  { id: "marfil", spec: { style: "classic", frame: "rim", frameWidth: 1.0, back: "guilloche", depth: 0.4,
     colours: { base: FILAMENTS.white, front: "team", frame: "team", back: FILAMENTS.bronze } } },
-  { id: "legible", spec: { style: "window", windowFinish: "flat", textSize: 6, frame: "none", back: "none", depth: 0.4, magnet: "none",
+  { id: "legible", spec: { style: "window", windowFinish: "flat", textSize: 6, frame: "none", back: "none", depth: 0.4,
     colours: { base: FILAMENTS.white, front: "team", frame: "team", back: FILAMENTS.gold } } },
-  // Magnets: an open pocket to glue into, or one sealed inside during a pause.
-  { id: "iman", spec: { style: "classic", frame: "rim", frameWidth: 0.8, back: "none", depth: 0.2, magnet: "pocket", magnetSize: "6x2",
-    colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } } },
-  { id: "oculto", spec: { style: "classic", frame: "fases", frameWidth: 0.8, back: "medianoche", depth: 0.4, magnet: "hidden", magnetSize: "6x2",
-    colours: { base: FILAMENTS.black, front: "team", frame: FILAMENTS.gold, back: FILAMENTS.gold } } },
 ];
+/** Applying a design leaves these alone: the magnet is chosen in its own section. */
+const PRESET_KEEPS = new Set(["lang", "customSvg", "magnet", "magnetSize"]);
 const presetSpec = (p) => ({ ...structuredClone(DEFAULT_SPEC), ...structuredClone(p.spec) });
 
 function loadJSON(key, fallback) { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } }
@@ -985,7 +989,7 @@ function wire() {
   $("#presets").onclick = (e) => {
     const b = e.target.closest("[data-preset]"); if (!b) return;
     const next = presetSpec(PRESETS.find((p) => p.id === b.dataset.preset));
-    changeStyle((s) => { for (const k of Object.keys(next)) if (k !== "lang" && k !== "customSvg") s[k] = structuredClone(next[k]); s.preset = b.dataset.preset; });
+    changeStyle((s) => { for (const k of Object.keys(next)) if (!PRESET_KEEPS.has(k)) s[k] = structuredClone(next[k]); s.preset = b.dataset.preset; });
   };
   // this token only
   $("#printed").oninput = (e) => {
