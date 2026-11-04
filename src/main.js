@@ -7,6 +7,7 @@ import {
   onUser, signIn, signOutUser, isAdmin, loadRoles, uploadRoles, listAccountDesigns, deleteAccountDesign,
 } from "./firebase.js";
 import { planPlates, FILAMENT_SLOTS, PRINTERS, printerOf, NOZZLES, nozzleOf } from "./bambu/plates.js";
+import { colourIssues, LIGHT_DEPTH } from "./colour-checks.js";
 import { plateFeatures } from "./bambu/estimate.js";
 import { PAGE, layoutCoins, backX } from "./pdf/layout.js";
 import { t, uiLang, setUiLang, LANGUAGES } from "./i18n.js";
@@ -672,7 +673,66 @@ function renderWorkshop() {
       ? t("name.hintWindow", { lines: n.lines, mm: n.letterHeight.toFixed(1), small, nozzle: nozzleMm() })
       : t("name.hint", { arc: n.total.toFixed(0), mm: n.letterHeight.toFixed(1), shrunk: n.scale < 1, small, nozzle: nozzleMm() });
     $("#nameSummary").textContent = `${n.letterHeight.toFixed(1)} mm`;
+    renderColourWarn(role, spec, key);
   });
+}
+
+/** Under the token's name: inlays the coin's colour, or light ones too shallow on a dark coin. */
+function renderColourWarn(role, spec, key) {
+  const { clash, light } = colourIssues(role, spec);
+  const box = $("#colourWarn");
+  box.hidden = !clash.length && !light.length;
+  if (box.hidden) return;
+  // "front" is the name and the icon: two words in the list ("the name, the icon and the frame")
+  const parts = (list) => { const w = list.flatMap((p) => (p === "front" ? [t("colour.part.name"), t("colour.part.icon")] : [t(`colour.part.${p}`)])); return `${w.slice(0, -1).join(", ")}${t("colour.and")}${w.at(-1)}`; };
+  const own = !!state.overrides.get(key)?.spec;
+  box.innerHTML = [
+    clash.length ? `<p><span aria-hidden="true">⚠</span> ${esc(t("colour.clash", { parts: parts(clash), n: clash.length }))}</p>` : "",
+    light.length ? `<p><span aria-hidden="true">◐</span> ${esc(t("colour.light", { parts: parts(light), n: light.length, mm: dec1(LIGHT_DEPTH) }))}
+      <button class="pill" type="button" data-deepen>${esc(t(own ? "colour.deepenToken" : "colour.deepenSet", { mm: dec1(LIGHT_DEPTH) }))}</button></p>` : "",
+  ].join("");
+}
+/** One decimal in the interface's language. */
+const dec1 = (v) => v.toFixed(1).replace(".", uiLang() === "es" ? "," : ".");
+/** The fix for light inlays: the depth that covers the coin, on the style the token actually uses. */
+function deepen() {
+  const key = state.sel.key, own = state.overrides.get(key)?.spec;
+  (own ?? state.spec).depth = LIGHT_DEPTH;
+  if (own) storeOverrides(); else storeJSON(STYLE_KEY, state.spec);
+  renderWorkshop(); scheduleSheet();
+}
+
+/** The selection's colour problems (see colour-checks.js), each with its token key and label. */
+function selectionColourIssues() {
+  return [...state.pick.keys()].map((k) => {
+    const q = queueEntry(tokenRole(k), tokenRem(k)), role = roleById(q.roleId);
+    return { k, label: queueLabel(q, role), ...colourIssues(role, itemSpec(q)) };
+  });
+}
+/** The Print step's colour notes: inlays you can't tell from the coin (also on paper), and
+ *  light inlays too shallow on a dark coin (3D only), with a fix for all of them at once. */
+function colourNotes(way) {
+  const all = selectionColourIssues();
+  const list = (xs) => `<ul>${xs.map((x) => `<li><button type="button" data-fix="${x.k}">${esc(x.label)}</button></li>`).join("")}</ul>`;
+  const clash = all.filter((x) => x.clash.length), light = way === "3d" ? all.filter((x) => x.light.length) : [];
+  return (clash.length ? `<div class="q-note warn small-text"><span aria-hidden="true">⚠</span><div>
+      <p>${esc(t("print.clash", { n: clash.length }))}</p>${list(clash)}</div></div>` : "")
+    + (light.length ? `<div class="q-note warn small-text"><span aria-hidden="true">◐</span><div>
+      <p>${esc(t("print.light", { n: light.length, mm: dec1(LIGHT_DEPTH) }))}</p>${list(light)}
+      <p><button class="pill" type="button" data-deepen-all>${esc(t("print.deepenAll", { n: light.length, mm: dec1(LIGHT_DEPTH) }))}</button></p>
+      ${light.some((x) => !state.overrides.get(x.k)?.spec) ? `<p><small>${esc(t("print.deepenSetNote"))}</small></p>` : ""}</div></div>` : "");
+}
+/** Deepens every selected token with light inlays on a dark coin: its own style, or the set's. */
+function deepenAll() {
+  let set = false, own = false;
+  for (const x of selectionColourIssues().filter((x) => x.light.length)) {
+    const o = state.overrides.get(x.k)?.spec;
+    if (o) { o.depth = LIGHT_DEPTH; own = true; } else set = true;
+  }
+  if (set) { state.spec.depth = LIGHT_DEPTH; storeJSON(STYLE_KEY, state.spec); }
+  if (own) storeOverrides();
+  if (state.sel) renderWorkshop();
+  renderSheet(); renderSpine(); renderQueue();
 }
 
 /** The frame designs, each drawn on the selected character in the current colours. */
@@ -872,6 +932,8 @@ function wire() {
   $("#printPage").addEventListener("click", (e) => {
     const w = e.target.closest("[data-way]"), pr = e.target.closest("[data-printer]"), nz = e.target.closest("[data-nozzle]"), fix = e.target.closest("[data-fix]");
     if (fix) { goStep(2); designToken(fix.dataset.fix); return; }
+    if (e.target.closest("[data-deepen-all]")) { deepenAll(); return; }
+    if (e.target.closest("[data-test]") && testQ) { downloadBambu(testQ, e.target.closest("[data-test]")); return; }
     if (w) { flow.way = w.dataset.way; storeJSON(PRINT_WAY_KEY, flow.way); }
     else if (pr) { flow.printer = printerOf(pr.dataset.printer).id; storeJSON(PRINTER_KEY, flow.printer); }
     else if (nz) { flow.nozzle = nozzleOf(nz.dataset.nozzle).id; storeJSON(NOZZLE_KEY, flow.nozzle); }
@@ -901,6 +963,7 @@ function wire() {
     changeStyle((s) => { s.colours = { ...DEFAULT_SPEC.colours, ...s.colours, [box.dataset.colour]: b.dataset.v }; });
   };
   for (const id of Object.keys(RANGES)) $("#" + id).oninput = (e) => changeStyle((s) => { s[id] = +e.target.value; });
+  $("#colourWarn").addEventListener("click", (e) => { if (e.target.closest("[data-deepen]")) deepen(); });
   // A reset button for every field: in a slider's row, after a group of choices or colours.
   const resetBtn = () => Object.assign(document.createElement("button"), { type: "button", className: "reset-f", hidden: true, textContent: "↺" });
   for (const id of Object.keys(RANGES)) { const b = resetBtn(); b.dataset.reset = id; $(`output[data-for=${id}]`).after(b); }
@@ -1069,6 +1132,17 @@ function queuePlan() {
   });
   return planPlates(items, { bed: printerOf(flow.printer).bed });
 }
+
+/**
+ * The token to print first as a test: the one with the most colours (the most filament
+ * changes to check), a character before a reminder or a card. An item of queuePlan().
+ */
+function testItem(plan) {
+  const colours = (it) => new Set(Object.entries(it.token.parts).filter(([, v]) => v).map(([p]) => it.token.colours[p] ?? it.token.colours.base)).size;
+  const rank = (it) => colours(it) * 4 - (isReminder(it.q) ? 2 : 0) - (isCardEntry(it.q) ? 1 : 0);
+  return plan.plates.flatMap((p) => p.items).reduce((best, it) => (!best || rank(it) > rank(best) ? it : best), null);
+}
+let testQ = null;   // the Print step's test token (a queue entry)
 
 /** A queued token's footprint: a coin's diameter, or a card's size. */
 const isCardEntry = (q) => isCard(roleById(q.roleId));
@@ -1256,7 +1330,6 @@ function renderPrintStep() {
       <div class="printers" role="radiogroup" aria-label="${esc(t("print.nozzle"))}">${Object.values(NOZZLES).map((nz) => `<button class="pill" type="button" role="radio" data-nozzle="${nz.id}" aria-checked="${nz.id === flow.nozzle}">${esc(`${String(nz.mm).replace(".", uiLang() === "es" ? "," : ".")} mm`)}<small>${esc(t(nz.id === "0.4" ? "print.nozzle04" : "print.nozzle02"))}</small></button>`).join("")}</div>`;
     if (!plan) { detail.innerHTML = `${printers}<p class="q-note warn">${esc(planError)}</p>`; return; }
     // Names too small to print cleanly, smallest first, each opening its token in step 2.
-    const dec1 = (v) => v.toFixed(1).replace(".", uiLang() === "es" ? "," : ".");
     const smalls = [...state.pick.keys()].map((k) => {
       const q = { pick: k, ...queueEntry(tokenRole(k), tokenRem(k)) }, role = roleById(q.roleId);
       return { k, mm: nameLetterHeight(state.lib, itemSpec(q), queueTitle(q, role), role), label: queueLabel(q, role) };
@@ -1274,9 +1347,16 @@ function renderPrintStep() {
     const totalMin = est.reduce((a, e) => a + e.minutes, 0);
     const dec = uiLang() === "es" ? "," : ".";
     const pauses = [...new Set(queue.map((q) => magnetLayout(itemSpec(q))).filter((m) => m?.kind === "hidden").map((m) => m.pauseZ))].sort((a, b) => a - b);
-    detail.innerHTML = `${printers}${smallNote}<h3 class="q-h">${esc(t("queue.filaments"))}</h3>
+    // A test token first: one coin with the most colours, on its own plate, before hours of plates.
+    const test = queue.length > 1 ? testItem(plan) : null;
+    testQ = test?.q ?? null;
+    const testNote = test ? `<div class="q-note test-print"><span aria-hidden="true">✓</span><div>
+      <p>${esc(t("print.test", { name: test.title, time: fmtT(plateFeatures([{ token: test.token, vol: tokenVolumes(test.q) }], flow.nozzle).minutes) }))}</p>
+      <button class="pill" type="button" data-test>${esc(t("print.testBtn"))}</button></div></div>` : "";
+    detail.innerHTML = `${printers}${smallNote}${colourNotes("3d")}<h3 class="q-h">${esc(t("queue.filaments"))}</h3>
       <p class="q-note">${swatches(slots)}<span>${esc(t("queue.filamentsNote", { list: slots.map((sl) => `${filamentName(sl)} ${fmtG(gramsBy.get(sl) || 0)}`).join(", ") }))}</span></p>
       <p class="q-note"><span aria-hidden="true">⏱</span><span>${esc(t("print.estimate", { time: fmtT(totalMin), n: plan.plates.length }))}</span></p>
+      ${testNote}
       ${pauses.length ? `<p class="q-note"><span aria-hidden="true">⏸</span><span>${esc(t("queue.pauses", { z: pauses.map((z) => String(z).replace(".", dec)).join(", ") }))}</span></p>` : ""}
       <h3 class="q-h">${esc(t("queue.platesH", { n: plan.plates.length }))}</h3>
       <div class="q-plates">${plan.plates.map((p, i) => `<article class="q-plate"><header><h3>${esc(t("queue.plateName", { i: i + 1, name: p.name }))}<small>${esc(t("queue.plateFill", { n: p.items.length, cap: p.capacity }))}</small></h3>${swatches([...p.slots].sort((a, b) => a - b))}
@@ -1297,20 +1377,21 @@ function renderPrintStep() {
     const face = (page, side) => `<figure><div class="q-sheet">${page.map((c) => coinAt(queue[c.index], side, side === "front" ? c.x : backX(c.x), c)).join("")}</div>
       <figcaption>${esc(t(side === "front" ? "queue.pdfFront" : "queue.pdfBack"))}</figcaption></figure>`;
     const backs = flow.backs;
-    detail.innerHTML = `<label class="switch"><input type="checkbox" id="paperBacks" ${backs ? "checked" : ""}> <span>${esc(t("print.backs"))}</span></label>
+    detail.innerHTML = `${colourNotes("paper")}<label class="switch"><input type="checkbox" id="paperBacks" ${backs ? "checked" : ""}> <span>${esc(t("print.backs"))}</span></label>
       <h3 class="q-h">${esc(t("queue.sheetsH", { n: sheets.length, backs }))}</h3>
       ${sheets.map((page, i) => `<div class="q-pair"><h4>${esc(t("queue.sheetN", { i: i + 1, n: sheets.length }))}</h4><div class="q-sheets">${face(page, "front")}${backs ? face(page, "back") : ""}</div></div>`).join("")}
       <ol class="q-howto"><li>${esc(t(backs ? "queue.howto1" : "queue.howto1Single"))}</li><li>${esc(t("queue.howto2"))}</li><li>${esc(t("queue.howto3"))}</li></ol>`;
   }
 }
 
-async function downloadBambu() {
-  const btn = $("#flowNext"), out = $("#printNote");
+/** Downloads the selection as a Bambu project, or only `one` queue entry (the test token). */
+async function downloadBambu(one = null, btn = $("#flowNext")) {
+  const out = $("#printNote");
   btn.disabled = true;
   try {
     const { buildBambuProject } = await import("./bambu/bambu3mf.js");   // JSZip and the printer template load only now
     const items = [];
-    const order = printOrder();
+    const order = one ? [one] : printOrder();
     for (const [i, q] of order.entries()) {
       const role = roleById(q.roleId);
       out.className = "hint"; out.textContent = t("queue.building", { i: i + 1, n: order.length, name: queueLabel(q, role) });
@@ -1320,7 +1401,9 @@ async function downloadBambu() {
     const printer = printerOf(flow.printer);
     const nozzle = nozzleOf(flow.nozzle);
     const { blob, plan, filaments } = await buildBambuProject(items, { printer: printer.id, nozzle: nozzle.id, onProgress: (d, total) => { out.textContent = t("queue.writing", { i: d, n: total }); } });
-    const file = `midnight-mint-${items.length}-tokens-${printer.short.toLowerCase().replace(/\s+/g, "-")}${nozzle.id === "0.4" ? "" : `-${nozzle.id}mm`}.3mf`;
+    const slug = (s) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const what = one ? `test-${slug(items[0].title)}` : `${items.length}-tokens`;
+    const file = `midnight-mint-${what}-${printer.short.toLowerCase().replace(/\s+/g, "-")}${nozzle.id === "0.4" ? "" : `-${nozzle.id}mm`}.3mf`;
     await saveFile(blob, file);
     out.textContent = t("queue.done", { file, n: plan.plates.length, filaments: filaments.map((f) => t(`filament.${f.name}`)).join(", ") });
   } catch (err) {
