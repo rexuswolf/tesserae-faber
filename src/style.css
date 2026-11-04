@@ -418,6 +418,10 @@ summary small { font-family: var(--ui); font-size: 12.5px; color: var(--dust); }
 .way small { color: var(--dust); font-size: 12.5px; }
 .way[aria-checked=true] { border-color: var(--brass); background: rgba(201, 162, 39, .1); }
 .way[aria-checked=true] svg { color: var(--brass); }
+.printers { display: flex; flex-wrap: wrap; gap: 8px; }
+.printers .pill { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 8px 16px; border-radius: 14px; line-height: 1.25; }
+.printers .pill small { font-size: 11.5px; opacity: .75; }
+.printers .pill[aria-checked=true] { border-color: var(--brass); background: rgba(201, 162, 39, .1); color: inherit; }
 .q-h { margin: 18px 0 8px; font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--dust); }
 .q-note { display: flex; gap: 10px; align-items: flex-start; margin: 0 0 8px; padding: 10px 12px; border-radius: 12px; background: rgba(239, 230, 214, .05); font-size: 13px; color: var(--dust); line-height: 1.45; }
 .q-note.warn { color: var(--warn); }

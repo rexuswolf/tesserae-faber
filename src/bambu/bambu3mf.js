@@ -1,14 +1,20 @@
-// Writes a Bambu Studio project (.3mf) for a Bambu Lab A1: tokens laid out face-down
-// on plates, each token one object whose parts (coin, front, frame, back) already
-// have their filament. Plates are filled so none needs more than the AMS lite's 4 slots.
+// Writes a Bambu Studio project (.3mf) for a Bambu Lab A1 or A1 mini: tokens laid out
+// face-down on plates, each token one object whose parts (coin, front, frame, back)
+// already have their filament. Plates are filled so none needs more than the AMS lite's
+// 4 slots.
 //
-// The printer/process/filament settings come from a1-template.json, generated once
-// with Bambu Studio by tools/make_bambu_template.py.
+// The printer/process/filament settings come from <printer>-template.json, generated once
+// per printer with Bambu Studio by tools/make_bambu_template.py.
 import JSZip from "jszip";
-import template from "./a1-template.json";
-import { FILAMENT_SLOTS, PARTS, PLATE_STRIDE, slotOf, slotsFor, towerSpot, planPlates } from "./plates.js";
+import { FILAMENT_SLOTS, PARTS, plateStride, printerOf, slotOf, slotsFor, towerSpot, planPlates } from "./plates.js";
 
-export { FILAMENT_SLOTS, AMS_SLOTS, slotOf, perPlate, planPlates } from "./plates.js";
+export { FILAMENT_SLOTS, AMS_SLOTS, PRINTERS, slotOf, perPlate, planPlates } from "./plates.js";
+
+// Each printer's settings (about 60 kB) load only for a download to that printer.
+const TEMPLATES = {
+  a1: () => import("./a1-template.json"),
+  a1mini: () => import("./a1mini-template.json"),
+};
 
 
 // ------------------------------------------------------------ geometry
@@ -47,7 +53,7 @@ const XML = `<?xml version="1.0" encoding="UTF-8"?>\n`;
 
 // ------------------------------------------------------------ settings
 
-function projectSettings(used, plates) {
+function projectSettings(template, used, plates, bed) {
   const s = structuredClone(template.settings);
   for (const key of template.perFilament) s[key] = used.map((slot) => template.settings[key][slot]);
   const n = used.length;
@@ -58,7 +64,7 @@ function projectSettings(used, plates) {
   // Bambu Studio may switch the prime tower on when it loads your presets, so plan
   // for it: a small tower in the slot we keep free on every plate. On the A1 most
   // purging goes down the waste chute; the tower only takes prime_volume per change.
-  const spots = plates.map((p) => towerSpot(p.diameter));
+  const spots = plates.map((p) => towerSpot(p.diameter, bed));
   s.enable_prime_tower = "1";
   s.prime_tower_width = "35";
   s.wipe_tower_x = spots.map((t) => t.x.toFixed(1));
@@ -69,12 +75,15 @@ function projectSettings(used, plates) {
 // ------------------------------------------------------------ writer
 
 /**
- * Builds the .3mf. `items` are {token, title, group}; returns {blob, plan}.
- * `onProgress(done, total)` is called as tokens are written.
+ * Builds the .3mf for `printer` ("a1" or "a1mini"). `items` are {token, title, group};
+ * returns {blob, plan}. `onProgress(done, total)` is called as tokens are written.
  */
-export async function buildBambuProject(items, { faceDown = true, onProgress = () => {} } = {}) {
+export async function buildBambuProject(items, { printer = "a1", faceDown = true, onProgress = () => {} } = {}) {
   if (!items.length) throw new Error("add some tokens to the print queue first");
-  const plan = planPlates(items);
+  const { bed, id } = printerOf(printer);
+  const template = (await TEMPLATES[id]()).default;
+  const plan = planPlates(items, { bed });
+  const stride = plateStride(bed);
   const usedSlots = [...new Set(plan.plates.flatMap((p) => [...p.slots]))].sort((a, b) => a - b);
   const extruder = (slot) => usedSlots.indexOf(slot) + 1;
   const cols = Math.ceil(Math.sqrt(plan.plates.length));
@@ -85,8 +94,8 @@ export async function buildBambuProject(items, { faceDown = true, onProgress = (
   let done = 0;
 
   for (const [pi, plate] of plan.plates.entries()) {
-    const px = (pi % cols) * PLATE_STRIDE, py = -Math.floor(pi / cols) * PLATE_STRIDE;
-    const slots = slotsFor(plate.diameter);
+    const px = (pi % cols) * stride, py = -Math.floor(pi / cols) * stride;
+    const slots = slotsFor(plate.diameter, bed);
     const instances = [];
     for (const [ti, it] of plate.items.entries()) {
       const { x, y } = slots[ti];
@@ -177,7 +186,7 @@ ${rels.map((r, i) => ` <Relationship Target="${r}" Id="rel-${i + 1}" Type="http:
 ${objectsCfg.join("\n")}
 ${platesCfg.join("\n")}
 </config>`);
-  zip.file("Metadata/project_settings.config", JSON.stringify(projectSettings(usedSlots, plan.plates), null, 4));
+  zip.file("Metadata/project_settings.config", JSON.stringify(projectSettings(template, usedSlots, plan.plates, bed), null, 4));
   zip.file("Metadata/slice_info.config", `${XML}<config>
   <header>
     <header_item key="X-BBL-Client-Type" value="slicer"/>

@@ -58,10 +58,11 @@
 ![X-ray view of a token with a hidden 6×2 mm magnet](docs/screenshots/magnet.png)
 
 **Print them**
-- Gather tokens in the **print queue**: one line per character with its copies and reminders. Then choose how to print,
-  and see the plates (with their filaments) or the A4 sheets before you download.
-- **Bambu Lab A1 with AMS lite**: download a ready-to-print `.3mf`. Every part already has its filament,
+- Three steps: **pick** the tokens (tap them, add copies), **design** them (one design for the set, or one of
+  their own), then **print**: see the plates (with their filaments) or the A4 sheets before you download.
+- **Bambu Lab A1 or A1 mini, with AMS lite**: download a ready-to-print `.3mf`. Every part already has its filament,
   tokens are grouped onto plates by team with at most 4 colours each, and hidden magnets come with their pause.
+  The A1 mini's smaller plate holds 8 characters or 14 reminders (the A1: 24 and 34).
 - **Any other printer**: download a token's STL files from the workshop, one per colour, with instructions.
 - **Paper**: download a double-sided A4 PDF at real size. Each back lands behind its front, with cut guides.
 
@@ -106,7 +107,8 @@ and `node tools/upload-library.mjs` replaces the library with it.
 - `src/engine/token-engine.js`: the token geometry (three.js), the 3D viewer, 2D thumbnails and STL export.
   A token is a coin plus flush coloured inlays (name and icon, frame, back), so each colour is its own part.
 - `src/bambu/bambu3mf.js`: the Bambu Studio project writer (plates, filaments, prime tower, magnet pauses).
-  Its printer settings come from `a1-template.json`, generated with Bambu Studio by `tools/make_bambu_template.py`.
+  Its printer settings come from `a1-template.json` and `a1mini-template.json`, generated with Bambu Studio by
+  `tools/make_bambu_template.py <any.stl> [a1|a1mini]`.
 - `src/pdf/print-pdf.js`: the double-sided A4 PDF, loaded only when you ask for it.
 - `src/main.js`, `src/i18n.js`, `src/style.css`: the app, its Spanish and English text, and its look.
 - `src/translations.js`: the languages tokens can be printed in, and who translated each one.

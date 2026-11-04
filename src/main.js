@@ -5,7 +5,7 @@ import {
 import {
   onUser, signIn, signOutUser, isAdmin, loadRoles, uploadRoles, listAccountDesigns, deleteAccountDesign,
 } from "./firebase.js";
-import { planPlates, FILAMENT_SLOTS } from "./bambu/plates.js";
+import { planPlates, FILAMENT_SLOTS, PRINTERS, printerOf } from "./bambu/plates.js";
 import { PAGE, layoutCoins, backX } from "./pdf/layout.js";
 import { t, uiLang, setUiLang, LANGUAGES } from "./i18n.js";
 import { TRANSLATIONS, VILLACUERVOS_URL, translationById, translationGroups } from "./translations.js";
@@ -825,7 +825,13 @@ function wire() {
   };
   $("#designStage").addEventListener("click", (e) => { const b = e.target.closest("[data-side]"); if (b) { flow.side = b.dataset.side; renderDesignStage(); } });
   // step 3: how to print
-  $("#printPage").addEventListener("click", (e) => { const w = e.target.closest("[data-way]"); if (w) { flow.way = w.dataset.way; storeJSON(PRINT_WAY_KEY, flow.way); $("#printNote").textContent = ""; renderQueue(); } });
+  $("#printPage").addEventListener("click", (e) => {
+    const w = e.target.closest("[data-way]"), pr = e.target.closest("[data-printer]");
+    if (w) { flow.way = w.dataset.way; storeJSON(PRINT_WAY_KEY, flow.way); }
+    else if (pr) { flow.printer = printerOf(pr.dataset.printer).id; storeJSON(PRINTER_KEY, flow.printer); }
+    else return;
+    $("#printNote").textContent = ""; renderQueue();
+  });
 
   // workshop
   $$(".turn .pill[data-view]").forEach((b) => b.onclick = () => { view3d("setView", b.dataset.view); syncView(b.dataset.view); });
@@ -1003,14 +1009,14 @@ function queuePlan() {
         colours: { base: pick(spec.colours.base), front: pick(spec.colours.front), icon: pick(spec.colours.base), frame: pick(spec.colours.frame), back: pick(spec.colours.back) } },
     };
   });
-  return planPlates(items);
+  return planPlates(items, { bed: printerOf(flow.printer).bed });
 }
 
 
 // ------------------------------------------------------------ steps
 
-const PRINT_WAY_KEY = "midnight-mint-print-way";
-const flow = { way: loadJSON(PRINT_WAY_KEY, "3d") === "paper" ? "paper" : "3d", side: "front", undo: null };
+const PRINT_WAY_KEY = "midnight-mint-print-way", PRINTER_KEY = "midnight-mint-printer";
+const flow = { way: loadJSON(PRINT_WAY_KEY, "3d") === "paper" ? "paper" : "3d", printer: printerOf(loadJSON(PRINTER_KEY, "a1")).id, side: "front", undo: null };
 const queuePic = (q, role = roleById(q.roleId)) => tokenSvg(state.lib, role, itemSpec(q), { text: queueTitle(q, role) });
 
 /** Moves to step 1 (pick), 2 (design) or 3 (print). Steps 2 and 3 need something picked. */
@@ -1045,7 +1051,7 @@ function renderQueue() {
   $("#flowBack").innerHTML = step > 1 ? `<span aria-hidden="true">‹</span> <span class="fb-l">${esc(t(`flow.step${step - 1}`))}</span>` : "";
   $("#flowBack").setAttribute("aria-label", step > 1 ? t(`flow.step${step - 1}`) : "");
   const next = $("#flowNext");
-  next.textContent = step === 1 ? `${t("flow.step2")} ›` : step === 2 ? `${t("flow.step3")} ›` : t(flow.way === "paper" ? "queue.downloadPdf" : "queue.download");
+  next.textContent = step === 1 ? `${t("flow.step2")} ›` : step === 2 ? `${t("flow.step3")} ›` : (flow.way === "paper" ? t("queue.downloadPdf") : t("queue.download", { printer: `Bambu ${printerOf(flow.printer).short}` }));
   next.disabled = !n;
   if ($("#queueDrawer").open) renderQueueList();
   if (step === 2) renderDesignStage();
@@ -1155,15 +1161,19 @@ function renderPrintStep() {
   let plan = null, planError = null, sheets = [];
   try { plan = queuePlan(); } catch (err) { planError = err.message; }
   try { sheets = layoutCoins(queue.map((q) => itemSpec(q).diameter)); } catch { /* shown below */ }
-  $("#way3dSub").textContent = plan ? t("queue.way3dSub", { n: plan.plates.length }) : t("queue.way3dError");
+  const printer = printerOf(flow.printer);
+  $("#way3dSub").textContent = plan ? t("queue.way3dSub", { printer: printer.name, n: plan.plates.length }) : t("queue.way3dError", { printer: printer.name });
   $("#wayPaperSub").textContent = t("queue.wayPaperSub", { n: sheets.length });
   if (way === "3d") {
     $("#flowNext").disabled = !plan;
-    if (!plan) { detail.innerHTML = `<p class="q-note warn">${esc(planError)}</p>`; return; }
+    // which printer: the A1 or the A1 mini (same AMS lite, a smaller bed)
+    const printers = `<h3 class="q-h">${esc(t("print.printer"))}</h3>
+      <div class="printers" role="radiogroup" aria-label="${esc(t("print.printer"))}">${Object.values(PRINTERS).map((pr) => `<button class="pill" type="button" role="radio" data-printer="${pr.id}" aria-checked="${pr.id === printer.id}">${esc(pr.name)}<small>${esc(t("print.bed", { mm: pr.bed }))}</small></button>`).join("")}</div>`;
+    if (!plan) { detail.innerHTML = `${printers}<p class="q-note warn">${esc(planError)}</p>`; return; }
     const slots = [...new Set(plan.plates.flatMap((p) => [...p.slots]))].sort((a, b) => a - b);
     const dec = uiLang() === "es" ? "," : ".";
     const pauses = [...new Set(queue.map((q) => magnetLayout(itemSpec(q))).filter((m) => m?.kind === "hidden").map((m) => m.pauseZ))].sort((a, b) => a - b);
-    detail.innerHTML = `<h3 class="q-h">${esc(t("queue.filaments"))}</h3>
+    detail.innerHTML = `${printers}<h3 class="q-h">${esc(t("queue.filaments"))}</h3>
       <p class="q-note">${swatches(slots)}<span>${esc(t("queue.filamentsNote", { list: slots.map(filamentName).join(", ") }))}</span></p>
       ${pauses.length ? `<p class="q-note"><span aria-hidden="true">⏸</span><span>${esc(t("queue.pauses", { z: pauses.map((z) => String(z).replace(".", dec)).join(", ") }))}</span></p>` : ""}
       <h3 class="q-h">${esc(t("queue.platesH", { n: plan.plates.length }))}</h3>
@@ -1201,8 +1211,9 @@ async function downloadBambu() {
       await new Promise((r) => setTimeout(r));
       items.push({ token: buildToken(state.lib, role, itemSpec(q), queueTitle(q, role)), title: queueLabel(q, role), group: queueGroup(q, role) });
     }
-    const { blob, plan, filaments } = await buildBambuProject(items, { onProgress: (d, total) => { out.textContent = t("queue.writing", { i: d, n: total }); } });
-    const file = `midnight-mint-${items.length}-tokens.3mf`;
+    const printer = printerOf(flow.printer);
+    const { blob, plan, filaments } = await buildBambuProject(items, { printer: printer.id, onProgress: (d, total) => { out.textContent = t("queue.writing", { i: d, n: total }); } });
+    const file = `midnight-mint-${items.length}-tokens-${printer.short.toLowerCase().replace(/\s+/g, "-")}.3mf`;
     await saveFile(blob, file);
     out.textContent = t("queue.done", { file, n: plan.plates.length, filaments: filaments.map((f) => t(`filament.${f.name}`)).join(", ") });
   } catch (err) {
