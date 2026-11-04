@@ -15,8 +15,12 @@
 
 ![The app: editions and a saved script in the sidebar, the Trouble Brewing sheet, the token workshop and the print queue](docs/screenshots/app.png)
 
-Midnight Mint is a free, community-made tool. It is not affiliated with or endorsed by
-The Pandemonium Institute. No account needed: open it and start designing.
+<p align="center"><img src="public/ccc-sleeve.png" alt="Community Created Content" width="172"></p>
+
+<p align="center">
+  Midnight Mint is a free, community-made tool. It is not affiliated with or endorsed by
+  The Pandemonium Institute.<br>No account needed: open it and start designing.
+</p>
 
 ## Features
 
