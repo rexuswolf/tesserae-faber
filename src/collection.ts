@@ -1,4 +1,4 @@
-// Your own collection, for the generic creator at /crear. The app shows it the way it shows
+// Your own collection, for Tesserae Faber, the generic creator. The app shows it the way it shows
 // Clocktower:
 //   types     → the fixed entries at the top of the sidebar ("All characters", "Grimoire"); a
 //               type also says the tokens' shape (coins, or cards like the info tokens)
@@ -12,20 +12,20 @@
 import type { Hex, Role, Team, TokenIcon } from "./types.ts";
 import { gameIcon } from "./icons.ts";
 
-/** Which app this page is: Clocktower ("/"), or the generic creator ("/crear"). */
-export const MODE: "botc" | "own" = /^\/crear(\/|$)/.test(location.pathname) ? "own" : "botc";
+/** Which app this page is: Clocktower (/botc, once Midnight Mint), or Tesserae Faber, the generic creator (the rest). */
+export const MODE: "botc" | "own" = /^\/botc(\/|$)/.test(location.pathname) ? "botc" : "own";
 export const OWN = MODE === "own";
-/** Which page of the creator this is: its front page (/crear), the collections (/crear/colecciones) or one collection. */
-export const OWN_VIEW: "home" | "list" | "collection" = /^\/crear\/?$/.test(location.pathname) ? "home" : /^\/crear\/colecciones\/?$/.test(location.pathname) ? "list" : "collection";
-/** The collection this page shows (/crear/<id>); none on the front page or the list. */
-export const OWN_ID: string | null = OWN_VIEW === "collection" ? location.pathname.match(/^\/crear\/([\w-]+)/)?.[1] ?? null : null;
-export const LIST_URL = "/crear/colecciones";
+/** Which page of the creator this is: its front page (/), the collections (/colecciones) or one collection (/c/<id>). */
+export const OWN_VIEW: "home" | "list" | "collection" = /^\/c\/[\w-]+/.test(location.pathname) ? "collection" : /^\/colecciones\/?$/.test(location.pathname) ? "list" : "home";
+/** The collection this page shows (/c/<id>); none on the front page or the list. */
+export const OWN_ID: string | null = location.pathname.match(/^\/c\/([\w-]+)/)?.[1] ?? null;
+export const LIST_URL = "/colecciones";
 /** The last collection opened, for the front page's "carry on" link. */
 const LAST_KEY = "midnight-mint-own-last";
 export const lastCollection = () => { try { return localStorage.getItem(LAST_KEY); } catch { return null; } };
 export const rememberCollection = (id: string) => { try { localStorage.setItem(LAST_KEY, id); } catch { /* storage unavailable */ } };
 /** Where a collection opens. */
-export const collectionUrl = (id: string) => `/crear/${id}`;
+export const collectionUrl = (id: string) => `/c/${id}`;
 
 /** A name: one text, or one per token language ("en", "es", "es-castelgard"…). */
 export type Names = string | Record<string, string>;
@@ -98,7 +98,7 @@ export function readTheme(v: unknown): string | OwnTheme | undefined {
   return { accent: o.accent!, background: o.background!, surface: o.surface!, text: o.text!, muted: o.muted!, ...(isHex(o.glow) ? { glow: o.glow } : {}), ...(o.font && THEME_FONTS.includes(o.font) ? { font: o.font } : {}) };
 }
 // Each collection is kept on its own ("midnight-mint-own-<id>-collection"), with its own queue,
-// style and designs beside it (main.ts's keys); the list of them, for /crear, apart.
+// style and designs beside it (main.ts's keys); the list of them, for the front page and /colecciones, apart.
 const LIST_KEY = "midnight-mint-own-collections";
 const keyOf = (id: string) => `midnight-mint-own-${id}-collection`;
 /** A collection that comes with the app (public/collections/index.json): opened, it's kept like the rest. */

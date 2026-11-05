@@ -1,3 +1,4 @@
+import { handingOver } from "./handoff.ts";   // first: a browser arriving from midnight-mint.web.app brings its keepings
 import {
   loadLibrary, buildToken, geometryVolume, magnetLayout, MAGNET_SIZES, tokenSvg, roleName, saveFile, reminderSpec, layoutName, nameLetterHeight, SMALL_LETTERS_MM,
   TEAMS, EDITIONS, FRAME_STYLES, BACK_STYLES, TOKEN_STYLES, FILAMENTS, DEFAULT_SPEC, CARD, isCard,
@@ -51,10 +52,10 @@ const RANGES: Record<RangeKey, [number, string]> = { diameter: [0, " mm"], heigh
 const MAX_SVG = 300000;
 // The source code. Its links (sidebar footer and credits) stay hidden while the repository
 // is private, so nobody lands on GitHub's 404: set REPO_PUBLIC to true once it is published.
-const REPO_URL = "https://github.com/rexuswolf/midnight-mint";
+const REPO_URL = "https://github.com/rexuswolf/tesserae-faber";
 const REPO_PUBLIC = false;
 const QUEUE_KEY = "midnight-mint-queue";   // the old print queue, read once to carry it over
-// The generic creator (/crear) keeps its own queue, style and designs, apart from Clocktower's.
+// Tesserae Faber keeps each collection's own queue, style and designs, apart from Clocktower's.
 const KEYS = OWN ? `midnight-mint-own-${OWN_ID ?? "none"}-` : "midnight-mint-";   // each collection its own
 const PICK_KEY = `${KEYS}picks`;
 const STYLE_KEY = `${KEYS}style`;
@@ -64,6 +65,7 @@ const TOKEN_LANG_KEY = "midnight-mint-token-lang";
 const VIEW_KEY = `${KEYS}view`;   // the sheet you were on (all, an edition or a script) and its team filter
 const EDITION_ORDER = ["tb", "bmr", "snv", "carousel", "fabled", "loric", "grimoire"];
 document.documentElement.dataset.mode = MODE;   // the generic creator's own colours (style.css)
+if (!OWN) document.title = "Midnight Mint";   // Clocktower keeps its name (the page's own title is Tesserae Faber's)
 const TEAM_ORDER: Team[] = ["townsfolk", "outsider", "minion", "demon", "traveller", "fabled", "loric", "info"];
 const TEAM_PLURAL: Record<string, Record<string, string>> = {
   es: { townsfolk: "Aldeanos", outsider: "Forasteros", minion: "Esbirros", demon: "Demonios", traveller: "Viajeros", fabled: "Fábulas", loric: "Lóricos", info: "Fichas de información" },
@@ -105,7 +107,7 @@ const state: {
   pick: new Map(),         // token key ("c:imp", "r:imp:0") -> copies
   designs: [],
 };
-/** The generic creator's collection (/crear); empty, and unused, in Clocktower. */
+/** The collection this page shows (Tesserae Faber); empty, and unused, in Clocktower. */
 let coll: Collection = (OWN && loadCollection()) || { name: "", types: [], groups: [], tokens: [], sections: [] };
 if (OWN && OWN_ID) { applyOwnTheme(); applyOwnBrand(); }   // before the loading screen shows: it wears the collection's colours and mark too
 
@@ -393,6 +395,7 @@ const ADMIN_ENTRY = new URLSearchParams(location.search).has("admin");
 const adminSignIn = () => signIn().catch((e) => { if (e.code !== "auth/popup-closed-by-user") $("#gateText").textContent = t("gate.signInFailed", { message: e.message }); });
 
 async function boot() {
+  if (handingOver) return;   // handoff.ts is writing what came from the old address, then reloads: start nothing yet
   showGate(() => ({ title: OWN && coll.loader?.text ? nameIn(coll.loader.text, uiLang()) : t("gate.opening") }));
   if (OWN) {   // the collection's own line under the loading screen, and the community mark only if it asks for it
     $(".gate-card .ccc").hidden = !coll.loader?.ccc && !coll.loader?.footer;
@@ -402,7 +405,7 @@ async function boot() {
   try {
     // a collection that comes with the app, opened for the first time: read from its file
     if (OWN && OWN_ID && !coll.tokens.length) { const c = await openBuiltIn(OWN_ID); if (c) { coll = c; applyOwnTheme(); applyOwnBrand(); } }
-    if (OWN && OWN_VIEW === "home") { renderOwnLanding(); return; }   // /crear: the front page
+    if (OWN && OWN_VIEW === "home") { renderOwnLanding(); return; }   // the front page
     if (OWN && (!OWN_ID || !coll.tokens.length)) { renderOwnHome(); return; }   // the list (or a collection that isn't there)
     if (OWN) rememberCollection(OWN_ID!);
     if (OWN) {   // your own collection: no library to fetch
@@ -2174,7 +2177,7 @@ $("#libraryFile").onchange = async (e) => {
   } catch (err) { out.textContent = t("admin.uploadFailed", { message: (err as Error).message }); }
 };
 
-// ------------------------------------------------------------ the generic creator (/crear)
+// ------------------------------------------------------------ Tesserae Faber, the generic creator
 //
 // Your own collection (collection.ts) stands in for Clocktower's library: each token is a
 // character whose team is its colour group and whose reminders are its linked tokens. The
@@ -2591,7 +2594,7 @@ function wireOwnSettings() {
   };
 }
 
-// ------------------------------------------------------------ /crear: the list of your collections
+// ------------------------------------------------------------ the list of your collections
 
 /** The collections, the app's own apart from yours: [built-in, opened ones kept here], [yours]. */
 async function collectionsByKind() {
@@ -2616,7 +2619,7 @@ function showOwnPage(id: string) {
   $<HTMLLinkElement>("#favicon").href = APP_ICON;
   document.documentElement.dataset.theme = "";
 }
-/** /crear: what the app is, the ways in, and back to the last collection you had open. */
+/** The front page (/): what the app is, the ways in, and back to the last collection you had open. */
 async function renderOwnLanding() {
   showOwnPage("ownLanding");
   // the honeycomb of tokens, drawn once by the engine (tools/make-crear-art.mjs); inline, so its cells can be laid in turn
@@ -2633,7 +2636,7 @@ async function renderOwnLanding() {
   r.querySelector("b")!.textContent = name;
   void lang;
 }
-/** /crear/colecciones: the app's collections as covers, yours as a working list. */
+/** /colecciones: the app's collections as covers, yours as a working list. */
 async function renderOwnHome() {
   showOwnPage("ownHome");
   if (OWN_VIEW !== "list") history.replaceState(null, "", LIST_URL);   // a collection that isn't there: its list

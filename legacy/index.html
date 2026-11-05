@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Midnight Mint se ha mudado</title>
+<meta name="robots" content="noindex">
+<style>
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #170812; color: #efe6d6; font: 17px/1.5 system-ui, sans-serif; text-align: center; padding: 24px; }
+  a { color: #c9a227; }
+  p { max-width: 32em; }
+</style>
+</head>
+<body>
+<!-- Midnight Mint's old address (midnight-mint.web.app). Every visit goes on to Tesserae Faber's
+     /botc, taking along what this browser kept here (scripts, picks, designs: its
+     "midnight-mint…" storage), gzipped in the address's fragment, and the fragment it came with
+     (a shared script). src/handoff.ts takes it in on the other side. -->
+<main>
+  <p id="msg">Midnight Mint ahora vive en Tesserae Faber. Llevándote allí con tus guiones y diseños…</p>
+  <p><a id="go" href="https://tesserae-faber.web.app/botc/">Ir a Tesserae Faber</a></p>
+</main>
+<script>
+(async () => {
+  const target = "https://tesserae-faber.web.app/botc/";
+  const rest = location.hash.slice(1);   // e.g. a shared script: s=…
+  const kept = {};
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith("midnight-mint")) kept[k] = localStorage.getItem(k);
+    }
+  } catch { /* no storage: nothing to take */ }
+  let hand = "";
+  if (Object.keys(kept).length && "CompressionStream" in window) {
+    try {
+      const gz = await new Response(new Blob([JSON.stringify(kept)]).stream().pipeThrough(new CompressionStream("gzip"))).arrayBuffer();
+      let bin = "";
+      const bytes = new Uint8Array(gz);
+      for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+      const b64 = btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+      // browsers take addresses of a couple of megabytes; past that (it would take thousands of
+      // designs with their own icons), go on without them
+      if (b64.length < 1500000) hand = `mm-import=${b64}`;
+    } catch { /* go without */ }
+  }
+  const frag = [hand, rest].filter(Boolean).join("&");
+  const url = target + (frag ? `#${frag}` : "");
+  document.querySelector("#go").href = url;
+  location.replace(url);
+})();
+</script>
+</body>
+</html>

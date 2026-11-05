@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Midnight Mint</title>
-<meta name="description" content="Design 3D-printable tokens for your Blood on the Clocktower group. A free tool made by the community.">
+<title>Tesserae Faber</title>
+<meta name="description" content="Design tokens for your games and download them ready to print in 3D or on paper. Includes every Blood on the Clocktower edition. Free, no account.">
 <link rel="icon" type="image/svg+xml" href="/logo-mark.svg" id="favicon">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -26,7 +26,7 @@
       <button type="button" id="collSwitch" aria-haspopup="menu" aria-expanded="false" aria-controls="collMenu"><img class="coll-logo" src="/tesserae-faber-small.svg" alt="" width="34" height="34"><span class="cs-text"><b class="coll-name"></b><small>Tesserae Faber</small></span><span class="chev" aria-hidden="true">▾</span></button>
       <div class="coll-menu" id="collMenu" role="menu" hidden>
         <div class="coll-list"></div>
-        <a role="menuitem" href="/crear/colecciones"><span aria-hidden="true">‹</span><b data-i18n="own.homeTitle"></b><small data-i18n="own.menuBack"></small></a>
+        <a role="menuitem" href="/colecciones"><span aria-hidden="true">‹</span><b data-i18n="own.homeTitle"></b><small data-i18n="own.menuBack"></small></a>
         <hr>
         <button role="menuitem" type="button" data-coll="settings"><span aria-hidden="true">⚙</span><b data-i18n="own.settings"></b><small data-i18n="own.menuSettings"></small></button>
         <button role="menuitem" type="button" data-coll="groups"><span aria-hidden="true">◐</span><b data-i18n="own.groups"></b><small data-i18n="own.menuGroups"></small></button>
@@ -50,7 +50,7 @@
         <summary><img class="coll-logo" src="/tesserae-faber-small.svg" alt="" width="34" height="34"><span class="cs-text"><b class="coll-name"></b><small>Tesserae Faber</small></span><span class="chev" aria-hidden="true">▾</span></summary>
         <div class="coll-menu-items">
         <div class="coll-list"></div>
-        <a role="menuitem" href="/crear/colecciones"><span aria-hidden="true">‹</span><b data-i18n="own.homeTitle"></b><small data-i18n="own.menuBack"></small></a>
+        <a role="menuitem" href="/colecciones"><span aria-hidden="true">‹</span><b data-i18n="own.homeTitle"></b><small data-i18n="own.menuBack"></small></a>
         <hr>
         <button role="menuitem" type="button" data-coll="settings"><span aria-hidden="true">⚙</span><b data-i18n="own.settings"></b><small data-i18n="own.menuSettings"></small></button>
         <button role="menuitem" type="button" data-coll="groups"><span aria-hidden="true">◐</span><b data-i18n="own.groups"></b><small data-i18n="own.menuGroups"></small></button>
@@ -292,12 +292,11 @@
   <div class="toast app-toast" id="appToast" role="status" hidden><span></span><button type="button" data-i18n="queue.undo"></button></div>
 </div>
 
-<!-- the generic creator at /crear: your collections, to open one, start one or bring one in -->
-<!-- the generic creator's front page (/crear): what the app is, and the ways in -->
+<!-- Tesserae Faber's front page (/): what the app is, and the ways in -->
 <main class="own-home own-landing own-only" id="ownLanding" hidden>
   <header class="oh-top">
-    <a class="oh-homelink" href="/crear"><img src="/tesserae-faber.svg" alt="" width="40" height="40"><span class="faber-wm">TESSERAE<span class="ip" aria-hidden="true"></span>FABER</span></a>
-    <nav class="oh-nav"><a href="/crear" data-i18n="own.navHome" aria-current="page"></a><a href="/crear/colecciones" data-i18n="own.navList"></a></nav>
+    <a class="oh-homelink" href="/"><img src="/tesserae-faber.svg" alt="" width="40" height="40"><span class="faber-wm">TESSERAE<span class="ip" aria-hidden="true"></span>FABER</span></a>
+    <nav class="oh-nav"><a href="/" data-i18n="own.navHome" aria-current="page"></a><a href="/colecciones" data-i18n="own.navList"></a></nav>
   </header>
   <section class="ol-hero">
     <div class="ol-text">
@@ -308,7 +307,7 @@
         <li><span class="n">2</span><span><b data-i18n="own.step2"></b><span data-i18n="own.step2Sub"></span></span></li>
         <li><span class="n">3</span><span><b data-i18n="own.step3"></b><span data-i18n="own.step3Sub"></span></span></li>
       </ol>
-      <div class="ol-cta"><a class="forge" href="/crear/colecciones" data-i18n="own.landSee"></a><button class="pill" type="button" data-own-new data-i18n="own.homeNewPlain"></button></div>
+      <div class="ol-cta"><a class="forge" href="/colecciones" data-i18n="own.landSee"></a><button class="pill" type="button" data-own-new data-i18n="own.homeNewPlain"></button></div>
       <a class="ol-resume" id="ownResume" hidden><img alt=""><span><small data-i18n="own.resume"></small><b></b></span><span class="arrow" aria-hidden="true">›</span></a>
       <p class="hint" data-own-note aria-live="polite"></p>
     </div>
@@ -316,11 +315,11 @@
   </section>
 </main>
 
-<!-- the generic creator's collections (/crear/colecciones): the app's, to open; yours, to work with -->
+<!-- Tesserae Faber's collections (/colecciones): the app's, to open; yours, to work with -->
 <main class="own-home own-list own-only" id="ownHome" hidden>
   <header class="oh-top">
-    <a class="oh-homelink" href="/crear"><img src="/tesserae-faber.svg" alt="" width="40" height="40"><span class="faber-wm">TESSERAE<span class="ip" aria-hidden="true"></span>FABER</span></a>
-    <nav class="oh-nav"><a href="/crear" data-i18n="own.navHome"></a><a href="/crear/colecciones" data-i18n="own.navList" aria-current="page"></a></nav>
+    <a class="oh-homelink" href="/"><img src="/tesserae-faber.svg" alt="" width="40" height="40"><span class="faber-wm">TESSERAE<span class="ip" aria-hidden="true"></span>FABER</span></a>
+    <nav class="oh-nav"><a href="/" data-i18n="own.navHome"></a><a href="/colecciones" data-i18n="own.navList" aria-current="page"></a></nav>
   </header>
   <section class="oh-band oh-page-h"><div><h1 data-i18n="own.listTitle"></h1><p class="ol-lead" data-i18n="own.listLead"></p></div></section>
   <section class="oh-band oh-ready" id="ownHomeBuiltH"><div>

@@ -1217,10 +1217,10 @@ export const uiLang = () => lang;
 
 /** Translated text for `key`; functions receive `vars`. Falls back to English, then the key. */
 /**
- * The generic creator (/crear, see collection.ts) speaks of tokens, groups and linked tokens
+ * Tesserae Faber, the generic creator (everything but /botc, see collection.ts) speaks of tokens, groups and linked tokens
  * where Clocktower speaks of characters, teams and reminders: these replace those texts there.
  */
-const OWN_PAGE = /^\/crear(\/|$)/.test(location.pathname);
+const OWN_PAGE = !/^\/botc(\/|$)/.test(location.pathname);
 const OWN_STR: Record<string, Record<string, Entry>> = {
   es: {
     "gate.opening": "Abriendo tu colección…",

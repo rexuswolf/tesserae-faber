@@ -8,7 +8,8 @@
     "build": "vite build",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
-    "deploy": "tsc --noEmit && vite build && firebase deploy"
+    "deploy": "tsc --noEmit && vite build && firebase deploy --project tesserae-faber --only hosting:app,firestore",
+    "deploy:legacy": "firebase deploy --project midnight-mint --only hosting:legacy"
   },
   "dependencies": {
     "firebase": "^11.10.0",

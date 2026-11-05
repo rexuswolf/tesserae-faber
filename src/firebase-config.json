@@ -1,10 +1,10 @@
 {
-  "projectId": "midnight-mint",
-  "appId": "1:841912017635:web:348962343b8cbd18205bd6",
-  "storageBucket": "midnight-mint.firebasestorage.app",
-  "apiKey": "AIzaSyA4iBFWYzoNW1PhmXb4umJK2glABKijzNw",
-  "authDomain": "midnight-mint.firebaseapp.com",
-  "messagingSenderId": "841912017635",
-  "projectNumber": "841912017635",
+  "projectId": "tesserae-faber",
+  "appId": "1:375447925290:web:30e8c2e5c155c756d78953",
+  "storageBucket": "tesserae-faber.firebasestorage.app",
+  "apiKey": "AIzaSyAbjC4aBP93nyKRpPQ_v1GlX0m_7ayNOJU",
+  "authDomain": "tesserae-faber.firebaseapp.com",
+  "messagingSenderId": "375447925290",
+  "projectNumber": "375447925290",
   "version": "2"
 }
