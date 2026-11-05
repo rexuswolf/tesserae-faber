@@ -360,6 +360,7 @@ function startApp() {
   goStep(1);
   refreshDesigns();
   openSharedScript();
+  resumeHomebrew();
   if (!guide.wired) { guide.wired = true; wireGuide(); }
 }
 
@@ -428,6 +429,7 @@ const editionName = (role, lang) => EDITIONS[role.edition]?.name[lang] || (role.
 const homebrewRoles = (sc) => (sc.homebrew || []).map((h) => ({
   id: homebrewId(sc, h.id), kind: "homebrew", en: h.name, es: h.name, names: {}, fem: {}, team: h.team,
   edition: `s:${sc.id}`, reminders: { en: h.reminders || [] }, ability: h.ability,
+  loading: !h.icon && !h.noIcon && !!(h.def?.image || h.def?.icon),   // its icon is on its way
   g: h.icon?.g ?? "translate(0 0) scale(1)", body: h.icon?.body ?? "",
 }));
 /** Puts every saved script's homebrew characters in the library, replacing the ones there. */
@@ -501,7 +503,17 @@ function keepScript(data) {
  * an SVG, or a picture traced into shapes. One at a time, the sheet redrawn as each lands.
  * Characters whose picture can't be read keep a name-only token. Returns { got, failed }.
  */
+const tracing = new Set();   // scripts whose icons are being prepared
 async function traceHomebrew(scId, onProgress = () => {}) {
+  if (tracing.has(scId)) return { got: 0, failed: 0 };
+  tracing.add(scId);
+  try { return await traceEach(scId, onProgress); } finally { tracing.delete(scId); }
+}
+/** Icons left to prepare when the app was closed during an import: carry on in the background. */
+function resumeHomebrew() {
+  for (const sc of loadScripts()) if (sc.homebrew?.some((h) => !h.icon && !h.noIcon && (h.def?.image || h.def?.icon))) traceHomebrew(sc.id);
+}
+async function traceEach(scId, onProgress) {
   const todo = (loadScripts().find((x) => x.id === scId)?.homebrew || []).filter((h) => !h.icon && !h.noIcon && (h.def?.image || h.def?.icon));
   let got = 0, failed = 0;
   for (const [i, h] of todo.entries()) {
@@ -763,13 +775,15 @@ function rowHtml(r, q, remHits) {
     const own = state.overrides.has(key), copies = state.pick.get(key) || 0;
     const name = textFor(key, r, reminder);
     // once picked, a small stepper adds copies; tapping the token still drops it
-    return `<span class="tok-w"><button class="tok${isCard(r) ? " card" : ""}" type="button" data-pick="${key}" aria-pressed="${copies > 0}" aria-label="${esc(name)}">${tokenSvg(state.lib, r, spec, { text: name })}<span class="ck" aria-hidden="true">✓</span></button>${own ? ownPen(key, name) : ""}${copyStepper(key, name)}</span>`;
+    // a homebrew token whose icon is still on its way pulses where the icon will go
+    const loading = r.loading ? ` loading" style="--team: ${TEAMS[r.team].colour}` : "";
+    return `<span class="tok-w"><button class="tok${isCard(r) ? " card" : ""}${loading}" type="button" data-pick="${key}" aria-pressed="${copies > 0}" aria-label="${esc(name)}">${tokenSvg(state.lib, r, spec, { text: name })}<span class="ck" aria-hidden="true">✓</span></button>${own ? ownPen(key, name) : ""}${copyStepper(key, name)}</span>`;
   };
   const rems = remindersOf(r);
   const other = tokenLang() === "en" ? roleName(r, uiLang() === "en" ? "es" : uiLang()) : r.en;
   return `<div class="row${isCard(r) ? " info" : ""}" data-picked="${isPicked(ck)}">
     ${thumb(ck, null)}
-    <div class="who" data-pick="${ck}"><b>${esc(textFor(ck, r, null))}</b>${other !== textFor(ck, r, null) ? `<small>${esc(other)}</small>` : ""}${q || (state.edition.startsWith("s:") && r.kind !== "homebrew") ? `<em>${esc(editionName(r, lang))}</em>` : ""}</div>
+    <div class="who" data-pick="${ck}"><b>${esc(textFor(ck, r, null))}</b>${other !== textFor(ck, r, null) ? `<small>${esc(other)}</small>` : ""}${q || (state.edition.startsWith("s:") && r.kind !== "homebrew") ? `<em>${esc(editionName(r, lang))}</em>` : ""}${r.loading ? `<small>${esc(t("sheet.iconLoading"))}</small>` : ""}</div>
     <div class="rems">${rems.length ? rems.map((_, i) => `<div class="rem${remHits?.has(i) ? " hit" : ""}">${thumb(remKey(r, i), i)}<span>${esc(textFor(remKey(r, i), r, i))}</span></div>`).join("") : `<span class="none">${esc(t("sheet.noReminders"))}</span>`}</div>
   </div>`;
 }

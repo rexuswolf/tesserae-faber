@@ -221,6 +221,10 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .tok { position: relative; border: 0; background: none; padding: 0; cursor: pointer; border-radius: 50%; }
 .tok svg { display: block; border-radius: 50%; transition: transform .15s; }
 .tok:hover svg { transform: scale(1.06); }
+/* a homebrew token whose icon is still being prepared: the icon's spot breathes in the team colour */
+.tok.loading::after { content: ""; position: absolute; left: 50%; top: 40%; width: 46%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; background: radial-gradient(circle, var(--team), transparent 70%); animation: icon-pulse 1.4s ease-in-out infinite; pointer-events: none; }
+@keyframes icon-pulse { 0%, 100% { opacity: .25; scale: .8; } 50% { opacity: 1; scale: 1; } }
+@media (prefers-reduced-motion: reduce) { .tok.loading::after { animation: none; opacity: .6; } }
 .tok[aria-current=true] svg { box-shadow: 0 0 0 3px var(--brass); }
 /* the pen on a token with its own changes opens it: a small mark with a finger-sized target */
 .own-pen { position: relative; border: 0; cursor: pointer; }
