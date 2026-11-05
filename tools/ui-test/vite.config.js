@@ -28,9 +28,22 @@ const reviewStore = {
   },
 };
 
+// The app's modules are TypeScript now; prototype pages written before still ask for
+// "/src/<path>.js". Those get the .ts file, when there's no .js of that name.
+const srcJs = {
+  name: "src-js-to-ts",
+  enforce: "pre",
+  resolveId(id) {
+    const m = /^\/src\/(.+)\.js$/.exec(id);
+    if (!m) return null;
+    const ts = fileURLToPath(new URL(`../../src/${m[1]}.ts`, import.meta.url));
+    return !fs.existsSync(ts.slice(0, -3) + ".js") && fs.existsSync(ts) ? ts : null;
+  },
+};
+
 export default {
   root: fileURLToPath(new URL("../..", import.meta.url)),
-  resolve: { alias: [{ find: /^\.\/firebase\.js$/, replacement: mock }, threeBySource] },
+  resolve: { alias: [{ find: /^\.\/firebase\.ts$/, replacement: mock }, threeBySource] },
   server: { port: 5198, strictPort: true },
-  plugins: [reviewStore],
+  plugins: [reviewStore, srcJs],
 };

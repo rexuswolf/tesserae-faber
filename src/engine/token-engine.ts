@@ -25,7 +25,7 @@ export { THREE };
 const TRACE_VIEW = 127.559055; // potrace viewBox; traced to a 45 mm square
 const TRACE_MM = 45;
 
-export const TEAMS: Record<Team, { label: { en: string; es: string }; colour: Hex; file: string }> = {
+export const TEAMS: Record<Team, { label: Record<string, string>; colour: Hex; file: string }> = {
   townsfolk: { label: { en: "Townsfolk", es: "Aldeanos" }, colour: "#2f86e0", file: "blue" },
   outsider: { label: { en: "Outsiders", es: "Forasteros" }, colour: "#2f86e0", file: "blue" },
   minion: { label: { en: "Minions", es: "Esbirros" }, colour: "#b3191e", file: "red" },
@@ -159,7 +159,7 @@ export async function loadLibrary(roles: Role[], { sealSvg = null, assetBase = "
   return lib;
 }
 
-/** The name printed for a role in a translation ("en", "es", "ca", "es-castelgard"…; see translations.js). */
+/** The name printed for a role in a translation ("en", "es", "ca", "es-castelgard"…; see translations.ts). */
 export const roleName = (role: Role, lang: string): string => role.names?.[lang] || (role as unknown as Partial<Record<string, string>>)[lang] || role.en;
 
 /** Resolves "team" colour references. */

@@ -72,7 +72,7 @@ export function plateFeatures(items: { token: EstimateToken; vol: Volumes }[], n
   // Colour changes and their purge (of the filament coming in). Each multi-colour layer
   // carries on with the colour the last one ended on and goes through the others: the face
   // starts on the inlays' first colour (loaded with the plate's start) and ends its first
-  // layer on the coin's (firstLayerOrder in bambu3mf.js); the next face layers go back the
+  // layer on the coin's (firstLayerOrder in bambu3mf.ts); the next face layers go back the
   // other way, and the body after them needs the coin's colour. The back's layers likewise.
   const coin = items.length ? slotOf(items[0].token.colours.base) : 0;
   let swaps = 0, at: number | null = null;

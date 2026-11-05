@@ -1,6 +1,6 @@
 // How tokens are grouped onto a Bambu printer's plates: filament slots, how many fit, where
 // the prime tower goes. The A1 and the A1 mini share the AMS lite (4 filaments) and differ
-// in their bed. Shared by the queue's preview and the .3mf writer (bambu3mf.js),
+// in their bed. Shared by the queue's preview and the .3mf writer (bambu3mf.ts),
 // which only loads when someone downloads a project.
 
 import FLUSH from "./flush.json";
@@ -32,7 +32,7 @@ export const printerOf = (id: string) => PRINTERS[id] ?? PRINTERS.a1;
  * The nozzles both printers take, each with Bambu's standard profile for it
  * (tools/make_bambu_template.py writes <printer><suffix>-template.json): its layer height,
  * the first layer's line width we ask for (the lettering is the first layer, see
- * bambu3mf.js) and the smallest letters it prints cleanly, which scale with the nozzle.
+ * bambu3mf.ts) and the smallest letters it prints cleanly, which scale with the nozzle.
  */
 export interface Nozzle {
   id: string; mm: number; suffix: string; layer: number; firstLine: string; smallLetters: number; towerInfillGap: string | null;

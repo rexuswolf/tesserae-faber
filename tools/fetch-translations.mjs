@@ -3,7 +3,7 @@
 //   node tools/fetch-translations.mjs            # download the packs, then merge
 //   node tools/fetch-translations.mjs --cached   # merge the copies in admin-data/villacuervos/
 //
-// For every translation in src/translations.js each role gets:
+// For every translation in src/translations.ts each role gets:
 //   names[id]      the name in that translation
 //   fem[id]        the feminine name, only where the pack has one and it differs
 //   reminders[id]  the reminder words, lined up with our English reminders (index by index)
@@ -13,7 +13,7 @@
 // then with our Spanish (Spanish packs) or the English. The report lists what was filled.
 // Then upload with: node tools/upload-library.mjs
 import fs from "node:fs";
-import { TRANSLATIONS } from "../src/translations.js";
+import { TRANSLATIONS } from "../src/translations.ts";
 
 const API = "https://villacuervos.es/api/public";
 const DIR = new URL("../admin-data/villacuervos/", import.meta.url);

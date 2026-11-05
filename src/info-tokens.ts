@@ -1,7 +1,8 @@
 // The grimoire's info tokens: the phrases the Storyteller shows a player, printed as cards
-// (see CARD in engine/token-engine.js). English is the game's wording; the Spanish is ours,
+// (see CARD in engine/token-engine.ts). English is the game's wording; the Spanish is ours,
 // in the app's terms. Token languages without their own text use English.
-import { TRANSLATIONS } from "./translations.js";
+import { TRANSLATIONS } from "./translations.ts";
+import type { Role } from "./types.ts";
 
 export const INFO_TOKENS = [
   { id: "isdemon", en: "This is the Demon", es: "Este es el Demonio" },
@@ -17,7 +18,7 @@ export const INFO_TOKENS = [
 ];
 
 /** The info tokens as roles of their own edition ("grimoire") and team ("info"). */
-export function infoRoles() {
+export function infoRoles(): Role[] {
   const spanish = TRANSLATIONS.filter((x) => x.lang === "es").map((x) => x.id);
   return INFO_TOKENS.map((it) => ({
     id: `info_${it.id}`, kind: "info", team: "info", edition: "grimoire",

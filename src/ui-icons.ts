@@ -1,9 +1,11 @@
 // Icons for the interface (team filters, the add-to-queue menu) from game-icons.net (CC BY 3.0),
 // copied here so the app doesn't load the whole set. Each is the icon's SVG body in a 512 square.
-// Their authors are credited with the library's (see openCredits in main.js).
+// Their authors are credited with the library's (see openCredits in main.ts).
 // Regenerate from @iconify-json/game-icons if one changes.
 
-export const UI_ICONS = {
+import type { Team } from "./types.ts";
+
+export const UI_ICONS: Record<string, { author: string; body: string }> = {
   "village": { author: "delapouite", body: "<path fill=\"currentColor\" d=\"m109.902 35.87l-71.14 59.284h142.28zm288 32l-71.14 59.284h142.28l-71.14-59.285zM228.73 84.403l-108.9 90.75h217.8zm-173.828 28.75v62h36.81l73.19-60.992v-1.008zm23 14h16v18h-16zm265 18v10.963l23 19.166v-16.13h16v18h-13.756l.104.087l19.098 15.914h-44.446v14h78v-39h18v39h14v-62zm-194.345 48v20.08l24.095-20.08zm28.158 0l105.1 87.582l27.087-22.574v-65.008zm74.683 14h35.735v34h-35.735zm-76.714 7.74L30.37 335.153H319l-144.314-120.26zm198.046 13.51l-76.857 64.047l32.043 26.704H481.63l-108.9-90.75zm-23.214 108.75l.103.086l19.095 15.914h-72.248v77.467h60.435v-63.466h50v63.467h46v-93.466H349.516zm-278.614 16V476.13h126v-76.976h50v76.977h31.565V353.155H70.902zm30 30h50v50h-50z\"/>" },
   "hood": { author: "lorc", body: "<path fill=\"currentColor\" d=\"M257.375 32.03C139.957 87.197 42.343 247.886 17.5 367.75c71.742 0 124.22 22.845 162.094 63.03l10.47-11.436c-28.06-28.873-64.935-52.446-113.564-75.906c26.142-65.033 66.028-163.458 116.72-169.188c19.835-2.243 41.05 9.735 64.155 43.438c72.33-120.27 141.014 38.54 180.875 125.75c-47.687 25.854-84.5 49.463-112.97 78.718l9.25 10.406c37.335-39.758 89.657-64.812 162.72-64.812C467.784 249.384 377.24 90.37 257.375 32.03m-79.72 243.314c-15.3-.083-26.405 6.436-26.405 16.656c0 12.58 16.834 26.038 37.594 30.063s37.594-2.92 37.594-15.5s-16.835-26.038-37.594-30.063c-3.893-.755-7.657-1.137-11.188-1.156zm156.345 0c-3.53.02-7.295.4-11.188 1.156c-20.76 4.025-37.593 17.483-37.593 30.063s16.833 19.524 37.592 15.5c20.76-4.025 37.594-17.484 37.594-30.063c0-10.22-11.105-16.74-26.406-16.656z\"/>" },
   "plain-dagger": { author: "lorc", body: "<path fill=\"currentColor\" d=\"M43.53 15.75c-15.73 0-28.31 12.583-28.31 28.313c0 14.086 10.092 25.644 23.5 27.906L42.687 68L68.81 41.906l2.626-2.625C69.188 25.86 57.63 15.75 43.53 15.75m33.72 44.125l-17 17c15.885 39.37 43.45 66.684 78.75 87.406a513 513 0 0 1 25.438-24.936c-22.488-35.103-51.535-62.294-87.188-79.47M322.594 79.03l-51.25 4.314c-79.356 48.134-143.878 108.1-186.72 186.53l-4.31 51.47l44.155-18.656l-2.94-34.094l-.25-3.063l1.626-2.624c35.94-58.47 79.93-109.41 141.5-141.25l2.406-1.25l2.688.25l34.125 2.906l18.97-44.53zm-62.438 66.376c-10.008 5.886-19.5 12.338-28.562 19.313c46.688 47.93 87.208 108.588 114.72 166.5l11.248 23.717l-23.718-11.28c-57.995-27.554-117.918-67.57-165.688-113.907a497 497 0 0 0-20.625 29.28c101.918 94.91 227.05 177.304 347.845 234.69c-57.063-120.125-140.038-246.18-235.22-348.314zm-43.03 31.22c-13.37 11.703-25.72 24.58-37.282 38.436c39.36 38.452 88.085 72.83 136.687 98.844c-26.054-48.633-60.754-97.847-99.405-137.28\"/>" },
@@ -17,10 +19,10 @@ export const UI_ICONS = {
 };
 
 /** An interface icon as inline SVG, coloured by the text around it. */
-export const uiIcon = (name) => `<svg class="gi" viewBox="0 0 512 512" aria-hidden="true">${UI_ICONS[name].body}</svg>`;
+export const uiIcon = (name: string) => `<svg class="gi" viewBox="0 0 512 512" aria-hidden="true">${UI_ICONS[name].body}</svg>`;
 
 /** Each team's icon. */
-export const TEAM_ICONS = {
+export const TEAM_ICONS: Record<Team, string> = {
   townsfolk: "village", outsider: "hood", minion: "plain-dagger", demon: "imp-laugh",
   traveller: "hiking", fabled: "fairy-wand", loric: "scroll-unfurled", info: "id-card",
 };

@@ -4,9 +4,14 @@
 // Static text in index.html: data-i18n="key" sets textContent, and
 // data-i18n-attr="placeholder:key aria-label:key" sets attributes.
 
-const plural = (n, one, many) => (n === 1 ? one : many);
+const plural = <T>(n: unknown, one: T, many: T) => (n === 1 ? one : many);
 
-const STR = {
+/** The values a string with blanks is filled with: numbers, names, flags. */
+export type Vars = Record<string, string | number | boolean | null | undefined>;
+/** A string, or one with blanks to fill. */
+type Entry = string | ((vars: Vars) => string);
+
+const STR: Record<string, Record<string, Entry>> = {
   es: {
     // script sheet and workshop
     "spine.aria": "Ediciones",
@@ -16,7 +21,7 @@ const STR = {
     "script.empty": "Tus guiones se guardan en este navegador.",
     "script.emptyAdd": "Importa uno",
     "script.count": ({ n, m }) => `${n} ${plural(n, "personaje", "personajes")}${m ? ` · ${m} sin ficha` : ""}`,
-    "script.lead": ({ n, eds }) => `Guion con ${n} ${plural(n, "personaje", "personajes")}${eds > 1 ? ` de ${eds} ediciones` : ""}. Se guarda en este navegador; compártelo con un enlace.`,
+    "script.lead": ({ n, eds }) => `Guion con ${n} ${plural(n, "personaje", "personajes")}${(eds as number) > 1 ? ` de ${eds} ediciones` : ""}. Se guarda en este navegador; compártelo con un enlace.`,
     "script.missing": ({ list }) => ` No están en la biblioteca (¿homebrew?): ${list}.`,
     "script.copy": "Copiar enlace",
     "script.share": "Compartir enlace",
@@ -152,7 +157,7 @@ const STR = {
     "add.charsWho": "personajes",
     "add.cardsWho": "fichas",
     "add.chars": ({ who }) => `Solo ${who}`,
-    "add.allOf": ({ Who }) => Who,   // no reminders: just "Fichas", "Fábulas" (no article to agree)
+    "add.allOf": ({ Who }) => Who as string,   // no reminders: just "Fichas", "Fábulas" (no article to agree)
     "add.missing": ({ miss, n }) => `Faltan ${miss} de ${n}`,
     "add.allIn": "Ya están todos",
     "add.rems": "Solo sus recordatorios",
@@ -470,7 +475,7 @@ const STR = {
     "script.empty": "Your scripts are kept in this browser.",
     "script.emptyAdd": "Import one",
     "script.count": ({ n, m }) => `${n} ${plural(n, "character", "characters")}${m ? ` · ${m} without a token` : ""}`,
-    "script.lead": ({ n, eds }) => `A script with ${n} ${plural(n, "character", "characters")}${eds > 1 ? ` from ${eds} editions` : ""}. It's kept in this browser; share it with a link.`,
+    "script.lead": ({ n, eds }) => `A script with ${n} ${plural(n, "character", "characters")}${(eds as number) > 1 ? ` from ${eds} editions` : ""}. It's kept in this browser; share it with a link.`,
     "script.missing": ({ list }) => ` Not in the library (homebrew?): ${list}.`,
     "script.copy": "Copy link",
     "script.share": "Share link",
@@ -606,7 +611,7 @@ const STR = {
     "add.charsWho": "characters",
     "add.cardsWho": "tokens",
     "add.chars": ({ Who }) => `${Who} only`,
-    "add.allOf": ({ Who }) => Who,
+    "add.allOf": ({ Who }) => Who as string,
     "add.missing": ({ miss, n }) => `${miss} of ${n} missing`,
     "add.allIn": "All in already",
     "add.rems": "Their reminders only",
@@ -907,11 +912,11 @@ const STR = {
  * The interface languages, in menu order. To add one: give it an entry here, a flag in
  * public/flags/ (circle-flags, "language" set) and its strings in STR above.
  */
-export const LANGUAGES = [
+export const LANGUAGES: { code: string; name: string; flag: string }[] = [
   { code: "es", name: "Español", flag: "/flags/es.svg" },
   { code: "en", name: "English", flag: "/flags/en.svg" },
 ];
-const known = (code) => LANGUAGES.some((l) => l.code === code);
+const known = (code: string | null): code is string => LANGUAGES.some((l) => l.code === code);
 
 const STORE_KEY = "midnight-mint-lang";
 const initial = (() => {
@@ -923,24 +928,24 @@ let lang = initial;
 export const uiLang = () => lang;
 
 /** Translated text for `key`; functions receive `vars`. Falls back to English, then the key. */
-export function t(key, vars = {}) {
+export function t(key: string, vars: Vars = {}): string {
   const v = STR[lang][key] ?? STR.en[key];
   if (v === undefined) return key;
   return typeof v === "function" ? v(vars) : v;
 }
 
 /** Applies the language to every element marked with data-i18n / data-i18n-attr. */
-export function applyStatic(root = document) {
-  for (const el of root.querySelectorAll("[data-i18n]")) el.textContent = t(el.dataset.i18n);
-  for (const el of root.querySelectorAll("[data-i18n-attr]")) {
-    for (const pair of el.dataset.i18nAttr.split(/\s+/)) {
+export function applyStatic(root: ParentNode = document) {
+  for (const el of root.querySelectorAll<HTMLElement>("[data-i18n]")) el.textContent = t(el.dataset.i18n!);
+  for (const el of root.querySelectorAll<HTMLElement>("[data-i18n-attr]")) {
+    for (const pair of el.dataset.i18nAttr!.split(/\s+/)) {
       const [attr, key] = pair.split(":");
       if (attr && key) el.setAttribute(attr, t(key));
     }
   }
 }
 
-export function setUiLang(next) {
+export function setUiLang(next: string) {
   lang = known(next) ? next : "en";
   try { localStorage.setItem(STORE_KEY, lang); } catch { /* no storage */ }
   document.documentElement.lang = lang;

@@ -2,7 +2,7 @@
  * The languages the tokens can be printed in: English (the game's own text) and the
  * community translations published by Villacuervos (https://villacuervos.es), each
  * credited to the people who made it. The app's interface languages are separate
- * (LANGUAGES in i18n.js).
+ * (LANGUAGES in i18n.ts).
  *
  * id: the key used in the library (role.names[id], role.reminders[id], role.fem[id]).
  * pack: the Villacuervos translation pack (tools/fetch-translations.mjs reads it).
@@ -13,7 +13,20 @@
  */
 export const VILLACUERVOS_URL = "https://villacuervos.es";
 
-export const TRANSLATIONS = [
+/** A language the tokens can be printed in (see above for each field). */
+export interface Translation {
+  id: string;
+  lang: string;
+  name: string;
+  flag: string;
+  pack?: string;
+  version?: string;
+  by?: string;
+  /** The pack has feminine names. */
+  fem?: boolean;
+}
+
+export const TRANSLATIONS: Translation[] = [
   { id: "en", lang: "en", name: "English", flag: "/flags/en.svg" },
   { id: "es", lang: "es", name: "Español", pack: "rovortox", version: "Rovortox", by: "Roberto", fem: true, flag: "/flags/es.svg" },
   { id: "es-bumble3ee", lang: "es", name: "Español", pack: "bumble3ee", version: "Bumble3ee", by: "Roberto", flag: "/flags/es.svg" },
@@ -29,17 +42,17 @@ export const TRANSLATIONS = [
   { id: "pt", lang: "pt", name: "Português", pack: "uriell", by: "uriell", flag: "/flags/pt.svg" },
 ];
 
-export const translationById = (id) => TRANSLATIONS.find((x) => x.id === id) ?? TRANSLATIONS[0];
+export const translationById = (id: string | null) => TRANSLATIONS.find((x) => x.id === id) ?? TRANSLATIONS[0];
 
 /** How a translation reads in a menu: "Español · Castelgard", "Català". */
-export const translationLabel = (x) => (x.version ? `${x.name} · ${x.version}` : x.name);
+export const translationLabel = (x: Translation) => (x.version ? `${x.name} · ${x.version}` : x.name);
 
 /**
  * The translations grouped by language, in list order: a language with several
  * versions (Spanish today) becomes one group whose `items` are its versions.
  */
 export function translationGroups() {
-  const out = [];
+  const out: { name: string; flag: string; items: Translation[] }[] = [];
   for (const x of TRANSLATIONS) {
     let g = out.find((l) => l.name === x.name);
     if (!g) out.push(g = { name: x.name, flag: x.flag, items: [] });

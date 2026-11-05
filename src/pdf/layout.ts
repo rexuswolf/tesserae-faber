@@ -1,5 +1,5 @@
 // Where coins go on A4 pages, shared by the PDF and the app's preview of it.
-// Kept apart from print-pdf.js so the preview doesn't load jsPDF.
+// Kept apart from print-pdf.ts so the preview doesn't load jsPDF.
 
 export const PAGE = { w: 210, h: 297 };   // A4 portrait, mm
 // Tight enough for six rows of 45 mm characters (24 a sheet): most home printers print

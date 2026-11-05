@@ -105,8 +105,9 @@ It also works on phones: the sidebar becomes a menu, with *How it works*, the ap
 ```bash
 npm install
 npm run dev        # local dev server (needs the Firebase project)
+npm run typecheck  # TypeScript check (tsc, no output files)
 npm run build      # production build in dist/
-npm run deploy     # build, then deploy hosting and Firestore rules
+npm run deploy     # typecheck and build, then deploy hosting and Firestore rules
 ```
 
 To work on the interface without Firebase, run the test server. It uses a mocked sign-in
@@ -122,10 +123,13 @@ and `node tools/upload-library.mjs` replaces the library with it.
 
 ## How it's put together
 
-- `src/engine/token-engine.js`: the token geometry (three.js), the 3D viewer, 2D thumbnails and STL export.
+The app is TypeScript, served and bundled by Vite. `src/types.ts` has the shapes the parts share: a
+character (`Role`), a token's design (`TokenSpec`), a built `Token`, queue entries, plates and estimates.
+
+- `src/engine/token-engine.ts`: the token geometry (three.js), the 3D viewer, 2D thumbnails and STL export.
   A token is a coin plus coloured inlays (name, icon, frame, back), so each colour is its own part; a raised
   inlay simply stands above the face, and the token is then laid face-up on the plate.
-- `src/bambu/bambu3mf.js`: the Bambu Studio project writer (plates, filaments, prime tower, magnet pauses).
+- `src/bambu/bambu3mf.ts`: the Bambu Studio project writer (plates, filaments, prime tower, magnet pauses).
   Its printer settings come from one template per printer and nozzle (`a1`, `a1mini`, and `-n02` for 0.2 mm),
   generated with Bambu Studio by `tools/make_bambu_template.py <any.stl> [a1|a1mini|a1-n02|a1mini-n02]`. On top of
   them it asks for Arachne walls and first-layer lines at the nozzle's normal width (the lettering is the first
@@ -133,11 +137,11 @@ and `node tools/upload-library.mjs` replaces the library with it.
   before the coin's,
   and purges what Bambu Studio's own auto-calculation gives for each pair of colours plus 20 %
   (`src/bambu/flush.json`, from `tools/make_flush_table.py`).
-- `src/pdf/print-pdf.js`: the double-sided A4 PDF, loaded only when you ask for it.
-- `src/main.js`, `src/i18n.js`, `src/style.css`: the app, its Spanish and English text, and its look.
-- `src/translations.js`: the languages tokens can be printed in, and who translated each one.
-- `src/firebase.js`, `firestore.rules`: the public character library. Only the admin signs in (open the app with `?admin`) to upload it.
-- `src/icons.js`: a token's own icon: an SVG, a game-icons.net icon, or a script's picture traced into shapes.
+- `src/pdf/print-pdf.ts`: the double-sided A4 PDF, loaded only when you ask for it.
+- `src/main.ts`, `src/i18n.ts`, `src/style.css`: the app, its Spanish and English text, and its look.
+- `src/translations.ts`: the languages tokens can be printed in, and who translated each one.
+- `src/firebase.ts`, `firestore.rules`: the public character library. Only the admin signs in (open the app with `?admin`) to upload it.
+- `src/icons.ts`: a token's own icon: an SVG, a game-icons.net icon, or a script's picture traced into shapes.
 - `tools/`: test pages and helpers (UI test server, design sheets, icon review, Bambu template, and
   `tools/guide/`, which takes the guide's and this README's pictures).
 
