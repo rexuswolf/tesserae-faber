@@ -867,10 +867,22 @@ function rowHtml(r, q, remHits) {
   };
   const rems = remindersOf(r);
   const other = tokenLang() === "en" ? roleName(r, uiLang() === "en" ? "es" : uiLang()) : r.en;
-  return `<div class="row${isCard(r) ? " info" : ""}" data-picked="${isPicked(ck)}">
+  // Reminders as chips under the name: identical ones share a chip ("Correct ×5"), which adds or
+  // removes all of them; it shows how many are in when only some are.
+  const groups = new Map();
+  rems.forEach((_, i) => { const w = catalogText(r, i); groups.set(w, [...(groups.get(w) || []), i]); });
+  const remSpec = { ...catalogSpec(true), diameter: reminderSpec(DEFAULT_SPEC).diameter, back: "none" };
+  const loadingTok = r.loading ? ` loading" style="--team: ${TEAMS[r.team].colour}` : "";
+  const chips = [...groups].map(([w, idx]) => {
+    const keys = idx.map((i) => remKey(r, i)), on = keys.filter(isPicked).length, own = keys.find((k) => state.overrides.has(k));
+    const count = keys.length > 1 ? `<small>×${keys.length}${on && on < keys.length ? ` · ${on}/${keys.length}` : ""}</small>` : "";
+    return `<div class="rem${idx.some((i) => remHits?.has(i)) ? " hit" : ""}" data-on="${on === keys.length ? "all" : on ? "some" : "none"}">
+      <button class="rem-chip" type="button" data-pick-rems="${keys.join(" ")}" aria-pressed="${on === keys.length}" aria-label="${esc(keys.length > 1 ? `${w} ×${keys.length}` : w)}"><span class="rem-tok${loadingTok}">${tokenSvg(state.lib, r, remSpec, { text: w })}</span><span class="rem-w">${esc(w)}</span>${count}<span class="ck" aria-hidden="true">✓</span></button>${own ? ownPen(own, w) : ""}</div>`;
+  }).join("");
+  return `<div class="row${isCard(r) ? " info" : ""}${rems.length ? "" : " no-rems"}" data-picked="${isPicked(ck)}" data-row="${ck}">
     ${thumb(ck, null)}
     <div class="who" data-pick="${ck}"><b>${esc(catalogText(r, null))}</b>${other !== catalogText(r, null) ? `<small>${esc(other)}</small>` : ""}${q || state.edition === "all" || (state.edition.startsWith("s:") && r.kind !== "homebrew") ? `<em>${esc(editionName(r, lang))}</em>` : ""}${r.loading ? `<small>${esc(t("sheet.iconLoading"))}</small>` : ""}</div>
-    <div class="rems">${rems.length ? rems.map((_, i) => `<div class="rem${remHits?.has(i) ? " hit" : ""}">${thumb(remKey(r, i), i)}<span>${esc(catalogText(r, i))}</span></div>`).join("") : `<span class="none">${esc(t("sheet.noReminders"))}</span>`}</div>
+    ${rems.length ? `<div class="rems">${chips}</div>` : ""}
   </div>`;
 }
 
@@ -1276,6 +1288,12 @@ function wire() {
     if (onCopyStep(e)) return;
     const pick = e.target.closest("[data-pick]"), team = e.target.closest("[data-pick-team]");
     if (pick) { const k = pick.dataset.pick; setPick(k, !isPicked(k)); picksChanged(); return; }
+    // a reminder chip: all its reminders in, or (when they're all in already) all out
+    const chip = e.target.closest("[data-pick-rems]");
+    if (chip) { const keys = chip.dataset.pickRems.split(" "), on = !keys.every(isPicked); keys.forEach((k) => setPick(k, on)); picksChanged(); return; }
+    // anywhere else in a character's row adds or drops the character
+    const row = !team && e.target.closest("[data-row]");
+    if (row && !e.target.closest("a, button, input")) { const k = row.dataset.row; setPick(k, !isPicked(k)); picksChanged(); return; }
     if (team) {
       const list = (state.shown || []).filter((r) => r.team === team.dataset.pickTeam), on = !list.every((r) => isPicked(charKey(r)));
       list.forEach((r) => setPick(charKey(r), on)); picksChanged();

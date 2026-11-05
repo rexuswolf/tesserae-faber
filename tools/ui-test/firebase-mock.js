@@ -37,7 +37,7 @@ setTimeout(() => {
     else if (k === "frame") click(`[data-choice="frame"] [data-v="${v}"]`);
     else if (k === "style") click(`[data-choice="style"] [data-v="${v}"]`);
     else if (k === "finish") click(`[data-choice="windowFinish"] [data-v="${v}"]`);
-    else if (k === "addall") { click(`#rows .tok[data-pick="c:${v}"]`); document.querySelectorAll(`#rows .tok[data-pick^="r:${v}:"]`).forEach((b) => b.click()); }   // a character and its reminders
+    else if (k === "addall") { click(`#rows .tok[data-pick="c:${v}"]`); for (let n = 0; n < 20; n++) { const b = document.querySelector(`#rows [data-pick-rems^="r:${v}:"][aria-pressed=false]`); if (!b) break; b.click(); } }   // a character and its reminders
     else if (k === "pickall") { click("#addBtn"); click(`#addMenu [data-a="${{ all: "both" }[v] || v}"]`); }   // chars | rems | all | none
     else if (k === "queue") click("#queueToggle");
     else if (k === "pdf") { window.__mm.goStep(3); click('#printPage [data-way="paper"]'); click("#flowNext"); }

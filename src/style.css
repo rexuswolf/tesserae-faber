@@ -234,7 +234,31 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .team-h i { width: 10px; height: 10px; border-radius: 50%; align-self: center; }
 .team-h span { font-family: var(--display); font-size: 25px; }
 .team-h small { color: var(--dust); }
-#rows .row { display: grid; grid-template-columns: 74px minmax(150px, 220px) minmax(0, 1fr); gap: 16px; align-items: center; padding: 10px 6px; border-bottom: 1px solid var(--seam); border-radius: 10px; }
+/* a character's row: its token, its name, and its reminders as chips under the name. A click
+   anywhere on the row adds or drops the character. */
+#rows .row { display: grid; grid-template-columns: 74px minmax(0, 1fr); grid-template-areas: "tok who" "tok rems"; gap: 8px 16px; align-items: center; padding: 10px 6px; border-bottom: 1px solid var(--seam); border-radius: 10px; cursor: pointer; transition: background .12s; }
+#rows .row:hover { background: rgba(239, 230, 214, .05); }
+#rows .row > .tok-w { grid-area: tok; align-self: start; }
+#rows .row .who { grid-area: who; align-self: end; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; min-width: 0; }
+#rows .row .who b { display: inline; }
+#rows .row .who em { flex-basis: 100%; }
+#rows .row.no-rems .who { grid-row: 1 / 3; align-self: center; }
+#rows .row .rems { grid-area: rems; gap: 6px; }
+/* a reminder chip: its small token and its word; gold with a check when it's in the queue */
+.rem { display: inline-flex; align-items: center; gap: 2px; }
+.rem-chip { display: inline-flex; align-items: center; gap: 7px; padding: 3px 12px 3px 3px; border: 1px solid rgba(239, 230, 214, .14); border-radius: 999px; background: rgba(23, 8, 18, .45); cursor: pointer; font-size: 13px; white-space: nowrap; }
+.rem-chip:hover { border-color: rgba(239, 230, 214, .4); }
+.rem-tok { position: relative; display: block; border-radius: 50%; }
+.rem-tok svg { display: block; width: 30px; height: 30px; border-radius: 50%; opacity: .6; }
+.rem-chip small { color: var(--dust); font-size: 12px; font-variant-numeric: tabular-nums; }
+.rem-chip .ck { display: none; color: var(--brass); font-weight: 700; margin-left: -2px; }
+.rem[data-on=all] .rem-chip { border-color: var(--brass); background: rgba(201, 162, 39, .16); }
+.rem[data-on=all] .rem-tok svg, .rem[data-on=some] .rem-tok svg { opacity: 1; }
+.rem[data-on=all] .rem-chip .ck { display: inline; }
+.rem[data-on=some] .rem-chip { border-color: rgba(201, 162, 39, .55); }
+.rem.hit .rem-chip { box-shadow: 0 0 0 2px rgba(201, 162, 39, .45); }
+.rem .own-pen { background: var(--brass); color: var(--velvet-deep); border-radius: 999px; font-size: 10px; font-weight: 700; padding: 0 5px; line-height: 16px; margin-left: -10px; align-self: flex-start; }
+.rem-tok.loading::after { content: ""; position: absolute; left: 50%; top: 40%; width: 46%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; background: radial-gradient(circle, var(--team), transparent 70%); animation: icon-pulse 1.4s ease-in-out infinite; }
 #rows .row[data-picked=true] { background: rgba(239, 230, 214, .035); }
 /* A token you pick: dimmed until picked, then lit, with a check and its copies.
    No ring round the coin: it would read as part of the design (a frame). */
@@ -281,9 +305,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .who b { display: block; font-family: var(--display); font-weight: 400; font-size: 21px; line-height: 1.1; }
 .who small { color: var(--dust); font-size: 12px; }
 .who em { display: block; font-style: normal; color: var(--dust); font-size: 11.5px; }
-.rems { display: flex; flex-wrap: wrap; gap: 8px 10px; }
-.rem { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 68px; }
-.rem .tok svg { width: 46px; height: 46px; }
+.rems { display: flex; flex-wrap: wrap; }
 .rem span { font-size: 11px; color: var(--dust); text-align: center; line-height: 1.15; }
 .rem.hit span { color: var(--brass); }
 .none { color: var(--dust); font-size: 13px; font-style: italic; }
@@ -592,8 +614,6 @@ dialog .import { margin-top: 10px; }
   .sections { padding-inline: 6px; gap: 0; }
   .sections button { padding-inline: 5px; font-size: 12.5px; }
   #rows .row { grid-template-columns: 64px minmax(0, 1fr); }
-  #rows .row .rems { grid-column: 2; }
-  #rows .row > .tok-w { grid-row: span 2; align-self: start; }
   #rows .row > .tok-w svg { width: 60px; height: 60px; }
 }
 @media (max-width: 900px) {
@@ -721,14 +741,9 @@ dialog .import { margin-top: 10px; }
   #rows .row { grid-template-columns: 52px minmax(0, 1fr); grid-template-areas: "tok who" "tok rems"; gap: 6px 12px; padding: 10px 2px; align-items: center; }
   #rows .row > .tok-w { grid-area: tok; align-self: start; }
   #rows .row > .tok-w svg { width: 52px; height: 52px; }
-  #rows .row .who { grid-area: who; align-self: end; min-width: 0; }
   #rows .row .who b { font-size: 19px; overflow-wrap: anywhere; }
-  #rows .row .rems { grid-area: rems; gap: 6px; }
-  #rows .row .rem { width: 52px; }
-  #rows .row .rem .tok svg { width: 36px; height: 36px; }
-  #rows .row .rem span { font-size: 10.5px; }
-  #rows .row .none { display: none; }
-  #rows .row:has(.none) .who { grid-row: 1 / 3; align-self: center; }
+  .rem-chip { padding-right: 10px; font-size: 12.5px; }
+  .rem-tok svg { width: 26px; height: 26px; }
 }
 
 /* A token's own icon (workshop, "This token"): the buttons and the game-icons.net search. */
