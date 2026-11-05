@@ -844,6 +844,18 @@ function ownPen(key, name) {
   return `<button class="own-pen" type="button" data-edit="${key}" title="${label}" aria-label="${label}">✎</button>`;
 }
 
+/**
+ * A character in or out of the queue, with its reminders: they come and go with it (each
+ * reminder chip still adds or drops itself on its own).
+ */
+function toggleCharacter(key) {
+  const role = tokenRole(key);
+  if (!role) return;
+  const on = !isPicked(key);
+  setPick(key, on);
+  if (key.startsWith("c:")) remindersOf(role).forEach((_, i) => setPick(remKey(role, i), on));
+  picksChanged();
+}
 function rowHtml(r, q, remHits) {
   const lang = uiLang(), ck = charKey(r);
   // Each token is a toggle: picked tokens light up with a check, and show their copies.
@@ -1279,13 +1291,13 @@ function wire() {
     if (pen) { editToken(pen.dataset.edit); return; }
     if (onCopyStep(e)) return;
     const pick = e.target.closest("[data-pick]"), team = e.target.closest("[data-pick-team]");
-    if (pick) { const k = pick.dataset.pick; setPick(k, !isPicked(k)); picksChanged(); return; }
+    if (pick) { toggleCharacter(pick.dataset.pick); return; }
     // a reminder chip: all its reminders in, or (when they're all in already) all out
     const chip = e.target.closest("[data-pick-rems]");
     if (chip) { const keys = chip.dataset.pickRems.split(" "), on = !keys.every(isPicked); keys.forEach((k) => setPick(k, on)); picksChanged(); return; }
     // anywhere else in a character's row adds or drops the character
     const row = !team && e.target.closest("[data-row]");
-    if (row && !e.target.closest("a, button, input")) { const k = row.dataset.row; setPick(k, !isPicked(k)); picksChanged(); return; }
+    if (row && !e.target.closest("a, button, input")) { toggleCharacter(row.dataset.row); return; }
     if (team) {
       const list = (state.shown || []).filter((r) => r.team === team.dataset.pickTeam), on = !list.every((r) => isPicked(charKey(r)));
       list.forEach((r) => setPick(charKey(r), on)); picksChanged();
