@@ -238,6 +238,12 @@ button, input, select, textarea { font: inherit; color: inherit; }
    anywhere on the row adds or drops the character. */
 #rows .row { display: grid; grid-template-columns: 74px minmax(0, 1fr); grid-template-areas: "tok who" "tok rems"; gap: 8px 16px; align-items: center; padding: 10px 6px; border-bottom: 1px solid var(--seam); border-radius: 10px; cursor: pointer; transition: background .12s; }
 #rows .row:hover { background: rgba(239, 230, 214, .05); }
+/* a character in the queue: a warm row, and a gold check at its end (not on the coin, which
+   is the token as it will print) */
+#rows .row { position: relative; padding-right: 52px; }
+#rows .row[data-picked=true] { background: rgba(201, 162, 39, .09); }
+#rows .row[data-picked=true]:hover { background: rgba(201, 162, 39, .13); }
+#rows .row[data-picked=true]::after { content: "✓"; position: absolute; right: 16px; top: 50%; translate: 0 -50%; width: 26px; height: 26px; border-radius: 50%; background: var(--brass); color: var(--velvet-deep); font-weight: 700; font-size: 14px; display: grid; place-items: center; pointer-events: none; }
 #rows .row > .tok-w { grid-area: tok; align-self: start; }
 #rows .row .who { grid-area: who; align-self: end; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; min-width: 0; }
 #rows .row .who b { display: inline; }
@@ -249,24 +255,20 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .rem-chip { display: inline-flex; align-items: center; gap: 7px; padding: 3px 12px 3px 3px; border: 1px solid rgba(239, 230, 214, .14); border-radius: 999px; background: rgba(23, 8, 18, .45); cursor: pointer; font-size: 13px; white-space: nowrap; }
 .rem-chip:hover { border-color: rgba(239, 230, 214, .4); }
 .rem-tok { position: relative; display: block; border-radius: 50%; }
-.rem-tok svg { display: block; width: 30px; height: 30px; border-radius: 50%; opacity: .6; }
+.rem-tok svg { display: block; width: 30px; height: 30px; border-radius: 50%; }
 .rem-chip small { color: var(--dust); font-size: 12px; font-variant-numeric: tabular-nums; }
 .rem-chip .ck { display: none; color: var(--brass); font-weight: 700; margin-left: -2px; }
 .rem[data-on=all] .rem-chip { border-color: var(--brass); background: rgba(201, 162, 39, .16); }
-.rem[data-on=all] .rem-tok svg, .rem[data-on=some] .rem-tok svg { opacity: 1; }
 .rem[data-on=all] .rem-chip .ck { display: inline; }
 .rem[data-on=some] .rem-chip { border-color: rgba(201, 162, 39, .55); }
 .rem.hit .rem-chip { box-shadow: 0 0 0 2px rgba(201, 162, 39, .45); }
 .rem .own-pen { background: var(--brass); color: var(--velvet-deep); border-radius: 999px; font-size: 10px; font-weight: 700; padding: 0 5px; line-height: 16px; margin-left: -10px; align-self: flex-start; }
 .rem-tok.loading::after { content: ""; position: absolute; left: 50%; top: 40%; width: 46%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; background: radial-gradient(circle, var(--team), transparent 70%); animation: icon-pulse 1.4s ease-in-out infinite; }
-#rows .row[data-picked=true] { background: rgba(239, 230, 214, .035); }
 /* A token you pick: dimmed until picked, then lit, with a check and its copies.
    No ring round the coin: it would read as part of the design (a frame). */
-#rows .tok svg { opacity: .38; transition: opacity .15s, transform .15s; }
-#rows .tok:hover svg { opacity: .75; }
-#rows .tok[aria-pressed=true] svg { opacity: 1; }
+#rows .tok svg { transition: transform .15s; }   /* every token at full strength: the row shows what's picked */
 #rows .tok .ck { position: absolute; right: -3px; top: -3px; width: 20px; height: 20px; border-radius: 50%; background: var(--brass); color: var(--velvet-deep); font-size: 12px; font-weight: 700; display: none; place-items: center; box-shadow: 0 0 0 2px var(--velvet-deep); }
-#rows .tok[aria-pressed=true] .ck { display: grid; }
+#rows .row > .tok-w .tok .ck { display: none; }   /* the row's check stands in for it */
 #rows .rem .tok .ck { width: 16px; height: 16px; font-size: 10px; }
 /* copies: a small stepper under a picked token */
 .tok-w { position: relative; display: inline-flex; flex-direction: column; align-items: center; justify-self: center; }
