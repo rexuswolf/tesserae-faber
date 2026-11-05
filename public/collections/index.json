@@ -1,0 +1,13 @@
+[
+  {
+    "id": "botc",
+    "file": "/collections/botc.json",
+    "name": "Blood on the Clocktower",
+    "accent": "#c9a227",
+    "tokens": 191,
+    "text": {
+      "es": "Todas las ediciones, el Grimorio y tus guiones.",
+      "en": "Every edition, the Grimoire and your scripts."
+    }
+  }
+]

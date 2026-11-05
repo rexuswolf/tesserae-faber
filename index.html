@@ -25,6 +25,7 @@
     <div class="coll-switch own-only">
       <button type="button" id="collSwitch" aria-haspopup="menu" aria-expanded="false" aria-controls="collMenu"><img class="coll-logo" src="/logo-mark.svg" alt="" width="34" height="34"><span class="cs-text"><b class="coll-name"></b><small>Midnight Mint</small></span><span class="chev" aria-hidden="true">▾</span></button>
       <div class="coll-menu" id="collMenu" role="menu" hidden>
+        <div class="coll-list"></div>
         <a role="menuitem" href="/crear"><span aria-hidden="true">‹</span><b data-i18n="own.homeTitle"></b><small data-i18n="own.menuBack"></small></a>
         <hr>
         <button role="menuitem" type="button" data-coll="settings"><span aria-hidden="true">⚙</span><b data-i18n="own.settings"></b><small data-i18n="own.menuSettings"></small></button>
@@ -48,6 +49,7 @@
       <details class="own-drawer own-only">
         <summary><img class="coll-logo" src="/logo-mark.svg" alt="" width="34" height="34"><span class="cs-text"><b class="coll-name"></b><small>Midnight Mint</small></span><span class="chev" aria-hidden="true">▾</span></summary>
         <div class="coll-menu-items">
+        <div class="coll-list"></div>
         <a role="menuitem" href="/crear"><span aria-hidden="true">‹</span><b data-i18n="own.homeTitle"></b><small data-i18n="own.menuBack"></small></a>
         <hr>
         <button role="menuitem" type="button" data-coll="settings"><span aria-hidden="true">⚙</span><b data-i18n="own.settings"></b><small data-i18n="own.menuSettings"></small></button>
@@ -303,6 +305,9 @@
     <input type="file" id="ownHomeFile" accept="application/json,.json" hidden>
     <p class="hint" id="ownHomeNote" aria-live="polite"></p>
   </div>
+  <h2 class="oh-h" id="ownHomeBuiltH" data-i18n="own.homeBuilt"></h2>
+  <div class="oh-list" id="ownHomeBuilt"></div>
+  <h2 class="oh-h" data-i18n="own.homeMine"></h2>
   <div class="oh-list" id="ownHomeList"></div>
 </main>
 

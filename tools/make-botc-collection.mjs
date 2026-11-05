@@ -1,6 +1,8 @@
 // Writes Clocktower's whole library as a generic-creator collection (src/collection.ts):
 // importing it at /crear should give the Clocktower app's catalog, the same.
-//   node tools/make-botc-collection.mjs [out.json]      (default: out/botc-collection.json)
+//   node tools/make-botc-collection.mjs [out.json]
+// Without an argument it writes the app's own copy, public/collections/botc.json, and its entry in
+// public/collections/index.json (the collections that come with the app, listed apart at /crear).
 // Types: characters (coins, "All characters") and info tokens (cards, "Grimoire"); groups: the
 // teams, with their colours and icons; sections: the editions (closed) and scripts (open).
 // Icons go in as SVG, credited, so the file imports without fetching anything.
@@ -12,7 +14,8 @@ import { TRANSLATIONS, VILLACUERVOS_URL } from "../src/translations.ts";
 import { TEAM_ICONS } from "../src/ui-icons.ts";
 
 const root = path.resolve(import.meta.dirname, "..");
-const out = path.resolve(process.argv[2] ?? path.join(root, "out/botc-collection.json"));
+const builtIn = !process.argv[2];
+const out = path.resolve(process.argv[2] ?? path.join(root, "public/collections/botc.json"));
 const roleId = (en) => en.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");   // as firebase.ts
 const roles = JSON.parse(fs.readFileSync(path.join(root, "admin-data/roles_game_icons.json"), "utf8")).map((r) => ({ id: roleId(r.en), ...r }));
 const EDITION_ORDER = ["tb", "bmr", "snv", "carousel", "fabled", "loric"];
@@ -70,3 +73,13 @@ const collection = {
 fs.mkdirSync(path.dirname(out), { recursive: true });
 fs.writeFileSync(out, JSON.stringify(collection));
 console.log(`wrote ${out}: ${tokens.length} tokens, ${(fs.statSync(out).size / 1024).toFixed(0)} KB`);
+if (builtIn) {
+  const indexFile = path.join(root, "public/collections/index.json");
+  let index = [];
+  try { index = JSON.parse(fs.readFileSync(indexFile, "utf8")); } catch { /* a first one */ }
+  const entry = { id: "botc", file: "/collections/botc.json", name: "Blood on the Clocktower", accent: "#c9a227", tokens: tokens.length,
+    text: { es: "Todas las ediciones, el Grimorio y tus guiones.", en: "Every edition, the Grimoire and your scripts." } };
+  index = [entry, ...index.filter((x) => x.id !== entry.id)];
+  fs.writeFileSync(indexFile, JSON.stringify(index, null, 2) + "\n");
+  console.log(`wrote ${indexFile}`);
+}

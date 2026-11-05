@@ -89,6 +89,19 @@ export function readTheme(v: unknown): string | OwnTheme | undefined {
 // style and designs beside it (main.ts's keys); the list of them, for /crear, apart.
 const LIST_KEY = "midnight-mint-own-collections";
 const keyOf = (id: string) => `midnight-mint-own-${id}-collection`;
+/** A collection that comes with the app (public/collections/index.json): opened, it's kept like the rest. */
+export interface BuiltInEntry { id: string; file: string; name: string; logo?: string; accent?: string; tokens: number; text?: Names }
+let builtIns: Promise<BuiltInEntry[]> | null = null;
+export const builtInCollections = (): Promise<BuiltInEntry[]> => (builtIns ??= fetch("/collections/index.json").then((r) => (r.ok ? (r.json() as Promise<BuiltInEntry[]>) : [])).catch(() => []));
+/** A built-in collection, read from the app's own file and kept in this browser under its id. */
+export async function openBuiltIn(id: string): Promise<Collection | null> {
+  const entry = (await builtInCollections()).find((x) => x.id === id);
+  if (!entry) return null;
+  const res = await fetch(entry.file);
+  if (!res.ok) return null;
+  const c = await readCollectionFile(await res.json());
+  return storeCollection(c, id) ? c : null;
+}
 /** A collection in the list: enough to show its card without reading it all. */
 export interface CollectionEntry { id: string; name: string; logo?: string; accent?: string; tokens: number; updated: number }
 

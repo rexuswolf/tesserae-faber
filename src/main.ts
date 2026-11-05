@@ -19,8 +19,8 @@ import { PAGE, layoutCoins, backX } from "./pdf/layout.ts";
 import { t, uiLang, setUiLang, LANGUAGES } from "./i18n.ts";
 import { TRANSLATIONS, VILLACUERVOS_URL, translationById, translationGroups } from "./translations.ts";
 import { uiIcon, UI_ICONS, TEAM_ICONS } from "./ui-icons.ts";
-import { OWN, OWN_ID, collectionUrl, listCollections, addCollection, deleteCollection, starterCollection, MODE, loadCollection, storeCollection, collectionRoles, collectionFile, readCollectionFile, readTokenList, GROUP_COLOURS, newId, nameIn, withName, catalogsOf, isLocked, THEMES, THEME_FONTS, okLogo } from "./collection.ts";
-import type { Collection, OwnToken, OwnCatalog, OwnSection, OwnTheme } from "./collection.ts";
+import { OWN, OWN_ID, collectionUrl, listCollections, addCollection, deleteCollection, starterCollection, builtInCollections, openBuiltIn, MODE, loadCollection, storeCollection, collectionRoles, collectionFile, readCollectionFile, readTokenList, GROUP_COLOURS, newId, nameIn, withName, catalogsOf, isLocked, THEMES, THEME_FONTS, okLogo } from "./collection.ts";
+import type { Collection, OwnToken, OwnCatalog, OwnSection, OwnTheme, CollectionEntry } from "./collection.ts";
 import { loadScripts, storeScripts, saveScript, scriptLink, readLink, scriptJson, idKey as scriptKey } from "./scripts.ts";
 import type { HomebrewEntry, NewScript, Script, ScriptJsonEntry } from "./scripts.ts";
 import type { Translation } from "./translations.ts";
@@ -400,6 +400,8 @@ async function boot() {
     if (coll.loader?.footer) $("#gateCcc").textContent = nameIn(coll.loader.footer, uiLang());
   }
   try {
+    // a collection that comes with the app, opened for the first time: read from its file
+    if (OWN && OWN_ID && !coll.tokens.length) { const c = await openBuiltIn(OWN_ID); if (c) { coll = c; applyOwnTheme(); applyOwnBrand(); } }
     if (OWN && (!OWN_ID || !coll.tokens.length)) { renderOwnHome(); return; }   // /crear: the list of collections
     if (OWN) {   // your own collection: no library to fetch
       applyGroups();
@@ -2205,7 +2207,7 @@ function applyGroups() {
 /** What depends on the collection itself: its name, its look, and the token language when it has several. */
 function syncOwnChrome() {
   for (const el of $$(".coll-name")) el.textContent = nameIn(coll.brand?.title, uiLang()) || nameIn(coll.name, uiLang());
-  applyOwnTheme(); applyOwnBrand();
+  applyOwnTheme(); applyOwnBrand(); void renderSwitchList();
   $("#tokenLangBtn").hidden = !((coll.languages?.length ?? 0) > 1);
 }
 
@@ -2298,7 +2300,7 @@ function wireOwn() {
   };
   // the collection's menu, on the top bar
   const menu = $("#collMenu"), sw = $("#collSwitch");
-  const openMenu = (on: boolean) => { menu.hidden = !on; sw.setAttribute("aria-expanded", String(on)); if (on) $("#ownNote").textContent = ""; };
+  const openMenu = (on: boolean) => { menu.hidden = !on; sw.setAttribute("aria-expanded", String(on)); if (on) { $("#ownNote").textContent = ""; renderSwitchList(); } };
   sw.onclick = () => openMenu(menu.hidden);
   document.addEventListener("click", (e) => { if (!menu.hidden && !hit(e, ".coll-switch")) openMenu(false); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !menu.hidden) { openMenu(false); sw.focus(); } });
@@ -2587,15 +2589,36 @@ function wireOwnSettings() {
 
 // ------------------------------------------------------------ /crear: the list of your collections
 
-function renderOwnHome() {
+/** The collections, the app's own apart from yours: [built-in, opened ones kept here], [yours]. */
+async function collectionsByKind() {
+  const built = await builtInCollections(), ids = new Set(built.map((b) => b.id));
+  const kept = listCollections();
+  return { built: built.map((b) => ({ b, kept: kept.find((k) => k.id === b.id) ?? null })), mine: kept.filter((k) => !ids.has(k.id)).sort((a, b) => b.updated - a.updated) };
+}
+/** The top bar menu's (and the phone drawer's) list of collections to go to, the app's own first. */
+async function renderSwitchList() {
+  const { built, mine } = await collectionsByKind(), lang = uiLang();
+  const item = (id: string, name: string, logo?: string) => `<a role="menuitem" href="${collectionUrl(id)}"${id === OWN_ID ? ' aria-current="true"' : ""}><img src="${esc(logo || "/logo-mark.svg")}" alt=""><b>${esc(name)}</b></a>`;
+  const html = `<p class="cm-h">${esc(t("own.homeBuilt"))}</p>${built.map(({ b, kept }) => item(b.id, b.name, kept?.logo ?? b.logo)).join("")}
+    <p class="cm-h">${esc(t("own.homeMine"))}</p>${mine.map((c) => item(c.id, c.name, c.logo)).join("") || `<p class="hint cm-empty">${esc(t("own.homeEmpty"))}</p>`}`;
+  for (const el of $$(".coll-list")) el.innerHTML = html;
+  void lang;
+}
+async function renderOwnHome() {
   $("#gate").hidden = true; $("#app").hidden = true; $("#ownHome").hidden = false;
   document.title = "Midnight Mint";
-  const list = listCollections().sort((a, b) => b.updated - a.updated);
-  const when = (ms: number) => new Intl.DateTimeFormat(uiLang(), { day: "numeric", month: "short" }).format(ms);
-  $("#ownHomeList").innerHTML = list.map((c) => `<article class="oh-card" style="--acc:${esc(c.accent ?? "#4fd1c5")}">
-      <a class="oh-open" href="${collectionUrl(c.id)}"><img src="${esc(c.logo || "/logo-mark.svg")}" alt=""><span><b>${esc(c.name)}</b><small>${esc(t("own.homeCount", { n: c.tokens, when: when(c.updated) }))}</small></span></a>
-      <span class="oh-actions"><button class="link" type="button" data-oh-export="${esc(c.id)}">${esc(t("own.export"))}</button><button class="link danger" type="button" data-oh-delete="${esc(c.id)}">${esc(t("own.homeDelete"))}</button></span>
-    </article>`).join("") || `<p class="hint">${esc(t("own.homeEmpty"))}</p>`;
+  const { built, mine } = await collectionsByKind(), lang = uiLang();
+  const when = (ms: number) => new Intl.DateTimeFormat(lang, { day: "numeric", month: "short" }).format(ms);
+  const card = (id: string, name: string, logo: string | undefined, accent: string | undefined, sub: string, actions: string) => `<article class="oh-card" style="--acc:${esc(accent ?? "#4fd1c5")}">
+      <a class="oh-open" href="${collectionUrl(id)}"><img src="${esc(logo || "/logo-mark.svg")}" alt=""><span><b>${esc(name)}</b><small>${esc(sub)}</small></span></a>
+      <span class="oh-actions">${actions}</span></article>`;
+  const exp = (id: string) => `<button class="link" type="button" data-oh-export="${esc(id)}">${esc(t("own.export"))}</button>`;
+  $("#ownHomeBuilt").innerHTML = built.map(({ b, kept }) => card(b.id, b.name, kept?.logo ?? b.logo, b.accent, nameIn(b.text, lang) || t("own.homeCount", { n: b.tokens, when: "" }),
+    kept ? `${exp(b.id)}<button class="link" type="button" data-oh-reset="${esc(b.id)}">${esc(t("own.homeReset"))}</button>` : "")).join("");
+  $("#ownHomeBuiltH").hidden = !built.length;
+  $("#ownHomeList").innerHTML = mine.map((c: CollectionEntry) => card(c.id, c.name, c.logo, c.accent, t("own.homeCount", { n: c.tokens, when: when(c.updated) }),
+    `${exp(c.id)}<button class="link danger" type="button" data-oh-delete="${esc(c.id)}">${esc(t("own.homeDelete"))}</button>`)).join("")
+    || `<p class="hint">${esc(t("own.homeEmpty"))}</p>`;
 }
 function wireOwnHome() {
   const note = (k: string, v = {}) => { $("#ownHomeNote").textContent = t(k, v); };
@@ -2609,8 +2632,9 @@ function wireOwnHome() {
       if (id) location.href = collectionUrl(id); else note("own.storageFull");
     } catch { note("own.importFailed"); }
   };
-  $("#ownHomeList").onclick = (e) => {
-    const ex = hit(e, "[data-oh-export]"), del = hit(e, "[data-oh-delete]");
+  $("#ownHome").onclick = (e) => {
+    const ex = hit(e, "[data-oh-export]"), del = hit(e, "[data-oh-delete]"), reset = hit(e, "[data-oh-reset]");
+    if (reset && confirm(t("own.homeResetConfirm"))) { deleteCollection(reset.dataset.ohReset!); renderOwnHome(); return; }
     if (ex) { const c = loadCollection(ex.dataset.ohExport!); if (c) saveFile(new Blob([JSON.stringify(collectionFile(c), null, 2)], { type: "application/json" }), `${nameIn(c.name, "en").replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase() || "collection"}.json`); }
     if (del) {
       const entry = listCollections().find((x) => x.id === del.dataset.ohDelete);
