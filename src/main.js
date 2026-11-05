@@ -55,12 +55,12 @@ const state = {
   lastSection: "text",
   // Default set style: "Edición" (black coin, team colour, thin team rim, the edition's name in
   // gold on the back), the first of PRESETS.
-  spec: loadJSON(STYLE_KEY, null) || {
+  spec: classicOnly(loadJSON(STYLE_KEY, null)) || {
     ...structuredClone(DEFAULT_SPEC), preset: "edicion", style: "classic", frame: "rim", frameWidth: 0.8, back: "edition", depth: 0.4,
     colours: { ...DEFAULT_SPEC.colours, base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold },
   },
   // key -> { text?, spec?, icon? }; game-icons placed before they sat with the library's are moved there
-  overrides: new Map(Object.entries(loadJSON(OVERRIDES_KEY, {})).map(([k, v]) => [k, v?.icon ? { ...v, icon: placeGameIcon(v.icon) } : v])),
+  overrides: new Map(Object.entries(loadJSON(OVERRIDES_KEY, {})).map(([k, v]) => [k, v && { ...v, ...(v.icon ? { icon: placeGameIcon(v.icon) } : {}), ...(v.spec ? { spec: classicOnly(v.spec) } : {}) }])),
   step: 1,
   pick: new Map(),         // token key ("c:imp", "r:imp:0") -> copies
   designs: [],
@@ -112,8 +112,6 @@ const PRESETS = [
     colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } } },
   { id: "marfil", spec: { style: "classic", frame: "rim", frameWidth: 1.0, back: "guilloche", depth: 0.4,
     colours: { base: FILAMENTS.white, front: "team", frame: "team", back: FILAMENTS.bronze } } },
-  { id: "legible", spec: { style: "window", windowFinish: "flat", textSize: 6, frame: "none", back: "none", depth: 0.4,
-    colours: { base: FILAMENTS.white, front: "team", frame: "team", back: FILAMENTS.gold } } },
 ];
 /** Applying a design leaves these alone: the magnet is chosen in its own section. */
 const PRESET_KEEPS = new Set(["lang", "customSvg", "magnet", "magnetSize"]);
@@ -121,6 +119,13 @@ const presetSpec = (p) => ({ ...structuredClone(DEFAULT_SPEC), ...structuredClon
 
 function loadJSON(key, fallback) { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } }
 function storeJSON(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* storage unavailable */ } }
+/**
+ * The window layout is out of the app for now (its relief and layout are being rethought):
+ * a design saved with it comes back as the classic layout, keeping everything else.
+ */
+function classicOnly(spec) {   // a declaration: the state above uses it before this line runs
+  return spec?.style === "window" ? { ...spec, style: "classic", preset: spec.preset === "legible" ? undefined : spec.preset } : spec;
+}
 
 // ------------------------------------------------------------ tokens: keys, text, style
 
@@ -1116,6 +1121,7 @@ function syncControls(spec) {
     $(`output[data-for=${id}]`).textContent = (+s[id]).toFixed(dp).replace(".", dec) + unit;
   }
   $("#styleHint").textContent = t(`style.${s.style}.help`);
+  $('[data-choice="style"]').hidden = $("#styleHint").hidden = true;   // one layout for now (see classicOnly)
   $("#windowFinishRow").hidden = s.style !== "window";
   $("#windowDepthRow").hidden = s.style !== "window" || s.windowFinish === "flat";
   $("#styleHint").textContent = t(s.style === "window" ? `windowFinish.${s.windowFinish}.help` : `style.${s.style}.help`);
@@ -1907,7 +1913,7 @@ window.__mm = { goStep, designToken, estimates: () => plateEstimates(queuePlan()
 // ------------------------------------------------------------ saved designs
 
 // Saved designs live in this browser (localStorage), newest first.
-const readDesigns = () => loadJSON(DESIGNS_KEY, []).filter((d) => d && d.id && d.roleId && d.spec);
+const readDesigns = () => loadJSON(DESIGNS_KEY, []).filter((d) => d && d.id && d.roleId && d.spec).map((d) => ({ ...d, spec: classicOnly(d.spec) }));
 const writeDesigns = (list) => storeJSON(DESIGNS_KEY, list);
 function refreshDesigns() { state.designs = readDesigns(); renderDesigns(); }
 
