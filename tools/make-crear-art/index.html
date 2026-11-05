@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Crear Art</title>
+<style>body { background: #1c1a18; color: #ece3d0; font: 15px system-ui; padding: 20px; } .out { display: flex; gap: 20px; align-items: start; flex-wrap: wrap; } .out > div { width: 460px; }</style>
+</head>
+<body>
+<!-- Draws the generic creator's front-page art with the app's engine, as two standalone SVG
+     files: public/crear-hero.svg (a honeycomb of tokens with the Tesserae Faber mark in the
+     middle) and public/collections/botc-preview.svg (a strip of Clocktower tokens for its
+     cover). Open it on the UI test server (port 5198) and use the links, or run
+     tools/make-crear-art.mjs, which saves both into public/. Names are outlines, so the files
+     need no font. -->
+<p>Arte de la portada de Crear. <a id="dlHero" download="crear-hero.svg">crear-hero.svg</a> · <a id="dlStrip" download="botc-preview.svg">botc-preview.svg</a></p>
+<div class="out"><div id="hero"></div><div id="strip"></div></div>
+<script type="module">
+import { loadLibrary, tokenSvg, DEFAULT_SPEC, FILAMENTS } from "/src/engine/token-engine.ts";
+import { loadRoles } from "/tools/ui-test/firebase-mock.js";
+import { gameIcon } from "/src/icons.ts";
+
+const lib = await loadLibrary(await loadRoles());
+const role = (en) => lib.roles.find((r) => r.en === en);
+const base = { ...DEFAULT_SPEC, lang: "es", frame: "rim", frameWidth: 0.8, back: "edition", depth: 0.4, colours: { ...DEFAULT_SPEC.colours, base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } };
+// a range of designs, so the honeycomb shows what the app can do
+const D = {
+  edicion: base,
+  marfil: { ...base, frameWidth: 1, colours: { ...base.colours, base: FILAMENTS.white } },
+  noche: { ...base, frame: "fases" },
+  medianoche: { ...base, frame: "firmamento" },
+  ventana: { ...base, style: "window", textSize: 6, frame: "none", colours: { ...base.colours, base: FILAMENTS.white } },
+  doble: { ...base, style: "double" },
+  solo: { ...base, style: "solo" },
+};
+const own = async (name, path, colour, spec = base) => {
+  const icon = await gameIcon(path);
+  const r = { id: `own_${name}`, en: name, es: name, team: "townsfolk", edition: "own", editionName: "Tesserae Faber", d: [], body: "", g: "" };
+  return tokenSvg(lib, r, { ...spec, icon, colours: { ...spec.colours, front: colour, frame: colour } }, { text: name });
+};
+const botc = (en, spec = base) => tokenSvg(lib, role(en), spec);
+const logo = await (await fetch("/tesserae-faber.svg")).text();
+
+const COMB = [
+  botc("Imp", D.edicion), await own("Vidente", "lorc/crystal-ball", "#2f86e0"), botc("Fortune Teller", D.marfil), await own("Lobo", "lorc/wolf-head", "#b3191e", D.noche),
+  await own("Oro", "delapouite/gold-stack", "#d4a72c", D.marfil), botc("Empath", D.noche), logo, await own("Envenenado", "lorc/poison-bottle", "#3f9651", D.solo), botc("Poisoner", D.medianoche),
+  await own("Jugador inicial", "lorc/crown", "#c9a227", D.doble), botc("Washerwoman", D.ventana), await own("Protegido", "lorc/eye-shield", "#8a3d9e", D.medianoche), await own("Ronda", "lorc/sands-of-time", "#2f86e0", D.ventana),
+];
+/** A token's SVG placed as a cell of a bigger one (its own viewBox kept). */
+const place = (svg, x, y, s, cls, i) => `<g class="${cls}" style="--i:${i}" filter="url(#lift)">${svg.replace(/<title>[\s\S]*?<\/title>/, "").replace(/<svg[^>]*?viewBox="([^"]+)"[^>]*>/, (_, vb) => `<svg x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${s}" height="${s}" viewBox="${vb}">`)}</g>`;
+const defs = `<defs><filter id="lift" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="9" stdDeviation="8" flood-color="#000" flood-opacity=".55"/></filter></defs>`;
+
+// the honeycomb: 4 + 5 + 4 cells, 1000 × 926
+const W = 1000, H = 926, cell = 195, rows = [[0, 4], [4, 5], [9, 4]];
+let i = 0, cells = "";
+rows.forEach(([start, n], r) => {
+  for (let k = 0; k < n; k++, i++) {
+    const cx = W / 2 + (k - (n - 1) / 2) * 204, cy = H * (.24 + r * .26);
+    cells += place(COMB[start + k], cx - cell / 2, cy - cell / 2, cell, start + k === 6 ? "cell mark" : "cell", i);
+  }
+});
+const hero = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Fichas hechas con Tesserae Faber">${defs}${cells}</svg>`;
+
+// the Clocktower cover's strip: five tokens, overlapping
+const STRIP = ["Fortune Teller", "Imp", "Empath", "Poisoner", "Undertaker"];
+const s = 120, step = 96;
+const strip = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${s + step * (STRIP.length - 1) + 20} ${s + 24}" role="img" aria-label="Fichas de Blood on the Clocktower">${defs}${STRIP.map((en, j) => place(botc(en), 10 + j * step, 6, s, "cell", j)).join("")}</svg>`;
+
+document.querySelector("#hero").innerHTML = hero;
+document.querySelector("#strip").innerHTML = strip;
+const link = (id, text) => { document.querySelector(id).href = URL.createObjectURL(new Blob([text], { type: "image/svg+xml" })); };
+link("#dlHero", hero); link("#dlStrip", strip);
+window.__art = { hero, strip };
+document.body.dataset.done = "1";
+</script>
+</body>
+</html>

@@ -26,7 +26,7 @@
       <button type="button" id="collSwitch" aria-haspopup="menu" aria-expanded="false" aria-controls="collMenu"><img class="coll-logo" src="/tesserae-faber-small.svg" alt="" width="34" height="34"><span class="cs-text"><b class="coll-name"></b><small>Tesserae Faber</small></span><span class="chev" aria-hidden="true">▾</span></button>
       <div class="coll-menu" id="collMenu" role="menu" hidden>
         <div class="coll-list"></div>
-        <a role="menuitem" href="/crear"><span aria-hidden="true">‹</span><b data-i18n="own.homeTitle"></b><small data-i18n="own.menuBack"></small></a>
+        <a role="menuitem" href="/crear/colecciones"><span aria-hidden="true">‹</span><b data-i18n="own.homeTitle"></b><small data-i18n="own.menuBack"></small></a>
         <hr>
         <button role="menuitem" type="button" data-coll="settings"><span aria-hidden="true">⚙</span><b data-i18n="own.settings"></b><small data-i18n="own.menuSettings"></small></button>
         <button role="menuitem" type="button" data-coll="groups"><span aria-hidden="true">◐</span><b data-i18n="own.groups"></b><small data-i18n="own.menuGroups"></small></button>
@@ -50,7 +50,7 @@
         <summary><img class="coll-logo" src="/tesserae-faber-small.svg" alt="" width="34" height="34"><span class="cs-text"><b class="coll-name"></b><small>Tesserae Faber</small></span><span class="chev" aria-hidden="true">▾</span></summary>
         <div class="coll-menu-items">
         <div class="coll-list"></div>
-        <a role="menuitem" href="/crear"><span aria-hidden="true">‹</span><b data-i18n="own.homeTitle"></b><small data-i18n="own.menuBack"></small></a>
+        <a role="menuitem" href="/crear/colecciones"><span aria-hidden="true">‹</span><b data-i18n="own.homeTitle"></b><small data-i18n="own.menuBack"></small></a>
         <hr>
         <button role="menuitem" type="button" data-coll="settings"><span aria-hidden="true">⚙</span><b data-i18n="own.settings"></b><small data-i18n="own.menuSettings"></small></button>
         <button role="menuitem" type="button" data-coll="groups"><span aria-hidden="true">◐</span><b data-i18n="own.groups"></b><small data-i18n="own.menuGroups"></small></button>
@@ -293,22 +293,50 @@
 </div>
 
 <!-- the generic creator at /crear: your collections, to open one, start one or bring one in -->
-<main class="own-home own-only" id="ownHome" hidden>
-  <header class="oh-head">
-    <span class="oh-brand"><img src="/tesserae-faber.svg" alt="" width="56" height="56"><span class="faber-wm">TESSERAE<span class="ip" aria-hidden="true"></span>FABER</span></span>
-    <h1 data-i18n="own.homeTitle"></h1>
-    <p class="hint" data-i18n="own.homeLead"></p>
+<!-- the generic creator's front page (/crear): what the app is, and the ways in -->
+<main class="own-home own-landing own-only" id="ownLanding" hidden>
+  <header class="oh-top">
+    <a class="oh-homelink" href="/crear"><img src="/tesserae-faber.svg" alt="" width="40" height="40"><span class="faber-wm">TESSERAE<span class="ip" aria-hidden="true"></span>FABER</span></a>
+    <nav class="oh-nav"><a href="/crear" data-i18n="own.navHome" aria-current="page"></a><a href="/crear/colecciones" data-i18n="own.navList"></a></nav>
   </header>
-  <div class="oh-tools">
-    <button class="forge" type="button" id="ownHomeNew" data-i18n="own.homeNew"></button>
-    <button class="pill" type="button" id="ownHomeImport" data-i18n="own.import"></button>
+  <section class="ol-hero">
+    <div class="ol-text">
+      <h1 data-i18n="own.landTitle"></h1>
+      <p class="ol-lead" data-i18n="own.landLead"></p>
+      <ol class="ol-steps">
+        <li><span class="n">1</span><span><b data-i18n="own.step1"></b><span data-i18n="own.step1Sub"></span></span></li>
+        <li><span class="n">2</span><span><b data-i18n="own.step2"></b><span data-i18n="own.step2Sub"></span></span></li>
+        <li><span class="n">3</span><span><b data-i18n="own.step3"></b><span data-i18n="own.step3Sub"></span></span></li>
+      </ol>
+      <div class="ol-cta"><a class="forge" href="/crear/colecciones" data-i18n="own.landSee"></a><button class="pill" type="button" data-own-new data-i18n="own.homeNewPlain"></button></div>
+      <a class="ol-resume" id="ownResume" hidden><img alt=""><span><small data-i18n="own.resume"></small><b></b></span><span class="arrow" aria-hidden="true">›</span></a>
+      <p class="hint" data-own-note aria-live="polite"></p>
+    </div>
+    <div class="ol-comb" id="ownComb" role="img" data-i18n-attr="aria-label:own.combAria"></div>
+  </section>
+</main>
+
+<!-- the generic creator's collections (/crear/colecciones): the app's, to open; yours, to work with -->
+<main class="own-home own-list own-only" id="ownHome" hidden>
+  <header class="oh-top">
+    <a class="oh-homelink" href="/crear"><img src="/tesserae-faber.svg" alt="" width="40" height="40"><span class="faber-wm">TESSERAE<span class="ip" aria-hidden="true"></span>FABER</span></a>
+    <nav class="oh-nav"><a href="/crear" data-i18n="own.navHome"></a><a href="/crear/colecciones" data-i18n="own.navList" aria-current="page"></a></nav>
+  </header>
+  <section class="oh-band oh-page-h"><div><h1 data-i18n="own.listTitle"></h1><p class="ol-lead" data-i18n="own.listLead"></p></div></section>
+  <section class="oh-band oh-ready" id="ownHomeBuiltH"><div>
+    <div class="oh-zone"><h2 data-i18n="own.readyH"></h2><p data-i18n="own.readyLead"></p></div>
+    <div class="oh-readyrow"><div id="ownHomeBuilt" class="oh-covers"></div><p class="oh-share"><b data-i18n="own.shareTitle"></b><span data-i18n="own.shareText"></span></p></div>
+  </div></section>
+  <section class="oh-band oh-yours"><div>
+    <div class="oh-zone"><h2 data-i18n="own.mineH"></h2><p data-i18n="own.mineLead"></p></div>
+    <div class="oh-new">
+      <button class="oh-make" type="button" data-own-new><span class="plus" aria-hidden="true">+</span><span data-i18n="own.homeNewPlain"></span></button>
+      <button class="oh-make" type="button" id="ownHomeImport" data-i18n="own.importJson"></button>
+    </div>
     <input type="file" id="ownHomeFile" accept="application/json,.json" hidden>
-    <p class="hint" id="ownHomeNote" aria-live="polite"></p>
-  </div>
-  <h2 class="oh-h" id="ownHomeBuiltH" data-i18n="own.homeBuilt"></h2>
-  <div class="oh-list" id="ownHomeBuilt"></div>
-  <h2 class="oh-h" data-i18n="own.homeMine"></h2>
-  <div class="oh-list" id="ownHomeList"></div>
+    <p class="hint" data-own-note aria-live="polite"></p>
+    <div class="oh-tiles" id="ownHomeList"></div>
+  </div></section>
 </main>
 
 <div class="gate" id="gate">

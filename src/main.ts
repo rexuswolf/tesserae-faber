@@ -19,7 +19,7 @@ import { PAGE, layoutCoins, backX } from "./pdf/layout.ts";
 import { t, uiLang, setUiLang, LANGUAGES } from "./i18n.ts";
 import { TRANSLATIONS, VILLACUERVOS_URL, translationById, translationGroups } from "./translations.ts";
 import { uiIcon, UI_ICONS, TEAM_ICONS } from "./ui-icons.ts";
-import { OWN, OWN_ID, collectionUrl, listCollections, addCollection, deleteCollection, starterCollection, builtInCollections, openBuiltIn, MODE, loadCollection, storeCollection, collectionRoles, collectionFile, readCollectionFile, readTokenList, GROUP_COLOURS, newId, nameIn, withName, catalogsOf, isLocked, THEMES, THEME_FONTS, okLogo, APP_LOGO, APP_LOGO_SMALL, APP_ICON, APP_NAME } from "./collection.ts";
+import { OWN, OWN_ID, OWN_VIEW, LIST_URL, lastCollection, rememberCollection, collectionUrl, listCollections, addCollection, deleteCollection, starterCollection, builtInCollections, openBuiltIn, MODE, loadCollection, storeCollection, collectionRoles, collectionFile, readCollectionFile, readTokenList, GROUP_COLOURS, newId, nameIn, withName, catalogsOf, isLocked, THEMES, THEME_FONTS, okLogo, APP_LOGO, APP_LOGO_SMALL, APP_ICON, APP_NAME } from "./collection.ts";
 import type { Collection, OwnToken, OwnCatalog, OwnSection, OwnTheme, CollectionEntry } from "./collection.ts";
 import { loadScripts, storeScripts, saveScript, scriptLink, readLink, scriptJson, idKey as scriptKey } from "./scripts.ts";
 import type { HomebrewEntry, NewScript, Script, ScriptJsonEntry } from "./scripts.ts";
@@ -402,7 +402,9 @@ async function boot() {
   try {
     // a collection that comes with the app, opened for the first time: read from its file
     if (OWN && OWN_ID && !coll.tokens.length) { const c = await openBuiltIn(OWN_ID); if (c) { coll = c; applyOwnTheme(); applyOwnBrand(); } }
-    if (OWN && (!OWN_ID || !coll.tokens.length)) { renderOwnHome(); return; }   // /crear: the list of collections
+    if (OWN && OWN_VIEW === "home") { renderOwnLanding(); return; }   // /crear: the front page
+    if (OWN && (!OWN_ID || !coll.tokens.length)) { renderOwnHome(); return; }   // the list (or a collection that isn't there)
+    if (OWN) rememberCollection(OWN_ID!);
     if (OWN) {   // your own collection: no library to fetch
       applyGroups();
       state.lib = await loadLibrary(collectionRoles(coll, uiLang()));
@@ -2606,26 +2608,56 @@ async function renderSwitchList() {
   for (const el of $$(".coll-list")) el.innerHTML = html;
   void lang;
 }
-async function renderOwnHome() {
-  $("#gate").hidden = true; $("#app").hidden = true; $("#ownHome").hidden = false;
+/** The creator's own pages (front page, list): the app's name and icon, nothing of a collection's. */
+function showOwnPage(id: string) {
+  $("#gate").hidden = true; $("#app").hidden = true;
+  for (const el of $$("#ownLanding, #ownHome")) el.hidden = el.id !== id;
   document.title = APP_NAME;
   $<HTMLLinkElement>("#favicon").href = APP_ICON;
+  document.documentElement.dataset.theme = "";
+}
+/** /crear: what the app is, the ways in, and back to the last collection you had open. */
+async function renderOwnLanding() {
+  showOwnPage("ownLanding");
+  // the honeycomb of tokens, drawn once by the engine (tools/make-crear-art.mjs); inline, so its cells can be laid in turn
+  fetch("/crear-hero.svg").then((r) => (r.ok ? r.text() : "")).then((svg) => { $("#ownComb").innerHTML = svg; $("#ownComb").classList.add("play"); }).catch(() => {});
+  const last = lastCollection(), lang = uiLang();
+  if (!last) return;
+  const { built, mine } = await collectionsByKind();
+  const b = built.find((x) => x.b.id === last), m = mine.find((x) => x.id === last);
+  const name = m?.name ?? b?.b.name, logo = m?.logo ?? b?.kept?.logo ?? b?.b.logo;
+  if (!name) return;
+  const r = $<HTMLAnchorElement>("#ownResume");
+  r.href = collectionUrl(last); r.hidden = false;
+  r.querySelector("img")!.src = logo || APP_LOGO_SMALL;
+  r.querySelector("b")!.textContent = name;
+  void lang;
+}
+/** /crear/colecciones: the app's collections as covers, yours as a working list. */
+async function renderOwnHome() {
+  showOwnPage("ownHome");
+  if (OWN_VIEW !== "list") history.replaceState(null, "", LIST_URL);   // a collection that isn't there: its list
   const { built, mine } = await collectionsByKind(), lang = uiLang();
   const when = (ms: number) => new Intl.DateTimeFormat(lang, { day: "numeric", month: "short" }).format(ms);
-  const card = (id: string, name: string, logo: string | undefined, accent: string | undefined, sub: string, actions: string) => `<article class="oh-card" style="--acc:${esc(accent ?? "#4fd1c5")}">
-      <a class="oh-open" href="${collectionUrl(id)}"><img src="${esc(logo || APP_LOGO)}" alt=""><span><b>${esc(name)}</b><small>${esc(sub)}</small></span></a>
-      <span class="oh-actions">${actions}</span></article>`;
   const exp = (id: string) => `<button class="link" type="button" data-oh-export="${esc(id)}">${esc(t("own.export"))}</button>`;
-  $("#ownHomeBuilt").innerHTML = built.map(({ b, kept }) => card(b.id, b.name, kept?.logo ?? b.logo, b.accent, nameIn(b.text, lang) || t("own.homeCount", { n: b.tokens, when: "" }),
-    kept ? `${exp(b.id)}<button class="link" type="button" data-oh-reset="${esc(b.id)}">${esc(t("own.homeReset"))}</button>` : "")).join("");
+  $("#ownHomeBuilt").innerHTML = built.map(({ b, kept }) => `<article class="oh-cover" style="--acc:${esc(b.accent ?? "#c9963a")}">
+      <a class="oh-cover-link" href="${collectionUrl(b.id)}">
+        <span class="who"><img src="${esc(kept?.logo ?? b.logo ?? APP_LOGO)}" alt=""><span><h3>${esc(b.name)}</h3><p>${esc(nameIn(b.text, lang))}</p></span></span>
+        ${b.preview ? `<img class="strip" src="${esc(b.preview)}" alt="">` : ""}
+        <span class="go"><span class="forge">${esc(t("own.open"))}</span>${esc(nameIn(b.facts, lang) || t("own.homeCount", { n: b.tokens, when: "" }))}</span>
+      </a>
+      ${kept ? `<span class="oh-actions">${exp(b.id)}<button class="link" type="button" data-oh-reset="${esc(b.id)}">${esc(t("own.homeReset"))}</button></span>` : ""}
+    </article>`).join("");
   $("#ownHomeBuiltH").hidden = !built.length;
-  $("#ownHomeList").innerHTML = mine.map((c: CollectionEntry) => card(c.id, c.name, c.logo, c.accent, t("own.homeCount", { n: c.tokens, when: when(c.updated) }),
-    `${exp(c.id)}<button class="link danger" type="button" data-oh-delete="${esc(c.id)}">${esc(t("own.homeDelete"))}</button>`)).join("")
-    || `<p class="hint">${esc(t("own.homeEmpty"))}</p>`;
+  $("#ownHomeList").innerHTML = mine.map((c: CollectionEntry) => `<article class="oh-tile" style="--acc:${esc(c.accent ?? "#c9963a")}">
+      <a class="oh-tile-link" href="${collectionUrl(c.id)}"><img src="${esc(c.logo || APP_LOGO_SMALL)}" alt=""><span><b>${esc(c.name)}</b><small>${esc(t("own.homeCount", { n: c.tokens, when: when(c.updated) }))}</small></span></a>
+      <span class="oh-actions">${exp(c.id)}<button class="link danger" type="button" data-oh-delete="${esc(c.id)}">${esc(t("own.homeDelete"))}</button></span>
+    </article>`).join("")
+    || `<p class="oh-empty">${esc(t("own.mineEmpty"))}</p>`;
 }
 function wireOwnHome() {
-  const note = (k: string, v = {}) => { $("#ownHomeNote").textContent = t(k, v); };
-  $("#ownHomeNew").onclick = () => { const id = addCollection(starterCollection()); if (id) location.href = collectionUrl(id); else note("own.storageFull"); };
+  const note = (k: string, v = {}) => { for (const el of $$("[data-own-note]")) el.textContent = t(k, v); };
+  for (const b of $$("[data-own-new]")) b.onclick = () => { const id = addCollection(starterCollection()); if (id) location.href = collectionUrl(id); else note("own.storageFull"); };
   $("#ownHomeImport").onclick = () => $("#ownHomeFile").click();
   $<HTMLInputElement>("#ownHomeFile").onchange = async (e) => {
     const f = input(e).files?.[0]; input(e).value = ""; if (!f) return;

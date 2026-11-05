@@ -6,6 +6,11 @@
     "logo": "/logo-mark.svg",
     "accent": "#c9a227",
     "tokens": 191,
+    "preview": "/collections/botc-preview.svg",
+    "facts": {
+      "es": "181 personajes · 215 recordatorios · 13 idiomas",
+      "en": "181 characters · 215 reminders · 13 languages"
+    },
     "text": {
       "es": "Todas las ediciones, el Grimorio y tus guiones.",
       "en": "Every edition, the Grimoire and your scripts."

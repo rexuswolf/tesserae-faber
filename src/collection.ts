@@ -15,8 +15,15 @@ import { gameIcon } from "./icons.ts";
 /** Which app this page is: Clocktower ("/"), or the generic creator ("/crear"). */
 export const MODE: "botc" | "own" = /^\/crear(\/|$)/.test(location.pathname) ? "own" : "botc";
 export const OWN = MODE === "own";
-/** The collection this page shows (/crear/<id>); none at /crear itself, which lists them. */
-export const OWN_ID: string | null = location.pathname.match(/^\/crear\/([\w-]+)/)?.[1] ?? null;
+/** Which page of the creator this is: its front page (/crear), the collections (/crear/colecciones) or one collection. */
+export const OWN_VIEW: "home" | "list" | "collection" = /^\/crear\/?$/.test(location.pathname) ? "home" : /^\/crear\/colecciones\/?$/.test(location.pathname) ? "list" : "collection";
+/** The collection this page shows (/crear/<id>); none on the front page or the list. */
+export const OWN_ID: string | null = OWN_VIEW === "collection" ? location.pathname.match(/^\/crear\/([\w-]+)/)?.[1] ?? null : null;
+export const LIST_URL = "/crear/colecciones";
+/** The last collection opened, for the front page's "carry on" link. */
+const LAST_KEY = "midnight-mint-own-last";
+export const lastCollection = () => { try { return localStorage.getItem(LAST_KEY); } catch { return null; } };
+export const rememberCollection = (id: string) => { try { localStorage.setItem(LAST_KEY, id); } catch { /* storage unavailable */ } };
 /** Where a collection opens. */
 export const collectionUrl = (id: string) => `/crear/${id}`;
 
@@ -95,7 +102,9 @@ export function readTheme(v: unknown): string | OwnTheme | undefined {
 const LIST_KEY = "midnight-mint-own-collections";
 const keyOf = (id: string) => `midnight-mint-own-${id}-collection`;
 /** A collection that comes with the app (public/collections/index.json): opened, it's kept like the rest. */
-export interface BuiltInEntry { id: string; file: string; name: string; logo?: string; accent?: string; tokens: number; text?: Names }
+export interface BuiltInEntry { id: string; file: string; name: string; logo?: string; accent?: string; tokens: number; text?: Names;
+  /** A picture of some of its tokens, for its cover; and what it holds, in a line. */
+  preview?: string; facts?: Names }
 let builtIns: Promise<BuiltInEntry[]> | null = null;
 export const builtInCollections = (): Promise<BuiltInEntry[]> => (builtIns ??= fetch("/collections/index.json").then((r) => (r.ok ? (r.json() as Promise<BuiltInEntry[]>) : [])).catch(() => []));
 /** A built-in collection, read from the app's own file and kept in this browser under its id. */

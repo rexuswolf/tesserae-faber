@@ -78,7 +78,10 @@ if (builtIn) {
   const indexFile = path.join(root, "public/collections/index.json");
   let index = [];
   try { index = JSON.parse(fs.readFileSync(indexFile, "utf8")); } catch { /* a first one */ }
+  const reminders = tokens.reduce((n, t) => n + (t.linked?.length ?? 0), 0);
   const entry = { id: "botc", file: "/collections/botc.json", name: "Blood on the Clocktower", logo: "/logo-mark.svg", accent: "#c9a227", tokens: tokens.length,
+    preview: "/collections/botc-preview.svg",   // tools/make-crear-art.mjs
+    facts: { es: `${roles.length} personajes · ${reminders} recordatorios · ${TRANSLATIONS.length} idiomas`, en: `${roles.length} characters · ${reminders} reminders · ${TRANSLATIONS.length} languages` },
     text: { es: "Todas las ediciones, el Grimorio y tus guiones.", en: "Every edition, the Grimoire and your scripts." } };
   index = [entry, ...index.filter((x) => x.id !== entry.id)];
   fs.writeFileSync(indexFile, JSON.stringify(index, null, 2) + "\n");
