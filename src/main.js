@@ -13,6 +13,7 @@ import { plateFeatures } from "./bambu/estimate.js";
 import { PAGE, layoutCoins, backX } from "./pdf/layout.js";
 import { t, uiLang, setUiLang, LANGUAGES } from "./i18n.js";
 import { TRANSLATIONS, VILLACUERVOS_URL, translationById, translationGroups } from "./translations.js";
+import { uiIcon, UI_ICONS, TEAM_ICONS } from "./ui-icons.js";
 import { loadScripts, storeScripts, saveScript, scriptLink, readLink, scriptJson, idKey as scriptKey } from "./scripts.js";
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -686,6 +687,51 @@ function drawer(open) {
   else if (PHONE.matches && spine.contains(document.activeElement)) $("#drawerOpen").focus({ preventScroll: true });
 }
 
+// ------------------------------------------------------------ adding to the queue
+
+/**
+ * The "Add to queue" menu, for what the sheet shows (edition or script, team filter, search):
+ * its characters, their reminders, or both. It only adds what's missing, so the order you
+ * choose them in doesn't matter; removing is its own item at the end, with undo.
+ */
+function renderAddMenu() {
+  const roles = state.shown || [], lang = uiLang();
+  const cards = roles.length > 0 && roles.every(isCard);
+  const who = state.team !== "all" && !searchQuery() ? TEAM_PLURAL[lang][state.team].toLowerCase() : t(cards ? "add.cardsWho" : "add.charsWho");
+  const Who = who[0].toUpperCase() + who.slice(1);
+  const missChars = roles.filter((r) => !isPicked(charKey(r))).length;
+  const missRems = roles.flatMap((r) => remindersOf(r).map((_, i) => remKey(r, i))).filter((k) => !isPicked(k)).length;
+  const hasRems = roles.some((r) => remindersOf(r).length);
+  const inQueue = roles.some((r) => isPicked(charKey(r)) || remindersOf(r).some((_, i) => isPicked(remKey(r, i))));
+  const item = (a, icon, title, sub, n, off) => `<button type="button" role="menuitem" data-a="${a}"${off ? " disabled" : ""}>${icon}<span>${esc(title)}<small>${esc(sub)}</small></span><b>${n == null ? "" : `+${n}`}</b></button>`;
+  const PLUS = `<svg class="gi" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>`;
+  const CROSS = `<svg class="gi" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>`;
+  $("#addMenu").innerHTML =
+    item("chars", uiIcon("two-coins"), hasRems ? t("add.chars", { who, Who }) : t("add.allOf", { who, Who }), missChars ? t("add.missing", { miss: missChars, n: roles.length }) : t("add.allIn"), missChars, !missChars)
+    + (hasRems ? item("rems", uiIcon("stack"), t("add.rems"), missRems ? t("add.tokens", { n: missRems }) : t("add.allIn"), missRems, !missRems)
+      + item("both", PLUS, t("add.both", { who, Who }), t("add.bothSub"), missChars + missRems, !missChars && !missRems) : "")
+    + `<hr>` + item("none", CROSS, t("add.remove"), t("add.removeSub"), null, !inQueue).replace('data-a="none"', 'data-a="none" class="rm"');
+}
+function openAddMenu(on, focusFirst = false) {
+  if (on) renderAddMenu();
+  $("#addMenu").hidden = !on;
+  $("#addBtn").setAttribute("aria-expanded", String(on));
+  if (on && focusFirst) $("#addMenu button:not(:disabled)")?.focus();
+}
+/** One of the menu's choices, for everything shown. */
+function addShown(how) {
+  const roles = state.shown || [];
+  const apply = () => {
+    for (const r of roles) {
+      const rems = remindersOf(r).map((_, i) => remKey(r, i));
+      if (how === "none") { setPick(charKey(r), false); rems.forEach((k) => setPick(k, false)); continue; }
+      if (how !== "rems") setPick(charKey(r), true);
+      if (how !== "chars") rems.forEach((k) => setPick(k, true));
+    }
+  };
+  if (how === "none") changePicks(apply, t("pick.cleared")); else { apply(); picksChanged(); }
+}
+
 // ------------------------------------------------------------ sheet
 
 const searchQuery = () => fold($("#search").value.trim());
@@ -713,8 +759,9 @@ function renderSheet() {
   let roles = q ? state.lib.roles : sc ? inScript.roles : state.lib.roles.filter((r) => r.edition === ed);
   const teamsHere = TEAM_ORDER.filter((tm) => roles.some((r) => r.team === tm));
   if (state.team !== "all" && !teamsHere.includes(state.team)) state.team = "all";
-  $("#teamChips").innerHTML = [["all", t("team.all")], ...teamsHere.map((tm) => [tm, TEAM_PLURAL[lang][tm]])]
-    .map(([id, label]) => `<button class="pill" type="button" data-team="${id}" aria-pressed="${state.team === id}">${esc(label)}</button>`).join("");
+  // each team: its icon in the team colour, and how many characters it has here
+  $("#teamChips").innerHTML = [["all", t("team.all"), roles.length], ...teamsHere.map((tm) => [tm, TEAM_PLURAL[lang][tm], roles.filter((r) => r.team === tm).length])]
+    .map(([id, label, n]) => `<button class="pill" type="button" data-team="${id}" aria-pressed="${state.team === id}"${id === "all" ? "" : ` style="--c: ${TEAMS[id].colour}"`}>${id === "all" ? "" : uiIcon(TEAM_ICONS[id])}${esc(label)} <small>${n}</small></button>`).join("");
   if (state.team !== "all") roles = roles.filter((r) => r.team === state.team);
 
   // search matches the name (English, Spanish, the token language or your own text) or any reminder text (yours too)
@@ -730,15 +777,9 @@ function renderSheet() {
 
   // Pick everything shown: the characters on screen (edition, team filter, search), with or without reminders.
   state.shown = roles;
-  const remKeys = roles.flatMap((r) => remindersOf(r).map((_, i) => remKey(r, i)));
-  const allChars = roles.length > 0 && roles.every((r) => isPicked(charKey(r))), allRems = remKeys.every(isPicked);
-  $("#pickAll").hidden = !roles.length;
-  $("#pickChars").textContent = t(roles.length && roles.every(isCard) ? "pick.cards" : "pick.chars", { n: roles.length });
-  $("#pickChars").setAttribute("aria-pressed", String(allChars && !remKeys.some(isPicked)));
-  $("#pickWithRems").textContent = t("pick.withRems", { n: roles.length + remKeys.length });
-  $("#pickWithRems").setAttribute("aria-pressed", String(allChars && remKeys.length > 0 && allRems));
-  $("#pickWithRems").hidden = !remKeys.length;
-  $("#pickNone").hidden = !roles.some((r) => isPicked(charKey(r))) && !remKeys.some(isPicked);
+  $("#addWrap").hidden = !roles.length;
+  $("#addLabel").textContent = state.team !== "all" && !q ? t("add.buttonTeam", { who: TEAM_PLURAL[lang][state.team].toLowerCase() }) : t("add.button");
+  if (!$("#addMenu").hidden) renderAddMenu();
 
   if (!roles.length) { $("#rows").innerHTML = `<p class="empty">${esc(t("sheet.noResults"))}</p>`; return; }
   $("#rows").innerHTML = TEAM_ORDER.map((team) => {
@@ -1206,12 +1247,20 @@ function wire() {
       list.forEach((r) => setPick(charKey(r), on)); picksChanged();
     }
   };
-  $("#pickAll").onclick = (e) => {
-    const b = e.target.closest("[data-pick-all]"); if (!b) return;
-    const how = b.dataset.pickAll, roles = state.shown || [];
-    const apply = () => { for (const r of roles) { setPick(charKey(r), how !== "none"); remindersOf(r).forEach((_, i) => setPick(remKey(r, i), how === "all")); } };
-    if (how === "none") changePicks(apply, t("pick.cleared")); else { apply(); picksChanged(); }
+  // "Add to queue": a menu of what to add (see renderAddMenu)
+  $("#addBtn").onclick = (e) => { openAddMenu($("#addMenu").hidden, e.detail === 0); };
+  $("#addMenu").onclick = (e) => {
+    const b = e.target.closest("[data-a]"); if (!b || b.disabled) return;
+    openAddMenu(false); addShown(b.dataset.a); $("#addBtn").focus();
   };
+  $("#addMenu").onkeydown = (e) => {
+    const items = [...$$("#addMenu button:not(:disabled)")], i = items.indexOf(document.activeElement);
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); items[(i + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length]?.focus(); }
+    else if (e.key === "Escape") { openAddMenu(false); $("#addBtn").focus(); }
+    else if (e.key === "Tab") openAddMenu(false);
+  };
+  document.addEventListener("click", (e) => { if (!$("#addMenu").hidden && !e.target.closest(".addmenu")) openAddMenu(false); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("#addMenu").hidden) { openAddMenu(false); $("#addBtn").focus(); } });
   // the steps
   $("#flowSteps").onclick = (e) => { const b = e.target.closest("[data-goto]"); if (b && !b.disabled) goStep(+b.dataset.goto); };
   $("#flowBack").onclick = () => goStep(state.step - 1);
@@ -1885,7 +1934,9 @@ function openCredits() {
   const byAuthor = new Map();
   // the library's icons, and the game-icons.net ones you've chosen for tokens
   const ownGame = [...state.overrides.values()].map((o) => o.icon).filter((i) => i?.source === "game-icons").map((i) => ({ icon: i.name, author: i.author }));
-  for (const r of [...(state.lib?.roles || []), ...ownGame]) {
+  // and the interface's own (team filters, the add menu)
+  const ui = Object.entries(UI_ICONS).map(([icon, { author }]) => ({ icon, author }));
+  for (const r of [...(state.lib?.roles || []), ...ownGame, ...ui]) {
     if (!r.icon) continue;
     if (!byAuthor.has(r.author)) byAuthor.set(r.author, new Set());
     byAuthor.get(r.author).add(r.icon);

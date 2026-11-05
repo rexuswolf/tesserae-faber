@@ -128,12 +128,43 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .sheet-title h1 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 46px; line-height: 1; text-wrap: balance; }
 .sheet-title img:not([hidden]) + h1 { font-size: 30px; color: var(--dust); }
 .lead { margin: 8px 0 16px; color: var(--dust); max-width: 70ch; }
-.filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-.search { flex: 0 1 260px; background: rgba(239, 230, 214, .06); border: 1px solid var(--seam); border-radius: 999px; padding: 7px 15px; }
+.gi { width: 1em; height: 1em; fill: currentColor; flex: none; }
+/* Adding to the queue (beside the title) stays apart from the filters (in their own bar). */
+.head-row { display: flex; justify-content: space-between; align-items: flex-end; gap: 14px 28px; flex-wrap: wrap; margin-bottom: 18px; }
+.head-row .lead { margin-bottom: 0; }
+.head-text { min-width: 0; flex: 1 1 340px; }
+.pill.add { display: inline-flex; align-items: center; gap: 7px; }
+.pill.add.main { background: var(--brass); color: var(--velvet-deep); border-color: var(--brass); font-weight: 600; }
+.pill.add.main:hover { background: #d8b23a; }
+.pill.add .plus { font-size: 15px; }
+.pill.add .chev { font-size: 12px; transition: rotate .15s; }
+.pill.add[aria-expanded=true] .chev { rotate: 180deg; }
+.addmenu { position: relative; }
+.menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; min-width: 300px; background: #2a1222; border: 1px solid var(--seam); border-radius: 14px; padding: 6px; box-shadow: 0 14px 34px rgba(0, 0, 0, .55); }
+.menu button { display: grid; grid-template-columns: 26px 1fr auto; align-items: center; gap: 4px 8px; width: 100%; text-align: left; border: 0; background: none; border-radius: 10px; padding: 9px 10px; cursor: pointer; }
+.menu button:hover, .menu button:focus-visible { background: rgba(239, 230, 214, .08); outline: none; }
+.menu button .gi { font-size: 18px; color: var(--brass); }
+.menu button span small { display: block; color: var(--dust); font-size: 12px; }
+.menu button b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.menu button:disabled { opacity: .45; cursor: default; background: none; }
+.menu hr { border: 0; border-top: 1px solid var(--seam); margin: 5px 4px; }
+.menu .rm .gi { color: var(--dust); }
+.filters { background: rgba(239, 230, 214, .045); border: 1px solid var(--seam); border-radius: 16px; padding: 12px 14px 14px; }
+.eyebrow { display: flex; align-items: center; gap: 7px; font-size: 11.5px; letter-spacing: .09em; text-transform: uppercase; color: var(--dust); margin-bottom: 9px; }
+.eyebrow .gi { font-size: 14px; }
+.filter-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.search-box { position: relative; flex: 0 1 330px; display: flex; min-width: 0; }
+.search-box > .gi { position: absolute; left: 13px; top: 50%; translate: 0 -50%; color: var(--dust); font-size: 16px; pointer-events: none; }
+.search { width: 100%; background: rgba(239, 230, 214, .06); border: 1px solid var(--seam); border-radius: 999px; padding: 7px 15px 7px 38px; }
 .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+/* a team filter: its icon in the team colour, and how many characters it has */
+.chips .pill { --c: var(--bone); display: inline-flex; align-items: center; gap: 7px; }
+.chips .pill .gi { color: var(--c); font-size: 17px; }
+.chips .pill small { color: var(--dust); font-size: 12px; font-variant-numeric: tabular-nums; }
+.chips .pill[aria-pressed=true]:not([data-team=all]) { background: color-mix(in srgb, var(--c) 22%, transparent); color: var(--bone); border-color: var(--c); }
+.chips .pill[aria-pressed=true]:not([data-team=all]) small { color: var(--bone); }
+.chips .pill[data-team=all][aria-pressed=true] small { color: var(--velvet-deep); }
 /* Token language: a setting for the whole sheet, so it sits beside the lead, apart from the filters. */
-.pick-all { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 18px; }
-.pick-all [hidden] { display: none; }
 .tlang-trigger { display: inline-flex; align-items: center; gap: 10px; padding: 6px 16px 6px 6px; border: 1px solid var(--seam); border-radius: 999px; background: rgba(239, 230, 214, .05); cursor: pointer; text-align: left; transition: border-color .15s, background .15s; }
 .tlang-trigger:hover { border-color: var(--brass); background: rgba(239, 230, 214, .09); }
 .tlang-trigger img { border-radius: 50%; box-shadow: 0 0 0 2px rgba(239, 230, 214, .15); }
@@ -539,7 +570,10 @@ dialog .import { margin-top: 10px; }
   .app, .app[data-step="2"], .app[data-step="3"] { grid-template-columns: minmax(0, 1fr); grid-template-areas: "top" "main" "bar"; }
   /* step 2: the 3D token and a strip of your tokens on top, the controls under them */
   .app[data-step="2"] { grid-template-rows: auto auto minmax(0, 1fr) auto; grid-template-areas: "top" "main" "ws" "bar"; }
-  .search { flex: 1 1 100%; }
+  .search-box { flex: 1 1 100%; }
+  .addmenu, .addmenu .pill.add.main { width: 100%; justify-content: center; }
+  .menu { left: 0; right: 0; min-width: 0; }
+  .filters { padding: 12px; }
   .topbar { gap: 8px; padding: 8px 12px; }
   .app[data-step="1"] .topbar #drawerOpen { display: grid; }
   .topbar .wordmark { display: none; }

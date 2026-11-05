@@ -38,7 +38,7 @@ setTimeout(() => {
     else if (k === "style") click(`[data-choice="style"] [data-v="${v}"]`);
     else if (k === "finish") click(`[data-choice="windowFinish"] [data-v="${v}"]`);
     else if (k === "addall") { click(`#rows .tok[data-pick="c:${v}"]`); document.querySelectorAll(`#rows .tok[data-pick^="r:${v}:"]`).forEach((b) => b.click()); }   // a character and its reminders
-    else if (k === "pickall") click(`#pickAll [data-pick-all="${v}"]`);
+    else if (k === "pickall") { click("#addBtn"); click(`#addMenu [data-a="${{ all: "both" }[v] || v}"]`); }   // chars | rems | all | none
     else if (k === "queue") click("#queueToggle");
     else if (k === "pdf") { window.__mm.goStep(3); click('#printPage [data-way="paper"]'); click("#flowNext"); }
     else if (k === "print") window.__mm.goStep(3);
