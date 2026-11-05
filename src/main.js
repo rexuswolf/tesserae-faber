@@ -5,6 +5,8 @@ import {
 } from "./engine/token-engine.js";
 /** The face parts that can be raised, in the order the Layout section lists them. */
 const RELIEF_PARTS = ["text", "frame", "icon"];
+/** Each layout's name size (mm): the arc's runs along the edge, the window's has the lower half. */
+const LAYOUT_TEXT = { classic: DEFAULT_SPEC.textSize, window: 6 };
 import { infoRoles } from "./info-tokens.js";
 import {
   onUser, signIn, signOutUser, isAdmin, loadRoles, uploadRoles, listAccountDesigns, deleteAccountDesign,
@@ -1091,7 +1093,7 @@ function renderStyleTiles(role, spec) {
   const text = textFor(charKey(role), role, null);
   $("[data-choice=style]").innerHTML = TOKEN_STYLES.map((st) =>
     `<button class="back-tile" type="button" data-v="${st.id}" aria-pressed="${s.style === st.id}">${
-      tokenSvg(state.lib, role, { ...s, style: st.id, ...(st.id === "window" && s.style !== "window" ? { textSize: 6 } : {}) }, { text })
+      tokenSvg(state.lib, role, { ...s, style: st.id, ...(st.id !== s.style ? { textSize: LAYOUT_TEXT[st.id] } : {}) }, { text })
     }<span>${esc(t(`style.${st.id}`))}</span></button>`).join("");
 }
 
@@ -1401,7 +1403,11 @@ function wire() {
     $(`[data-choice=${key}]`).onclick = (e) => {
       const b = e.target.closest("button"); if (!b) return;
       if (key === "back" && b.dataset.v === "custom" && !editingSpec()?.customSvg) { $("#upload").click(); return; }
-      changeStyle((s) => { s[key] = b.dataset.v; });
+      changeStyle((s) => {
+        // a name size doesn't carry over between layouts: each starts from its own
+        if (key === "style" && (s.style ?? DEFAULT_SPEC.style) !== b.dataset.v) s.textSize = LAYOUT_TEXT[b.dataset.v];
+        s[key] = b.dataset.v;
+      });
       if (key === "back") { view3d("setView", "back"); syncView("back"); }
     };
   }
