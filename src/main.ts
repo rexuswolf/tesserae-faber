@@ -20,7 +20,7 @@ import { PAGE, layoutCoins, backX } from "./pdf/layout.ts";
 import { t, uiLang, setUiLang, LANGUAGES } from "./i18n.ts";
 import { TRANSLATIONS, VILLACUERVOS_URL, translationById, translationGroups } from "./translations.ts";
 import { uiIcon, UI_ICONS, TEAM_ICONS } from "./ui-icons.ts";
-import { OWN, OWN_ID, OWN_VIEW, LIST_URL, lastCollection, rememberCollection, collectionUrl, openUrl, listCollections, addCollection, deleteCollection, starterCollection, builtInCollections, openBuiltIn, MODE, loadCollection, storeCollection, collectionRoles, collectionFile, readCollectionFile, readTokenList, GROUP_COLOURS, newId, nameIn, withName, catalogsOf, isLocked, THEMES, THEME_FONTS, okLogo, hasCcc, APP_LOGO, APP_LOGO_SMALL, APP_ICON, APP_NAME } from "./collection.ts";
+import { OWN, OWN_ID, OWN_VIEW, LIST_URL, lastCollection, rememberCollection, collectionUrl, openUrl, listCollections, addCollection, deleteCollection, starterCollection, builtInCollections, openBuiltIn, MODE, loadCollection, storeCollection, collectionRoles, collectionFile, readCollectionFile, readTokenList, GROUP_COLOURS, newId, nameIn, withName, catalogsOf, isLocked, THEMES, THEME_FONTS, okLogo, hasCcc, builtIn, APP_LOGO, APP_LOGO_SMALL, APP_ICON, APP_NAME } from "./collection.ts";
 import type { Collection, OwnToken, OwnCatalog, OwnSection, OwnTheme, CollectionEntry } from "./collection.ts";
 import { loadScripts, storeScripts, saveScript, scriptLink, readLink, scriptJson, idKey as scriptKey } from "./scripts.ts";
 import type { HomebrewEntry, NewScript, Script, ScriptJsonEntry } from "./scripts.ts";
@@ -2135,15 +2135,15 @@ function openCredits() {
     <summary><b>${esc(authorName(a))}</b> <small>${esc(t("credits.count", { n: set.size }))}</small></summary>
     <p>${[...set].sort().map((i) => link(`https://game-icons.net/1x1/${encodeURIComponent(a)}/${encodeURIComponent(i)}.html`, i)).join(", ")}</p></details></li>`).join("");
 
-  // The generic creator: first what the collection says about itself (and its links)
-  const lang = uiLang(), a = OWN ? coll.about : undefined;
+  // First the collection: what it says about itself (a built-in one: in the code, src/builtins.ts), its links and its mark
+  const lang = uiLang(), built = builtIn(OWN ? OWN_ID ?? "" : "botc");
+  const a = built?.about ?? (OWN ? coll.about : undefined), cname = built?.name ?? nameIn(coll.name, lang);
   const paras = (n: Parameters<typeof nameIn>[0] | undefined, cls = "") => nameIn(n, lang).split(/\n\s*\n/).filter((x) => x.trim()).map((x) => `<p${cls}>${esc(x.trim())}</p>`).join("");
-  const own = OWN ? `<section class="about own-about"><h3>${esc(nameIn(coll.name, lang))}</h3>${paras(a?.text)}${paras(a?.credits, ' class="hint"')}
+  const own = a ? `<section class="about own-about"><h3>${esc(cname)}</h3>${paras(a?.text)}${paras(a?.credits, ' class="hint"')}
       ${a?.links?.length ? `<p class="about-links">${a.links.map((l) => link(l.url, nameIn(l.label, lang))).join(" · ")}</p>` : ""}</section>` : "";
-  const ccc = !OWN || hasCcc(coll) ? `<div class="about-ccc"><img src="/ccc-sleeve.png" alt="Community Created Content"><p>${esc(t("ccc.app"))}</p></div>` : "";
+  const ccc = (built ? built.ccc : hasCcc(coll)) ? `<div class="about-ccc"><img src="/ccc-sleeve.png" alt="Community Created Content"><p>${esc(t("ccc.app"))}</p></div>` : "";
   // About: what the app is and how it treats your things, then the credits
-  $("#creditsBody").innerHTML = `${own}${ccc}<section class="about"><p>${esc(t(OWN ? "own.aboutApp" : "about.what"))}</p>
-      ${OWN ? "" : `<p class="hint">${esc(t("credits.intro"))}</p>`}
+  $("#creditsBody").innerHTML = `${own}${ccc}<h2 class="credits-h">${esc(t("about.title"))}</h2><section class="about"><p>${esc(t(OWN ? "own.aboutApp" : "about.what"))}</p>
       <p class="hint">${esc(t("about.data"))}</p>
       <p class="about-actions"><button type="button" class="pill" data-guide>${esc(t("guide.open"))}</button></p></section>
     <h2 class="credits-h">${esc(t("credits.title"))}</h2>
@@ -2668,6 +2668,7 @@ async function renderOwnHome() {
         ${b.preview ? `<img class="strip" src="${esc(b.preview)}" alt="">` : ""}
         <span class="go"><span class="forge">${esc(t("own.open"))}</span>${esc(nameIn(b.facts, lang) || t("own.homeCount", { n: b.tokens, when: "" }))}</span>
       </a>
+      ${b.ccc ? `<img class="oh-ccc" src="/ccc-sleeve.png" alt="Community Created Content" width="172" height="68">` : ""}
       ${kept && !b.href ? `<span class="oh-actions">${exp(b.id)}<button class="link" type="button" data-oh-reset="${esc(b.id)}">${esc(t("own.homeReset"))}</button></span>` : ""}
     </article>`).join("");
   $("#ownHomeBuiltH").hidden = !built.length;

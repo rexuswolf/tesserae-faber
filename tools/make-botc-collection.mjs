@@ -2,7 +2,7 @@
 // importing it at /crear should give the Clocktower app's catalog, the same.
 //   node tools/make-botc-collection.mjs [out.json]
 // Without an argument it writes the app's own copy, public/collections/botc.json, and its entry in
-// public/collections/index.json (the collections that come with the app, listed apart at /crear).
+// (what the app says about it, its card and its About, is code: src/builtins.ts).
 // Types: characters (coins, "All characters") and info tokens (cards, "Grimoire"); groups: the
 // teams, with their colours and icons; sections: the editions (closed) and scripts (open).
 // Icons go in as SVG, credited, so the file imports without fetching anything.
@@ -74,17 +74,3 @@ const collection = {
 fs.mkdirSync(path.dirname(out), { recursive: true });
 fs.writeFileSync(out, JSON.stringify(collection));
 console.log(`wrote ${out}: ${tokens.length} tokens, ${(fs.statSync(out).size / 1024).toFixed(0)} KB`);
-if (builtIn) {
-  const indexFile = path.join(root, "public/collections/index.json");
-  let index = [];
-  try { index = JSON.parse(fs.readFileSync(indexFile, "utf8")); } catch { /* a first one */ }
-  const reminders = tokens.reduce((n, t) => n + (t.linked?.length ?? 0), 0);
-  const entry = { id: "botc", file: "/collections/botc.json", name: "Blood on the Clocktower", logo: "/logo-mark.svg", accent: "#c9a227", tokens: tokens.length,
-    preview: "/collections/botc-preview.svg",   // tools/make-crear-art.mjs
-    href: "/botc",   // it opens as Midnight Mint, the Clocktower app (the file stays: to export, or to start a collection from)
-    facts: { es: `${roles.length} personajes · ${reminders} recordatorios · ${TRANSLATIONS.length} idiomas`, en: `${roles.length} characters · ${reminders} reminders · ${TRANSLATIONS.length} languages` },
-    text: { es: "Todas las ediciones, el Grimorio y tus guiones.", en: "Every edition, the Grimoire and your scripts." } };
-  index = [entry, ...index.filter((x) => x.id !== entry.id)];
-  fs.writeFileSync(indexFile, JSON.stringify(index, null, 2) + "\n");
-  console.log(`wrote ${indexFile}`);
-}

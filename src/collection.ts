@@ -11,6 +11,7 @@
 // JSON file ("midnight-mint/collection", see CollectionFile). Kept in this browser.
 import type { Hex, Role, Team, TokenIcon } from "./types.ts";
 import { gameIcon } from "./icons.ts";
+import { BUILT_INS } from "./builtins.ts";
 
 /** Which app this page is: Clocktower (/botc, once Midnight Mint), or Tesserae Faber, the generic creator (the rest). */
 export const MODE: "botc" | "own" = /^\/botc(\/|$)/.test(location.pathname) ? "botc" : "own";
@@ -105,20 +106,23 @@ export function readTheme(v: unknown): string | OwnTheme | undefined {
 // style and designs beside it (main.ts's keys); the list of them, for the front page and /colecciones, apart.
 const LIST_KEY = "midnight-mint-own-collections";
 const keyOf = (id: string) => `midnight-mint-own-${id}-collection`;
-/** A collection that comes with the app (public/collections/index.json): opened, it's kept like the rest. */
-export interface BuiltInEntry { id: string; file: string; name: string; logo?: string; accent?: string; tokens: number; text?: Names;
+/** A collection that comes with the app (src/builtins.ts): what it says about itself is code. */
+export interface BuiltInEntry { id: string; file?: string; name: string; logo?: string; accent?: string; tokens: number; text?: Names;
   /** A picture of some of its tokens, for its cover; and what it holds, in a line. */
   preview?: string; facts?: Names;
   /** Where it opens when it has an app of its own (Clocktower: /botc, Midnight Mint), instead of /c/<id>. */
-  href?: string }
+  href?: string;
+  /** Its About, and whether it carries the Community Created Content mark. */
+  about?: OwnAbout; ccc?: boolean }
 /** Where a collection opens: its own app's address for one that has it, else /c/<id>. */
 export const openUrl = (id: string, built: { id: string; href?: string }[]) => built.find((b) => b.id === id)?.href ?? collectionUrl(id);
-let builtIns: Promise<BuiltInEntry[]> | null = null;
-export const builtInCollections = (): Promise<BuiltInEntry[]> => (builtIns ??= fetch("/collections/index.json").then((r) => (r.ok ? (r.json() as Promise<BuiltInEntry[]>) : [])).catch(() => []));
+export const builtInCollections = (): Promise<BuiltInEntry[]> => Promise.resolve(BUILT_INS);
+/** One of them, by id. */
+export const builtIn = (id: string) => BUILT_INS.find((b) => b.id === id);
 /** A built-in collection, read from the app's own file and kept in this browser under its id. */
 export async function openBuiltIn(id: string): Promise<Collection | null> {
   const entry = (await builtInCollections()).find((x) => x.id === id);
-  if (!entry) return null;
+  if (!entry?.file) return null;
   const res = await fetch(entry.file);
   if (!res.ok) return null;
   const c = await readCollectionFile(await res.json());

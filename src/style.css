@@ -931,6 +931,7 @@ html[data-mode=own] .own-spine-h { display: none; }   /* the creator's sections 
 .oh-cover .go .forge { background: var(--acc); color: #170812; padding: 9px 18px; }
 .oh-cover .oh-actions { position: absolute; right: 22px; bottom: 20px; display: flex; gap: 14px; font-size: 13.5px; }
 .oh-cover .oh-actions .link { color: #c8b3c0; }
+.oh-cover .oh-ccc { position: absolute; right: 24px; bottom: 20px; width: 120px; height: auto; pointer-events: none; }
 .oh-share { border: 1px dashed var(--seam); border-radius: 18px; padding: 18px 22px; color: var(--dust); font-size: 15.5px; display: grid; align-content: center; gap: 4px; margin: 0; }
 .oh-share b { color: var(--bone); font-weight: 500; }
 .oh-new { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
@@ -955,6 +956,7 @@ html[data-mode=own] .own-spine-h { display: none; }   /* the creator's sections 
   .oh-homelink .faber-wm { font-size: 17px; }
   .oh-cover-link { grid-template-columns: 1fr; }
   .oh-cover .oh-actions { position: static; padding: 0 24px 18px; }
+  .oh-cover .oh-ccc { position: static; display: block; margin: -6px 24px 18px auto; width: 104px; }
   .oh-tile { flex-wrap: wrap; }
 }
 /* the sidebar's foot: the admin on a row of its own, under About */
