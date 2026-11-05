@@ -156,14 +156,17 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .filters { background: rgba(239, 230, 214, .045); border: 1px solid var(--seam); border-radius: 16px; padding: 12px 14px 14px; }
 .eyebrow { display: flex; align-items: center; gap: 7px; font-size: 11.5px; letter-spacing: .09em; text-transform: uppercase; color: var(--dust); margin-bottom: 9px; }
 .eyebrow .gi { font-size: 14px; }
-.filter-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-.search-box { position: relative; flex: 0 1 330px; display: flex; min-width: 0; }
+/* the search over a grid of equal team filters, so they always line up in columns */
+.filter-row { display: grid; gap: 10px; }
+.search-box { position: relative; display: flex; min-width: 0; }
 .search-box > .gi { position: absolute; left: 13px; top: 50%; translate: 0 -50%; color: var(--dust); font-size: 16px; pointer-events: none; }
 .search { width: 100%; background: rgba(239, 230, 214, .06); border: 1px solid var(--seam); border-radius: 999px; padding: 7px 15px 7px 38px; }
-.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
 /* a team filter: its icon in the team colour, and how many characters it has */
 .chips .pill { --c: var(--bone); display: inline-flex; align-items: center; gap: 7px; }
 .chips .pill .gi { color: var(--c); font-size: 17px; }
+.chips .pill small { margin-left: auto; }
+.chips .pill .lbl { min-width: 0; overflow: hidden; text-overflow: ellipsis; }   /* a long name ("Info tokens") shortens, never overflows */
 .chips .pill small { color: var(--dust); font-size: 12px; font-variant-numeric: tabular-nums; }
 .chips .pill[aria-pressed=true]:not([data-team=all]) { background: color-mix(in srgb, var(--c) 22%, transparent); color: var(--bone); border-color: var(--c); }
 .chips .pill[aria-pressed=true]:not([data-team=all]) small { color: var(--bone); }
@@ -597,7 +600,8 @@ dialog .import { margin-top: 10px; }
   .app, .app[data-step="2"], .app[data-step="3"] { grid-template-columns: minmax(0, 1fr); grid-template-areas: "top" "main" "bar"; }
   /* step 2: the 3D token and a strip of your tokens on top, the controls under them */
   .app[data-step="2"] { grid-template-rows: auto auto minmax(0, 1fr) auto; grid-template-areas: "top" "main" "ws" "bar"; }
-  .search-box { flex: 1 1 100%; }
+  .chips { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .chips .pill { min-width: 0; }
   .addmenu, .addmenu .pill.add.main { width: 100%; justify-content: center; }
   .addmenu .menu { left: 0; right: 0; min-width: 0; }
   .filters { padding: 12px; }
