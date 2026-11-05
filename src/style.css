@@ -508,6 +508,20 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .switch input:checked { background: var(--brass); }
 .switch input:checked::after { transform: translateX(14px); }
 /* step 1 */
+/* the drawer: characters, then reminders, each with its own count */
+.q-sec + .q-sec { margin-top: 22px; }
+.q-sec-h { display: flex; align-items: baseline; gap: 10px; margin: 6px 0 4px; font-family: var(--display); font-weight: 400; font-size: 22px; }
+.q-sec-h small { font-family: var(--ui); font-size: 13px; color: var(--dust); }
+.q-name { display: grid; min-width: 0; }
+.q-name small { color: var(--dust); font-size: 12px; }
+.q-item.r > .pic svg { width: 38px; height: 38px; margin: 0 5px; }
+.q-item > .pic { grid-row: auto !important; }
+/* step 2: a token can be taken out (copies are set in the queue) */
+.ds-item { position: relative; }
+.ds-drop { position: absolute; top: -4px; right: -4px; width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--seam); background: var(--velvet-deep); color: var(--dust); display: grid; place-items: center; cursor: pointer; opacity: 0; transition: opacity .12s; }
+.ds-item:hover .ds-drop, .ds-drop:focus-visible { opacity: 1; }
+@media (hover: none) { .ds-drop { opacity: 1; } }
+.ds-drop:hover { color: var(--bone); border-color: var(--bone); }
 .q-team { margin: 16px 0 2px; font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--dust); }
 .q-item { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--seam); }
 .q-item > .pic svg { width: 48px; height: 48px; display: block; }

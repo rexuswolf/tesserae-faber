@@ -826,16 +826,8 @@ function renderSheet() {
   }).join("");
 }
 
-/** Copies of a picked token: "+", or "− n +" from two copies on. With `removable`, one copy
- *  reads "bin 1 +", the bin taking the token out (step 2, where tapping a token opens it). */
+/** A bin icon: taking a token out. */
 const BIN = `<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4.5h11M6.5 4.5V3h3v1.5M4 4.5l.7 8.5h6.6l.7-8.5M6.8 7v3.5M9.2 7v3.5"/></svg>`;
-function copyStepper(key, name, { removable = false } = {}) {
-  const copies = state.pick.get(key) || 0;
-  if (!copies) return "";
-  const less = copies > 1 ? `<button type="button" data-less="${key}" aria-label="${esc(t("queue.lessCopy", { name }))}">−</button>`
-    : removable ? `<button type="button" class="bin" data-drop="${key}" aria-label="${esc(t("queue.removeAria", { name }))}">${BIN}</button>` : "";
-  return `<span class="cp">${less ? `${less}<b>${copies}</b>` : ""}<button type="button" data-more="${key}" aria-label="${esc(t("queue.moreCopy", { name }))}">+</button></span>`;
-}
 /** A click on a copy stepper: one more or one fewer. True when it was one. */
 function onCopyStep(e) {
   const more = e.target.closest("[data-more]"), less = e.target.closest("[data-less]");
@@ -863,7 +855,7 @@ function rowHtml(r, q, remHits) {
     // once picked, a small stepper adds copies; tapping the token still drops it
     // a homebrew token whose icon is still on its way pulses where the icon will go
     const loading = r.loading ? ` loading" style="--team: ${TEAMS[r.team].colour}` : "";
-    return `<span class="tok-w"><button class="tok${isCard(r) ? " card" : ""}${loading}" type="button" data-pick="${key}" aria-pressed="${copies > 0}" aria-label="${esc(name)}">${tokenSvg(state.lib, r, spec, { text: name })}<span class="ck" aria-hidden="true">✓</span></button>${own ? ownPen(key, name) : ""}${copyStepper(key, name)}</span>`;
+    return `<span class="tok-w"><button class="tok${isCard(r) ? " card" : ""}${loading}" type="button" data-pick="${key}" aria-pressed="${copies > 0}" aria-label="${esc(name)}">${tokenSvg(state.lib, r, spec, { text: name })}<span class="ck" aria-hidden="true">✓</span></button>${own ? ownPen(key, name) : ""}</span>`;
   };
   const rems = remindersOf(r);
   const other = tokenLang() === "en" ? roleName(r, uiLang() === "en" ? "es" : uiLang()) : r.en;
@@ -1655,35 +1647,38 @@ function onQueueClick(e) {
   if (plus) { const k = plus.dataset.plus; state.pick.set(k, (state.pick.get(k) || 0) + 1); picksChanged(); }
   else if (minus) {
     const k = minus.dataset.minus, n = state.pick.get(k) || 0, role = tokenRole(k);
-    changePicks(() => { if (n > 1) state.pick.set(k, n - 1); else state.pick.delete(k); }, t("queue.removed", { name: textFor(k, role, null) }));
+    const ri = tokenRem(k), name = ri != null ? `${textFor(charKey(role), role, null)}: ${textFor(k, role, ri)}` : textFor(k, role, null);
+    if (n > 1) { state.pick.set(k, n - 1); picksChanged(); }
+    else changePicks(() => state.pick.delete(k), t("queue.removed", { name }));
   } else if (rm) {
     const k = rm.dataset.unpick, role = tokenRole(k);
     changePicks(() => state.pick.delete(k), t("queue.removed", { name: `${textFor(charKey(role), role, null)}: ${textFor(k, role, tokenRem(k))}` }));
   }
 }
 
-/** The drawer: one row per character (copies with − +), its picked reminders beside it as chips. */
+/**
+ * The drawer: the characters, then the reminders, each with how many tokens they make and
+ * each token's copies (− n +). One copy less than one takes it out, with Undo.
+ */
 function renderQueueList() {
   const lang = uiLang(), n = queueNow().length;
   $("#queueTitle").innerHTML = `${esc(t("queue.title"))}${n ? `<small>${esc(t("queue.count", { n }))}</small>` : ""}`;
   $("#queueClear").hidden = !n;
   if (!n) { $("#queue").innerHTML = `<div class="q-empty"><h3>${esc(t("pick.nothing"))}</h3><p>${esc(t("pick.help"))}</p></div>`; return; }
-  const ids = [...new Set([...state.pick.keys()].map((k) => k.split(":")[1]))];
-  $("#queue").innerHTML = TEAM_ORDER.map((team) => {
-    const rows = ids.map(roleById).filter((r) => r.team === team).sort(byName);
-    if (!rows.length) return "";
-    return `<h3 class="q-team">${esc(TEAM_PLURAL[lang][team])}</h3>` + rows.map((r) => {
-      const ck = charKey(r), copies = state.pick.get(ck) || 0;
-      const rems = remindersOf(r).map((_, i) => remKey(r, i)).filter(isPicked);
-      const name = textFor(ck, r, null);
-      const pic = tokenSvg(state.lib, r, { ...specFor(ck, false), back: "none" }, { text: name });
-      return `<div class="q-item"><span class="pic">${pic}</span>
-        <b>${esc(name)}${state.overrides.has(ck) ? ` ${ownPen(ck, name)}` : ""}</b>
-        <span class="qty"><button type="button" data-minus="${ck}" ${copies ? "" : "disabled"} aria-label="${esc(t("queue.lessCopy", { name }))}">−</button><span>${copies}</span><button type="button" data-plus="${ck}" aria-label="${esc(t("queue.moreCopy", { name }))}">+</button></span>
-        ${rems.length ? `<div class="q-rems">${rems.map((k) => { const ri = tokenRem(k), w = textFor(k, r, ri); return `<span class="q-rem">${tokenSvg(state.lib, r, specFor(k, true), { text: w })}${esc(w)}${(state.pick.get(k) || 1) > 1 ? ` ×${state.pick.get(k)}` : ""}<button type="button" data-unpick="${k}" aria-label="${esc(t("queue.removeAria", { name: `${name}: ${w}` }))}">×</button></span>`; }).join("")}</div>` : ""}
-      </div>`;
-    }).join("");
-  }).join("");
+  const keys = sortKeys(state.pick.keys()), chars = keys.filter((k) => tokenRem(k) == null), rems = keys.filter((k) => tokenRem(k) != null);
+  const copies = (list) => list.reduce((s, k) => s + (state.pick.get(k) || 0), 0);
+  const qty = (k, name) => `<span class="qty"><button type="button" data-minus="${k}" aria-label="${esc(t("queue.lessCopy", { name }))}">−</button><span>${state.pick.get(k) || 0}</span><button type="button" data-plus="${k}" aria-label="${esc(t("queue.moreCopy", { name }))}">+</button></span>`;
+  const item = (k) => {
+    const r = tokenRole(k), ri = tokenRem(k), isRem = ri != null, name = textFor(k, r, ri), char = textFor(charKey(r), r, null);
+    const pic = tokenSvg(state.lib, r, { ...specFor(k, isRem), back: "none" }, { text: name });
+    return `<div class="q-item${isRem ? " r" : ""}"><span class="pic">${pic}</span>
+      <span class="q-name"><b>${esc(name)}${state.overrides.has(k) ? ` ${ownPen(k, name)}` : ""}</b>${isRem ? `<small>${esc(char)}</small>` : ""}</span>
+      ${qty(k, isRem ? `${char}: ${name}` : name)}</div>`;
+  };
+  const section = (title, list, byTeam) => !list.length ? "" : `<section class="q-sec"><h3 class="q-sec-h">${esc(title)}<small>${esc(t("queue.count", { n: copies(list) }))}</small></h3>`
+    + (byTeam ? TEAM_ORDER.map((team) => { const here = list.filter((k) => tokenRole(k).team === team); return here.length ? `<h4 class="q-team">${esc(TEAM_PLURAL[lang][team])}</h4>${here.map(item).join("")}` : ""; }).join("") : list.map(item).join(""))
+    + `</section>`;
+  $("#queue").innerHTML = section(t("queue.chars"), chars, true) + section(t("queue.rems"), rems, false);
 }
 
 // ------------------------------------------------------------ step 2: your tokens in the set's design
@@ -1695,7 +1690,7 @@ function renderDesignStage() {
     const spec = specFor(k, ri != null);
     const label = ri != null ? `${textFor(charKey(role), role, null)}: ${text}` : text;
     // the copies stepper sits beside the button (a button can't hold buttons), over the coin's foot
-    return `<div class="ds-item${ri != null ? " r" : ""}"><button class="ds-cell${ri != null ? " r" : ""}${isCard(role) ? " card" : ""}" type="button" data-design="${k}" aria-current="${state.sel?.key === k}" title="${esc(t("design.tap"))}">${tokenSvg(state.lib, role, spec, { text })}${state.overrides.has(k) ? `<span class="mark" title="${esc(t("sheet.own"))}">✎</span>` : ""}<span>${esc(label)}</span></button>${copyStepper(k, label, { removable: true })}</div>`;
+    return `<div class="ds-item${ri != null ? " r" : ""}"><button class="ds-cell${ri != null ? " r" : ""}${isCard(role) ? " card" : ""}" type="button" data-design="${k}" aria-current="${state.sel?.key === k}" title="${esc(t("design.tap"))}">${tokenSvg(state.lib, role, spec, { text })}${state.overrides.has(k) ? `<span class="mark" title="${esc(t("sheet.own"))}">✎</span>` : ""}<span>${esc(label)}</span></button><button type="button" class="ds-drop" data-drop="${k}" aria-label="${esc(t("queue.removeAria", { name: label }))}">${BIN}</button></div>`;
   }).join("");
 }
 /** Takes a token out of the selection from step 2, with Undo. The workshop moves on to another
