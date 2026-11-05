@@ -28,28 +28,33 @@
 - Every character and reminder token of each edition, in English or in 12 community translations from
   [Villacuervos](https://villacuervos.es): six Spanish ones, Asturian, Catalan, Valencian, Basque, Galician
   and Portuguese. Where a translation has them, characters can also take their feminine form.
+- **All characters** (every edition at once, each row naming its edition) and the **Grimoire** sit above the editions;
+  the app opens on All characters and comes back to the view you left.
 - Search by character or reminder text, including the names you gave them, and filter by team.
-- Add a whole edition (or whatever is on screen) to the print queue in one click, with or without its reminders.
+- Click anywhere on a character's row to add it with its reminders. Reminders are chips under its name; identical ones
+  share a chip ("Correct ×5"). *Add to queue* adds everything on screen: characters, their reminders, or both.
 - Keep your own **scripts**: import the Script Tool's JSON and the script sits beside the editions.
   Scripts live in your browser; share one with a link (the script travels inside it) or download it as JSON.
+- **Homebrew** scripts work too: characters a script defines itself (a name, a team, an ability) become tokens of
+  that script, with their reminders. Their pictures, PNG included, are traced into printable icons in your browser.
 
 | Token language | A shared script |
 |---|---|
 | ![Choosing the token language: the list of languages with Spanish unfolded into its six versions, and the tokens redrawn in the one pointed at](docs/screenshots/token-language.png) | ![Opening a shared script link: its 13 tokens and a button to save it](docs/screenshots/script-shared.png) |
 
 **Design them**
-- Your own icons: give any character another icon from game-icons.net (searched in the workshop, credited in *Credits*) or an SVG of your own; its reminders share it. A script can bring its own names and icons (`{"id": "gambler", "name": "…", "icon": "lorc/drill"}`, or the Script Tool's `image` when it's an SVG), and *Download JSON* keeps them.
-- Templates to start from: *Fast print*, *Pitch-black night*, *Midnight*, *Ivory coin* and *High legibility*, all with the frame in the team colour. A line over the controls says which one you started from and whether you've modified it. A magnet (glued into a pocket, or hidden inside with a pause) is a choice of its own and stays when you switch templates.
-- Two layouts: **classic** (name curved along the edge) and **window** (a framed picture with a straight name).
-  The window can be flat, so nobody can feel which character they drew.
-- 12 frame designs, and 6 back designs plus the edition's name or your own SVG, each drawn on your character as you choose.
+- Your own icons: give any character another icon from game-icons.net (searched in the workshop, credited in *About the tool*) or an SVG of your own; its reminders share it. A script can bring its own names and icons in the Script Tool's `image` (a game-icons.net link, an SVG, or a picture to trace), and *Download JSON* keeps them.
+- Templates to start from: *Edition* (the default: the edition's name in gold on the back), *Fast print* (1.2 mm,
+  the thinnest that holds up), *Pitch-black night*, *Midnight* and *Ivory coin*, all with the frame in the team colour.
+  A line over the controls says which one you started from and whether you've modified it. A magnet (glued into a pocket, or hidden inside with a pause) is a choice of its own and stays when you switch templates.
+- 12 frame designs, and 7 back designs plus the edition's name (a homebrew's script) or your own SVG, each drawn on your character as you choose.
 - Any of the 10 filament colours for the coin, the frame and the back; the name and icon take the team colour.
 - A big live 3D preview you can turn around, with front and back views; it turns by itself to the part you're editing.
 - Style the whole set at once, or switch to *This token only* to give one token its own text, icon or look. A pen marks those tokens and takes you straight back to them. Save designs in your browser.
 
 | Frames | Backs |
 |---|---|
-| ![Ten frame designs, from a plain rim to laurel branches](docs/screenshots/frame-designs.png) | ![Seven back designs: plain, Midnight clock, guilloché, compass rose, sunburst, eclipse and edition name](docs/screenshots/back-designs.png) |
+| ![Ten frame designs, from a plain rim to laurel branches](docs/screenshots/frame-designs.png) | ![The back designs: plain, Midnight clock, guilloché, compass rose, sunburst, eclipse, orbits and edition name](docs/screenshots/back-designs.png) |
 
 **Add magnets**
 - **Back pocket**: an open hole in the centre of the back, to glue a magnet into after printing.
@@ -64,8 +69,9 @@
   They print like the coins: 8 a plate on the A1, 2 on the A1 mini, 8 an A4 sheet.
 
 **Print them**
-- Three steps: **pick** the tokens (tap them, add copies), **design** them (one design for the set, or one of
-  their own), then **print**: see the plates (with their filaments) or the A4 sheets before you download.
+- Three steps: **pick** the tokens, **design** them (one design for the set, or one of their own), then **print**:
+  see the plates (with their filaments) or the A4 sheets before you download. Copies are set in the queue,
+  which lists the characters and the reminders apart, each with its own count.
 - **Bambu Lab A1 or A1 mini, with AMS lite**: download a ready-to-print `.3mf`. Every part already has its filament,
   tokens are grouped onto plates by team with at most 4 colours each, and hidden magnets come with their pause.
   The A1 mini's smaller plate holds 8 characters or 14 reminders (the A1: 24 and 34). Choose the nozzle too:
@@ -76,18 +82,18 @@
 
 | The queue | 3D printer | Paper |
 |---|---|---|
-| ![The print queue: one row per character, with copies and reminder chips](docs/screenshots/queue-list.png) | ![Printing on a 3D printer: the filaments and the plates, grouped by team](docs/screenshots/queue-print-3d.png) | ![Printing on paper: each A4 sheet's front and back](docs/screenshots/queue-print-paper.png) |
+| ![The print queue: the characters by team, then the reminders, each with its copies](docs/screenshots/queue-list.png) | ![Printing on a 3D printer: the filaments and the plates, grouped by team](docs/screenshots/queue-print-3d.png) | ![Printing on paper: each A4 sheet's front and back](docs/screenshots/queue-print-paper.png) |
 
 | PDF, fronts | PDF, backs |
 |---|---|
 | ![A4 sheet of token fronts](docs/screenshots/pdf-front.png) | ![The matching sheet of backs, mirrored for double-sided printing](docs/screenshots/pdf-back.png) |
 
-It also works on phones: the sidebar becomes a menu, and the top bar steps between editions.
+It also works on phones: the sidebar becomes a menu, with *How it works*, the app's language and *About the tool* at its foot.
 
 <p align="center">
   <img src="docs/screenshots/mobile.png" alt="The app on a phone: the Trouble Brewing sheet" width="280">
   &nbsp;
-  <img src="docs/screenshots/mobile-menu.png" alt="The phone menu: editions, scripts, language and credits" width="280">
+  <img src="docs/screenshots/mobile-menu.png" alt="The phone menu: all characters, the grimoire, editions, scripts, and the guide, language and About at its foot" width="280">
 </p>
 
 ## Running it locally
@@ -126,7 +132,9 @@ and `node tools/upload-library.mjs` replaces the library with it.
 - `src/main.js`, `src/i18n.js`, `src/style.css`: the app, its Spanish and English text, and its look.
 - `src/translations.js`: the languages tokens can be printed in, and who translated each one.
 - `src/firebase.js`, `firestore.rules`: the public character library. Only the admin signs in (open the app with `?admin`) to upload it.
-- `tools/`: test pages and helpers (UI test server, design sheets, icon review, Bambu template).
+- `src/icons.js`: a token's own icon: an SVG, a game-icons.net icon, or a script's picture traced into shapes.
+- `tools/`: test pages and helpers (UI test server, design sheets, icon review, Bambu template, and
+  `tools/guide/`, which takes the guide's and this README's pictures).
 
 ## License and credits
 
@@ -147,7 +155,7 @@ and keeps its own terms:
   Galician: Dumis. Portuguese: uriell.
 - **Character icons** come from [game-icons.net](https://game-icons.net) under
   [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/). Each icon's author is credited in the app
-  (*Credits*, at the bottom of the sidebar).
+  (*About the tool*, at the bottom of the sidebar).
 - **Language flags** come from [circle-flags](https://github.com/HatScripts/circle-flags) (MIT).
 - **Fonts**: the token lettering is Alegreya SC ExtraBold by Juan Pablo del Peral (Huerta Tipográfica),
   under the SIL Open Font License (`public/AlegreyaSC-OFL.txt`); it was picked for strokes a 0.4 mm nozzle
@@ -155,4 +163,4 @@ and keeps its own terms:
   Dumbledor 1 (© GeM), the earlier lettering, is still in `public/` for the design prototypes in `tools/`.
 - **Libraries**: [three.js](https://threejs.org) (MIT), [Firebase](https://firebase.google.com) (Apache 2.0),
   [JSZip](https://stuk.github.io/jszip/) (MIT or GPLv3), [jsPDF](https://github.com/parallax/jsPDF) (MIT)
-  and [svg2pdf.js](https://github.com/yWorks/svg2pdf.js) (MIT).
+  [svg2pdf.js](https://github.com/yWorks/svg2pdf.js) (MIT) and [imagetracerjs](https://github.com/jankovicsandras/imagetracerjs) (public domain).

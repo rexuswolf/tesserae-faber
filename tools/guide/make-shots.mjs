@@ -21,12 +21,14 @@ for (const lang of ["en", "es"]) {
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
   await page.goto(BASE); await page.waitForTimeout(4000);
   await page.evaluate(([lang, picks]) => {
-    for (const k of ["midnight-mint-style", "midnight-mint-overrides", "midnight-mint-paper-backs"]) localStorage.removeItem(k);
+    for (const k of ["midnight-mint-style", "midnight-mint-overrides", "midnight-mint-paper-backs", "midnight-mint-guide-seen"]) localStorage.removeItem(k);
+    localStorage.setItem("midnight-mint-guide-seen", "1");
     localStorage.setItem("midnight-mint-lang", lang);
     localStorage.setItem("midnight-mint-token-lang", lang === "es" ? "es" : "en");
     localStorage.setItem("midnight-mint-picks", JSON.stringify(picks));
     localStorage.setItem("midnight-mint-print-way", JSON.stringify("3d"));
     localStorage.setItem("midnight-mint-printer", JSON.stringify("a1"));
+    localStorage.setItem("midnight-mint-view", JSON.stringify({ edition: "tb", team: "all" }));   // step 1 on Trouble Brewing
   }, [lang, PICKS]);
   await page.reload(); await page.waitForTimeout(8000);
   const shot = async (step) => {
