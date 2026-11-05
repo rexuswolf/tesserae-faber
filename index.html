@@ -22,7 +22,6 @@
       <svg viewBox="0 0 18 18" width="18" height="18" aria-hidden="true"><path d="M3 5h12M3 9h12M3 13h12" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
     <div class="brand"><img src="/logo-mark.svg" alt="" width="36" height="36"><span class="wordmark"><span class="wm-mid">Midnight</span><span class="wm-mint">Mint</span></span></div>
     <nav class="flow-steps" id="flowSteps" data-i18n-attr="aria-label:flow.aria"></nav>
-    <button class="icon-btn help-btn" id="guideOpen" type="button" aria-haspopup="dialog" data-i18n-attr="aria-label:guide.open;title:guide.open">?</button>
     <button class="tlang-trigger" id="tokenLangBtn" type="button" aria-haspopup="dialog"></button>
   </header>
 
@@ -30,6 +29,9 @@
        On a phone it is a drawer. -->
   <nav class="spine" id="spine" data-i18n-attr="aria-label:spine.aria">
     <div class="spine-scroll">
+      <!-- every character, and the grimoire's info tokens: above the editions -->
+      <div id="library"></div>
+      <hr class="spine-rule">
       <h2 class="spine-h" data-i18n="spine.editions"></h2>
       <div id="editions"></div>
       <div class="spine-h spine-sec"><h2 data-i18n="spine.scripts"></h2>
@@ -37,10 +39,11 @@
       <div id="scripts"></div>
     </div>
     <footer class="spine-foot">
-    <div class="account">
-      <a href="#" class="ccc-link" data-credits data-i18n-attr="title:credits.link"><img src="/ccc-sleeve.png" alt="Community Created Content" width="86" height="34"></a>
+    <!-- the guide and the language; the community-content banner; about the tool and its credits -->
+    <div class="foot-row">
+      <button class="guide-btn" type="button" data-guide aria-haspopup="dialog"><span class="q" aria-hidden="true">?</span><span data-i18n="guide.open"></span></button>
       <span class="acc-tools">
-      <details class="lang-menu" data-lang-menu></details>
+      <button class="lang-btn" type="button" id="uiLangBtn" aria-haspopup="dialog"></button>
       <button type="button" class="admin-sign-in" id="adminSignIn" hidden data-i18n="gate.signIn"></button>
       <details class="me" hidden>
         <summary data-i18n-attr="aria-label:me.aria"><img id="avatar" alt="" referrerpolicy="no-referrer"></summary>
@@ -52,7 +55,8 @@
       </details>
       </span>
     </div>
-    <p class="ccc-line"><span data-i18n="ccc.tiny"></span> · <a href="#" data-guide data-i18n="guide.open"></a> · <a href="#" data-credits data-i18n="credits.link"></a><span id="repoLink" hidden> · <a target="_blank" rel="noopener" data-i18n-attr="title:credits.repo">GitHub</a></span></p>
+    <a href="#" class="ccc-banner" data-about data-i18n-attr="title:about.link"><img src="/ccc-sleeve.png" alt="Community Created Content" width="344" height="136"></a>
+    <a href="#" class="about-link" data-about data-i18n="about.link"></a>
     </footer>
   </nav>
   <div class="scrim" id="scrim"></div>
@@ -286,9 +290,17 @@
   </div>
 </dialog>
 
+<!-- the interface language, from the flag in the sidebar -->
+<dialog id="uiLang" class="ui-lang" aria-labelledby="uiLangTitle">
+  <form method="dialog" class="close"><button class="pill" data-i18n="admin.close"></button></form>
+  <h2 id="uiLangTitle" data-i18n="lang.title"></h2>
+  <p class="hint" data-i18n="lang.hint"></p>
+  <ul class="ui-lang-list" id="uiLangList"></ul>
+</dialog>
+
 <dialog id="credits" aria-labelledby="creditsTitle">
   <form method="dialog" class="close"><button class="pill" data-i18n="admin.close"></button></form>
-  <h2 id="creditsTitle" data-i18n="credits.title"></h2>
+  <h2 id="creditsTitle" data-i18n="about.title"></h2>
   <div class="credits" id="creditsBody"></div>
 </dialog>
 

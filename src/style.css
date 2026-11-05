@@ -65,7 +65,11 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .wm-mint::before { content: ""; flex: 1; height: 1.5px; background: var(--brass); }
 .spine-h { margin: 6px 18px 6px; font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--dust); }
 .spine-scroll { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: 10px; }
-#editions, #scripts { padding: 0 10px; display: flex; flex-direction: column; gap: 4px; }
+#library, #editions, #scripts { padding: 0 10px; display: flex; flex-direction: column; gap: 4px; }
+/* every character and the grimoire, above the editions, each with its icon */
+#library .ed { display: flex; align-items: center; gap: 11px; padding-left: 12px; }
+#library .ed > .gi { font-size: 22px; color: var(--brass); }
+.spine-rule { border: 0; border-top: 1px solid var(--seam); margin: 12px 18px 10px; }
 /* section headings in the sidebar; "Scripts" has an add button */
 .spine-sec { display: flex; align-items: center; justify-content: space-between; margin-top: 16px; }
 .spine-sec h2 { margin: 0; font: inherit; }
@@ -140,15 +144,15 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .pill.add .chev { font-size: 12px; transition: rotate .15s; }
 .pill.add[aria-expanded=true] .chev { rotate: 180deg; }
 .addmenu { position: relative; }
-.menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; min-width: 300px; background: #2a1222; border: 1px solid var(--seam); border-radius: 14px; padding: 6px; box-shadow: 0 14px 34px rgba(0, 0, 0, .55); }
-.menu button { display: grid; grid-template-columns: 26px 1fr auto; align-items: center; gap: 4px 8px; width: 100%; text-align: left; border: 0; background: none; border-radius: 10px; padding: 9px 10px; cursor: pointer; }
-.menu button:hover, .menu button:focus-visible { background: rgba(239, 230, 214, .08); outline: none; }
-.menu button .gi { font-size: 18px; color: var(--brass); }
-.menu button span small { display: block; color: var(--dust); font-size: 12px; }
-.menu button b { font-weight: 600; font-variant-numeric: tabular-nums; }
-.menu button:disabled { opacity: .45; cursor: default; background: none; }
-.menu hr { border: 0; border-top: 1px solid var(--seam); margin: 5px 4px; }
-.menu .rm .gi { color: var(--dust); }
+.addmenu .menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; min-width: 300px; background: #2a1222; border: 1px solid var(--seam); border-radius: 14px; padding: 6px; box-shadow: 0 14px 34px rgba(0, 0, 0, .55); }
+.addmenu .menu button { display: grid; grid-template-columns: 26px 1fr auto; align-items: center; gap: 4px 8px; width: 100%; text-align: left; border: 0; background: none; border-radius: 10px; padding: 9px 10px; cursor: pointer; }
+.addmenu .menu button:hover, .addmenu .menu button:focus-visible { background: rgba(239, 230, 214, .08); outline: none; }
+.addmenu .menu button .gi { font-size: 18px; color: var(--brass); }
+.addmenu .menu button span small { display: block; color: var(--dust); font-size: 12px; }
+.addmenu .menu button b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.addmenu .menu button:disabled { opacity: .45; cursor: default; background: none; }
+.addmenu .menu hr { border: 0; border-top: 1px solid var(--seam); margin: 5px 4px; }
+.addmenu .menu .rm .gi { color: var(--dust); }
 .filters { background: rgba(239, 230, 214, .045); border: 1px solid var(--seam); border-radius: 16px; padding: 12px 14px 14px; }
 .eyebrow { display: flex; align-items: center; gap: 7px; font-size: 11.5px; letter-spacing: .09em; text-transform: uppercase; color: var(--dust); margin-bottom: 9px; }
 .eyebrow .gi { font-size: 14px; }
@@ -292,8 +296,28 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .ccc-link { display: block; flex: 0 1 auto; min-width: 0; border-radius: 999px; }
 .ccc-link img { display: block; width: 86px; max-width: 100%; height: auto; opacity: .9; }
 .ccc-link:hover img { opacity: 1; }
-.ccc-line { margin: 0; font-size: 11.5px; color: var(--dust); line-height: 1.4; }
-.ccc-line a { color: var(--dust); text-decoration: underline; text-underline-offset: 2px; }
+/* the guide's button, centred; "About" under the sleeve and the language */
+/* the guide and the flag, centred together; in a narrow sidebar they take a line each */
+.foot-row { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; }
+/* the app's language: the flag, a button that opens a dialog */
+.lang-btn { flex: none; display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 1px solid var(--seam); border-radius: 50%; background: none; cursor: pointer; }
+.lang-btn:hover { border-color: var(--brass); }
+.lang-btn img { width: 26px; height: 26px; border-radius: 50%; display: block; }
+#uiLang { width: min(460px, calc(100% - 32px)); }
+.ui-lang-list { list-style: none; margin: 14px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
+.ui-lang-list button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 12px; border: 1px solid var(--seam); border-radius: 12px; background: rgba(239, 230, 214, .04); cursor: pointer; font-size: 15px; text-align: left; }
+.ui-lang-list button:hover, .ui-lang-list button:focus-visible { border-color: var(--brass); outline: none; }
+.ui-lang-list button[aria-current=true] { border-color: var(--brass); background: rgba(201, 162, 39, .1); }
+.ui-lang-list img { width: 28px; height: 28px; border-radius: 50%; flex: none; }
+.ui-lang-list .check { margin-left: auto; color: var(--brass); }
+.ccc-banner { display: block; justify-self: center; width: min(140px, 100%); min-width: 0; }
+.ccc-banner img { display: block; width: 100%; height: auto; opacity: .9; }
+.ccc-banner:hover img { opacity: 1; }
+.guide-btn { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--seam); background: rgba(239, 230, 214, .05); border-radius: 999px; padding: 5px 12px 5px 5px; white-space: nowrap; cursor: pointer; font-size: 13px; }
+.guide-btn:hover { border-color: var(--brass); }
+.guide-btn .q { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: var(--brass); color: var(--velvet-deep); font-weight: 700; font-size: 12.5px; }
+.about-link { justify-self: center; font-size: 12.5px; color: var(--dust); text-decoration: underline; text-underline-offset: 2px; }
+.about-link:hover { color: var(--bone); }
 .spine .me .menu { top: auto; bottom: 42px; right: auto; left: 0; }
 /* Language menu: the current circle flag; opens a list of every language. */
 .lang-menu { position: relative; flex: none; }
@@ -572,7 +596,7 @@ dialog .import { margin-top: 10px; }
   .app[data-step="2"] { grid-template-rows: auto auto minmax(0, 1fr) auto; grid-template-areas: "top" "main" "ws" "bar"; }
   .search-box { flex: 1 1 100%; }
   .addmenu, .addmenu .pill.add.main { width: 100%; justify-content: center; }
-  .menu { left: 0; right: 0; min-width: 0; }
+  .addmenu .menu { left: 0; right: 0; min-width: 0; }
   .filters { padding: 12px; }
   .topbar { gap: 8px; padding: 8px 12px; }
   .app[data-step="1"] .topbar #drawerOpen { display: grid; }
@@ -644,11 +668,15 @@ dialog .import { margin-top: 10px; }
 .guide-dots { display: flex; gap: 6px; margin: 0 auto; }
 .guide-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--seam); }
 .guide-dots i.on { background: var(--brass); }
-.help-btn { flex: none; font-weight: 600; font-size: 16px; }
 .credits { max-height: 70vh; overflow-y: auto; padding-right: 4px; }
 .credits > .hint:first-child { margin-top: 0; }
 .credits section + section { border-top: 1px solid var(--seam); margin-top: 18px; }
 .credits h3 { font-family: var(--display); font-weight: 400; font-size: 21px; }
+/* About: the app first, then its credits under their own heading */
+.credits .about p { margin: 0 0 10px; }
+.credits .about > p:first-child { font-size: 15.5px; }
+.about-actions { margin-top: 14px !important; }
+.credits-h { font-family: var(--display); font-weight: 400; font-size: 26px; margin: 22px 0 0; padding-top: 18px; border-top: 1px solid var(--seam); }
 .credits .hint { line-height: 1.55; }
 .credits a { color: var(--dust); text-decoration: underline; text-underline-offset: 2px; }
 .credits a:hover { color: var(--bone); }
@@ -676,7 +704,6 @@ dialog .import { margin-top: 10px; }
 .preset[aria-pressed=true] { border-color: var(--brass); background: rgba(201, 162, 39, .1); }
 @media (max-width: 900px) { .spine .brand img { width: 30px; height: 30px; } }
 /* the phone's top bar has no room for "?": the guide opens from the sidebar's footer there */
-@media (max-width: 900px) { .topbar .help-btn { display: none; } }
 
 /* add everything shown on the sheet */
 .sheet-title { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }

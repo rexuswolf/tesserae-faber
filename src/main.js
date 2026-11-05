@@ -168,6 +168,14 @@ function renderLangMenus() {
       <ul class="lang-list" aria-label="${esc(t("lang.group"))}">${LANGUAGES.map((l) => `<li><button type="button" data-lang="${l.code}" lang="${l.code}" aria-current="${l.code === cur.code}">
         <img src="${l.flag}" alt="" width="22" height="22"><span>${esc(l.name)}</span>${l.code === cur.code ? CHECK : ""}</button></li>`).join("")}</ul>`;
   }
+  // the sidebar's flag: a button that opens the languages in a dialog
+  const btn = $("#uiLangBtn");
+  if (btn) {
+    btn.innerHTML = `<img src="${cur.flag}" alt="" width="26" height="26">`;
+    btn.setAttribute("aria-label", `${t("lang.group")}: ${cur.name}`); btn.title = `${t("lang.group")}: ${cur.name}`;
+    $("#uiLangList").innerHTML = LANGUAGES.map((l) => `<li><button type="button" data-ui-lang="${l.code}" lang="${l.code}" aria-current="${l.code === cur.code}">
+      <img src="${l.flag}" alt="" width="28" height="28"><span>${esc(l.name)}</span>${l.code === cur.code ? CHECK : ""}</button></li>`).join("");
+  }
 }
 function setLang(lang) {
   setUiLang(lang);
@@ -177,6 +185,9 @@ function setLang(lang) {
   else if (gateState) gate(gateState());
 }
 document.addEventListener("click", (e) => {
+  if (e.target.closest("#uiLangBtn")) { drawer(false); $("#uiLang").showModal(); $("#uiLangList [aria-current=true]")?.focus(); return; }
+  const ui = e.target.closest("[data-ui-lang]");
+  if (ui) { $("#uiLang").close(); setLang(ui.dataset.uiLang); $("#uiLangBtn").focus(); return; }
   const pick = e.target.closest("[data-lang-menu] [data-lang]");
   if (pick) { pick.closest("details").open = false; setLang(pick.dataset.lang); return; }
   // Clicking anywhere else closes an open language menu.
@@ -282,6 +293,16 @@ $("#tlangList").addEventListener("keydown", (e) => {
 $("#tlangCancel").onclick = () => $("#tlangDialog").close();
 $("#tlangUse").onclick = () => { $("#tlangDialog").close(); if (tl.pick !== tokenLang()) setTokenLang(tl.pick); };
 $("#tlangDialog").addEventListener("click", (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });   // backdrop
+/** A click outside a dialog's box (on its backdrop) closes it; one on its own margin, inside, doesn't. */
+function closeOnBackdrop(dlg) {
+  dlg.addEventListener("click", (e) => {
+    if (e.target !== dlg) return;
+    const r = dlg.getBoundingClientRect();
+    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) dlg.close();
+  });
+}
+closeOnBackdrop($("#credits"));
+closeOnBackdrop($("#uiLang"));
 
 // ------------------------------------------------------------ gate
 
@@ -347,8 +368,6 @@ onUser(async (user) => {
 
 let started = false;
 function startApp() {
-  $("#repoLink").hidden = !REPO_PUBLIC;
-  $("#repoLink a").href = REPO_URL;
   $("#gate").hidden = true;
   $("#app").hidden = false;
   renderAccount();
@@ -383,9 +402,17 @@ function renderAll() { renderSpine(); renderSheet(); renderWorkshop(); }
 
 // ------------------------------------------------------------ spine
 
+/** Every official character, in every edition: the "All characters" view. */
+const allCharacters = () => state.lib.roles.filter((r) => !isCard(r) && r.kind !== "homebrew");
 function renderSpine() {
   const lang = uiLang();
-  $("#editions").innerHTML = EDITION_ORDER.filter((e) => state.lib.roles.some((r) => r.edition === e)).map((e) => {
+  // above the editions: every character, and the grimoire's info tokens
+  const all = allCharacters(), info = state.lib.roles.filter((r) => r.edition === "grimoire");
+  const entry = (ed, icon, name, sub, roles) => `<button class="ed" type="button" data-ed="${ed}" aria-current="${state.edition === ed && !searchQuery()}">${uiIcon(icon)}
+    <span>${esc(name)}<small>${esc(sub)}</small></span>${pickedBadge(roles)}</button>`;
+  $("#library").innerHTML = entry("all", "two-coins", t("library.all"), t("ed.count", { c: all.length, r: all.reduce((n, r) => n + remindersOf(r).length, 0) }), all)
+    + (info.length ? entry("grimoire", "id-card", EDITIONS.grimoire.name[lang], t("ed.countInfo", { n: info.length }), info) : "");
+  $("#editions").innerHTML = EDITION_ORDER.filter((e) => e !== "grimoire" && state.lib.roles.some((r) => r.edition === e)).map((e) => {
     const roles = state.lib.roles.filter((r) => r.edition === e);
     const rem = roles.reduce((n, r) => n + remindersOf(r).length, 0);
     return `<button class="ed" type="button" data-ed="${e}" aria-current="${state.edition === e && !searchQuery()}">
@@ -741,10 +768,11 @@ function renderSheet() {
   if (state.edition.startsWith("s:") && !scriptOf(state.edition)) state.edition = "tb";   // a deleted script
   const ed = state.edition, sc = scriptOf(ed), inScript = sc && scriptRoles(sc);
   // header
-  $("#edTitle").textContent = q ? t("sheet.results", { q: $("#search").value.trim() }) : sc ? sc.name : EDITIONS[ed].name[lang];
+  $("#edTitle").textContent = q ? t("sheet.results", { q: $("#search").value.trim() }) : sc ? sc.name : ed === "all" ? t("library.all") : EDITIONS[ed].name[lang];
   $("#edLead").textContent = q ? t("sheet.leadSearch")
     : sc ? t("script.lead", { n: inScript.roles.length, eds: new Set(inScript.roles.filter((r) => r.kind !== "homebrew").map((r) => r.edition)).size })
       + (inScript.missing.length ? t("script.missing", { list: inScript.missing.join(", ") }) : "")
+    : ed === "all" ? t("library.allLead", { n: allCharacters().length })
     : t(`edition.lead.${ed}`);
   $("#scriptActions").hidden = !sc || !!q;
   $("#scriptCustomWarn").hidden = !scriptHasOwn(sc);
@@ -756,7 +784,7 @@ function renderSheet() {
   $("#scriptShare").textContent = t(PHONE.matches && navigator.share ? "script.share" : "script.copy");
 
   // which characters
-  let roles = q ? state.lib.roles : sc ? inScript.roles : state.lib.roles.filter((r) => r.edition === ed);
+  let roles = q ? state.lib.roles : sc ? inScript.roles : ed === "all" ? allCharacters() : state.lib.roles.filter((r) => r.edition === ed);
   const teamsHere = TEAM_ORDER.filter((tm) => roles.some((r) => r.team === tm));
   if (state.team !== "all" && !teamsHere.includes(state.team)) state.team = "all";
   // each team: its icon in the team colour, and how many characters it has here
@@ -835,7 +863,7 @@ function rowHtml(r, q, remHits) {
   const other = tokenLang() === "en" ? roleName(r, uiLang() === "en" ? "es" : uiLang()) : r.en;
   return `<div class="row${isCard(r) ? " info" : ""}" data-picked="${isPicked(ck)}">
     ${thumb(ck, null)}
-    <div class="who" data-pick="${ck}"><b>${esc(catalogText(r, null))}</b>${other !== catalogText(r, null) ? `<small>${esc(other)}</small>` : ""}${q || (state.edition.startsWith("s:") && r.kind !== "homebrew") ? `<em>${esc(editionName(r, lang))}</em>` : ""}${r.loading ? `<small>${esc(t("sheet.iconLoading"))}</small>` : ""}</div>
+    <div class="who" data-pick="${ck}"><b>${esc(catalogText(r, null))}</b>${other !== catalogText(r, null) ? `<small>${esc(other)}</small>` : ""}${q || state.edition === "all" || (state.edition.startsWith("s:") && r.kind !== "homebrew") ? `<em>${esc(editionName(r, lang))}</em>` : ""}${r.loading ? `<small>${esc(t("sheet.iconLoading"))}</small>` : ""}</div>
     <div class="rems">${rems.length ? rems.map((_, i) => `<div class="rem${remHits?.has(i) ? " hit" : ""}">${thumb(remKey(r, i), i)}<span>${esc(catalogText(r, i))}</span></div>`).join("") : `<span class="none">${esc(t("sheet.noReminders"))}</span>`}</div>
   </div>`;
 }
@@ -1825,8 +1853,7 @@ function renderGuide() {
   $("#guideDots").innerHTML = Array.from({ length: GUIDE_STEPS }, (_, k) => `<i${k === guide.at ? ' class="on"' : ""}></i>`).join("");
 }
 function wireGuide() {
-  $("#guideOpen").onclick = openGuide;
-  document.addEventListener("click", (e) => { if (e.target.closest("[data-guide]")) { e.preventDefault(); drawer(false); openGuide(); } });
+  document.addEventListener("click", (e) => { if (e.target.closest("[data-guide]")) { e.preventDefault(); drawer(false); if ($("#credits").open) $("#credits").close(); openGuide(); } });
   $("#guideBack").onclick = () => { guide.at = Math.max(0, guide.at - 1); renderGuide(); };
   $("#guideNext").onclick = () => { if (guide.at < GUIDE_STEPS - 1) { guide.at++; renderGuide(); } else $("#guide").close(); };
   $("#guide").addEventListener("click", (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });   // backdrop
@@ -1945,7 +1972,12 @@ function openCredits() {
     <summary><b>${esc(authorName(a))}</b> <small>${esc(t("credits.count", { n: set.size }))}</small></summary>
     <p>${[...set].sort().map((i) => link(`https://game-icons.net/1x1/${encodeURIComponent(a)}/${encodeURIComponent(i)}.html`, i)).join(", ")}</p></details></li>`).join("");
 
-  $("#creditsBody").innerHTML = `<p class="hint">${esc(t("credits.intro"))}</p>
+  // About: what the app is and how it treats your things, then the credits
+  $("#creditsBody").innerHTML = `<section class="about"><p>${esc(t("about.what"))}</p>
+      <p class="hint">${esc(t("credits.intro"))}</p>
+      <p class="hint">${esc(t("about.data"))}</p>
+      <p class="about-actions"><button type="button" class="pill" data-guide>${esc(t("guide.open"))}</button></p></section>
+    <h2 class="credits-h">${esc(t("credits.title"))}</h2>
     <section><h3>${esc(t("credits.translations"))}</h3>
       <p class="hint">${esc(t("credits.translationsIntro")).replace("Villacuervos", link(VILLACUERVOS_URL, "Villacuervos"))}</p>
       <ul class="credit-grid">${translations}</ul></section>
@@ -1957,7 +1989,7 @@ function openCredits() {
       <p class="hint">${esc(t("credits.code"))}: ${REPO_PUBLIC ? `${link(REPO_URL, "GitHub")} · ` : ""}PolyForm Noncommercial 1.0.0</p></section>`;
   $("#credits").showModal();
 }
-document.addEventListener("click", (e) => { if (e.target.closest("[data-credits]")) { e.preventDefault(); openCredits(); } });
+document.addEventListener("click", (e) => { if (e.target.closest("[data-about], [data-credits]")) { e.preventDefault(); drawer(false); openCredits(); } });
 
 // ------------------------------------------------------------ admin
 
