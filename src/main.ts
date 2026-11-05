@@ -19,6 +19,8 @@ import { PAGE, layoutCoins, backX } from "./pdf/layout.ts";
 import { t, uiLang, setUiLang, LANGUAGES } from "./i18n.ts";
 import { TRANSLATIONS, VILLACUERVOS_URL, translationById, translationGroups } from "./translations.ts";
 import { uiIcon, UI_ICONS, TEAM_ICONS } from "./ui-icons.ts";
+import { OWN, MODE, loadCollection, storeCollection, collectionRoles, collectionFile, readCollectionFile, GROUP_COLOURS, newId } from "./collection.ts";
+import type { Collection, OwnToken } from "./collection.ts";
 import { loadScripts, storeScripts, saveScript, scriptLink, readLink, scriptJson, idKey as scriptKey } from "./scripts.ts";
 import type { HomebrewEntry, NewScript, Script, ScriptJsonEntry } from "./scripts.ts";
 import type { Translation } from "./translations.ts";
@@ -52,13 +54,16 @@ const MAX_SVG = 300000;
 const REPO_URL = "https://github.com/rexuswolf/midnight-mint";
 const REPO_PUBLIC = false;
 const QUEUE_KEY = "midnight-mint-queue";   // the old print queue, read once to carry it over
-const PICK_KEY = "midnight-mint-picks";
-const STYLE_KEY = "midnight-mint-style";
-const OVERRIDES_KEY = "midnight-mint-overrides";
-const DESIGNS_KEY = "midnight-mint-designs";
+// The generic creator (/crear) keeps its own queue, style and designs, apart from Clocktower's.
+const KEYS = OWN ? "midnight-mint-own-" : "midnight-mint-";
+const PICK_KEY = `${KEYS}picks`;
+const STYLE_KEY = `${KEYS}style`;
+const OVERRIDES_KEY = `${KEYS}overrides`;
+const DESIGNS_KEY = `${KEYS}designs`;
 const TOKEN_LANG_KEY = "midnight-mint-token-lang";
-const VIEW_KEY = "midnight-mint-view";   // the sheet you were on (all, an edition or a script) and its team filter
+const VIEW_KEY = `${KEYS}view`;   // the sheet you were on (all, an edition or a script) and its team filter
 const EDITION_ORDER = ["tb", "bmr", "snv", "carousel", "fabled", "loric", "grimoire"];
+document.documentElement.dataset.mode = MODE;   // the generic creator's own colours (style.css)
 const TEAM_ORDER: Team[] = ["townsfolk", "outsider", "minion", "demon", "traveller", "fabled", "loric", "info"];
 const TEAM_PLURAL: Record<string, Record<string, string>> = {
   es: { townsfolk: "Aldeanos", outsider: "Forasteros", minion: "Esbirros", demon: "Demonios", traveller: "Viajeros", fabled: "Fábulas", loric: "Lóricos", info: "Fichas de información" },
@@ -100,6 +105,9 @@ const state: {
   pick: new Map(),         // token key ("c:imp", "r:imp:0") -> copies
   designs: [],
 };
+/** The generic creator's collection (/crear); empty, and unused, in Clocktower. */
+let coll: Collection = OWN ? loadCollection() : { name: "", groups: [], tokens: [], catalogs: [] };
+
 // After a deploy, a page opened earlier may ask for code files that no longer
 // exist (their names change with each version). Reload once to get the new ones.
 window.addEventListener("vite:preloadError", (e) => {
@@ -386,6 +394,13 @@ const adminSignIn = () => signIn().catch((e) => { if (e.code !== "auth/popup-clo
 async function boot() {
   showGate(() => ({ title: t("gate.opening") }));
   try {
+    if (OWN) {   // your own collection: no library to fetch
+      applyGroups();
+      state.lib = await loadLibrary(collectionRoles(coll));
+      gateState = null;
+      startApp();
+      return;
+    }
     const roles = await loadRoles();
     const broken = !roles.length ? "empty" : roles.some((r) => !r.body) ? "oldLibrary" : null;
     if (broken) return libraryGate(broken);
@@ -434,10 +449,11 @@ function startApp() {
     wire();
   }
   const first = state.lib!.roles.find((r) => r.en === "Fortune Teller") || state.lib!.roles[0];
+  if (OWN) { $(".own-spine-h h2").textContent = t("own.catalogs"); $("#ownCollName").textContent = coll.name; }
   if (!state.sel) state.sel = { key: charKey(first), role: first, reminder: null };
   // back where you were: the same view and team filter, if it still exists
   const view = loadJSON<{ edition?: string; team?: unknown }>(VIEW_KEY, {});
-  const known = (ed: string | undefined) => ed === "all" || (ed?.startsWith("s:") ? !!scriptOf(ed) : state.lib!.roles.some((r) => r.edition === ed));
+  const known = (ed: string | undefined) => ed === "all" || (ed?.startsWith("k:") ? !!catalogOf(ed) : ed?.startsWith("s:") ? !!scriptOf(ed) : state.lib!.roles.some((r) => r.edition === ed));
   state.edition = known(view.edition) ? view.edition! : "all";
   state.team = typeof view.team === "string" ? view.team : "all";
   buildChoices();
@@ -446,8 +462,7 @@ function startApp() {
   renderAll();
   goStep(1);
   refreshDesigns();
-  openSharedScript();
-  resumeHomebrew();
+  if (!OWN) { openSharedScript(); resumeHomebrew(); }
   if (!guide.wired) { guide.wired = true; wireGuide(); }
 }
 
@@ -466,6 +481,7 @@ function renderAll() { renderSpine(); renderSheet(); renderWorkshop(); }
 /** Every official character, in every edition: the "All characters" view. */
 const allCharacters = () => state.lib!.roles.filter((r) => !isCard(r) && r.kind !== "homebrew");
 function renderSpine() {
+  if (OWN) return renderOwnSpine();
   const lang = uiLang();
   // above the editions: every character, and the grimoire's info tokens
   const all = allCharacters(), info = state.lib!.roles.filter((r) => r.edition === "grimoire");
@@ -827,10 +843,14 @@ const searchQuery = () => fold($<HTMLInputElement>("#search").value.trim());
 function renderSheet() {
   const lang = uiLang(), q = searchQuery();
   if (state.edition.startsWith("s:") && !scriptOf(state.edition)) state.edition = "all";   // a deleted script
-  const ed = state.edition, sc = scriptOf(ed), inScript = sc && scriptRoles(sc);
+  if (state.edition.startsWith("k:") && !catalogOf(state.edition)) state.edition = "all";   // a deleted catalog
+  const ed = state.edition, sc = scriptOf(ed), inScript = sc && scriptRoles(sc), cat = catalogOf(ed);
   // header
-  $("#edTitle").textContent = q ? t("sheet.results", { q: $<HTMLInputElement>("#search").value.trim() }) : sc ? sc.name : ed === "all" ? t("library.all") : EDITIONS[ed].name[lang];
+  $("#edTitle").textContent = q ? t("sheet.results", { q: $<HTMLInputElement>("#search").value.trim() }) : cat ? cat.name : sc ? sc.name : ed === "all" ? t(OWN ? "own.all" : "library.all") : EDITIONS[ed].name[lang];
+  $("#ownActions").hidden = !OWN || !!q;
+  $("#ownCatRename").hidden = $("#ownCatDelete").hidden = !cat;
   $("#edLead").textContent = q ? t("sheet.leadSearch")
+    : OWN ? t(cat ? "own.leadCatalog" : "own.leadAll", { n: (cat ? cat.tokens.length : state.lib!.roles.length) })
     : sc ? t("script.lead", { n: inScript!.roles.length, eds: new Set(inScript!.roles.filter((r) => r.kind !== "homebrew").map((r) => r.edition)).size })
       + (inScript!.missing.length ? t("script.missing", { list: inScript!.missing.join(", ") }) : "")
     : ed === "all" ? t("library.allLead", { n: allCharacters().length })
@@ -845,7 +865,7 @@ function renderSheet() {
   $("#scriptShare").textContent = t(PHONE.matches && (navigator as Partial<Navigator>).share ? "script.share" : "script.copy");
 
   // which characters
-  let roles = q ? state.lib!.roles : sc ? inScript!.roles : ed === "all" ? allCharacters() : state.lib!.roles.filter((r) => r.edition === ed);
+  let roles = q ? state.lib!.roles : cat ? cat.tokens.map(roleById).filter((r): r is Role => !!r) : sc ? inScript!.roles : ed === "all" ? allCharacters() : state.lib!.roles.filter((r) => r.edition === ed);
   const teamsHere = TEAM_ORDER.filter((tm) => roles.some((r) => r.team === tm));
   if (state.team !== "all" && !teamsHere.includes(state.team as Team)) state.team = "all";
   storeJSON(VIEW_KEY, { edition: state.edition, team: state.team });   // where to come back to
@@ -871,7 +891,7 @@ function renderSheet() {
   $("#addLabel").textContent = state.team !== "all" && !q ? t("add.buttonTeam", { who: TEAM_PLURAL[lang][state.team].toLowerCase() }) : t("add.button");
   if (!$("#addMenu").hidden) renderAddMenu();
 
-  if (!roles.length) { $("#rows").innerHTML = `<p class="empty">${esc(t("sheet.noResults"))}</p>`; return; }
+  if (!roles.length) { $("#rows").innerHTML = `<p class="empty">${esc(t(OWN && !q ? "own.empty" : "sheet.noResults"))}</p>`; return; }
   $("#rows").innerHTML = TEAM_ORDER.map((team) => {
     const list = roles.filter((r) => r.team === team).sort((a, b) => collator().compare(catalogText(a, null), catalogText(b, null)));
     if (!list.length) return "";
@@ -941,7 +961,7 @@ function rowHtml(r: Role, q: string, remHits: Set<number> | undefined) {
   }).join("");
   return `<div class="row${isCard(r) ? " info" : ""}${rems.length ? "" : " no-rems"}" data-picked="${isPicked(ck)}" data-row="${ck}">
     ${thumb(ck, null)}
-    <div class="who" data-pick="${ck}"><b>${esc(catalogText(r, null))}</b>${other !== catalogText(r, null) ? `<small>${esc(other)}</small>` : ""}${q || state.edition === "all" || (state.edition.startsWith("s:") && r.kind !== "homebrew") ? `<em>${esc(editionName(r, lang))}</em>` : ""}${r.loading ? `<small>${esc(t("sheet.iconLoading"))}</small>` : ""}</div>
+    <div class="who" data-pick="${ck}"><b>${esc(catalogText(r, null))}</b>${!OWN && other !== catalogText(r, null) ? `<small>${esc(other)}</small>` : ""}${!OWN && (q || state.edition === "all" || (state.edition.startsWith("s:") && r.kind !== "homebrew")) ? `<em>${esc(editionName(r, lang))}</em>` : ""}${r.loading ? `<small>${esc(t("sheet.iconLoading"))}</small>` : ""}${OWN ? `<button class="own-edit" type="button" data-own-edit="${esc(r.id)}">${esc(t("own.edit"))}</button>` : ""}</div>
     ${rems.length ? `<div class="rems">${chips}</div>` : ""}
   </div>`;
 }
@@ -1359,6 +1379,8 @@ function wire() {
   $("#teamChips").onclick = (e) => { const b = hit(e, "[data-team]"); if (b) { state.team = b.dataset.team!; renderSheet(); } };
   // step 1: tap a token to pick it (or drop it); a team or everything shown at once
   $("#rows").onclick = (e) => {
+    const ownEdit = hit(e, "[data-own-edit]");
+    if (ownEdit) { openOwnToken(ownEdit.dataset.ownEdit!); return; }
     const pen = hit(e, "[data-edit]");
     if (pen) { editToken(pen.dataset.edit!); return; }
     if (onCopyStep(e)) return;
@@ -1375,6 +1397,7 @@ function wire() {
       list.forEach((r) => setPick(charKey(r), on)); picksChanged();
     }
   };
+  if (OWN) wireOwn();
   // "Add to queue": a menu of what to add (see renderAddMenu)
   $("#addBtn").onclick = (e) => { openAddMenu($("#addMenu").hidden, e.detail === 0); };
   $("#addMenu").onclick = (e) => {
@@ -1601,8 +1624,8 @@ const queueLabel = (q: QueueEntry, role: Role) => (isReminder(q) ? `${roleName(r
 const queueGroup = (q: QueueEntry, role: Role) => PLATE_LABEL[uiLang()][PLATE_GROUP[role.team]] + (isReminder(q) ? t("queue.reminderSuffix") : "");
 
 /** The queue in print order: good, evil, travellers, fabled, loric; characters before their reminders. */
-const PRINT_GROUPS = ["good", "evil", "traveller", "fabled", "loric", "info"];
-const printOrder = () => queueNow().map((q): [QueueEntry, number] => [q, PRINT_GROUPS.indexOf(PLATE_GROUP[roleById(q.roleId)!.team]) * 2 + (isReminder(q) ? 1 : 0)])
+const PRINT_GROUPS: string[] = ["good", "evil", "traveller", "fabled", "loric", "info"];
+const printOrder = () => queueNow().map((q): [QueueEntry, number] => [q, PRINT_GROUPS.indexOf(PLATE_GROUP[roleById(q.roleId)!.team] as typeof PRINT_GROUPS[number]) * 2 + (isReminder(q) ? 1 : 0)])
   .sort((a, b) => a[1] - b[1]).map(([q]) => q);   // a stable sort keeps the queue's order within a group
 
 /** Plate plan without building geometry: which parts exist and their colours. */
@@ -2131,3 +2154,216 @@ $("#libraryFile").onchange = async (e) => {
     setTimeout(() => location.reload(), 800);
   } catch (err) { out.textContent = t("admin.uploadFailed", { message: (err as Error).message }); }
 };
+
+// ------------------------------------------------------------ the generic creator (/crear)
+//
+// Your own collection stands in for Clocktower's library: each token is a character whose team
+// is its colour group, its linked tokens are its reminders, and each catalog is an edition
+// ("k:<id>"). Everything after picking (design, queue, print) is the same app.
+
+const catalogOf = (view: string | null | undefined) => (OWN && view?.startsWith("k:") ? coll.catalogs.find((k) => k.id === view.slice(2)) ?? null : null);
+
+/** The collection's groups take the place of the teams in every table that sorts, names or colours by team. */
+function applyGroups() {
+  const ids = coll.groups.map((g) => g.id as Team);
+  TEAM_ORDER.splice(0, TEAM_ORDER.length, ...ids);
+  PRINT_GROUPS.splice(0, PRINT_GROUPS.length, ...ids);
+  const slug = (x: string) => x.normalize("NFD").replace(/\p{M}/gu, "").replace(/[^A-Za-z0-9]+/g, "_").replace(/^_|_$/g, "");
+  for (const g of coll.groups) {
+    const id = g.id as Team;
+    for (const lang of Object.keys(TEAM_PLURAL)) { TEAM_PLURAL[lang][id] = g.name; PLATE_LABEL[lang][id] = g.name; }
+    PLATE_GROUP[id] = id;
+    TEAMS[id] = { label: { en: g.name, es: g.name }, colour: g.colour, file: slug(g.name) || id };
+    TEAM_ICONS[id] = "two-coins";
+  }
+}
+
+/** After any change to the collection: keep it, redraw, and drop picks and designs of tokens that are gone. */
+function collectionChanged() {
+  storeCollection(coll);
+  applyGroups();
+  state.lib!.roles = collectionRoles(coll);
+  const ids = new Set(coll.tokens.map((t) => t.id)), linkedOf = new Map(coll.tokens.map((t) => [t.id, t.linked.length]));
+  const alive = (k: string) => { const [kind, id, i] = k.split(":"); return ids.has(id) && (kind !== "r" || +i < linkedOf.get(id)!); };
+  for (const k of [...state.pick.keys()]) if (!alive(k)) state.pick.delete(k);
+  for (const k of [...state.overrides.keys()]) if (!alive(k)) state.overrides.delete(k);
+  persistPicks(); storeOverrides();
+  const sel = state.sel && roleById(state.sel.role.id);
+  state.sel = sel && alive(state.sel!.key) ? { ...state.sel!, role: sel } : { key: charKey(state.lib!.roles[0]), role: state.lib!.roles[0], reminder: null };
+  $("#ownCollName").textContent = coll.name;
+  renderAll(); renderQueue();
+}
+
+function renderOwnSpine() {
+  const all = state.lib!.roles, q = searchQuery();
+  const sub = (roles: Role[]) => t("own.count", { n: roles.length, l: roles.reduce((n, r) => n + remindersOf(r).length, 0) });
+  $("#library").innerHTML = `<button class="ed" type="button" data-ed="all" aria-current="${state.edition === "all" && !q}">${uiIcon("two-coins")}
+    <span>${esc(t("own.all"))}<small>${esc(sub(all))}</small></span>${pickedBadge(all)}</button>`;
+  $("#editions").innerHTML = coll.catalogs.map((k) => {
+    const roles = k.tokens.map(roleById).filter((r): r is Role => !!r);
+    return `<button class="ed" type="button" data-ed="k:${esc(k.id)}" aria-current="${state.edition === `k:${k.id}` && !q}">
+      <span>${esc(k.name)}<small>${esc(sub(roles))}</small></span>${pickedBadge(roles)}</button>`;
+  }).join("") || `<p class="scripts-empty">${esc(t("own.noCatalogs"))}</p>`;
+}
+
+function wireOwn() {
+  $("#catalogNew").onclick = () => {
+    const name = prompt(t("own.newCatalogPrompt"), t("own.newCatalogName"))?.trim(); if (!name) return;
+    const k = { id: newId("k"), name, tokens: [] }; coll.catalogs.push(k);
+    state.edition = `k:${k.id}`; collectionChanged();
+  };
+  $("#ownCatRename").onclick = () => {
+    const k = catalogOf(state.edition); if (!k) return;
+    const name = prompt(t("own.renamePrompt"), k.name)?.trim(); if (!name) return;
+    k.name = name; collectionChanged();
+  };
+  $("#ownCatDelete").onclick = () => {
+    const k = catalogOf(state.edition); if (!k || !confirm(t("own.deleteCatalogConfirm", { name: k.name }))) return;
+    coll.catalogs = coll.catalogs.filter((x) => x !== k); state.edition = "all"; collectionChanged();
+  };
+  $("#ownCollName").onclick = () => { const name = prompt(t("own.renamePrompt"), coll.name)?.trim(); if (name) { coll.name = name; collectionChanged(); } };
+  $("#ownNewTok").onclick = () => openOwnToken(null);
+  $("#ownGroups").onclick = () => { renderOwnGroups(); $<HTMLDialogElement>("#ownGroupsDlg").showModal(); };
+  $("#ownExport").onclick = () => saveFile(new Blob([JSON.stringify(collectionFile(coll), null, 2)], { type: "application/json" }), `${coll.name.replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase() || "coleccion"}.json`);
+  $("#ownImport").onclick = () => $("#ownImportFile").click();
+  $<HTMLInputElement>("#ownImportFile").onchange = async (e) => {
+    const f = input(e).files?.[0]; input(e).value = ""; if (!f) return;
+    const noteEl = $("#ownNote");
+    try {
+      const next = await readCollectionFile(JSON.parse(await f.text()), (i, n) => { noteEl.textContent = t("own.importing", { i, n }); });
+      if (!next.tokens.length) throw new Error("empty");
+      if (coll.tokens.length > 1 && !confirm(t("own.importConfirm", { name: next.name }))) { noteEl.textContent = ""; return; }
+      coll = next; state.edition = "all"; state.pick.clear(); noteEl.textContent = t("own.imported", { n: next.tokens.length });
+      collectionChanged();
+    } catch { noteEl.textContent = t("own.importFailed"); }
+  };
+  // groups
+  $("#ownGroupAdd").onclick = () => {
+    const used = new Set(coll.groups.map((g) => g.colour));
+    coll.groups.push({ id: newId("g"), name: t("own.groupName", { n: coll.groups.length + 1 }), colour: GROUP_COLOURS.find((c) => !used.has(c)) ?? GROUP_COLOURS[0] });
+    collectionChanged(); renderOwnGroups();
+  };
+  $("#ownGroupList").onclick = (e) => {
+    const sw = hit(e, "[data-colour]"), del = hit(e, "[data-gdel]");
+    if (sw) { coll.groups.find((g) => g.id === sw.dataset.for)!.colour = sw.dataset.colour as Hex; collectionChanged(); renderOwnGroups(); }
+    if (del) {
+      const id = del.dataset.gdel!, to = coll.groups.find((g) => g.id !== id)!.id;
+      coll.tokens.forEach((tk) => { if (tk.group === id) tk.group = to; });
+      coll.groups = coll.groups.filter((g) => g.id !== id); collectionChanged(); renderOwnGroups();
+    }
+  };
+  $("#ownGroupList").onchange = (e) => {
+    const id = input(e).dataset.gname; if (!id) return;
+    coll.groups.find((g) => g.id === id)!.name = input(e).value.trim() || t("own.groupName", { n: 1 }); collectionChanged();
+  };
+  closeOnBackdrop($<HTMLDialogElement>("#ownGroupsDlg"));
+  wireOwnToken();
+}
+
+function renderOwnGroups() {
+  $("#ownGroupList").innerHTML = coll.groups.map((g) => `<div class="own-group">
+    <input class="text" value="${esc(g.name)}" data-gname="${esc(g.id)}" aria-label="${esc(t("own.groupNameLabel"))}">
+    <span class="own-swatches">${GROUP_COLOURS.map((c) => `<button type="button" style="background:${c}" data-colour="${c}" data-for="${esc(g.id)}" aria-pressed="${c === g.colour}" aria-label="${c}"></button>`).join("")}</span>
+    <small>${esc(t("own.groupCount", { n: coll.tokens.filter((tk) => tk.group === g.id).length }))}</small>
+    ${coll.groups.length > 1 ? `<button class="link" type="button" data-gdel="${esc(g.id)}">${esc(t("own.deleteGroup"))}</button>` : ""}
+  </div>`).join("");
+}
+
+// a token, made or changed: the editor holds a copy until it's saved
+let ownDraft: (OwnToken & { cats: string[]; isNew: boolean }) | null = null;
+function openOwnToken(id: string | null) {
+  const tk = id ? coll.tokens.find((x) => x.id === id) : null;
+  const here = catalogOf(state.edition);
+  ownDraft = tk
+    ? { ...structuredClone(tk), cats: coll.catalogs.filter((k) => k.tokens.includes(tk.id)).map((k) => k.id), isNew: false }
+    : { id: newId("t"), name: "", group: state.team !== "all" && coll.groups.some((g) => g.id === state.team) ? state.team : coll.groups[0].id, icon: null, linked: [], cats: here ? [here.id] : [], isNew: true };
+  $("#ownTokTitle").textContent = t(tk ? "own.editToken" : "own.newTokenTitle");
+  $("#ownTokSave").textContent = t(tk ? "own.save" : "own.add");
+  $("#ownTokDelete").hidden = !tk;
+  $<HTMLInputElement>("#ownTokName").value = ownDraft.name;
+  $<HTMLInputElement>("#ownTokIq").value = ""; $("#ownTokHits").innerHTML = "";
+  $("#ownTokGroup").innerHTML = coll.groups.map((g) => `<option value="${esc(g.id)}"${g.id === ownDraft!.group ? " selected" : ""}>${esc(g.name)}</option>`).join("");
+  $("#ownTokCats").innerHTML = coll.catalogs.map((k) => `<label class="check"><input type="checkbox" value="${esc(k.id)}"${ownDraft!.cats.includes(k.id) ? " checked" : ""}> ${esc(k.name)}</label>`).join("") || `<p class="hint">${esc(t("own.noCatalogs"))}</p>`;
+  renderOwnLinked(); drawOwnPreview();
+  $<HTMLDialogElement>("#ownTok").showModal();
+  if (!tk) $("#ownTokName").focus();
+}
+function renderOwnLinked() {
+  $("#ownTokLinked").innerHTML = ownDraft!.linked.map((w, i) => `<span class="own-link"><input class="text" value="${esc(w)}" data-li="${i}" aria-label="${esc(t("own.linked"))}"><button class="link" type="button" data-ldel="${i}" aria-label="${esc(t("own.remove"))}">✕</button></span>`).join("");
+}
+function drawOwnPreview() {
+  const d = ownDraft!;
+  const role = { ...collectionRoles({ ...coll, tokens: [d] })[0], id: `__draft_${d.id}`, iconKey: `__draft:${d.icon?.id ?? "none"}` };
+  const spec = { ...state.spec, lang: tokenLang() };
+  const name = d.name.trim() || t("own.namePlaceholder");
+  $("#ownTokPv").innerHTML = tokenSvg(state.lib!, role, spec, { text: name })
+    + (d.linked.length ? `<span class="own-pv-links">${d.linked.slice(0, 4).map((w) => tokenSvg(state.lib!, role, reminderSpec(spec), { text: w || "…" })).join("")}</span>` : "");
+}
+function wireOwnToken() {
+  const dlg = $<HTMLDialogElement>("#ownTok");
+  closeOnBackdrop(dlg);
+  $("#ownTokName").oninput = (e) => { ownDraft!.name = input(e).value; drawOwnPreview(); };
+  $("#ownTokGroup").onchange = (e) => { ownDraft!.group = (e.target as HTMLSelectElement).value; drawOwnPreview(); };
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  $("#ownTokIq").oninput = (e) => {
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      const query = input(e).value.trim(), hits = query ? await searchGameIcons(query, 48) : [];
+      $("#ownTokHits").innerHTML = hits.map((p) => `<button type="button" class="icon-hit" data-gi="${esc(p)}" title="${esc(p.replace("/", " · "))}"><img src="${gameIconPreview(p)}" alt="" loading="lazy"><span>${esc(p.split("/")[1])}</span></button>`).join("")
+        || (query ? `<p class="hint">${esc(t("icon.none"))}</p>` : "");
+    }, 200);
+  };
+  $("#ownTokHits").onclick = async (e) => {
+    const b = hit(e, "[data-gi]"); if (!b) return;
+    try { ownDraft!.icon = { ...(await gameIcon(b.dataset.gi!)), id: b.dataset.gi! }; drawOwnPreview(); } catch { /* offline: keep the old one */ }
+  };
+  $<HTMLInputElement>("#ownTokSvg").onchange = async (e) => {
+    const f = input(e).files?.[0]; input(e).value = ""; if (!f) return;
+    try { const icon = iconFromSvg(await f.text(), { source: "upload", name: f.name }); ownDraft!.icon = { ...icon, id: `upload:${newId("i")}` }; drawOwnPreview(); }
+    catch { $("#ownTokHits").innerHTML = `<p class="hint warn">${esc(t("own.svgFailed"))}</p>`; }
+  };
+  $("#ownTokNoIcon").onclick = () => { ownDraft!.icon = null; drawOwnPreview(); };
+  $("#ownTokAddLinked").onclick = () => { ownDraft!.linked.push(""); renderOwnLinked(); drawOwnPreview(); $<HTMLInputElement>(`[data-li="${ownDraft!.linked.length - 1}"]`).focus(); };
+  $("#ownTokLinked").oninput = (e) => { const i = input(e).dataset.li; if (i != null) { ownDraft!.linked[+i] = input(e).value; drawOwnPreview(); } };
+  $("#ownTokLinked").onclick = (e) => { const b = hit(e, "[data-ldel]"); if (b) { ownDraft!.linked.splice(+b.dataset.ldel!, 1); renderOwnLinked(); drawOwnPreview(); } };
+  $("#ownTokCancel").onclick = () => dlg.close();
+  $("#ownTokSave").onclick = () => {
+    const d = ownDraft!; d.name = d.name.trim();
+    if (!d.name) { $("#ownTokName").focus(); return; }
+    // a linked token taken out shifts the ones after it: their picks and own designs follow them
+    const old = coll.tokens.find((x) => x.id === d.id);
+    if (old) remapLinked(d.id, old.linked, d.linked.map((w) => w.trim()));
+    const tk: OwnToken = { id: d.id, name: d.name, group: d.group, icon: d.icon, linked: d.linked.map((w) => w.trim()).filter(Boolean) };
+    if (old) Object.assign(old, tk); else coll.tokens.push(tk);
+    const cats = new Set($$<HTMLInputElement>("#ownTokCats input:checked").map((x) => x.value));
+    for (const k of coll.catalogs) { const has = k.tokens.includes(d.id); if (cats.has(k.id) && !has) k.tokens.push(d.id); if (!cats.has(k.id) && has) k.tokens = k.tokens.filter((x) => x !== d.id); }
+    dlg.close();
+    collectionChanged();
+  };
+  $("#ownTokDelete").onclick = () => {
+    const d = ownDraft!;
+    if (coll.tokens.length <= 1) { alert(t("own.lastToken")); return; }
+    if (!confirm(t("own.deleteTokenConfirm", { name: d.name }))) return;
+    coll.tokens = coll.tokens.filter((x) => x.id !== d.id);
+    coll.catalogs.forEach((k) => { k.tokens = k.tokens.filter((x) => x !== d.id); });
+    dlg.close();
+    collectionChanged();
+  };
+}
+/** Linked tokens are picked and designed by their place ("r:id:2"): when the list changes, they keep theirs. */
+function remapLinked(id: string, before: string[], after: string[]) {
+  const kept = after.map((w) => w).filter(Boolean);
+  const moveMap = new Map<number, number>();
+  const used = new Set<number>();
+  kept.forEach((w, ni) => { const oi = before.findIndex((b, i) => b === w && !used.has(i)); if (oi >= 0) { used.add(oi); moveMap.set(oi, ni); } });
+  for (const store of [state.pick, state.overrides] as Map<string, unknown>[]) {
+    const moved = new Map<string, unknown>();
+    for (const [k, v] of [...store]) {
+      const [kind, rid, i] = k.split(":");
+      if (kind !== "r" || rid !== id) continue;
+      store.delete(k);
+      const ni = moveMap.get(+i); if (ni != null) moved.set(remKey({ id } as Role, ni), v);
+    }
+    for (const [k, v] of moved) store.set(k, v);
+  }
+}

@@ -8,7 +8,7 @@
 <link rel="icon" type="image/svg+xml" href="/logo-mark.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gloock&family=Instrument+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Gloock&family=Instrument+Sans:wght@400;500;600&display=swap">
 <!-- Wordmark "Grimorio": the blackletter face is only used for "Midnight", so load just those letters. -->
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&text=Midnight&display=swap">
 <link rel="stylesheet" href="/src/style.css">
@@ -22,7 +22,7 @@
       <svg viewBox="0 0 18 18" width="18" height="18" aria-hidden="true"><path d="M3 5h12M3 9h12M3 13h12" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
     <div class="brand"><img src="/logo-mark.svg" alt="" width="36" height="36"><span class="wordmark"><span class="wm-mid">Midnight</span><span class="wm-mint">Mint</span></span></div>
     <nav class="flow-steps" id="flowSteps" data-i18n-attr="aria-label:flow.aria"></nav>
-    <button class="tlang-trigger" id="tokenLangBtn" type="button" aria-haspopup="dialog"></button>
+    <button class="tlang-trigger botc-only" id="tokenLangBtn" type="button" aria-haspopup="dialog"></button>
   </header>
 
   <!-- the sidebar: editions (more groups, like scripts, can join them), then language, account and credits.
@@ -32,11 +32,21 @@
       <!-- every character, and the grimoire's info tokens: above the editions -->
       <div id="library"></div>
       <hr class="spine-rule">
-      <h2 class="spine-h" data-i18n="spine.editions"></h2>
+      <div class="spine-h spine-sec own-spine-h"><h2 data-i18n="spine.editions"></h2>
+        <button class="spine-add own-only" type="button" id="catalogNew" data-i18n-attr="aria-label:own.newCatalog title:own.newCatalog">+</button></div>
       <div id="editions"></div>
-      <div class="spine-h spine-sec"><h2 data-i18n="spine.scripts"></h2>
+      <div class="spine-h spine-sec botc-only"><h2 data-i18n="spine.scripts"></h2>
         <button class="spine-add" type="button" id="scriptNew" data-i18n-attr="aria-label:script.new title:script.new">+</button></div>
-      <div id="scripts"></div>
+      <div id="scripts" class="botc-only"></div>
+      <!-- the generic creator: the collection itself, its colours, and the way in and out as a file -->
+      <div class="own-tools own-only">
+        <hr class="spine-rule">
+        <p class="own-coll"><small data-i18n="own.collection"></small><button type="button" id="ownCollName" data-i18n-attr="title:own.renameCollection"></button></p>
+        <button class="pill" type="button" id="ownGroups" data-i18n="own.groups"></button>
+        <span class="own-io"><button class="pill" type="button" id="ownImport" data-i18n="own.import"></button><button class="pill" type="button" id="ownExport" data-i18n="own.export"></button></span>
+        <input type="file" id="ownImportFile" accept="application/json,.json" hidden>
+        <p class="hint" id="ownNote" aria-live="polite"></p>
+      </div>
     </div>
     <footer class="spine-foot">
     <!-- the guide and the language; the community-content banner; about the tool and its credits -->
@@ -55,7 +65,7 @@
       </details>
       </span>
     </div>
-    <a href="#" class="ccc-banner" data-about data-i18n-attr="title:about.link"><img src="/ccc-sleeve.png" alt="Community Created Content" width="344" height="136"></a>
+    <a href="#" class="ccc-banner botc-only" data-about data-i18n-attr="title:about.link"><img src="/ccc-sleeve.png" alt="Community Created Content" width="344" height="136"></a>
     <a href="#" class="about-link" data-about data-i18n="about.link"></a>
     </footer>
   </nav>
@@ -83,6 +93,11 @@
         <button class="pill danger" type="button" id="scriptDelete" data-i18n="script.delete"></button>
         <p class="hint" id="scriptNote" aria-live="polite"></p>
         <p class="hint warn" id="scriptCustomWarn" data-i18n="script.customWarn" hidden></p>
+      </div>
+      <div class="own-actions own-only" id="ownActions" hidden>
+        <button class="pill add" type="button" id="ownNewTok" data-i18n="own.newToken"></button>
+        <button class="pill" type="button" id="ownCatRename" data-i18n="own.renameCatalog"></button>
+        <button class="pill danger" type="button" id="ownCatDelete" data-i18n="own.deleteCatalog"></button>
       </div>
       <!-- what only narrows the list -->
       <div class="filters">
@@ -334,6 +349,41 @@
   <p class="hint warn" id="scriptDialogWarn" data-i18n="script.customWarn" aria-live="polite" hidden></p>
   <p class="hint" id="scriptDialogNote" aria-live="polite"></p>
   <div class="dialog-actions"><button class="pill" type="button" id="scriptDialogCancel" data-i18n="script.cancel"></button><button class="forge" type="button" id="scriptDialogSave" data-i18n="script.add"></button></div>
+</dialog>
+
+<!-- the generic creator: a token of your collection, made or changed -->
+<dialog id="ownTok" class="own-dialog" aria-labelledby="ownTokTitle">
+  <h2 id="ownTokTitle"></h2>
+  <div class="own-tok-grid">
+    <div class="own-pv" id="ownTokPv"></div>
+    <div class="own-fields">
+      <label class="field"><span data-i18n="own.name"></span><input class="text" id="ownTokName" autocomplete="off"></label>
+      <label class="field"><span data-i18n="own.group"></span><select class="text" id="ownTokGroup"></select></label>
+    </div>
+  </div>
+  <div class="field"><span data-i18n="own.icon"></span>
+    <div class="own-icon-bar">
+      <input class="text" type="search" id="ownTokIq" autocomplete="off" data-i18n-attr="placeholder:icon.placeholder">
+      <label class="pill file"><span data-i18n="icon.upload"></span><input type="file" id="ownTokSvg" accept=".svg,image/svg+xml" hidden></label>
+      <button class="pill" type="button" id="ownTokNoIcon" data-i18n="own.noIcon"></button>
+    </div>
+    <div class="icon-results" id="ownTokHits"></div>
+  </div>
+  <div class="field"><span data-i18n="own.linked"></span><p class="hint" data-i18n="own.linkedHelp"></p>
+    <div class="own-linked" id="ownTokLinked"></div>
+    <button class="link" type="button" id="ownTokAddLinked" data-i18n="own.addLinked"></button>
+  </div>
+  <div class="field"><span data-i18n="own.inCatalogs"></span><div class="own-cats" id="ownTokCats"></div></div>
+  <div class="dialog-actions"><button class="pill danger" type="button" id="ownTokDelete" data-i18n="own.deleteToken"></button><span class="sp"></span><button class="pill" type="button" id="ownTokCancel" data-i18n="script.cancel"></button><button class="forge" type="button" id="ownTokSave"></button></div>
+</dialog>
+
+<!-- the generic creator: the colour groups (Clocktower's teams) -->
+<dialog id="ownGroupsDlg" class="own-dialog" aria-labelledby="ownGroupsTitle">
+  <form method="dialog" class="close"><button class="pill" data-i18n="admin.close"></button></form>
+  <h2 id="ownGroupsTitle" data-i18n="own.groups"></h2>
+  <p class="hint" data-i18n="own.groupsHelp"></p>
+  <div class="own-groups" id="ownGroupList"></div>
+  <button class="pill" type="button" id="ownGroupAdd" data-i18n="own.addGroup"></button>
 </dialog>
 
 <dialog id="scriptInvite" class="script-dialog" aria-labelledby="scriptInviteTitle">

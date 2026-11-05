@@ -783,3 +783,53 @@ dialog .import { margin-top: 10px; }
 .icon-hit:hover { border-color: var(--brass); }
 .icon-hit img { width: 36px; height: 36px; border-radius: 6px; }
 .icon-hit span { font-size: 9.5px; color: var(--dust); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- the generic creator (/crear): its own colours, and what only one of the two apps has ---------- */
+html:not([data-mode=own]) .own-only { display: none !important; }
+html[data-mode=own] .botc-only { display: none !important; }
+html[data-mode=own] {
+  --velvet: #1b1f24;
+  --velvet-mid: #171a1f;
+  --velvet-deep: #111317;
+  --brass: #4fd1c5;
+  --bone: #e8eaed;
+  --dust: #98a1ab;
+  --seam: rgba(232, 234, 237, .12);
+  --display: "Bricolage Grotesque", "Helvetica Neue", sans-serif;
+}
+html[data-mode=own] h1, html[data-mode=own] dialog h2 { font-weight: 700; letter-spacing: -.01em; }
+.own-tools { display: grid; gap: 8px; margin-top: 4px; }
+.own-coll { margin: 0; display: grid; }
+.own-coll small { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--dust); font-weight: 600; }
+.own-coll button { border: 0; background: none; padding: 0; text-align: left; font: 600 18px/1.2 var(--display); cursor: pointer; }
+.own-coll button:hover { text-decoration: underline; text-underline-offset: 3px; }
+.own-io { display: flex; gap: 6px; flex-wrap: wrap; }
+.own-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.who .own-edit { margin-top: 4px; justify-self: start; border: 1px solid var(--seam); background: none; border-radius: 999px; padding: 1px 10px; font-size: 12.5px; color: var(--dust); cursor: pointer; }
+.who .own-edit:hover { color: var(--bone); border-color: var(--dust); }
+.own-dialog { width: min(640px, calc(100% - 32px)); }
+.own-tok-grid { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 16px; align-items: start; }
+.own-pv svg { width: 120px; height: 120px; display: block; }
+.own-pv-links { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.own-pv-links svg { width: 36px; height: 36px; }
+.own-fields { display: grid; gap: 10px; }
+.own-icon-bar { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.own-icon-bar .text { flex: 1; min-width: 160px; }
+#ownTokHits { max-height: 170px; overflow-y: auto; margin-top: 6px; }
+.own-linked { display: grid; gap: 6px; margin: 6px 0; }
+.own-link { display: flex; gap: 6px; align-items: center; }
+.own-cats { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 4px; }
+.own-dialog .dialog-actions .sp { flex: 1; }
+.own-groups { display: grid; gap: 10px; margin: 8px 0 12px; }
+.own-group { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 10px; align-items: center; padding-bottom: 10px; border-bottom: 1px solid var(--seam); }
+.own-group small { color: var(--dust); }
+.own-swatches { display: flex; gap: 5px; flex-wrap: wrap; grid-column: 1 / -1; }
+.own-swatches button { width: 24px; height: 24px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; padding: 0; }
+.own-swatches button[aria-pressed=true] { border-color: var(--bone); }
+@media (max-width: 560px) { .own-tok-grid { grid-template-columns: 1fr; } .own-pv { justify-self: center; } }
+html[data-mode=own] .sheet, html[data-mode=own] .design-stage { background: radial-gradient(90% 60% at 30% 0%, #1d2a2c 0%, var(--velvet-deep) 70%); }
+html[data-mode=own] .stage { background: radial-gradient(70% 70% at 50% 45%, #22302f, var(--velvet) 75%); }
+html[data-mode=own] .gate { background: radial-gradient(120% 90% at 50% 38%, #1f2b2c 0%, var(--velvet) 45%, var(--velvet-deep) 100%); }
+.own-tools { padding: 0 12px; }
+.own-tools .spine-rule { margin-inline: 0; }
+.own-tools > .pill, .own-io .pill { justify-self: start; }

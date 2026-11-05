@@ -57,6 +57,8 @@ export interface Role {
   ability?: string;
   /** A homebrew character whose icon is still on its way. */
   loading?: boolean;
+  /** What the engine caches the icon's shapes by, when it isn't the id (a token whose icon can change). */
+  iconKey?: string;
 }
 
 // ---------------------------------------------------------------- the design (spec)

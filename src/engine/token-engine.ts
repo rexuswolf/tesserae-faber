@@ -395,7 +395,7 @@ const iconMarkup = (role: Role) => role.body ?? role.d!.map((d) => `<path d="${d
 function iconOf(role: Role, spec?: SpecInput) {
   const own = spec?.icon;
   // keyed by id: a script's own character can share an official one's name
-  return own?.body ? { key: `icon:${own.id}`, g: own.g, body: own.body } : { key: role.id ?? role.en, g: role.g, body: iconMarkup(role) };
+  return own?.body ? { key: `icon:${own.id}`, g: own.g, body: own.body } : { key: role.iconKey ?? role.id ?? role.en, g: role.g, body: iconMarkup(role) };
 }
 const iconSvg = (icon: Pick<TokenIcon, "body"> & { g?: string }) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${TRACE_VIEW} ${TRACE_VIEW}"><g transform="${icon.g}">${icon.body}</g></svg>`;
 
@@ -439,6 +439,7 @@ function iconOutline(shapes: THREE.Shape[]) {
   let o = iconOutlines.get(shapes);
   if (!o) {
     const pts = shapes.flatMap((sh) => sh.getPoints(4)), box = new THREE.Box2().setFromPoints(pts);
+    if (!pts.length) box.set(new THREE.Vector2(0, 0), new THREE.Vector2(0, 0));   // no icon: nothing to place
     const cx = (box.min.x + box.max.x) / 2, cy = (box.min.y + box.max.y) / 2;
     o = { cx, cy, w: box.max.x - box.min.x, h: box.max.y - box.min.y, rel: pts.map((p): [number, number] => [p.x - cx, -(p.y - cy)]) };
     iconOutlines.set(shapes, o);
