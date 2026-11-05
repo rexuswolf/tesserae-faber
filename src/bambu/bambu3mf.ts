@@ -6,13 +6,21 @@
 // The printer/process/filament settings come from <printer>-template.json, generated once
 // per printer with Bambu Studio by tools/make_bambu_template.py.
 import JSZip from "jszip";
-import { printsFaceUp } from "../engine/token-engine.js";
-import { FILAMENT_SLOTS, PARTS, purge, nozzleOf, plateStride, printerOf, slotOf, slotsFor, towerSpot, planPlates } from "./plates.js";
+import type { BufferGeometry } from "three";
+import { printsFaceUp } from "../engine/token-engine.ts";
+import { FILAMENT_SLOTS, PARTS, purge, nozzleOf, plateStride, printerOf, slotOf, slotsFor, towerSpot, planPlates } from "./plates.ts";
+import type { Nozzle } from "./plates.ts";
+import type { Hex, PartName, Plate, PlateItem, Token } from "../types.ts";
 
-export { FILAMENT_SLOTS, AMS_SLOTS, PRINTERS, slotOf, perPlate, planPlates } from "./plates.js";
+export { FILAMENT_SLOTS, AMS_SLOTS, PRINTERS, slotOf, perPlate, planPlates } from "./plates.ts";
+
+/** A printer's Bambu Studio settings: `perFilament` keys hold one value per filament slot. */
+interface Template { perFilament: string[]; settings: Record<string, string | string[]> }
+/** A token going into the project: built geometry, its plate group and its name. */
+type BambuItem = PlateItem<Token>;
 
 // Each printer's settings (about 60 kB) load only for a download to that printer.
-const TEMPLATES = {
+const TEMPLATES: Record<string, () => Promise<{ default: Template }>> = {
   a1: () => import("./a1-template.json"),
   a1mini: () => import("./a1mini-template.json"),
   "a1-n02": () => import("./a1-n02-template.json"),
@@ -33,13 +41,13 @@ const TEMPLATES = {
 const WELD = 2e-4;
 
 /** Indexed mesh in print orientation (face-down), with shared vertices. */
-function meshOf(geom, height, faceDown) {
+function meshOf(geom: BufferGeometry, height: number, faceDown: boolean) {
   const pos = geom.attributes.position;
   const index = geom.index ? geom.index.array : null;
   const count = index ? index.length : pos.count;
-  const cells = new Map(), verts = [], at = [], tris = [];
+  const cells = new Map<string, number[]>(), verts: string[] = [], at: number[][] = [], tris: number[] = [];
   // Vertices by WELD-sized cell (whole numbers, so -0 and 0 are the same cell).
-  const near = (cx, cy, cz, x, y, z) => {
+  const near = (cx: number, cy: number, cz: number, x: number, y: number, z: number) => {
     const ids = cells.get(`${cx},${cy},${cz}`);
     if (ids) for (const id of ids) {
       const p = at[id];
@@ -47,7 +55,7 @@ function meshOf(geom, height, faceDown) {
     }
     return -1;
   };
-  const vid = (i) => {
+  const vid = (i: number) => {
     let x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
     if (faceDown) { y = -y; z = height - z; }       // 180° about X, sitting on the plate
     const cx = Math.round(x / WELD), cy = Math.round(y / WELD), cz = Math.round(z / WELD);
@@ -59,7 +67,7 @@ function meshOf(geom, height, faceDown) {
     at.push([x, y, z]);
     verts.push(`${x.toFixed(4)},${y.toFixed(4)},${z.toFixed(4)}`);
     const key = `${cx},${cy},${cz}`;
-    if (cells.has(key)) cells.get(key).push(id); else cells.set(key, [id]);
+    if (cells.has(key)) cells.get(key)!.push(id); else cells.set(key, [id]);
     return id;
   };
   for (let t = 0; t < count; t += 3) {
@@ -69,20 +77,20 @@ function meshOf(geom, height, faceDown) {
   return { verts, tris };
 }
 
-function meshXml(id, { verts, tris }) {
+function meshXml(id: number, { verts, tris }: { verts: string[]; tris: number[] }) {
   const v = verts.map((k) => { const [x, y, z] = k.split(","); return `<vertex x="${+x}" y="${+y}" z="${+z}"/>`; }).join("");
   let t = "";
   for (let i = 0; i < tris.length; i += 3) t += `<triangle v1="${tris[i]}" v2="${tris[i + 1]}" v3="${tris[i + 2]}"/>`;
   return `<object id="${id}" type="model"><mesh><vertices>${v}</vertices><triangles>${t}</triangles></mesh></object>`;
 }
 
-const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const esc = (s: unknown) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" } as Record<string, string>)[c]);
 const NS = `xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02" xmlns:BambuStudio="http://schemas.bambulab.com/package/2021" xmlns:p="http://schemas.microsoft.com/3dmanufacturing/production/2015/06" requiredextensions="p"`;
 const XML = `<?xml version="1.0" encoding="UTF-8"?>\n`;
 
 // ------------------------------------------------------------ settings
 
-function projectSettings(template, used, plates, bed, nozzle) {
+function projectSettings(template: Template, used: number[], plates: Plate<BambuItem>[], bed: number, nozzle: Nozzle) {
   const s = structuredClone(template.settings);
   for (const key of template.perFilament) s[key] = used.map((slot) => template.settings[key][slot]);
   const n = used.length;
@@ -129,7 +137,7 @@ function projectSettings(template, used, plates, bed, nozzle) {
  * coin, so it then carries on without another change; Bambu's automatic order sometimes
  * starts with the coin and swaps back (one change and its purge more).
  */
-function firstLayerOrder(plate, usedSlots) {
+function firstLayerOrder(plate: Plate<BambuItem>, usedSlots: number[]) {
   const coin = new Set(plate.items.map((it) => slotOf(it.token.colours.base)));
   const order = [...usedSlots.filter((s) => !coin.has(s)), ...usedSlots.filter((s) => coin.has(s))];
   return order.map((s) => usedSlots.indexOf(s) + 1);
@@ -139,7 +147,9 @@ function firstLayerOrder(plate, usedSlots) {
  * Builds the .3mf for `printer` ("a1" or "a1mini") with `nozzle` ("0.4" or "0.2"). `items` are {token, title, group};
  * returns {blob, plan}. `onProgress(done, total)` is called as tokens are written.
  */
-export async function buildBambuProject(items, { printer = "a1", nozzle: nozzleId = "0.4", faceDown = true, onProgress = () => {} } = {}) {
+export async function buildBambuProject(items: BambuItem[], { printer = "a1", nozzle: nozzleId = "0.4", faceDown = true, onProgress = () => {} }: {
+  printer?: string; nozzle?: string; faceDown?: boolean; onProgress?: (done: number, total: number) => void;
+} = {}) {
   if (!items.length) throw new Error("add some tokens to the print queue first");
   const { bed, id } = printerOf(printer);
   const nozzle = nozzleOf(nozzleId);
@@ -147,25 +157,25 @@ export async function buildBambuProject(items, { printer = "a1", nozzle: nozzleI
   const plan = planPlates(items, { bed });
   const stride = plateStride(bed);
   const usedSlots = [...new Set(plan.plates.flatMap((p) => [...p.slots]))].sort((a, b) => a - b);
-  const extruder = (slot) => usedSlots.indexOf(slot) + 1;
+  const extruder = (slot: number) => usedSlots.indexOf(slot) + 1;
   const cols = Math.ceil(Math.sqrt(plan.plates.length));
 
   const zip = new JSZip();
   let nextId = 1, identify = 100;
-  const resources = [], build = [], rels = [], objectsCfg = [], platesCfg = [];
+  const resources: string[] = [], build: string[] = [], rels: string[] = [], objectsCfg: string[] = [], platesCfg: string[] = [];
   let done = 0;
 
   for (const [pi, plate] of plan.plates.entries()) {
     const px = (pi % cols) * stride, py = -Math.floor(pi / cols) * stride;
     const slots = slotsFor(plate.foot, bed);
-    const instances = [];
+    const instances: string[] = [];
     for (const [ti, it] of plate.items.entries()) {
       const { x, y } = slots[ti];
       const { token } = it;
       const file = `/3D/Objects/token_${pi + 1}_${ti + 1}.model`;
-      const partXml = [], components = [], partsCfg = [];
+      const partXml: string[] = [], components: string[] = [], partsCfg: string[] = [];
       // The magnet hole is a negative part: the slicer cuts it out of every colour.
-      for (const part of [...PARTS, "magnet"]) {
+      for (const part of [...PARTS, "magnet"] as (PartName | "magnet")[]) {
         const geom = token.parts[part];
         if (!geom) continue;
         const id = nextId++;
@@ -176,7 +186,7 @@ export async function buildBambuProject(items, { printer = "a1", nozzle: nozzleI
         partsCfg.push(`    <part id="${id}" subtype="${part === "magnet" ? "negative_part" : "normal_part"}">
       <metadata key="name" value="${part}"/>
       <metadata key="matrix" value="1 0 0 ${x.toFixed(3)} 0 1 0 ${y.toFixed(3)} 0 0 1 0 0 0 0 1"/>
-      <metadata key="extruder" value="${extruder(slotOf(token.colours[part] ?? token.colours.base))}"/>
+      <metadata key="extruder" value="${extruder(slotOf((token.colours as Partial<Record<string, Hex>>)[part] ?? token.colours.base))}"/>
     </part>`);
       }
       zip.file(file.slice(1), `${XML}<model unit="millimeter" xml:lang="en-US" ${NS}><metadata name="BambuStudio:3mfVersion">1</metadata><resources>${partXml.join("")}</resources><build/></model>`);
@@ -210,7 +220,7 @@ ${instances.join("\n")}
   }
 
   // Pauses to drop hidden magnets in: one per distinct height on each plate.
-  const pauses = plan.plates.map((p) => [...new Set(p.items.map((it) => it.token.magnet?.pauseZ).filter(Boolean))].sort((a, b) => a - b));
+  const pauses = plan.plates.map((p) => [...new Set(p.items.map((it) => it.token.magnet?.pauseZ).filter((z): z is number => !!z))].sort((a, b) => a - b));
   if (pauses.some((z) => z.length)) {
     zip.file("Metadata/custom_gcode_per_layer.xml", `${XML}<custom_gcodes_per_layer>
 ${pauses.map((zs, pi) => zs.length ? `<plate>

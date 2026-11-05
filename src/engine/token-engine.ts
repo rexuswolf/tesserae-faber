@@ -15,13 +15,17 @@ import { SVGLoader } from "three/addons/loaders/SVGLoader.js";
 import { TTFLoader } from "three/addons/loaders/TTFLoader.js";
 import { Font } from "three/addons/loaders/FontLoader.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import type {
+  Role, Team, Hex, ColourRef, TokenSpec, SpecInput, TokenStyle, Relief, ReliefPart, Library, Glyph,
+  PartColours, TokenParts, Token, MagnetLayout, TokenIcon,
+} from "../types.ts";
 
 export { THREE };
 
 const TRACE_VIEW = 127.559055; // potrace viewBox; traced to a 45 mm square
 const TRACE_MM = 45;
 
-export const TEAMS = {
+export const TEAMS: Record<Team, { label: { en: string; es: string }; colour: Hex; file: string }> = {
   townsfolk: { label: { en: "Townsfolk", es: "Aldeanos" }, colour: "#2f86e0", file: "blue" },
   outsider: { label: { en: "Outsiders", es: "Forasteros" }, colour: "#2f86e0", file: "blue" },
   minion: { label: { en: "Minions", es: "Esbirros" }, colour: "#b3191e", file: "red" },
@@ -61,8 +65,11 @@ export const BACK_STYLES = [
   { id: "custom", label: "Your SVG" },
 ];
 
+/** An edition's name by language, and the mark used on token backs. */
+export interface Edition { name: { en: string; [lang: string]: string }; mark?: string }
+
 /** Editions as coded in TPI's roles.json, with the mark used on token backs. */
-export const EDITIONS = {
+export const EDITIONS: Record<string, Edition> = {
   tb: { name: { en: "Trouble Brewing", es: "Trouble Brewing" }, mark: "TB" },
   bmr: { name: { en: "Bad Moon Rising", es: "Bad Moon Rising" }, mark: "BMR" },
   snv: { name: { en: "Sects & Violets", es: "Sects & Violets" }, mark: "S&V" },
@@ -82,9 +89,9 @@ export const FILAMENTS = {
 
 /** Token layouts: "classic" (icon in the middle, curved name) and "window" (a coloured
  *  window over the top half with the icon on it, the name straight and large below). */
-export const TOKEN_STYLES = [{ id: "classic" }, { id: "window" }];
+export const TOKEN_STYLES: { id: TokenStyle }[] = [{ id: "classic" }, { id: "window" }];
 
-export const DEFAULT_SPEC = {
+export const DEFAULT_SPEC: TokenSpec = {
   style: "classic",
   // Which parts of the face stand out of the coin, and by how much (mm). With none raised
   // everything is a flush inlay (nothing to feel by touch) and the token prints face-down;
@@ -114,7 +121,7 @@ export const DEFAULT_SPEC = {
  * A reminder token's spec, derived from the character style: smaller coin,
  * smaller raised icon, the reminder word along the bottom, plain back.
  */
-export function reminderSpec(spec) {
+export function reminderSpec(spec: TokenSpec): TokenSpec {
   return {
     ...spec,
     diameter: spec.reminderDiameter ?? 32,
@@ -138,8 +145,8 @@ export const LETTERING = { file: "AlegreyaSC-ExtraBold.ttf", family: "Midnight M
  * Prepares the library: the role list and seal (both from Firestore, invite-only)
  * plus the lettering font, which is served with the site from `assetBase`.
  */
-export async function loadLibrary(roles, { sealSvg = null, assetBase = "/" } = {}) {
-  const get = async (name, kind) => {
+export async function loadLibrary(roles: Role[], { sealSvg = null, assetBase = "/" }: { sealSvg?: string | null; assetBase?: string } = {}): Promise<Library> {
+  const get = async (name: string, kind: "arrayBuffer") => {
     const res = await fetch(assetBase + name);
     if (!res.ok) throw new Error(`could not load ${name} (${res.status})`);
     return res[kind]();
@@ -147,40 +154,40 @@ export async function loadLibrary(roles, { sealSvg = null, assetBase = "/" } = {
   const fontBuf = await get(LETTERING.file, "arrayBuffer");
   const font = new Font(new TTFLoader().parse(fontBuf));
   const box = boundsOf(font.generateShapes("H", 1));
-  const lib = { roles, font, capHeight: box.max.y - box.min.y || 0.7, sealSvg, glyphs: new Map(), icons: new Map() };
-  lib.seal = sealSvg ? parseSvgShapes(sealSvg) : [];
+  const lib: Library = { roles, font, capHeight: box.max.y - box.min.y || 0.7, sealSvg, glyphs: new Map(), icons: new Map(),
+    seal: sealSvg ? parseSvgShapes(sealSvg) : [] };
   return lib;
 }
 
 /** The name printed for a role in a translation ("en", "es", "ca", "es-castelgard"…; see translations.js). */
-export const roleName = (role, lang) => role.names?.[lang] || role[lang] || role.en;
+export const roleName = (role: Role, lang: string): string => role.names?.[lang] || (role as unknown as Partial<Record<string, string>>)[lang] || role.en;
 
 /** Resolves "team" colour references. */
-export function partColours(role, spec) {
+export function partColours(role: Role, spec: SpecInput): PartColours {
   const team = TEAMS[role.team].colour;
   const c = { ...DEFAULT_SPEC.colours, ...spec.colours };
-  const pick = (v) => (v === "team" ? team : v);
+  const pick = (v: ColourRef): Hex => (v === "team" ? team : v);
   return { base: pick(c.base), front: pick(c.front), icon: pick(c.base), frame: pick(c.frame), back: pick(c.back) };
 }
 
 // ---------------------------------------------------------------- geometry helpers
 
-function boundsOf(shapes) {
+function boundsOf(shapes: THREE.Shape[]) {
   const box = new THREE.Box2();
   for (const s of shapes) for (const p of s.getPoints(4)) box.expandByPoint(p);
   if (box.isEmpty()) box.set(new THREE.Vector2(0, 0), new THREE.Vector2(0, 0));
   return box;
 }
 
-function parseSvgShapes(svgText) {
+function parseSvgShapes(svgText: string) {
   const data = new SVGLoader().parse(svgText);
   return data.paths.flatMap((p) => SVGLoader.createShapes(p));
 }
 
 /** Extrudes 2D shapes and applies a matrix, keeping triangles outward-facing. */
-function extrude(shapes, depth, matrix, curveSegments = 5) {
+function extrude(shapes: THREE.Shape[], depth: number, matrix: THREE.Matrix4, curveSegments = 5) {
   if (!shapes.length) return null;
-  let g = new THREE.ExtrudeGeometry(shapes, { depth, bevelEnabled: false, curveSegments });
+  let g: THREE.BufferGeometry = new THREE.ExtrudeGeometry(shapes, { depth, bevelEnabled: false, curveSegments });
   g = g.index ? g.toNonIndexed() : g;
   const out = new THREE.BufferGeometry();
   out.setAttribute("position", g.attributes.position.clone());
@@ -191,7 +198,7 @@ function extrude(shapes, depth, matrix, curveSegments = 5) {
   return out;
 }
 
-function flipWinding(geom) {
+function flipWinding(geom: THREE.BufferGeometry) {
   const a = geom.attributes.position.array;
   for (let i = 0; i < a.length; i += 9) {
     for (let k = 0; k < 3; k++) {
@@ -203,36 +210,36 @@ function flipWinding(geom) {
   geom.attributes.position.needsUpdate = true;
 }
 
-const merge = (list) => {
-  const parts = list.filter(Boolean);
+const merge = (list: (THREE.BufferGeometry | null | undefined)[]) => {
+  const parts = list.filter((g): g is THREE.BufferGeometry => !!g);
   return parts.length ? mergeGeometries(parts) : null;
 };
 
 const M = () => new THREE.Matrix4();
-const T = (x, y, z) => M().makeTranslation(x, y, z);
-const S = (x, y, z) => M().makeScale(x, y, z);
-const RZ = (a) => M().makeRotationZ(a);
-const chain = (...ms) => ms.reduce((acc, m) => acc.multiply(m), M());
+const T = (x: number, y: number, z: number) => M().makeTranslation(x, y, z);
+const S = (x: number, y: number, z: number) => M().makeScale(x, y, z);
+const RZ = (a: number) => M().makeRotationZ(a);
+const chain = (...ms: THREE.Matrix4[]) => ms.reduce((acc, m) => acc.multiply(m), M());
 
-function circleShape(r, segments = 96) {
+function circleShape(r: number, segments = 96) {
   const s = new THREE.Shape();
   s.absarc(0, 0, r, 0, Math.PI * 2, false);
   return s;
 }
-function ringShape(rOuter, rInner) {
+function ringShape(rOuter: number, rInner: number) {
   const s = circleShape(rOuter);
   const hole = new THREE.Path();
   hole.absarc(0, 0, rInner, 0, Math.PI * 2, true);
   s.holes.push(hole);
   return s;
 }
-function rectShape(x0, y0, x1, y1) {
+function rectShape(x0: number, y0: number, x1: number, y1: number) {
   const s = new THREE.Shape();
   s.moveTo(x0, y0); s.lineTo(x1, y0); s.lineTo(x1, y1); s.lineTo(x0, y1); s.closePath();
   return s;
 }
 /** A rectangle along the radius, from r0 to r1, at angle a (radians). */
-function radialBar(r0, r1, width, a) {
+function radialBar(r0: number, r1: number, width: number, a: number) {
   const s = rectShape(r0, -width / 2, r1, width / 2);
   const pts = s.getPoints().map((p) => p.clone().rotateAround(new THREE.Vector2(), a));
   return new THREE.Shape(pts);
@@ -240,22 +247,26 @@ function radialBar(r0, r1, width, a) {
 
 // ---------------------------------------------------------------- parts
 
-function glyph(lib, ch) {
-  if (lib.glyphs.has(ch)) return lib.glyphs.get(ch);
+/** What three's Font holds (its types call it a string): each glyph's advance, in font units. */
+interface FontData { glyphs: Record<string, { ha: number } | undefined>; resolution: number }
+
+function glyph(lib: Library, ch: string): Glyph {
+  if (lib.glyphs.has(ch)) return lib.glyphs.get(ch)!;
   const shapes = lib.font.generateShapes(ch, 1);
-  const g = lib.font.data.glyphs[ch];
-  const advance = g ? g.ha / lib.font.data.resolution : 0.5;
+  const data = lib.font.data as unknown as FontData;
+  const g = data.glyphs[ch];
+  const advance = g ? g.ha / data.resolution : 0.5;
   // Centre each letter on its advance width (normal typesetting); centring on the
   // outline box instead makes the spacing uneven (wide around A and V).
-  const info = { shapes, advance, center: advance / 2 };
+  const info: Glyph = { shapes, advance, center: advance / 2 };
   lib.glyphs.set(ch, info);
   return info;
 }
 
 /** A letter's outline points, in font units, about its advance centre (cached). */
-function glyphPoints(lib, ch) {
+function glyphPoints(lib: Library, ch: string) {
   const g = glyph(lib, ch);
-  g.points ??= g.shapes.flatMap((s) => s.getPoints(4)).map((p) => [p.x - g.center, p.y]);
+  g.points ??= g.shapes.flatMap((s) => s.getPoints(4)).map((p): [number, number] => [p.x - g.center, p.y]);
   return g.points;
 }
 
@@ -264,7 +275,7 @@ function glyphPoints(lib, ch) {
  * relative to the bottom (270°), in degrees. Letters stand on the circle at `angles`, tops
  * towards the centre, as in letterSvg and the 3D name.
  */
-function inkMidAngle(lib, chars, angles, radius, em) {
+function inkMidAngle(lib: Library, chars: string[], angles: number[], radius: number, em: number) {
   let lo = Infinity, hi = -Infinity;
   chars.forEach((ch, i) => {
     if (ch === " ") return;
@@ -281,19 +292,19 @@ function inkMidAngle(lib, chars, angles, radius, em) {
 }
 
 /** Inner edge of the frame (mm from centre), so text can stay clear of it. */
-function frameInner(spec) {
+function frameInner(spec: TokenSpec) {
   return frameDesign(spec)?.inner ?? spec.diameter / 2;
 }
 
 /** Where each letter of the curved name goes; shared by 3D and 2D renderers. */
-export function layoutName(lib, text, spec) {
+export function layoutName(lib: Library, text: string | null | undefined, spec: TokenSpec) {
   const chars = [...(text || "").toUpperCase()];
   const R = spec.diameter / 2;
   const margin = Math.max(spec.margin, R - frameInner(spec) + 0.9);   // clear of the frame ornament
   const radius = R - margin;
   const em = spec.textSize / lib.capHeight;
   const widths = chars.map((c) => (c === " " ? Math.max(glyph(lib, " ").advance, 0.45) : glyph(lib, c).advance) * em * spec.spacing);
-  let steps = [];
+  let steps: number[] = [];
   for (let i = 1; i < chars.length; i++) steps.push((widths[i - 1] + widths[i]) / 2);
   let total = (steps.reduce((a, b) => a + b, 0) / radius) * (180 / Math.PI);
   let scale = 1;
@@ -302,7 +313,7 @@ export function layoutName(lib, text, spec) {
     total = spec.maxArc;
     steps = steps.map((s) => s * scale);
   }
-  const angles = [];
+  const angles: number[] = [];
   let a = 270 - total / 2;
   chars.forEach((_, i) => {
     if (i > 0) a += (steps[i - 1] / radius) * (180 / Math.PI);
@@ -321,19 +332,19 @@ export function layoutName(lib, text, spec) {
  * large as fits inside a fine double rim, with a small star above and below.
  * Filled shapes in coin coordinates (mm, y up), shared by the 3D model and 2D.
  */
-function editionBack(lib, role, spec) {
+function editionBack(lib: Library, role: Role, spec: TokenSpec) {
   // a script's own (homebrew) characters carry their script's name instead
-  const ed = EDITIONS[role.edition] ?? (role.editionName ? { name: { en: role.editionName } } : null);
+  const ed: Edition | null = EDITIONS[role.edition] ?? (role.editionName ? { name: { en: role.editionName } } : null);
   if (!ed) return null;
   const R = spec.diameter / 2, out = R - 0.7;
-  const shapes = [annulus(out, out - 0.6), annulus(out - 1.2, out - 1.65)];
+  const shapes: THREE.Shape[] = [annulus(out, out - 0.6), annulus(out - 1.2, out - 1.65)];
   const words = (ed.name[spec.lang] || ed.name[spec.lang?.split("-")[0]] || ed.name.en).toUpperCase().split(/\s+/);
   const track = 0.08;                                     // letter spacing, in em
-  const lineW = (w, em) => [...w].reduce((a, c) => a + glyph(lib, c).advance * em * (1 + track), 0) - glyph(lib, w.at(-1)).advance * em * track;
+  const lineW = (w: string, em: number) => [...w].reduce((a, c) => a + glyph(lib, c).advance * em * (1 + track), 0) - glyph(lib, w.at(-1) as string).advance * em * track;
   const ri = out - 1.65 - 1.8;                            // keep clear of the inner rim
   const n = words.length, gap = 0.55;                     // line gap, in cap heights
   // Largest cap height that keeps every line (and the stars) inside the circle.
-  const layout = (h) => {
+  const layout = (h: number) => {
     const em = h / lib.capHeight, H = n * h + (n - 1) * gap * h, star = Math.min(1.7, h * 0.45);
     const lines = words.map((w, i) => ({ w, width: lineW(w, em), base: H / 2 - h - i * (1 + gap) * h }));
     const fits = lines.every((l) => Math.hypot(l.width / 2, Math.max(Math.abs(l.base), Math.abs(l.base + h * 1.25))) <= ri)
@@ -343,8 +354,8 @@ function editionBack(lib, role, spec) {
   let lo = 1, hi = spec.diameter * 0.17;
   for (let i = 0; i < 30; i++) { const m = (lo + hi) / 2; if (layout(m).fits) lo = m; else hi = m; }
   const L = layout(lo), h = lo;
-  const place = (src, k, dx, dy) => src.map((sh) => {
-    const move = (pts) => pts.map((q) => new THREE.Vector2(q.x * k + dx, q.y * k + dy));
+  const place = (src: THREE.Shape[], k: number, dx: number, dy: number) => src.map((sh) => {
+    const move = (pts: THREE.Vector2[]) => pts.map((q) => new THREE.Vector2(q.x * k + dx, q.y * k + dy));
     const o = new THREE.Shape(move(sh.getPoints(6)));
     o.holes = sh.holes.map((hp) => new THREE.Path(move(hp.getPoints(6))));
     return o;
@@ -370,39 +381,39 @@ function editionBack(lib, role, spec) {
  * The icon's SVG markup in the traced 127.56-unit square: traced path data
  * (role.d), or a vector icon's markup (role.body), placed by role.g.
  */
-const iconMarkup = (role) => role.body ?? role.d.map((d) => `<path d="${d}"/>`).join("");
+const iconMarkup = (role: Role) => role.body ?? role.d!.map((d) => `<path d="${d}"/>`).join("");
 
 /**
  * The icon a token shows: the design's own (spec.icon: {id, g, body}, an uploaded SVG or a
  * game-icons.net icon, placed in the same 127.56-unit square) or the character's.
  */
-function iconOf(role, spec) {
+function iconOf(role: Role, spec?: SpecInput) {
   const own = spec?.icon;
   // keyed by id: a script's own character can share an official one's name
   return own?.body ? { key: `icon:${own.id}`, g: own.g, body: own.body } : { key: role.id ?? role.en, g: role.g, body: iconMarkup(role) };
 }
-const iconSvg = (icon) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${TRACE_VIEW} ${TRACE_VIEW}"><g transform="${icon.g}">${icon.body}</g></svg>`;
+const iconSvg = (icon: Pick<TokenIcon, "body"> & { g?: string }) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${TRACE_VIEW} ${TRACE_VIEW}"><g transform="${icon.g}">${icon.body}</g></svg>`;
 
-function iconShapes(lib, role, spec) {
+function iconShapes(lib: Library, role: Role, spec: TokenSpec) {
   const icon = iconOf(role, spec);
   if (!lib.icons.has(icon.key)) lib.icons.set(icon.key, parseSvgShapes(iconSvg(icon)));
-  return lib.icons.get(icon.key);
+  return lib.icons.get(icon.key)!;
 }
 
 /** How many filled shapes an icon ({g, body}) has: 0 means it can't be printed (strokes only, or not vector). */
-export function iconShapeCount(icon) {
+export function iconShapeCount(icon: Pick<TokenIcon, "body"> & { g?: string }) {
   try { return parseSvgShapes(iconSvg(icon)).length; } catch { return 0; }
 }
 /** The square icons are drawn in (SVG units): an icon's `g` places its markup inside it. */
 export const ICON_VIEW = TRACE_VIEW;
 
 /** Matrix placing traced-SVG shapes (y down, 0..127.56) centred on the coin. */
-function tracedMatrix(sizeMm, z, mirrorX = false, offsetY = 0) {
+function tracedMatrix(sizeMm: number, z: number, mirrorX = false, offsetY = 0) {
   const k = sizeMm / TRACE_VIEW;
   return chain(T(0, offsetY, z), S(mirrorX ? -1 : 1, 1, 1), S(k, -k, 1), T(-TRACE_VIEW / 2, -TRACE_VIEW / 2, 0));
 }
 
-function buildFront(lib, role, text, spec) {
+function buildFront(lib: Library, role: Role, text: string, spec: TokenSpec) {
   const top = spec.height - spec.depth;
   const icon = extrude(iconShapes(lib, role, spec), inlayHeight(spec, "icon"), tracedMatrix(spec.diameter * spec.iconScale, top, false, spec.iconOffsetY || 0));
   const L = layoutName(lib, text, spec);
@@ -417,7 +428,7 @@ function buildFront(lib, role, text, spec) {
   return { geom: merge(letters), icon, name: L };
 }
 
-function buildFrame(spec) {
+function buildFrame(spec: TokenSpec) {
   const z = spec.height - spec.depth;
   const design = frameDesign(spec);
   if (!design) return null;
@@ -425,7 +436,7 @@ function buildFrame(spec) {
 }
 
 /** Fits arbitrary shapes into a circle of radius r (used for uploaded SVGs). */
-function fitShapes(shapes, r, svgYDown = true) {
+function fitShapes(shapes: THREE.Shape[], r: number, svgYDown = true) {
   const box = boundsOf(shapes);
   const size = new THREE.Vector2(); box.getSize(size);
   const centre = new THREE.Vector2(); box.getCenter(centre);
@@ -433,11 +444,11 @@ function fitShapes(shapes, r, svgYDown = true) {
   return chain(S(k, svgYDown ? -k : k, 1), T(-centre.x, -centre.y, 0));
 }
 
-function buildBack(lib, role, text, spec) {
+function buildBack(lib: Library, role: Role, text: string, spec: TokenSpec) {
   const R = spec.diameter / 2, d = spec.depth;
   // The back is seen from below, so mirror X to read correctly when flipped over.
   const mirror = S(-1, 1, 1);
-  const shapes = [];
+  const shapes: THREE.Shape[] = [];
   const designed = backDesign(spec.back, R);
   if (designed) return extrude(designed, d, chain(mirror), 24);
   switch (spec.back) {
@@ -474,7 +485,7 @@ function buildBack(lib, role, text, spec) {
     }
     case "custom": {
       if (!spec.customSvg) return null;
-      let custom;
+      let custom: THREE.Shape[];
       try { custom = parseSvgShapes(spec.customSvg); } catch { return null; }
       if (!custom.length) return null;
       return extrude(custom, d, chain(mirror, fitShapes(custom, R - 1.2)), 6);
@@ -487,7 +498,7 @@ function buildBack(lib, role, text, spec) {
 // ---------------------------------------------------------------- window style
 
 /** The window: a circle cut off by a straight line near the middle. */
-function windowPoints(Rw, cutY, n = 72) {
+function windowPoints(Rw: number, cutY: number, n = 72) {
   const xc = Math.sqrt(Math.max(Rw * Rw - cutY * cutY, 0));
   const a0 = Math.atan2(cutY, xc), a1 = Math.PI - a0;
   const pts = [];
@@ -499,27 +510,27 @@ function windowPoints(Rw, cutY, n = 72) {
  * Where everything goes in the window style (coin coordinates, mm, y up):
  * the window, the icon box inside it, and the name as straight lines below.
  */
-export function windowLayout(lib, text, spec) {
+export function windowLayout(lib: Library, text: string | null | undefined, spec: TokenSpec) {
   const R = spec.diameter / 2;
   const rim = Math.max(1.6, spec.diameter * 0.045);
   const Rw = R - rim;
   const cutY = -R * 0.2;
   // name: one or two straight lines in the band under the window
   const words = (text || "").toUpperCase().trim().split(/\s+/).filter(Boolean);
-  const options = [words.join(" ")];
+  const options: (string | string[])[] = [words.join(" ")];
   if (words.length > 1) {
-    let best = null;
+    let best: { score: number; lines: string[] } | null = null;
     for (let i = 1; i < words.length; i++) {
       const a = words.slice(0, i).join(" "), b = words.slice(i).join(" ");
       const score = Math.max(a.length, b.length);
       if (!best || score < best.score) best = { score, lines: [a, b] };
     }
-    options.push(best.lines);
+    options.push(best!.lines);
   }
-  const widthAt1 = (line) => { const box = boundsOf(lib.font.generateShapes(line, 1 / lib.capHeight)); return box.max.x - box.min.x; };
+  const widthAt1 = (line: string) => { const box = boundsOf(lib.font.generateShapes(line, 1 / lib.capHeight)); return box.max.x - box.min.x; };
   const bottom = -(R - rim * 0.9);
   const gap = 1.2, lead = 1.45;
-  let best = null;
+  let best: { cap: number; lines: string[]; baselines: number[] } | null = null;
   for (const opt of options) {
     const lines = Array.isArray(opt) ? opt : [opt];
     if (!lines[0]) break;
@@ -531,45 +542,45 @@ export function windowLayout(lib, text, spec) {
       if (fits) { if (!best || cap > best.cap + 0.15) best = { cap, lines, baselines }; break; }
     }
   }
-  best ??= { cap: 1.2, lines: [words.join(" ")], baselines: [cutY - gap - 1.2] };
+  const fit = best ?? { cap: 1.2, lines: [words.join(" ")], baselines: [cutY - gap - 1.2] };
   // Centre the name block in the band under the window (a touch above the middle).
-  const blockTop = best.baselines[0] + best.cap, blockBottom = best.baselines[best.baselines.length - 1];
+  const blockTop = fit.baselines[0] + fit.cap, blockBottom = fit.baselines[fit.baselines.length - 1];
   const free = (blockBottom - bottom) - (cutY - gap - blockTop);
-  if (free > 0) best.baselines = best.baselines.map((y) => y - (free / 2) * 0.8);
+  if (free > 0) fit.baselines = fit.baselines.map((y) => y - (free / 2) * 0.8);
   return {
-    R, Rw, cutY, rim, cap: best.cap, em: best.cap / lib.capHeight,
-    lines: best.lines.map((t, i) => ({ text: t, y: best.baselines[i] })),
+    R, Rw, cutY, rim, cap: fit.cap, em: fit.cap / lib.capHeight,
+    lines: fit.lines.map((t, i) => ({ text: t, y: fit.baselines[i] })),
     icon: { top: Rw - 1.4, bottom: cutY + 1.0, halfWidth: Rw * 0.78 },
   };
 }
 
 /** SVG path data for one glyph at font size 1, in font units (y up). Cached. */
-function glyphPath(lib, ch) {
+function glyphPath(lib: Library, ch: string) {
   lib.glyphPaths ??= new Map();
   if (!lib.glyphPaths.has(ch)) {
-    const ring = (pts) => pts.map((pt, i) => `${i ? "L" : "M"}${pt.x.toFixed(4)} ${pt.y.toFixed(4)}`).join("") + "Z";
+    const ring = (pts: THREE.Vector2[]) => pts.map((pt, i) => `${i ? "L" : "M"}${pt.x.toFixed(4)} ${pt.y.toFixed(4)}`).join("") + "Z";
     lib.glyphPaths.set(ch, glyph(lib, ch).shapes.map((sh) => ring(sh.getPoints(6)) + sh.holes.map((h) => ring(h.getPoints(6))).join("")).join(""));
   }
-  return lib.glyphPaths.get(ch);
+  return lib.glyphPaths.get(ch)!;
 }
 
 /**
  * One letter as an SVG path: centred on its advance at (x, y) (SVG coordinates),
  * rotated by `deg`, at font size `em` — the same geometry the 3D model uses.
  */
-function letterSvg(lib, ch, x, y, deg, em, fill) {
+function letterSvg(lib: Library, ch: string, x: number, y: number, deg: number, em: number, fill: string) {
   const g = glyph(lib, ch);
   return `<path fill="${fill}" fill-rule="evenodd" transform="translate(${x.toFixed(2)} ${y.toFixed(2)}) rotate(${deg.toFixed(1)}) scale(${em.toFixed(4)} ${(-em).toFixed(4)}) translate(${(-g.center).toFixed(4)} 0)" d="${glyphPath(lib, ch)}"/>`;
 }
 
 /** SVG path data for font shapes (y up), moved by (dx, y) and flipped to SVG's y-down. */
-function shapesToPath(shapes, dx, y, div = 6) {
-  const ring = (pts) => pts.map((pt, i) => `${i ? "L" : "M"}${(pt.x + dx).toFixed(2)} ${(-(pt.y + y)).toFixed(2)}`).join("") + "Z";
+function shapesToPath(shapes: THREE.Shape[], dx: number, y: number, div = 6) {
+  const ring = (pts: THREE.Vector2[]) => pts.map((pt, i) => `${i ? "L" : "M"}${(pt.x + dx).toFixed(2)} ${(-(pt.y + y)).toFixed(2)}`).join("") + "Z";
   return shapes.map((sh) => ring(sh.getPoints(div)) + sh.holes.map((h) => ring(h.getPoints(div))).join("")).join("");
 }
 
 /** Matrix that fits the role's icon into the window (from its SVG coordinates). */
-function windowIconMatrix(lib, role, W, z, spec) {
+function windowIconMatrix(lib: Library, role: Role, W: WindowLayout, z: number, spec: TokenSpec) {
   const shapes = iconShapes(lib, role, spec);
   const box = boundsOf(shapes), size = new THREE.Vector2(); box.getSize(size);
   const h = W.icon.top - W.icon.bottom;
@@ -580,21 +591,23 @@ function windowIconMatrix(lib, role, W, z, spec) {
 }
 
 /** Which face parts stand out of the coin ({text, frame, icon}). */
-export const reliefOf = (spec) => ({ text: !!spec?.relief?.text, frame: !!spec?.relief?.frame, icon: !!spec?.relief?.icon });
+export const reliefOf = (spec?: { relief?: Partial<Relief> } | null): Relief => ({ text: !!spec?.relief?.text, frame: !!spec?.relief?.frame, icon: !!spec?.relief?.icon });
 /** Does anything stand out of the face? Then the token prints face-up. */
-export const hasRelief = (spec) => Object.values(reliefOf(spec)).some(Boolean);
+export const hasRelief = (spec?: { relief?: Partial<Relief> } | null) => Object.values(reliefOf(spec)).some(Boolean);
 /** How far the relief stands out of the face (mm), 0 when nothing is raised. */
-export const reliefTop = (spec) => (hasRelief(spec) ? spec.reliefHeight ?? DEFAULT_SPEC.reliefHeight : 0);
+export const reliefTop = (spec: { relief?: Partial<Relief>; reliefHeight?: number }) => (hasRelief(spec) ? spec.reliefHeight ?? DEFAULT_SPEC.reliefHeight : 0);
 /** Is this token printed face-up? When anything on its face is raised. */
 export const printsFaceUp = hasRelief;
 /** How tall a face part's inlay is: the inlay depth, plus the relief when it's raised. */
-const inlayHeight = (spec, part) => spec.depth + (reliefOf(spec)[part] ? reliefTop(spec) : 0);
+const inlayHeight = (spec: TokenSpec, part: ReliefPart) => spec.depth + (reliefOf(spec)[part] ? reliefTop(spec) : 0);
 
 /**
  * The window layout: every colour is an inlay in the coin's top; the icon is its own part
  * in the coin colour, laid over the window. Raised parts stand out of the face.
  */
-function buildWindowToken(lib, role, text, spec) {
+type WindowLayout = ReturnType<typeof windowLayout>;
+
+function buildWindowToken(lib: Library, role: Role, text: string, spec: TokenSpec) {
   const H = spec.height, d = spec.depth;
   const W = windowLayout(lib, text, spec);
   const I = windowIconMatrix(lib, role, W, H - d, spec);
@@ -619,25 +632,27 @@ function buildWindowToken(lib, role, text, spec) {
 // than ~0.45 mm, so it prints cleanly with a 0.4 mm nozzle.
 
 const TAU = Math.PI * 2;
-const pt = (r, a) => new THREE.Vector2(r * Math.cos(a), r * Math.sin(a));
-const polygon = (points) => new THREE.Shape(points);
-function disc(r, x = 0, y = 0) { const sh = new THREE.Shape(); sh.absarc(x, y, r, 0, TAU, false); return sh; }
-function annulus(rOut, rIn, x = 0, y = 0) {
+const pt = (r: number, a: number) => new THREE.Vector2(r * Math.cos(a), r * Math.sin(a));
+/** pt as [x, y], to spread into a shape's position. */
+const ptXY = (r: number, a: number) => pt(r, a).toArray() as [number, number];
+const polygon = (points: THREE.Vector2[]) => new THREE.Shape(points);
+function disc(r: number, x = 0, y = 0) { const sh = new THREE.Shape(); sh.absarc(x, y, r, 0, TAU, false); return sh; }
+function annulus(rOut: number, rIn: number, x = 0, y = 0) {
   const sh = disc(rOut, x, y);
   const hole = new THREE.Path(); hole.absarc(x, y, rIn, 0, TAU, true);
   sh.holes.push(hole);
   return sh;
 }
 /** A tapered hand or ray from r0 to r1 at angle a: width w0 at the base, w1 at the tip. */
-function taper(r0, r1, a, w0, w1) {
+function taper(r0: number, r1: number, a: number, w0: number, w1: number) {
   const n = new THREE.Vector2(-Math.sin(a), Math.cos(a));
   const b = pt(r0, a), t = pt(r1, a);
   return polygon([b.clone().addScaledVector(n, w0 / 2), t.clone().addScaledVector(n, w1 / 2),
     t.clone().addScaledVector(n, -w1 / 2), b.clone().addScaledVector(n, -w0 / 2)]);
 }
 /** A four-pointed star (sparkle) with long and short arms. */
-function sparkle(x, y, long, short, rot = 0) {
-  const pts = [];
+function sparkle(x: number, y: number, long: number, short: number, rot = 0) {
+  const pts: THREE.Vector2[] = [];
   for (let i = 0; i < 8; i++) {
     const a = rot + (i * TAU) / 8, r = i % 2 ? short : long;
     pts.push(new THREE.Vector2(x + r * Math.cos(a), y + r * Math.sin(a)));
@@ -648,21 +663,21 @@ function sparkle(x, y, long, short, rot = 0) {
  * A crescent: the disc (cx, cy, r) minus the shadow disc (bx, by, br), as one
  * outline: the lit part of the moon's edge, then the shadow's edge inside the moon.
  */
-function crescent(cx, cy, r, bx, by, br, n = 120) {
-  const inShadow = ([x, y]) => Math.hypot(x - bx, y - by) < br;
-  const inMoon = ([x, y]) => Math.hypot(x - cx, y - cy) < r;
-  const ring = (x, y, rr) => Array.from({ length: n }, (_, i) => [x + rr * Math.cos((i * TAU) / n), y + rr * Math.sin((i * TAU) / n)]);
+function crescent(cx: number, cy: number, r: number, bx: number, by: number, br: number, n = 120) {
+  const inShadow = ([x, y]: number[]) => Math.hypot(x - bx, y - by) < br;
+  const inMoon = ([x, y]: number[]) => Math.hypot(x - cx, y - cy) < r;
+  const ring = (x: number, y: number, rr: number) => Array.from({ length: n }, (_, i) => [x + rr * Math.cos((i * TAU) / n), y + rr * Math.sin((i * TAU) / n)]);
   const moon = ring(cx, cy, r), shadow = ring(bx, by, br);
   // Lit arc: start where the moon's edge leaves the shadow and follow it until it re-enters.
   const k = moon.findIndex((q, i) => !inShadow(q) && inShadow(moon[(i - 1 + n) % n]));
   if (k < 0) return disc(r, cx, cy);
-  const outer = [];
+  const outer: number[][] = [];
   for (let j = 0; j < n && !inShadow(moon[(k + j) % n]); j++) outer.push(moon[(k + j) % n]);
   // Shadow arc inside the moon, from the end of the lit arc back to its start.
   const last = outer[outer.length - 1];
   let m = 0, best = Infinity;
   shadow.forEach((q, i) => { const dd = Math.hypot(q[0] - last[0], q[1] - last[1]); if (inMoon(q) && dd < best) { best = dd; m = i; } });
-  const walk = (step) => { const out = []; for (let j = 0; j < n; j++) { const q = shadow[(m + step * j + n * n) % n]; if (!inMoon(q)) break; out.push(q); } return out; };
+  const walk = (step: number) => { const out: number[][] = []; for (let j = 0; j < n; j++) { const q = shadow[(m + step * j + n * n) % n]; if (!inMoon(q)) break; out.push(q); } return out; };
   const a = walk(-1), b = walk(1);
   const inner = a.length >= b.length ? a : b;
   return polygon([...outer, ...inner].map(([x, y]) => new THREE.Vector2(x, y)));
@@ -670,8 +685,8 @@ function crescent(cx, cy, r, bx, by, br, n = 120) {
 
 /** A beaded border: n small discs on a circle. */
 /** An elliptical band (a planet's ring): semi-axes a and b, band width w, turned by rot, at (x, y). */
-function ellipseRing(a, b, w, rot, x = 0, y = 0, n = 120) {
-  const at = (A, B, i) => {
+function ellipseRing(a: number, b: number, w: number, rot: number, x = 0, y = 0, n = 120) {
+  const at = (A: number, B: number, i: number) => {
     const t = (i * TAU) / n, ex = A * Math.cos(t), ey = B * Math.sin(t);
     return new THREE.Vector2(x + ex * Math.cos(rot) - ey * Math.sin(rot), y + ex * Math.sin(rot) + ey * Math.cos(rot));
   };
@@ -679,7 +694,7 @@ function ellipseRing(a, b, w, rot, x = 0, y = 0, n = 120) {
   sh.holes.push(new THREE.Path(Array.from({ length: n }, (_, i) => at(a - w, b - w, n - i))));
   return sh;
 }
-const beads = (r, n, size) => Array.from({ length: n }, (_, i) => disc(size, ...pt(r, (i * TAU) / n).toArray()));
+const beads = (r: number, n: number, size: number) => Array.from({ length: n }, (_, i) => disc(size, ...ptXY(r, (i * TAU) / n)));
 
 // ---------------------------------------------------------------- designed frames
 //
@@ -688,21 +703,21 @@ const beads = (r, n, size) => Array.from({ length: n }, (_, i) => disc(size, ...
 // ~0.45 mm. All outlines are wound the same way so overlaps add up (SVG nonzero).
 
 /** Same winding for every hole-less outline, so overlapping shapes merge in 2D. */
-function ccw(sh) {
+function ccw(sh: THREE.Shape) {
   if (sh.holes.length) return sh;
   const pts = sh.getPoints(8);
   return THREE.ShapeUtils.isClockWise(pts) ? new THREE.Shape(pts.reverse()) : sh;
 }
 /** A band between two radii from angle a0 to a1 (radians, a0 < a1). */
-function arcBand(rOut, rIn, a0, a1, n = 96) {
-  const pts = [];
+function arcBand(rOut: number, rIn: number, a0: number, a1: number, n = 96) {
+  const pts: THREE.Vector2[] = [];
   for (let i = 0; i <= n; i++) pts.push(pt(rOut, a0 + ((a1 - a0) * i) / n));
   for (let i = n; i >= 0; i--) pts.push(pt(rIn, a0 + ((a1 - a0) * i) / n));
   return polygon(pts);
 }
 /** A pointed leaf from base (x, y) along direction `dir` (radians). */
-function leaf(x, y, dir, len, width, n = 14) {
-  const ax = Math.cos(dir), ay = Math.sin(dir), nx = -ay, ny = ax, side = [];
+function leaf(x: number, y: number, dir: number, len: number, width: number, n = 14) {
+  const ax = Math.cos(dir), ay = Math.sin(dir), nx = -ay, ny = ax, side: [number, number, number][] = [];
   for (let i = 0; i <= n; i++) {
     const t = i / n, h = (width / 2) * Math.sin(Math.PI * t) ** 0.8;
     side.push([x + ax * len * t, y + ay * len * t, h]);
@@ -712,7 +727,7 @@ function leaf(x, y, dir, len, width, n = 14) {
   return polygon([...left, ...right]);
 }
 /** Lit part of a moon of radius r at (x, y): phase 0 new, 0.5 full, 1 new again. */
-function moonPhase(x, y, r, phase) {
+function moonPhase(x: number, y: number, r: number, phase: number) {
   const lit = 1 - Math.abs(1 - 2 * phase);            // 0 (new) .. 1 (full)
   const waxing = phase < 0.5 ? 1 : -1;                 // light on the right while waxing
   if (lit > 0.97) return [disc(r, x, y)];
@@ -731,18 +746,18 @@ const coinSegments = () => 160;
  * at the bottom (-y), so n divisible by 4 puts them where a circle from angle 0 has its own.
  * The ring's edge is then exactly the coin's, leaving no slivers of coin poking out past it.
  */
-function edgeRing(rOut, rIn, n) {
-  const ring = (r) => Array.from({ length: n }, (_, k) => pt(r, (k * TAU) / n));
+function edgeRing(rOut: number, rIn: number, n: number) {
+  const ring = (r: number) => Array.from({ length: n }, (_, k) => pt(r, (k * TAU) / n));
   const sh = new THREE.Shape(ring(rOut));
   sh.holes.push(new THREE.Path(ring(rIn).reverse()));
   return sh;
 }
 
 /** Filled shapes for the front frame and its inner edge, or null for none. */
-export function frameDesign(spec) {
+export function frameDesign(spec: TokenSpec): { shapes: THREE.Shape[]; inner: number } | null {
   const R = spec.diameter / 2, w = spec.frameWidth, out = R - FRAME_INSET, edge = out - w;
-  const rim = edgeRing(out, edge, coinSegments(spec));
-  let sh = [rim], inner = edge;
+  const rim = edgeRing(out, edge, coinSegments());
+  let sh: THREE.Shape[] = [rim], inner = edge;
   switch (spec.frame) {
     case "none": return null;
     case "rim": break;
@@ -790,8 +805,8 @@ export function frameDesign(spec) {
       const rm = edge - 1.9, mr = 1.2;              // 0.7 mm clear of the rim
       for (let k = 0; k < 8; k++) {
         const a = Math.PI / 2 - (k * TAU) / 8;
-        sh.push(...moonPhase(...pt(rm, a).toArray(), mr, (0.5 + k / 8) % 1));
-        for (const f of [0.32, 0.5, 0.68]) sh.push(disc(f === 0.5 ? 0.4 : 0.3, ...pt(rm, a - (f * TAU) / 8).toArray()));
+        sh.push(...moonPhase(...ptXY(rm, a), mr, (0.5 + k / 8) % 1));
+        for (const f of [0.32, 0.5, 0.68]) sh.push(disc(f === 0.5 ? 0.4 : 0.3, ...ptXY(rm, a - (f * TAU) / 8)));
       }
       inner = rm - mr - 0.2;
       break;
@@ -801,8 +816,8 @@ export function frameDesign(spec) {
       const rs = edge - 1.35, n = 12;
       for (let i = 0; i < n * 2; i++) {
         const a = Math.PI / 2 - (i * TAU) / (n * 2);
-        if (i % 2) sh.push(disc(0.3, ...pt(rs, a).toArray()));
-        else sh.push(sparkle(...pt(rs, a).toArray(), i % 4 ? 0.85 : 1.2, i % 4 ? 0.3 : 0.38, a));
+        if (i % 2) sh.push(disc(0.3, ...ptXY(rs, a)));
+        else sh.push(sparkle(...ptXY(rs, a), i % 4 ? 0.85 : 1.2, i % 4 ? 0.3 : 0.38, a));
       }
       inner = rs - 1.2;
       break;
@@ -824,11 +839,11 @@ export function frameDesign(spec) {
     case "runas": {
       // Rune-like marks (made up, no real alphabet) between the rim and a thin inner ring.
       const r0 = edge - 0.5, r1 = edge - 2.0, rIn = r1 - 0.5, n = Math.round((TAU * edge) / 3.2), w = 0.5;
-      const bar = (p, q) => { const d = q.clone().sub(p).normalize(), nn = new THREE.Vector2(-d.y, d.x).multiplyScalar(w / 2);
+      const bar = (p: THREE.Vector2, q: THREE.Vector2) => { const d = q.clone().sub(p).normalize(), nn = new THREE.Vector2(-d.y, d.x).multiplyScalar(w / 2);
         return polygon([p.clone().add(nn), q.clone().add(nn), q.clone().sub(nn), p.clone().sub(nn)]); };
       const da = 0.55 / edge;                                   // ~0.55 mm either side of a mark's axis
       for (let i = 0; i < n; i++) {
-        const a = (i * TAU) / n, A = (r, k) => pt(r, a + k * da), mid = (r0 + r1) / 2;
+        const a = (i * TAU) / n, A = (r: number, k: number) => pt(r, a + k * da), mid = (r0 + r1) / 2;
         const marks = [[[A(r0, 0), A(r1, 0)], [A(r0, 0), A(mid, 1.4)]], [[A(r0, -1), A(r1, -1)], [A(r0, 1), A(r1, 1)], [A(mid, -1), A(mid, 1)]],
           [[A(r0, -1), A(r1, 1)], [A(r0, 1), A(r1, -1)]], [[A(r0, -1), A(r1, 0)], [A(r1, 0), A(r0, 1)]]][i % 4];
         for (const [p, q] of marks) sh.push(bar(p, q));
@@ -849,8 +864,8 @@ export function frameDesign(spec) {
       }
       const [tx, ty] = pt(rl, a1).toArray();
       branch.push(leaf(tx, ty, a1 + Math.PI / 2, 1.3, 0.75));     // the branch's top leaf
-      const mirrorX = (s) => polygon(s.getPoints(8).map((p) => new THREE.Vector2(-p.x, p.y)));
-      sh.push(...branch, ...branch.map(mirrorX), disc(0.8, ...pt(rl, -Math.PI / 2).toArray()));
+      const mirrorX = (s: THREE.Shape) => polygon(s.getPoints(8).map((p) => new THREE.Vector2(-p.x, p.y)));
+      sh.push(...branch, ...branch.map(mirrorX), disc(0.8, ...ptXY(rl, -Math.PI / 2)));
       inner = rl - 1.45;
       break;
     }
@@ -860,12 +875,12 @@ export function frameDesign(spec) {
 }
 
 /** Filled shapes for a designed back, or null if `id` isn't one of them. */
-export function backDesign(id, R) {
+export function backDesign(id: string, R: number): THREE.Shape[] | null {
   return backShapes(id, R)?.map(ccw) ?? null;
 }
 
 // Same winding for every outline (ccw), so overlapping hands and hub merge in 2D.
-function backShapes(id, R) {
+function backShapes(id: string, R: number): THREE.Shape[] | null {
   const out = R - 0.7;
   switch (id) {
     case "medianoche": {
@@ -876,7 +891,7 @@ function backShapes(id, R) {
         const a = Math.PI / 2 - (h * TAU) / 12;
         if (h === 0) continue;                                     // XII holds the moon
         if (h % 3 === 0) sh.push(taper(out - 6.2, out - 3.2, a, 1.5, 0.9));
-        else sh.push(sparkle(...pt(out - 4.1, a).toArray(), 0.9, 0.38, a));
+        else sh.push(sparkle(...ptXY(out - 4.1, a), 0.9, 0.38, a));
       }
       const moonY = out - 5.45;                                   // crescent at XII, ~0.45 mm below the ring
       sh.push(crescent(0, moonY, 2.3, 1.06, moonY + 0.55, 1.96));
@@ -888,7 +903,7 @@ function backShapes(id, R) {
       // Engraved lace: interlocking rings around the centre, framed by a double rim.
       const sh = [annulus(out, out - 0.6), annulus(out - 1.3, out - 1.8)];
       const n = 16, c = R * 0.34, r = R * 0.36;
-      for (let i = 0; i < n; i++) sh.push(annulus(r, r - 0.5, ...pt(c, (i * TAU) / n).toArray()));
+      for (let i = 0; i < n; i++) sh.push(annulus(r, r - 0.5, ...ptXY(c, (i * TAU) / n)));
       sh.push(annulus(R * 0.2, R * 0.2 - 0.5), disc(1.2));
       return sh;
     }
@@ -896,8 +911,8 @@ function backShapes(id, R) {
       // Sixteen-point compass rose inside a ring of beads.
       const sh = [annulus(out, out - 0.6), ...beads(out - 1.4, 48, 0.3)];
       const long = out - 2.6, mid = long * 0.62, short = long * 0.42, inner = 1.6;
-      const star = (n, r, w, rot) => {
-        const pts = [];
+      const star = (n: number, r: number, w: number, rot: number) => {
+        const pts: THREE.Vector2[] = [];
         for (let i = 0; i < n * 2; i++) {
           const a = rot + (i * Math.PI) / n;
           pts.push(pt(i % 2 ? inner + w : r, a));
@@ -934,7 +949,7 @@ function backShapes(id, R) {
       for (let i = 0; i < 12; i++) sh.push(taper(R * 0.17, R * 0.25, (i * TAU) / 12, 1.0, 0.45));
       const orbits = [R * 0.4, R * 0.6, R * 0.8];
       for (const r of orbits) sh.push(annulus(r + 0.25, r - 0.25));
-      const p1 = pt(orbits[0], 0.7).toArray(), p2 = pt(orbits[1], 3.6).toArray(), p3 = pt(orbits[2], 5.35).toArray();
+      const p1 = ptXY(orbits[0], 0.7), p2 = ptXY(orbits[1], 3.6), p3 = ptXY(orbits[2], 5.35);
       sh.push(disc(R * 0.06, ...p1));
       sh.push(disc(R * 0.085, ...p2), ellipseRing(R * 0.16, R * 0.055, 0.5, -0.35, ...p2));
       sh.push(disc(R * 0.05, ...p3), disc(0.4, p3[0] + R * 0.085, p3[1] + R * 0.04));
@@ -945,7 +960,7 @@ function backShapes(id, R) {
   }
 }
 
-function buildBase(spec) {
+function buildBase(spec: TokenSpec) {
   const g = new THREE.CylinderGeometry(spec.diameter / 2, spec.diameter / 2, spec.height, 160);
   g.rotateX(Math.PI / 2);
   g.translate(0, 0, spec.height / 2);
@@ -964,7 +979,7 @@ export const MIN_CORE = 0.4;
  * Inlay depth that fits: the front (and the back, if it has a pattern) go into
  * the coin, leaving at least MIN_CORE of base. Returns { depth, clamped }.
  */
-export function fittingDepth(spec) {
+export function fittingDepth(spec: TokenSpec) {
   const faces = spec.back && spec.back !== "none" ? 2 : 1;
   const max = Math.max(0.2, Math.floor(((spec.height - MIN_CORE) / faces) * 5) / 5);   // whole 0.2 mm layers
   return { depth: Math.min(spec.depth, max), clamped: spec.depth > max, max };
@@ -973,8 +988,8 @@ export function fittingDepth(spec) {
 /** Magnet sizes (diameter x thickness, mm) commonly sold for crafts. */
 export const MAGNET_SIZES = ["5x2", "6x2", "6x3", "8x1", "8x2", "10x1", "10x2", "10x3"];
 const LAYER = 0.2, SHELL = 0.6;                  // print layer; plastic kept around the magnet
-const upLayer = (v) => Math.ceil(v / LAYER - 1e-6) * LAYER;
-const mm2 = (v) => Math.round(v * 100) / 100;
+const upLayer = (v: number) => Math.ceil(v / LAYER - 1e-6) * LAYER;
+const mm2 = (v: number) => Math.round(v * 100) / 100;
 
 /**
  * Where the magnet goes, in the centre of the coin.
@@ -985,7 +1000,7 @@ const mm2 = (v) => Math.round(v * 100) / 100;
  * the minimum coin height and, for "hidden", the print height to pause at
  * (Bambu pauses before printing the layer that ends at that height).
  */
-export function magnetLayout(spec) {
+export function magnetLayout(spec: TokenSpec): MagnetLayout | null {
   if (!spec.magnet || spec.magnet === "none") return null;
   const [md, mt] = String(spec.magnetSize || "6x2").split("x").map(Number);
   const faceUp = printsFaceUp(spec);
@@ -1017,7 +1032,7 @@ export function magnetLayout(spec) {
 }
 
 /** The magnet hole as a solid, cut out of the coin by the slicer (a negative part). */
-function magnetCut(m) {
+function magnetCut(m: MagnetLayout) {
   const extra = m.kind === "pocket" ? 0.3 : 0;   // poke through the back face
   const g = new THREE.CylinderGeometry(m.radius, m.radius, m.z1 - m.z0 + extra, 64);
   g.rotateX(Math.PI / 2);
@@ -1026,7 +1041,7 @@ function magnetCut(m) {
 }
 
 /** A closed mesh's volume (mm³), from its triangles. */
-export function geometryVolume(geom) {
+export function geometryVolume(geom: THREE.BufferGeometry | null | undefined) {
   if (!geom?.attributes?.position) return 0;
   const pos = geom.attributes.position, idx = geom.index?.array, n = idx ? idx.length : pos.count;
   let v = 0;
@@ -1042,9 +1057,9 @@ export function geometryVolume(geom) {
 export const SMALL_LETTERS_MM = 2.5;
 
 /** How tall the name's letters come out (mm), without building any geometry. */
-export function nameLetterHeight(lib, spec, text, role = null) {
-  if (isCard(role)) return cardLayout(lib, text, cardSpec(spec)).cap;
-  spec = windowFrame({ ...DEFAULT_SPEC, ...spec, colours: { ...DEFAULT_SPEC.colours, ...spec?.colours } });
+export function nameLetterHeight(lib: Library, input: SpecInput, text: string, role: Role | null = null) {
+  if (isCard(role)) return cardLayout(lib, text, cardSpec(input)).cap;
+  const spec = windowFrame({ ...DEFAULT_SPEC, ...input, colours: { ...DEFAULT_SPEC.colours, ...input?.colours } });
   return spec.style === "window" ? windowLayout(lib, text, spec).cap : layoutName(lib, text, spec).letterHeight;
 }
 
@@ -1057,16 +1072,16 @@ export function nameLetterHeight(lib, spec, text, role = null) {
  */
 export const CARD = { w: 85, h: 55, r: 4 };
 const CARD_PAD = 7, CARD_MAX_CAP = 8, CARD_PITCH = 1.6, CARD_FRAME_INSET = 1.2;
-export const isCard = (role) => role?.kind === "info";
+export const isCard = (role: Role | null | undefined) => role?.kind === "info";
 
 /** A card's spec: the set's colours, frame, height and depth; no style, back or magnet of its own. */
-function cardSpec(spec) {
+function cardSpec(spec: SpecInput | undefined): TokenSpec {
   const s = { ...DEFAULT_SPEC, ...spec, colours: { ...DEFAULT_SPEC.colours, ...spec?.colours } };
   // `diameter` is the card's long side, so the 3D view frames it like a coin that size.
   return { ...s, style: "classic", relief: DEFAULT_SPEC.relief, back: "none", magnet: "none", diameter: CARD.w, depth: Math.min(s.depth, s.height - 0.4) };
 }
 
-function roundedRect(w, h, r) {
+function roundedRect(w: number, h: number, r: number) {
   const s = new THREE.Shape(), x = -w / 2, y = -h / 2;
   s.moveTo(x + r, y);
   s.lineTo(x + w - r, y); s.absarc(x + w - r, y + r, r, -Math.PI / 2, 0, false);
@@ -1077,13 +1092,13 @@ function roundedRect(w, h, r) {
 }
 
 /** The phrase in up to 3 balanced lines, at the biggest letters that fit inside the padding. */
-export function cardLayout(lib, text, spec) {
+export function cardLayout(lib: Library, text: string | null | undefined, spec: TokenSpec) {
   const words = (text || "").toUpperCase().trim().split(/\s+/).filter(Boolean);
-  const width = (line) => { const b = boundsOf(lib.font.generateShapes(line, 1)); return b.max.x - b.min.x; };
+  const width = (line: string) => { const b = boundsOf(lib.font.generateShapes(line, 1)); return b.max.x - b.min.x; };
   const W = CARD.w - 2 * CARD_PAD, H = CARD.h - 2 * CARD_PAD;
-  let best = null;
+  let best: { em: number; lines: string[] } | null = null;
   // every way to cut the words into 1–3 lines
-  const splits = (n, k) => (k === 1 ? [[n]] : Array.from({ length: n - k + 1 }, (_, i) => i + 1).flatMap((a) => splits(n - a, k - 1).map((r) => [a, ...r])));
+  const splits = (n: number, k: number): number[][] => (k === 1 ? [[n]] : Array.from({ length: n - k + 1 }, (_, i) => i + 1).flatMap((a) => splits(n - a, k - 1).map((r) => [a, ...r])));
   for (let k = 1; k <= Math.min(3, words.length || 1); k++) {
     for (const sizes of splits(Math.max(1, words.length), k)) {
       let at = 0;
@@ -1093,11 +1108,12 @@ export function cardLayout(lib, text, spec) {
       if (!best || em > best.em + 1e-6) best = { em, lines };
     }
   }
-  const cap = best.em * lib.capHeight, pitch = cap * CARD_PITCH, total = cap + (best.lines.length - 1) * pitch;
-  return { em: best.em, cap, lines: best.lines.map((l, i) => ({ text: l, y: total / 2 - cap - i * pitch })) };
+  const fit = best!;
+  const cap = fit.em * lib.capHeight, pitch = cap * CARD_PITCH, total = cap + (fit.lines.length - 1) * pitch;
+  return { em: fit.em, cap, lines: fit.lines.map((l, i) => ({ text: l, y: total / 2 - cap - i * pitch })) };
 }
 
-function cardFrameShape(spec) {
+function cardFrameShape(spec: TokenSpec) {
   if (spec.frame === "none") return null;
   const fw = Math.min(Math.max(spec.frameWidth, 0.4), 2), i = CARD_FRAME_INSET;
   const outer = roundedRect(CARD.w - 2 * i, CARD.h - 2 * i, CARD.r - i);
@@ -1105,8 +1121,8 @@ function cardFrameShape(spec) {
   return outer;
 }
 
-function buildCard(lib, role, spec, text) {
-  spec = cardSpec(spec);
+function buildCard(lib: Library, role: Role, input: SpecInput | undefined, text?: string | null): Token {
+  const spec = cardSpec(input);
   text ??= roleName(role, spec.lang);
   const H = spec.height, d = spec.depth;
   const L = cardLayout(lib, text, spec);
@@ -1123,8 +1139,8 @@ function buildCard(lib, role, spec, text) {
   };
 }
 
-function cardSvg(lib, role, spec, side, text) {
-  spec = cardSpec(spec);
+function cardSvg(lib: Library, role: Role, input: SpecInput | undefined, side: "front" | "back", text?: string | null) {
+  const spec = cardSpec(input);
   const c = partColours(role, spec), label = text ?? roleName(role, spec.lang);
   const { w, h, r } = CARD;
   let body = "";
@@ -1145,23 +1161,25 @@ function cardSvg(lib, role, spec, side, text) {
  * standing in a recessed window) becomes a window with its icon raised. In the window
  * style only a plain rim fits around the window (other frames would float over it).
  */
-export function normalizeSpec(spec) {
+export function normalizeSpec(spec: TokenSpec): TokenSpec;
+export function normalizeSpec(spec: SpecInput): SpecInput;
+export function normalizeSpec(spec: SpecInput): SpecInput {
   if (spec?.style === "window" && spec.windowFinish && spec.windowFinish !== "flat") {
     spec = { ...spec, relief: { ...reliefOf(spec), icon: true } };
   }
   if (spec && "windowFinish" in spec) { spec = { ...spec }; delete spec.windowFinish; delete spec.windowDepth; }
   return spec;
 }
-function windowFrame(spec) {
+function windowFrame(spec: TokenSpec) {
   spec = normalizeSpec(spec);
   if (spec.style !== "window" || spec.frame === "none") return spec;
   const rim = Math.max(1.6, spec.diameter * 0.045);
   return { ...spec, frame: "rim", frameWidth: Math.min(spec.frameWidth, rim - 0.6) };
 }
 
-export function buildToken(lib, role, spec, text) {
-  if (isCard(role)) return buildCard(lib, role, spec, text);
-  spec = windowFrame({ ...DEFAULT_SPEC, ...spec, colours: { ...DEFAULT_SPEC.colours, ...spec?.colours } });
+export function buildToken(lib: Library, role: Role, input: SpecInput | undefined, text?: string | null): Token {
+  if (isCard(role)) return buildCard(lib, role, input, text);
+  let spec = windowFrame({ ...DEFAULT_SPEC, ...input, colours: { ...DEFAULT_SPEC.colours, ...input?.colours } });
   // A magnet may need a thicker coin.
   const need = magnetLayout(spec)?.minHeight ?? 0;
   if (spec.height < need) spec = { ...spec, height: need };
@@ -1169,7 +1187,7 @@ export function buildToken(lib, role, spec, text) {
   spec = { ...spec, depth: fit.depth };
   text ??= roleName(role, spec.lang);
   const magnet = magnetLayout(spec);
-  const extras = {
+  const extras: Pick<TokenParts, "magnet" | "hole" | "magnetBody" | "cavity"> = {
     magnet: magnet ? magnetCut(magnet) : null,
     // Preview only: the open pocket seen from the back.
     hole: magnet?.kind === "pocket" ? (() => {
@@ -1188,11 +1206,11 @@ export function buildToken(lib, role, spec, text) {
     hole.rotateX(Math.PI / 2); hole.translate(0, 0, (magnet.z0 + magnet.z1) / 2);
     extras.cavity = new THREE.EdgesGeometry(hole, 20);
   }
-  const colours = { ...partColours(role, spec), hole: "#0b090c" };
+  const colours: PartColours = { ...partColours(role, spec), hole: "#0b090c" };
   const frame = buildFrame(spec), back = buildBack(lib, role, text, spec);
   // The relief above the face, per part (mm³): each raised element is a prism standing
   // `depth` into the coin and `relief` out of it, so that share of its volume.
-  const R = reliefOf(spec), r = reliefTop(spec), above = (g) => (g && r ? geometryVolume(g) * r / (spec.depth + r) : 0);
+  const R = reliefOf(spec), r = reliefTop(spec), above = (g: THREE.BufferGeometry | null | undefined) => (g && r ? geometryVolume(g) * r / (spec.depth + r) : 0);
   if (spec.style === "window") {
     const w = buildWindowToken(lib, role, text, spec);
     return {
@@ -1216,15 +1234,15 @@ export function buildToken(lib, role, spec, text) {
 
 // ---------------------------------------------------------------- 2D thumbnails
 
-const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const esc = (s: unknown) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" } as Record<string, string>)[c]);
 
 /**
  * An SVG picture of the token's front (or back), in millimetres. Uses the font
  * family LETTERING.family (src/style.css loads it).
  */
-export function tokenSvg(lib, role, spec, { side = "front", text } = {}) {
-  if (isCard(role)) return cardSvg(lib, role, spec, side, text);
-  spec = windowFrame({ ...DEFAULT_SPEC, ...spec, colours: { ...DEFAULT_SPEC.colours, ...spec?.colours } });
+export function tokenSvg(lib: Library, role: Role, input: SpecInput | undefined, { side = "front", text }: { side?: "front" | "back"; text?: string | null } = {}) {
+  if (isCard(role)) return cardSvg(lib, role, input, side, text);
+  const spec = windowFrame({ ...DEFAULT_SPEC, ...input, colours: { ...DEFAULT_SPEC.colours, ...input?.colours } });
   const c = partColours(role, spec);
   const R = spec.diameter / 2;
   const label = text ?? roleName(role, spec.lang);
@@ -1256,7 +1274,7 @@ export function tokenSvg(lib, role, spec, { side = "front", text } = {}) {
     const fd = frameDesign(spec);
     if (fd) body += `<path fill="${c.frame}" fill-rule="nonzero" d="${shapesToPath(fd.shapes, 0, 0, 48)}"/>`;
   } else {
-    const back = { seal: "Seal", clock: "Clock", rings: "Rings", name: "Name", custom: "Custom" }[spec.back];
+    const back = ({ seal: "Seal", clock: "Clock", rings: "Rings", name: "Name", custom: "Custom" } as Record<string, string | undefined>)[spec.back];
     const designed = backDesign(spec.back, R);
     if (designed) body += `<path fill="${c.back}" fill-rule="nonzero" d="${shapesToPath(designed, 0, 0, 48)}"/>`;
     const ed = spec.back === "edition" ? editionBack(lib, role, spec) : null;
@@ -1270,7 +1288,7 @@ export function tokenSvg(lib, role, spec, { side = "front", text } = {}) {
 }
 
 /** Offers a file to the viewer: claude.ai's downloads capability, or a plain download. */
-export async function saveFile(blob, filename) {
+export async function saveFile(blob: Blob, filename: string) {
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = filename;

@@ -1,6 +1,6 @@
 // Colour checks on a token's design: inlays you can't tell from the coin, and light inlays
 // on a dark coin too shallow to cover it. Shared by the workshop (step 2) and the Print step.
-import { partColours } from "./engine/token-engine.js";
+import { partColours } from "./engine/token-engine.ts";
 
 /** CIELAB of an "#rrggbb" colour (D65), as Bambu Studio's flush predictor computes it. */
 function lab(hex) {

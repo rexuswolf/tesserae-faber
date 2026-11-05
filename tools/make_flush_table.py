@@ -10,7 +10,7 @@ A1 and A1 mini) and caps at 900. PLA to PLA has no entry in its material-pair ta
 
     python3 tools/make_flush_table.py [path/to/flush_data_standard.txt]
 
-The colours come from FILAMENT_SLOTS in src/bambu/plates.js.
+The colours come from FILAMENT_SLOTS in src/bambu/plates.ts.
 """
 import json, math, re, sys
 from pathlib import Path
@@ -118,7 +118,7 @@ def formula(src, dst):
 
 
 def main():
-    slots = re.findall(r'hex: "(#[0-9a-f]{6})", name: "(\w+)"', (ROOT / "src/bambu/plates.js").read_text())
+    slots = re.findall(r'hex: "(#[0-9a-f]{6})", name: "(\w+)"', (ROOT / "src/bambu/plates.ts").read_text())
     colours, table = load_table(DATA)
     matrix = []
     for sh, _ in slots:

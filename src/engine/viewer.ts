@@ -2,9 +2,20 @@
 // starts, so the sheet doesn't wait for it; on a phone it isn't needed until a token is opened.
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import type { PartName, Token } from "../types.ts";
+
+/** The parts the preview draws; `hole` is the open pocket seen from the back. */
+type ViewPart = PartName | "hole";
+type PartMesh = THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>;
+/** A wheel event already turned into pixels (see below). */
+type PixelWheel = WheelEvent & { mmPixels?: boolean };
+/** What the app drives: the token shown, the X-ray, the camera. */
+export type Viewer = ReturnType<typeof createViewer>;
+/** The camera views: "angle" (the default), "top", "back" and "side". */
+export type ViewKind = "angle" | "top" | "back" | "side";
 
 /** A rotatable preview bound to a canvas. */
-export function createViewer(canvas, { background = null } = {}) {
+export function createViewer(canvas: HTMLCanvasElement, { background = null }: { background?: THREE.ColorRepresentation | null } = {}) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: background === null });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   const scene = new THREE.Scene();
@@ -17,11 +28,11 @@ export function createViewer(canvas, { background = null } = {}) {
   controls.zoomSpeed = 2.5;
   // This three (0.160) reads every wheel delta as pixels; Firefox gives lines (3 a click), which
   // barely moved the camera. Lines and pages become pixels before the controls see them.
-  canvas.addEventListener("wheel", (e) => {
+  canvas.addEventListener("wheel", (e: PixelWheel) => {
     if (e.deltaMode === 0 || e.mmPixels) return;
     e.stopImmediatePropagation(); e.preventDefault();
     const k = e.deltaMode === 1 ? 33 : 800;
-    const px = new WheelEvent("wheel", { deltaX: e.deltaX * k, deltaY: e.deltaY * k, clientX: e.clientX, clientY: e.clientY, ctrlKey: e.ctrlKey, bubbles: true, cancelable: true });
+    const px: PixelWheel = new WheelEvent("wheel", { deltaX: e.deltaX * k, deltaY: e.deltaY * k, clientX: e.clientX, clientY: e.clientY, ctrlKey: e.ctrlKey, bubbles: true, cancelable: true });
     px.mmPixels = true;
     canvas.dispatchEvent(px);
   }, { capture: true, passive: false });
@@ -34,8 +45,8 @@ export function createViewer(canvas, { background = null } = {}) {
   // side of the screen in the "back" view (that camera sees x flipped).
   const backKey = new THREE.DirectionalLight(0xffffff, KEY); backKey.position.set(70, -90, -150); scene.add(backKey);
 
-  const meshes = {};
-  for (const name of ["base", "front", "icon", "frame", "back", "hole"]) {
+  const meshes = {} as Record<ViewPart, PartMesh>;
+  for (const name of ["base", "front", "icon", "frame", "back", "hole"] as ViewPart[]) {
     meshes[name] = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshStandardMaterial({ roughness: 0.6, metalness: 0.05 }));
     scene.add(meshes[name]);
   }
@@ -79,8 +90,8 @@ export function createViewer(canvas, { background = null } = {}) {
     requestAnimationFrame(loop);
   })();
 
-  let view = "angle";
-  function setView(kind = "angle") {
+  let view: ViewKind = "angle";
+  function setView(kind: ViewKind = "angle") {
     view = kind;
     // Drop any spin left from a drag first: with damping on it would keep turning the coin
     // after the camera is put back (the "Front" view came out tilted). An update without
@@ -100,15 +111,15 @@ export function createViewer(canvas, { background = null } = {}) {
   }
 
   return {
-    setToken(token) {
+    setToken(token: Token) {
       // A token of another size (a card after a coin): frame it again, from the same side.
       const resize = token.spec.diameter !== diameter;
       diameter = token.spec.diameter;
       if (resize) setView(view);
-      for (const [name, mesh] of Object.entries(meshes)) {
+      for (const [name, mesh] of Object.entries(meshes) as [ViewPart, PartMesh][]) {
         mesh.geometry.dispose();
         mesh.geometry = token.parts[name] || new THREE.BufferGeometry();
-        mesh.material.color.set(token.colours[name]);
+        mesh.material.color.set(token.colours[name]!);
       }
       magnetMesh.geometry.dispose(); cavityLines.geometry.dispose();
       magnetMesh.geometry = token.parts.magnetBody || new THREE.BufferGeometry();
@@ -117,7 +128,7 @@ export function createViewer(canvas, { background = null } = {}) {
       coinLines.geometry = token.parts.base && token.parts.magnetBody ? new THREE.EdgesGeometry(token.parts.base, 20) : new THREE.BufferGeometry();
       applyXray();
     },
-    setXray(on) { xray = on; applyXray(); },
+    setXray(on: boolean) { xray = on; applyXray(); },
     setView,
     controls,
     dispose() { running = false; renderer.dispose(); },

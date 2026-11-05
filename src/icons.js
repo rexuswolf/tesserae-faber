@@ -3,7 +3,7 @@
 // token as {id, source, name, author?, url?, g, body}: `body` is SVG markup and `g` the
 // transform that places it in the engine's icon square (ICON_VIEW units), like the library's
 // icons. `url` is the picture a script linked, kept so the script can be exported as it came.
-import { ICON_VIEW, iconShapeCount } from "./engine/token-engine.js";
+import { ICON_VIEW, iconShapeCount } from "./engine/token-engine.ts";
 
 const RAW = "https://raw.githubusercontent.com/game-icons/icons/master/";
 // game-icons.net icons are 512 units square; the library's are placed this way.

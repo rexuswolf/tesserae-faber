@@ -2,7 +2,7 @@ import {
   loadLibrary, buildToken, geometryVolume, magnetLayout, MAGNET_SIZES, tokenSvg, roleName, saveFile, reminderSpec, layoutName, nameLetterHeight, SMALL_LETTERS_MM,
   TEAMS, EDITIONS, FRAME_STYLES, BACK_STYLES, TOKEN_STYLES, FILAMENTS, DEFAULT_SPEC, CARD, isCard,
   normalizeSpec, reliefOf, hasRelief, reliefTop,
-} from "./engine/token-engine.js";
+} from "./engine/token-engine.ts";
 /** The face parts that can be raised, in the order the Layout section lists them. */
 const RELIEF_PARTS = ["text", "frame", "icon"];
 /** Each layout's name size (mm): the arc's runs along the edge, the window's has the lower half. */
@@ -11,11 +11,11 @@ import { infoRoles } from "./info-tokens.js";
 import {
   onUser, signIn, signOutUser, isAdmin, loadRoles, uploadRoles, listAccountDesigns, deleteAccountDesign,
 } from "./firebase.js";
-import { planPlates, FILAMENT_SLOTS, PRINTERS, printerOf, NOZZLES, nozzleOf } from "./bambu/plates.js";
+import { planPlates, FILAMENT_SLOTS, PRINTERS, printerOf, NOZZLES, nozzleOf } from "./bambu/plates.ts";
 import { colourIssues, LIGHT_DEPTH } from "./colour-checks.js";
 import { iconFromSvg, gameIcon, gameIconPreview, searchGameIcons, scriptEntryIcon, iconForScript, placeGameIcon, tracedBefore } from "./icons.js";
-import { plateFeatures } from "./bambu/estimate.js";
-import { PAGE, layoutCoins, backX } from "./pdf/layout.js";
+import { plateFeatures } from "./bambu/estimate.ts";
+import { PAGE, layoutCoins, backX } from "./pdf/layout.ts";
 import { t, uiLang, setUiLang, LANGUAGES } from "./i18n.js";
 import { TRANSLATIONS, VILLACUERVOS_URL, translationById, translationGroups } from "./translations.js";
 import { uiIcon, UI_ICONS, TEAM_ICONS } from "./ui-icons.js";
@@ -86,7 +86,7 @@ let viewer = null;
 const viewerWaiting = {};
 const view3d = (method, ...args) => { if (viewer) viewer[method](...args); else viewerWaiting[method] = args; };
 function loadViewer() {
-  import("./engine/viewer.js").then(({ createViewer }) => {
+  import("./engine/viewer.ts").then(({ createViewer }) => {
     viewer = createViewer($("#view"));
     view3d("setView", "angle");
     for (const m of ["setToken", "setXray", "setView"]) if (viewerWaiting[m]) viewer[m](...viewerWaiting[m]);
@@ -1489,7 +1489,7 @@ async function forge() {
   btn.disabled = true;
   try {
     const { role, reminder, key } = state.sel;
-    const [{ default: JSZip }, { addTokenToZip }] = await Promise.all([import("jszip"), import("./engine/export.js")]);
+    const [{ default: JSZip }, { addTokenToZip }] = await Promise.all([import("jszip"), import("./engine/export.ts")]);
     const zip = new JSZip();
     const folder = addTokenToZip(zip, state.token, role, textFor(key, role, reminder), { faceDown: true });
     await saveFile(await zip.generateAsync({ type: "blob" }), `${folder}.zip`);
@@ -1856,7 +1856,7 @@ async function downloadBambu(one = null, btn = $("#flowNext")) {
   const out = $("#printNote");
   btn.disabled = true;
   try {
-    const { buildBambuProject } = await import("./bambu/bambu3mf.js");   // JSZip and the printer template load only now
+    const { buildBambuProject } = await import("./bambu/bambu3mf.ts");   // JSZip and the printer template load only now
     const items = [];
     const order = one ? [one] : printOrder();
     for (const [i, q] of order.entries()) {
@@ -1885,7 +1885,7 @@ async function downloadPdf() {
   btn.disabled = true;
   try {
     out.className = "hint"; out.textContent = t("queue.pdfLoading");
-    const { buildPrintPdf } = await import("./pdf/print-pdf.js");   // jsPDF only loads when asked for
+    const { buildPrintPdf } = await import("./pdf/print-pdf.ts");   // jsPDF only loads when asked for
     const entries = queueNow().map((q) => { const role = roleById(q.roleId); return { role, spec: itemSpec(q), text: queueTitle(q, role) }; });
     const { blob, sheets } = await buildPrintPdf(state.lib, entries, {
       labels: { front: t("queue.pdfFront"), back: t("queue.pdfBack") }, backs: flow.backs,

@@ -8,8 +8,10 @@
 // so it doesn't weigh on the app's first load.
 import { jsPDF } from "jspdf";
 import { svg2pdf } from "svg2pdf.js";
-import { tokenSvg, CARD, isCard } from "../engine/token-engine.js";
-import { PAGE, layoutCoins, backX } from "./layout.js";
+import { tokenSvg, CARD, isCard } from "../engine/token-engine.ts";
+import { PAGE, layoutCoins, backX } from "./layout.ts";
+import type { SheetSlot } from "./layout.ts";
+import type { Library, Role, TokenSpec } from "../types.ts";
 
 export { PAGE, layoutCoins, backX };
 
@@ -19,10 +21,10 @@ const FOOTER = 6;                         // page label baseline, inside the bot
 
 const parser = typeof DOMParser !== "undefined" ? new DOMParser() : null;
 // The token's colour: the first shape of tokenSvg (a coin's circle, a card's rect).
-const baseColour = (svg) => svg.match(/^<svg[^>]*><(?:circle|rect)[^>]* fill="(#[0-9a-fA-F]{6})"/)?.[1] ?? null;
+const baseColour = (svg: string) => svg.match(/^<svg[^>]*><(?:circle|rect)[^>]* fill="(#[0-9a-fA-F]{6})"/)?.[1] ?? null;
 
 /** A coin or a card (c from layoutCoins), with a little bleed in its colour under it. */
-async function drawToken(doc, svg, cx, c) {
+async function drawToken(doc: jsPDF, svg: string, cx: number, c: SheetSlot) {
   const fill = baseColour(svg);
   if (fill) {
     doc.setFillColor(fill);
@@ -30,7 +32,7 @@ async function drawToken(doc, svg, cx, c) {
     else doc.circle(cx, c.y, c.d / 2 + BLEED, "F");
   }
   // tokenSvg's viewBox is the token plus 0.5 mm all round.
-  const el = parser.parseFromString(svg, "image/svg+xml").documentElement;
+  const el = parser!.parseFromString(svg, "image/svg+xml").documentElement;
   await svg2pdf(el, doc, { x: cx - c.w / 2 - 0.5, y: c.y - c.h / 2 - 0.5, width: c.w + 1, height: c.h + 1 });
 }
 
@@ -41,16 +43,18 @@ async function drawToken(doc, svg, cx, c) {
  *   backs:   false for fronts only: one page per sheet, printed one-sided
  * Returns { blob, sheets, coins }.
  */
-export async function buildPrintPdf(lib, entries, { labels = { front: "front", back: "back" }, title = "Midnight Mint", backs = true, onProgress } = {}) {
+export async function buildPrintPdf(lib: Library, entries: { role: Role; spec: TokenSpec; text?: string | null }[], { labels = { front: "front", back: "back" }, title = "Midnight Mint", backs = true, onProgress }: {
+  labels?: { front: string; back: string }; title?: string; backs?: boolean; onProgress?: (done: number, total: number) => void;
+} = {}) {
   // Paper has no magnets: drop the 3D-only pocket from the back.
-  const paper = entries.map((e) => ({ ...e, spec: { ...e.spec, magnet: "none" } }));
+  const paper = entries.map((e) => ({ ...e, spec: { ...e.spec, magnet: "none" as const } }));
   const pages = layoutCoins(paper.map((e) => (isCard(e.role) ? CARD : e.spec.diameter)));
   const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait", compress: true });
   doc.setProperties({ title, creator: "Midnight Mint" });
   // Hints for viewers that honour them (Acrobat): real size, and duplex on the long edge or one-sided.
   doc.viewerPreferences({ PrintScaling: "None", Duplex: backs ? "DuplexFlipLongEdge" : "Simplex" });
 
-  const sides = backs ? ["front", "back"] : ["front"];
+  const sides: ("front" | "back")[] = backs ? ["front", "back"] : ["front"];
   const total = paper.length * sides.length;
   let done = 0;
   const step = async () => { done++; onProgress?.(done, total); await new Promise((r) => setTimeout(r)); };
