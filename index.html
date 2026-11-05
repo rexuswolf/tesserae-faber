@@ -109,6 +109,7 @@
          Open, the templates sit right under this line and the sections wait until it closes. -->
     <button class="tpl-row" type="button" id="tplRow" aria-expanded="true" aria-controls="presetsPanel"></button>
     <div class="sections" id="sections" role="tablist" data-i18n-attr="aria-label:ws.sections" hidden>
+      <button type="button" role="tab" data-section="layout" aria-selected="false" data-i18n="sec.layout"></button>
       <button type="button" role="tab" data-section="text" aria-selected="false" data-i18n="sec.text"></button>
       <button type="button" role="tab" data-section="frame" aria-selected="false" data-i18n="sec.frame"></button>
       <button type="button" role="tab" data-section="back" aria-selected="false" data-i18n="sec.back"></button>
@@ -128,6 +129,14 @@
           <p class="hint" id="saveNote" data-i18n="saved.help"></p>
           <ul class="list" id="saved"></ul>
         </div>
+      </section>
+      <section class="ws-panel" data-panel="layout" role="tabpanel" hidden>
+        <div class="choices layout-tiles" data-choice="style"></div>
+        <p class="hint" id="styleHint"></p>
+        <h3 class="zone-title" data-i18n="relief.title"></h3>
+        <div class="relief-els" id="reliefEls"></div>
+        <div class="row" id="reliefHeightRow"><label for="reliefHeight" data-i18n="range.reliefHeight"></label><output data-for="reliefHeight"></output><input type="range" id="reliefHeight" min="0.4" max="1.2" step="0.2" value="0.6"></div>
+        <p class="hint" id="reliefHint"></p>
       </section>
       <section class="ws-panel" data-panel="text" role="tabpanel" hidden>
         <div class="token-only" id="tokenOnly">
@@ -149,10 +158,6 @@
           </div>
         </div>
         <p class="hint" id="textOnlyHint" data-i18n="ws.textInToken"></p>
-        <div class="choices" data-choice="style"></div>
-        <div class="choices" data-choice="windowFinish" id="windowFinishRow"></div>
-        <p class="hint" id="styleHint"></p>
-        <div class="row" id="windowDepthRow"><label for="windowDepth" data-i18n="range.windowDepth"></label><output data-for="windowDepth"></output><input type="range" id="windowDepth" min="0.4" max="1.6" step="0.2" value="0.8"></div>
         <p class="hint" id="nameHint"></p>
         <div class="row"><label for="textSize" data-i18n="range.textSize"></label><output data-for="textSize"></output><input type="range" id="textSize" min="2" max="6" step="0.1" value="4"></div>
         <div class="row"><label for="spacing" data-i18n="range.spacing"></label><output data-for="spacing"></output><input type="range" id="spacing" min="0.8" max="2" step="0.05" value="1.1"></div>

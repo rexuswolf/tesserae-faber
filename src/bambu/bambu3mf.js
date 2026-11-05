@@ -6,6 +6,7 @@
 // The printer/process/filament settings come from <printer>-template.json, generated once
 // per printer with Bambu Studio by tools/make_bambu_template.py.
 import JSZip from "jszip";
+import { printsFaceUp } from "../engine/token-engine.js";
 import { FILAMENT_SLOTS, PARTS, purge, nozzleOf, plateStride, printerOf, slotOf, slotsFor, towerSpot, planPlates } from "./plates.js";
 
 export { FILAMENT_SLOTS, AMS_SLOTS, PRINTERS, slotOf, perPlate, planPlates } from "./plates.js";
@@ -168,8 +169,8 @@ export async function buildBambuProject(items, { printer = "a1", nozzle: nozzleI
         const geom = token.parts[part];
         if (!geom) continue;
         const id = nextId++;
-        // The window style has its relief on top, so it prints face-up.
-        const faceUp = token.spec.style === "window" && token.spec.windowFinish !== "flat";
+        // A token with raised parts prints face-up, the relief on top.
+        const faceUp = printsFaceUp(token.spec);
         partXml.push(meshXml(id, meshOf(geom, token.spec.height, faceDown && !faceUp)));
         components.push(`<component p:path="${file}" objectid="${id}" transform="1 0 0 0 1 0 0 0 1 ${x.toFixed(3)} ${y.toFixed(3)} 0"/>`);
         partsCfg.push(`    <part id="${id}" subtype="${part === "magnet" ? "negative_part" : "normal_part"}">

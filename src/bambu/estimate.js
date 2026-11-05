@@ -33,8 +33,8 @@ const FACE = ["front", "icon", "frame"], BACK = ["back"];
  */
 export function plateFeatures(items, nozzle = "0.4") {
   const c = CAL[nozzleOf(nozzle).id];
-  let n = 0, cards = 0, body = 0, inlay = 0, layers = 1;
-  const face = new Set(), back = new Set(), mm3 = new Map();
+  let n = 0, cards = 0, body = 0, inlay = 0, layers = 1, reliefLayers = 0;
+  const face = new Set(), back = new Set(), raised = new Set(), mm3 = new Map();
   const add = (slot, v) => mm3.set(slot, (mm3.get(slot) || 0) + v);
   for (const { token, vol } of items) {
     const { spec, colours } = token, base = slotOf(colours.base);
@@ -42,14 +42,17 @@ export function plateFeatures(items, nozzle = "0.4") {
     const footArea = token.foot ? token.foot.w * token.foot.h : Math.PI * (spec.diameter / 2) ** 2;   // a card, or a coin
     const h = vol.base / footArea;
     layers = Math.max(layers, Math.round(spec.depth / c.layer));
-    let inlays = 0;
+    // Raised parts (vol.above: part -> mm³ standing out of the face) add layers above the
+    // coin with only their own colours; only the rest of each inlay displaces coin.
+    let inlays = 0, sunk = 0;
     for (const part of [...FACE, ...BACK]) {
       if (!vol[part]) continue;
-      const slot = slotOf(colours[part] ?? colours.base);
-      add(slot, vol[part]); inlays += vol[part];
+      const slot = slotOf(colours[part] ?? colours.base), up = vol.above?.[part] || 0;
+      add(slot, vol[part]); inlays += vol[part]; sunk += vol[part] - up;
       if (slot !== base) (FACE.includes(part) ? face : back).add(slot);
+      if (up) { raised.add(slot); reliefLayers = Math.max(reliefLayers, Math.round((spec.reliefHeight ?? 0.6) / c.layer)); }
     }
-    add(base, Math.max(0, vol.base - inlays - (vol.magnet || 0)) * bodyFill(h, c));
+    add(base, Math.max(0, vol.base - sunk - (vol.magnet || 0)) * bodyFill(h, c));
     face.add(base); back.add(base);
     inlay += inlays;
   }
@@ -67,6 +70,7 @@ export function plateFeatures(items, nozzle = "0.4") {
   };
   const faceOrder = [...face].filter((s) => s !== coin).concat(coin);
   layered(faceOrder);
+  for (let i = 0; i < reliefLayers; i++) walk(i % 2 ? [...raised].reverse() : [...raised]);   // the relief
   walk([coin]);                                        // the body
   layered([coin, ...[...back].filter((s) => s !== coin)]);
   const slots = [...mm3.keys()];

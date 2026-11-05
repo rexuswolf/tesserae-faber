@@ -1,7 +1,10 @@
 import {
   loadLibrary, buildToken, geometryVolume, magnetLayout, MAGNET_SIZES, tokenSvg, roleName, saveFile, reminderSpec, layoutName, nameLetterHeight, SMALL_LETTERS_MM,
   TEAMS, EDITIONS, FRAME_STYLES, BACK_STYLES, TOKEN_STYLES, FILAMENTS, DEFAULT_SPEC, CARD, isCard,
+  normalizeSpec, reliefOf, hasRelief, reliefTop,
 } from "./engine/token-engine.js";
+/** The face parts that can be raised, in the order the Layout section lists them. */
+const RELIEF_PARTS = ["text", "frame", "icon"];
 import { infoRoles } from "./info-tokens.js";
 import {
   onUser, signIn, signOutUser, isAdmin, loadRoles, uploadRoles, listAccountDesigns, deleteAccountDesign,
@@ -21,7 +24,7 @@ const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const fold = (s) => String(s).toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
 
-const RANGES = { diameter: [0, " mm"], height: [1, " mm"], depth: [1, " mm"], windowDepth: [1, " mm"], iconScale: [2, "×"], textSize: [1, " mm"], spacing: [2, "×"], maxArc: [0, "°"], frameWidth: [1, " mm"] };
+const RANGES = { diameter: [0, " mm"], height: [1, " mm"], depth: [1, " mm"], reliefHeight: [1, " mm"], iconScale: [2, "×"], textSize: [1, " mm"], spacing: [2, "×"], maxArc: [0, "°"], frameWidth: [1, " mm"] };
 const MAX_SVG = 300000;
 // The source code. Its links (sidebar footer and credits) stay hidden while the repository
 // is private, so nobody lands on GitHub's 404: set REPO_PUBLIC to true once it is published.
@@ -55,12 +58,12 @@ const state = {
   lastSection: "text",
   // Default set style: "Edición" (black coin, team colour, thin team rim, the edition's name in
   // gold on the back), the first of PRESETS.
-  spec: classicOnly(loadJSON(STYLE_KEY, null)) || {
+  spec: upgradeSpec(loadJSON(STYLE_KEY, null)) || {
     ...structuredClone(DEFAULT_SPEC), preset: "edicion", style: "classic", frame: "rim", frameWidth: 0.8, back: "edition", depth: 0.4,
     colours: { ...DEFAULT_SPEC.colours, base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold },
   },
   // key -> { text?, spec?, icon? }; game-icons placed before they sat with the library's are moved there
-  overrides: new Map(Object.entries(loadJSON(OVERRIDES_KEY, {})).map(([k, v]) => [k, v && { ...v, ...(v.icon ? { icon: placeGameIcon(v.icon) } : {}), ...(v.spec ? { spec: classicOnly(v.spec) } : {}) }])),
+  overrides: new Map(Object.entries(loadJSON(OVERRIDES_KEY, {})).map(([k, v]) => [k, v && { ...v, ...(v.icon ? { icon: placeGameIcon(v.icon) } : {}), ...(v.spec ? { spec: upgradeSpec(v.spec) } : {}) }])),
   step: 1,
   pick: new Map(),         // token key ("c:imp", "r:imp:0") -> copies
   designs: [],
@@ -112,6 +115,8 @@ const PRESETS = [
     colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } } },
   { id: "marfil", spec: { style: "classic", frame: "rim", frameWidth: 1.0, back: "guilloche", depth: 0.4,
     colours: { base: FILAMENTS.white, front: "team", frame: "team", back: FILAMENTS.bronze } } },
+  { id: "legible", spec: { style: "window", textSize: 6, frame: "none", back: "none", depth: 0.4,
+    colours: { base: FILAMENTS.white, front: "team", frame: "team", back: FILAMENTS.gold } } },
 ];
 /** Applying a design leaves these alone: the magnet is chosen in its own section. */
 const PRESET_KEEPS = new Set(["lang", "customSvg", "magnet", "magnetSize"]);
@@ -119,12 +124,9 @@ const presetSpec = (p) => ({ ...structuredClone(DEFAULT_SPEC), ...structuredClon
 
 function loadJSON(key, fallback) { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } }
 function storeJSON(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* storage unavailable */ } }
-/**
- * The window layout is out of the app for now (its relief and layout are being rethought):
- * a design saved with it comes back as the classic layout, keeping everything else.
- */
-function classicOnly(spec) {   // a declaration: the state above uses it before this line runs
-  return spec?.style === "window" ? { ...spec, style: "classic", preset: spec.preset === "legible" ? undefined : spec.preset } : spec;
+/** A saved design as the app now has it: an old window's "relief" finish becomes its icon raised. */
+function upgradeSpec(spec) {   // a declaration: the state above uses it before this line runs
+  return spec && typeof spec === "object" ? normalizeSpec(spec) : spec;
 }
 
 // ------------------------------------------------------------ tokens: keys, text, style
@@ -956,7 +958,7 @@ function renderTemplateRow() {
   row.innerHTML = `<span>${esc(t("tpl.label"))}</span><b>${esc(preset ? t(`preset.${preset.id}`) : t("tpl.none"))}</b>${modified ? `<small>${esc(t("tpl.modified"))}</small>` : ""}<em>${esc(t("tpl.change"))}</em>`;
 }
 /** Each section turns the 3D view to what it changes. */
-const SECTION_VIEW = { presets: "angle", text: "top", frame: "top", back: "back", coin: "angle", magnet: "back" };
+const SECTION_VIEW = { presets: "angle", layout: "angle", text: "top", frame: "top", back: "back", coin: "angle", magnet: "back" };
 function showSection(section) {
   state.section = section;
   if (section !== "presets") state.lastSection = section;
@@ -1007,6 +1009,7 @@ function renderWorkshop() {
     renderTemplateRow();
     renderBackTiles(tileRole, editing);
     renderFrameTiles(tileRole, editing);
+    renderStyleTiles(tileRole, editing);
     syncControls(editing);
 
     $("#depthHint").className = "hint" + (token.depthClamped ? " warn" : "");
@@ -1082,6 +1085,16 @@ function deepenAll() {
   renderSheet(); renderSpine(); renderQueue();
 }
 
+/** The two layouts, each drawn on the selected character in the current colours. */
+function renderStyleTiles(role, spec) {
+  const s = { ...DEFAULT_SPEC, ...spec, colours: { ...DEFAULT_SPEC.colours, ...spec.colours }, diameter: 45 };
+  const text = textFor(charKey(role), role, null);
+  $("[data-choice=style]").innerHTML = TOKEN_STYLES.map((st) =>
+    `<button class="back-tile" type="button" data-v="${st.id}" aria-pressed="${s.style === st.id}">${
+      tokenSvg(state.lib, role, { ...s, style: st.id, ...(st.id === "window" && s.style !== "window" ? { textSize: 6 } : {}) }, { text })
+    }<span>${esc(t(`style.${st.id}`))}</span></button>`).join("");
+}
+
 /** The frame designs, each drawn on the selected character in the current colours. */
 function renderFrameTiles(role, spec) {
   const s = { ...DEFAULT_SPEC, ...spec, colours: { ...DEFAULT_SPEC.colours, ...spec.colours }, diameter: 45 };
@@ -1121,10 +1134,13 @@ function syncControls(spec) {
     $(`output[data-for=${id}]`).textContent = (+s[id]).toFixed(dp).replace(".", dec) + unit;
   }
   $("#styleHint").textContent = t(`style.${s.style}.help`);
-  $('[data-choice="style"]').hidden = $("#styleHint").hidden = true;   // one layout for now (see classicOnly)
-  $("#windowFinishRow").hidden = s.style !== "window";
-  $("#windowDepthRow").hidden = s.style !== "window" || s.windowFinish === "flat";
-  $("#styleHint").textContent = t(s.style === "window" ? `windowFinish.${s.windowFinish}.help` : `style.${s.style}.help`);
+  // Relief: each face part flat or raised; the height only matters with something raised.
+  const relief = reliefOf(s), raised = hasRelief(s);
+  $("#reliefEls").innerHTML = RELIEF_PARTS.map((k) => `<div class="relief-el"><span><b>${esc(t(`relief.${k}`))}</b><small>${esc(t(`relief.${k}.help`))}</small></span><span class="seg2" role="group" aria-label="${esc(t(`relief.${k}`))}" data-relief="${k}"><button type="button" data-v="flat" aria-pressed="${!relief[k]}">${esc(t("relief.flat"))}</button><button type="button" data-v="raised" aria-pressed="${relief[k]}">${esc(t("relief.raised"))}</button></span></div>`).join("");
+  $("#reliefHeightRow").hidden = !raised;
+  const total = (s.height + reliefTop(s)).toFixed(1).replace(".", dec);
+  $("#reliefHint").className = "hint" + (raised ? " warn" : "");
+  $("#reliefHint").textContent = raised ? t("relief.raisedHelp", { total }) : t("relief.flatHelp");
   // The curved-name controls don't apply to the window style.
   for (const id of ["spacing", "maxArc"]) $("#" + id).closest(".row").hidden = s.style === "window";
   // Magnet: the hole, the pause and how thick the coin has to be.
@@ -1135,7 +1151,7 @@ function syncControls(spec) {
       + (s.height < m.minHeight ? " " + t("magnet.taller", { from: dec2(s.height), to: dec2(m.minHeight) }) : "");
   $$("[data-choice] button").forEach((b) => b.setAttribute("aria-pressed", String(s[b.parentElement.dataset.choice] === b.dataset.v)));
   $$(".metal").forEach((box) => $$("button", box).forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === s.colours[box.dataset.colour]))));
-  // The window style's front is the window itself; its relief icon takes the coin's colour.
+  // The window style's front is the window itself; its icon takes the coin's colour.
   $("#frontColourLabel").textContent = t(s.style === "window" ? "front.colourWindow" : "front.colour");
   // Reset buttons: shown where a field differs from its default (see baseSpec), never on a hidden field.
   const { spec: base, name } = baseSpec();
@@ -1238,8 +1254,7 @@ function buildChoices() {
   const make = (key, list) => {
     $(`[data-choice=${key}]`).innerHTML = list.map((s) => `<button class="pill" type="button" data-v="${s.id}">${esc(t(`${key}.${s.id}`))}</button>`).join("");
   };
-  make("style", TOKEN_STYLES);
-  make("windowFinish", [{ id: "relief" }, { id: "flat" }]);
+  // Layouts are drawn as coin tiles by renderStyleTiles().
   make("magnet", [{ id: "none" }, { id: "pocket" }, { id: "hidden" }]);
   $("[data-choice=magnetSize]").innerHTML = MAGNET_SIZES.map((v) => `<button class="pill" type="button" data-v="${v}">${v.replace("x", " × ")} mm</button>`).join("");
   // Frames are drawn as coin tiles by renderFrameTiles().
@@ -1382,7 +1397,7 @@ function wire() {
   $$(".sections [data-section]").forEach((b) => b.onclick = () => goSection(b.dataset.section));
   // opens the templates; closing goes back to the section you were on
   $("#tplRow").onclick = () => goSection(state.section === "presets" ? state.lastSection : "presets");
-  for (const key of ["style", "windowFinish", "frame", "back", "magnet", "magnetSize"]) {
+  for (const key of ["style", "frame", "back", "magnet", "magnetSize"]) {
     $(`[data-choice=${key}]`).onclick = (e) => {
       const b = e.target.closest("button"); if (!b) return;
       if (key === "back" && b.dataset.v === "custom" && !editingSpec()?.customSvg) { $("#upload").click(); return; }
@@ -1402,6 +1417,12 @@ function wire() {
   for (const el of $$("#styleFields [data-choice], #styleFields .metal")) {
     const b = resetBtn(); b.classList.add("group"); b.dataset.reset = el.dataset.choice ?? `colours.${el.dataset.colour}`; el.after(b);
   }
+  { const b = resetBtn(); b.classList.add("group"); b.dataset.reset = "relief"; $("#reliefEls").after(b); }
+  $("#reliefEls").onclick = (e) => {
+    const b = e.target.closest("[data-v]"), part = e.target.closest("[data-relief]")?.dataset.relief; if (!b || !part) return;
+    changeStyle((s) => { s.relief = { ...reliefOf(s), [part]: b.dataset.v === "raised" }; });
+    view3d("setView", "side"); syncView("side");
+  };
   $("#styleFields").addEventListener("click", (e) => { const b = e.target.closest("[data-reset]"); if (b) resetField(b.dataset.reset); });
   $("#upload").onchange = async (e) => {
     const f = e.target.files[0]; e.target.value = "";
@@ -1551,8 +1572,9 @@ function queuePlan() {
     };
     return {
       q, title: queueLabel(q, role), group: queueGroup(q, role),
-      token: { spec, parts: { base: 1, front: 1, icon: spec.style === "window" && spec.windowFinish === "flat" ? 1 : null, frame: spec.frame !== "none" ? 1 : null, back: hasBack ? 1 : null },
-        colours: { base: pick(spec.colours.base), front: pick(spec.colours.front), icon: pick(spec.colours.base), frame: pick(spec.colours.frame), back: pick(spec.colours.back) } },
+      token: { spec, parts: { base: 1, front: 1, icon: 1, frame: spec.frame !== "none" ? 1 : null, back: hasBack ? 1 : null },
+        // the window's icon is in the coin colour; the classic one in the name's
+        colours: { base: pick(spec.colours.base), front: pick(spec.colours.front), icon: pick(spec.style === "window" ? spec.colours.base : spec.colours.front), frame: pick(spec.colours.frame), back: pick(spec.colours.back) } },
     };
   });
   return planPlates(items, { bed: printerOf(flow.printer).bed });
@@ -1579,8 +1601,8 @@ function tokenVolumes(q) {
   const role = roleById(q.roleId), spec = itemSpec(q), text = queueTitle(q, role);
   const k = JSON.stringify([q.roleId, text, spec]);
   if (!volumeCache.has(k)) {
-    const { parts } = buildToken(state.lib, role, spec, text);
-    volumeCache.set(k, Object.fromEntries(Object.entries(parts).map(([p, g]) => [p, geometryVolume(g)])));
+    const { parts, above } = buildToken(state.lib, role, spec, text);
+    volumeCache.set(k, { ...Object.fromEntries(Object.entries(parts).map(([p, g]) => [p, geometryVolume(g)])), above: above ?? {} });
     if (volumeCache.size > 500) volumeCache.delete(volumeCache.keys().next().value);
   }
   return volumeCache.get(k);
@@ -1913,7 +1935,7 @@ window.__mm = { goStep, designToken, estimates: () => plateEstimates(queuePlan()
 // ------------------------------------------------------------ saved designs
 
 // Saved designs live in this browser (localStorage), newest first.
-const readDesigns = () => loadJSON(DESIGNS_KEY, []).filter((d) => d && d.id && d.roleId && d.spec).map((d) => ({ ...d, spec: classicOnly(d.spec) }));
+const readDesigns = () => loadJSON(DESIGNS_KEY, []).filter((d) => d && d.id && d.roleId && d.spec).map((d) => ({ ...d, spec: upgradeSpec(d.spec) }));
 const writeDesigns = (list) => storeJSON(DESIGNS_KEY, list);
 function refreshDesigns() { state.designs = readDesigns(); renderDesigns(); }
 

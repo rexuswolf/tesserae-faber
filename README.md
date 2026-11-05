@@ -44,8 +44,12 @@
 
 **Design them**
 - Your own icons: give any character another icon from game-icons.net (searched in the workshop, credited in *About the tool*) or an SVG of your own; its reminders share it. A script can bring its own names and icons in the Script Tool's `image` (a game-icons.net link, an SVG, or a picture to trace), and *Download JSON* keeps them.
+- Two layouts: the name in an arc around the icon (the classic token), or a coloured window over the top half
+  with the name straight and large below.
+- Relief, part by part: the name, the frame and the icon each flush with the coin or raised (0.4 to 1.2 mm).
+  Flush, nobody can feel which token it is and it prints face-down; with anything raised it prints face-up.
 - Templates to start from: *Edition* (the default: the edition's name in gold on the back), *Fast print* (1.2 mm,
-  the thinnest that holds up), *Pitch-black night*, *Midnight* and *Ivory coin*, all with the frame in the team colour.
+  the thinnest that holds up), *Pitch-black night*, *Midnight*, *Ivory coin* and *High legibility* (the window layout), all with the frame in the team colour.
   A line over the controls says which one you started from and whether you've modified it. A magnet (glued into a pocket, or hidden inside with a pause) is a choice of its own and stays when you switch templates.
 - 12 frame designs, and 7 back designs plus the edition's name (a homebrew's script) or your own SVG, each drawn on your character as you choose.
 - Any of the 10 filament colours for the coin, the frame and the back; the name and icon take the team colour.
@@ -119,7 +123,8 @@ and `node tools/upload-library.mjs` replaces the library with it.
 ## How it's put together
 
 - `src/engine/token-engine.js`: the token geometry (three.js), the 3D viewer, 2D thumbnails and STL export.
-  A token is a coin plus flush coloured inlays (name and icon, frame, back), so each colour is its own part.
+  A token is a coin plus coloured inlays (name, icon, frame, back), so each colour is its own part; a raised
+  inlay simply stands above the face, and the token is then laid face-up on the plate.
 - `src/bambu/bambu3mf.js`: the Bambu Studio project writer (plates, filaments, prime tower, magnet pauses).
   Its printer settings come from one template per printer and nozzle (`a1`, `a1mini`, and `-n02` for 0.2 mm),
   generated with Bambu Studio by `tools/make_bambu_template.py <any.stl> [a1|a1mini|a1-n02|a1mini-n02]`. On top of

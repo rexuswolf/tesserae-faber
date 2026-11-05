@@ -2,14 +2,14 @@
 // than the Bambu A1. Loaded only when someone downloads one.
 import * as THREE from "three";
 import { STLExporter } from "three/addons/exporters/STLExporter.js";
-import { TEAMS, printsFaceUp } from "./token-engine.js";
+import { TEAMS, printsFaceUp, reliefTop } from "./token-engine.js";
 
 const M = () => new THREE.Matrix4();
 const slug = (s) => s.normalize("NFD").replace(/\p{M}/gu, "").replace(/[^A-Za-z0-9]+/g, "_").replace(/^_|_$/g, "");
 
 function stl(geom, spec, faceDown) {
   const g = geom.clone();
-  if (faceDown && !printsFaceUp(spec)) {   // the relief window prints face-up
+  if (faceDown && !printsFaceUp(spec)) {   // a token with raised parts prints face-up
     g.applyMatrix4(M().makeRotationX(Math.PI));
     g.translate(0, 0, spec.height);
   }
@@ -35,7 +35,7 @@ export function addTokenToZip(zip, token, role, text, { faceDown = true } = {}) 
     ? `\nmagnet_cut.stl: add it to the object as a NEGATIVE PART. It leaves a ${(m.radius * 2).toFixed(1)} mm hole in the back\nfor a ${m.md}x${m.mt} mm magnet; glue it in after printing.\n`
     : `\nmagnet_cut.stl: add it to the object as a NEGATIVE PART. It leaves a hidden ${(m.radius * 2).toFixed(1)} mm cavity\nfor a ${m.md}x${m.mt} mm magnet. Add a pause at the layer that ends at ${m.pauseZ} mm,\ndrop the magnet in (a dot of glue keeps it from jumping to the nozzle) and resume.\n`;
   dir.file("README.txt",
-    `${text} (${role.en})\nDiameter ${token.spec.diameter} mm, thickness ${token.spec.height} mm${faceDown ? ", face-down" : ""}.\n\n` +
+    `${text} (${role.en})\nDiameter ${token.spec.diameter} mm, thickness ${+(token.spec.height + reliefTop(token.spec)).toFixed(2)} mm${printsFaceUp(token.spec) ? ", face-up (raised parts on top)" : faceDown ? ", face-down" : ""}.\n\n` +
     `Load all STLs together as ONE object with several parts (Bambu Studio: "Yes" when asked),\nthen give each part its filament:\n\n${lines.join("\n")}\n${magnetNote}`);
   return name;
 }

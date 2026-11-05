@@ -80,17 +80,19 @@ export const FILAMENTS = {
   bronze: "#9a6a3a",
 };
 
-/** Token layouts: "classic" (curved name, flush inlays, printed face-down) and
- *  "window" (coloured window with the icon in relief, straight name, printed face-up). */
+/** Token layouts: "classic" (icon in the middle, curved name) and "window" (a coloured
+ *  window over the top half with the icon on it, the name straight and large below). */
 export const TOKEN_STYLES = [{ id: "classic" }, { id: "window" }];
 
 export const DEFAULT_SPEC = {
   style: "classic",
-  windowDepth: 0.8,    // mm; how deep the window is (window style, relief finish)
+  // Which parts of the face stand out of the coin, and by how much (mm). With none raised
+  // everything is a flush inlay (nothing to feel by touch) and the token prints face-down;
+  // with any raised it prints face-up, the relief built on top.
+  relief: { text: false, frame: false, icon: false },
+  reliefHeight: 0.6,
   magnet: "none",           // "none" | "pocket" (open hole in the back) | "hidden" (inside, print pauses)
   magnetSize: "6x2",        // diameter x thickness, mm
-  windowFinish: "relief",   // "relief": icon stands in a recessed window (printed face-up)
-                            // "flat": everything flush, nothing to feel by touch (printed face-down)
   lang: "es",
   diameter: 45,
   height: 2,
@@ -402,24 +404,24 @@ function tracedMatrix(sizeMm, z, mirrorX = false, offsetY = 0) {
 
 function buildFront(lib, role, text, spec) {
   const top = spec.height - spec.depth;
-  const icon = extrude(iconShapes(lib, role, spec), spec.depth, tracedMatrix(spec.diameter * spec.iconScale, top, false, spec.iconOffsetY || 0));
+  const icon = extrude(iconShapes(lib, role, spec), inlayHeight(spec, "icon"), tracedMatrix(spec.diameter * spec.iconScale, top, false, spec.iconOffsetY || 0));
   const L = layoutName(lib, text, spec);
   const letters = L.chars.map((c, i) => {
     if (c === " ") return null;
     const g = glyph(lib, c);
     const a = THREE.MathUtils.degToRad(L.angles[i]);
-    return extrude(g.shapes, spec.depth, chain(
+    return extrude(g.shapes, inlayHeight(spec, "text"), chain(
       T(L.radius * Math.cos(a), L.radius * Math.sin(a), top),
       RZ(a + Math.PI / 2), S(L.em, L.em, 1), T(-g.center, 0, 0)), 4);
   });
-  return { geom: merge([icon, ...letters]), name: L };
+  return { geom: merge(letters), icon, name: L };
 }
 
 function buildFrame(spec) {
   const z = spec.height - spec.depth;
   const design = frameDesign(spec);
   if (!design) return null;
-  return extrude(design.shapes, spec.depth, T(0, 0, z), 24);
+  return extrude(design.shapes, inlayHeight(spec, "frame"), T(0, 0, z), 24);
 }
 
 /** Fits arbitrary shapes into a circle of radius r (used for uploaded SVGs). */
@@ -483,14 +485,6 @@ function buildBack(lib, role, text, spec) {
 }
 
 // ---------------------------------------------------------------- window style
-
-const FLOOR = 0.4;   // colour layer at the bottom of the window
-
-/** Window depth that fits the coin (keeps the floor, a black core and the back inlay). */
-function windowDepthFor(spec) {
-  const back = spec.back && spec.back !== "none" ? spec.depth : 0;
-  return Math.max(0.4, Math.min(spec.windowDepth, spec.height - FLOOR - MIN_CORE - back));
-}
 
 /** The window: a circle cut off by a straight line near the middle. */
 function windowPoints(Rw, cutY, n = 72) {
@@ -585,44 +579,22 @@ function windowIconMatrix(lib, role, W, z, spec) {
   return { shapes, k, cy, bcx, bcy, m: chain(T(0, cy, z), S(k, -k, 1), T(-bcx, -bcy, 0)) };
 }
 
-/** Is this token printed face-up? Only the window style with relief. */
-export const printsFaceUp = (spec) => spec.style === "window" && spec.windowFinish !== "flat";
-
-function buildWindowToken(lib, role, text, spec) {
-  if (spec.windowFinish === "flat") return buildFlatWindowToken(lib, role, text, spec);
-  const H = spec.height, p = windowDepthFor(spec);
-  const W = windowLayout(lib, text, spec);
-  const pts = windowPoints(W.Rw, W.cutY);
-  const windowShape = new THREE.Shape(pts);
-  const ring = circleShape(W.R);
-  ring.holes.push(new THREE.Path([...pts].reverse()));
-  const I = windowIconMatrix(lib, role, W, H - p, spec);
-  // Coin colour: full disc below the window, the top layer with the window cut out,
-  // and the icon standing in the window up to the surface.
-  const base = merge([
-    extrude([circleShape(W.R)], H - p, T(0, 0, 0), 48),
-    extrude([ring], p, T(0, 0, H - p), 48),
-    extrude(I.shapes, p, I.m, 5),
-  ]);
-  // Team colour: the window floor and the name (flush inlay on the top layer).
-  const floor = extrude([windowShape], FLOOR, T(0, 0, H - p - FLOOR), 48);
-  const letters = W.lines.map((line) => {
-    const shapes = lib.font.generateShapes(line.text, W.em);
-    const box = boundsOf(shapes);
-    return extrude(shapes, spec.depth, T(-(box.min.x + box.max.x) / 2, line.y, H - spec.depth), 4);
-  });
-  return {
-    base, front: merge([floor, ...letters]),
-    name: { letterHeight: W.cap, scale: W.cap / spec.textSize, total: null, lines: W.lines.length },
-  };
-}
+/** Which face parts stand out of the coin ({text, frame, icon}). */
+export const reliefOf = (spec) => ({ text: !!spec?.relief?.text, frame: !!spec?.relief?.frame, icon: !!spec?.relief?.icon });
+/** Does anything stand out of the face? Then the token prints face-up. */
+export const hasRelief = (spec) => Object.values(reliefOf(spec)).some(Boolean);
+/** How far the relief stands out of the face (mm), 0 when nothing is raised. */
+export const reliefTop = (spec) => (hasRelief(spec) ? spec.reliefHeight ?? DEFAULT_SPEC.reliefHeight : 0);
+/** Is this token printed face-up? When anything on its face is raised. */
+export const printsFaceUp = hasRelief;
+/** How tall a face part's inlay is: the inlay depth, plus the relief when it's raised. */
+const inlayHeight = (spec, part) => spec.depth + (reliefOf(spec)[part] ? reliefTop(spec) : 0);
 
 /**
- * Flat window: the same layout, but every colour is a flush inlay, so the face
- * is smooth to the touch (players can't feel which character they drew).
- * The icon is its own part in the coin colour, laid over the window.
+ * The window layout: every colour is an inlay in the coin's top; the icon is its own part
+ * in the coin colour, laid over the window. Raised parts stand out of the face.
  */
-function buildFlatWindowToken(lib, role, text, spec) {
+function buildWindowToken(lib, role, text, spec) {
   const H = spec.height, d = spec.depth;
   const W = windowLayout(lib, text, spec);
   const I = windowIconMatrix(lib, role, W, H - d, spec);
@@ -630,12 +602,12 @@ function buildFlatWindowToken(lib, role, text, spec) {
   const letters = W.lines.map((line) => {
     const shapes = lib.font.generateShapes(line.text, W.em);
     const box = boundsOf(shapes);
-    return extrude(shapes, d, T(-(box.min.x + box.max.x) / 2, line.y, H - d), 4);
+    return extrude(shapes, inlayHeight(spec, "text"), T(-(box.min.x + box.max.x) / 2, line.y, H - d), 4);
   });
   return {
     base: buildBase(spec),
-    front: merge([window, ...letters]),
-    icon: extrude(I.shapes, d, I.m, 5),
+    window, letters: merge(letters),
+    icon: extrude(I.shapes, inlayHeight(spec, "icon"), I.m, 5),
     name: { letterHeight: W.cap, scale: W.cap / spec.textSize, total: null, lines: W.lines.length },
   };
 }
@@ -752,8 +724,8 @@ function moonPhase(x, y, r, phase) {
 
 /** How far inside the coin's edge the frame starts (mm): none, it runs out to the edge. */
 const FRAME_INSET = 0;
-/** Sides of the coin's outline: buildBase's cylinder, or the relief window's extruded circle. */
-const coinSegments = (spec) => (printsFaceUp(spec) ? 96 : 160);
+/** Sides of the coin's outline (buildBase's cylinder). */
+const coinSegments = () => 160;
 /**
  * The frame's outer ring, with the coin outline's own corners: a cylinder of n sides has one
  * at the bottom (-y), so n divisible by 4 puts them where a circle from angle 0 has its own.
@@ -1017,13 +989,13 @@ export function magnetLayout(spec) {
   if (!spec.magnet || spec.magnet === "none") return null;
   const [md, mt] = String(spec.magnetSize || "6x2").split("x").map(Number);
   const faceUp = printsFaceUp(spec);
-  const front = faceUp ? upLayer(windowDepthFor(spec) + spec.depth) : spec.depth;  // the face needs this much
+  const front = spec.depth;                      // the face's inlays (any relief stands above the coin)
   const back = spec.back && spec.back !== "none" ? spec.depth : 0;
   const hole = upLayer(mt + 0.2);                // 0.2 mm headroom so the nozzle never touches it
   const radius = (md + 0.3) / 2;                 // 0.3 mm play so it drops in
-  // Plastic needed between the hole and each face. The flush colour inlays are solid
-  // plastic too, so they count towards it; the recessed window (relief finish) doesn't.
-  const faceSide = faceUp ? upLayer(front + SHELL) : upLayer(Math.max(front, SHELL));
+  // Plastic needed between the hole and each face. The colour inlays are solid
+  // plastic too, so they count towards it.
+  const faceSide = upLayer(Math.max(front, SHELL));
   const backSide = upLayer(Math.max(back, SHELL));
   if (spec.magnet === "pocket") {
     return { kind: "pocket", md, mt, radius, faceUp, z0: 0, z1: hole, minHeight: mm2(hole + faceSide) };
@@ -1091,7 +1063,7 @@ export const isCard = (role) => role?.kind === "info";
 function cardSpec(spec) {
   const s = { ...DEFAULT_SPEC, ...spec, colours: { ...DEFAULT_SPEC.colours, ...spec?.colours } };
   // `diameter` is the card's long side, so the 3D view frames it like a coin that size.
-  return { ...s, style: "classic", back: "none", magnet: "none", diameter: CARD.w, depth: Math.min(s.depth, s.height - 0.4) };
+  return { ...s, style: "classic", relief: DEFAULT_SPEC.relief, back: "none", magnet: "none", diameter: CARD.w, depth: Math.min(s.depth, s.height - 0.4) };
 }
 
 function roundedRect(w, h, r) {
@@ -1168,8 +1140,20 @@ function cardSvg(lib, role, spec, side, text) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${-w / 2 - 0.5} ${-h / 2 - 0.5} ${w + 1} ${h + 1}" role="img" aria-label="${esc(label)}"><rect x="${-w / 2}" y="${-h / 2}" width="${w}" height="${h}" rx="${r}" fill="${c.base}"/>${body}</svg>`;
 }
 
-/** In the window style only a plain rim fits around the window (other frames would float over it). */
+/**
+ * A spec as the engine builds it. A window saved with the old "relief" finish (the icon
+ * standing in a recessed window) becomes a window with its icon raised. In the window
+ * style only a plain rim fits around the window (other frames would float over it).
+ */
+export function normalizeSpec(spec) {
+  if (spec?.style === "window" && spec.windowFinish && spec.windowFinish !== "flat") {
+    spec = { ...spec, relief: { ...reliefOf(spec), icon: true } };
+  }
+  if (spec && "windowFinish" in spec) { spec = { ...spec }; delete spec.windowFinish; delete spec.windowDepth; }
+  return spec;
+}
 function windowFrame(spec) {
+  spec = normalizeSpec(spec);
   if (spec.style !== "window" || spec.frame === "none") return spec;
   const rim = Math.max(1.6, spec.diameter * 0.045);
   return { ...spec, frame: "rim", frameWidth: Math.min(spec.frameWidth, rim - 0.6) };
@@ -1205,21 +1189,28 @@ export function buildToken(lib, role, spec, text) {
     extras.cavity = new THREE.EdgesGeometry(hole, 20);
   }
   const colours = { ...partColours(role, spec), hole: "#0b090c" };
+  const frame = buildFrame(spec), back = buildBack(lib, role, text, spec);
+  // The relief above the face, per part (mm³): each raised element is a prism standing
+  // `depth` into the coin and `relief` out of it, so that share of its volume.
+  const R = reliefOf(spec), r = reliefTop(spec), above = (g) => (g && r ? geometryVolume(g) * r / (spec.depth + r) : 0);
   if (spec.style === "window") {
     const w = buildWindowToken(lib, role, text, spec);
     return {
-      parts: { base: w.base, front: w.front, icon: w.icon || null, frame: buildFrame(spec), back: buildBack(lib, role, text, spec), ...extras },
+      parts: { base: w.base, front: merge([w.window, w.letters]), icon: w.icon || null, frame, back, ...extras },
       colours, name: w.name, spec, magnet, depthClamped: fit.clamped ? fit.max : null,
+      above: { front: R.text ? above(w.letters) : 0, icon: R.icon ? above(w.icon) : 0, frame: R.frame ? above(frame) : 0 },
     };
   }
   const front = buildFront(lib, role, text, spec);
+  // The classic icon is in the team colour like the name; it's its own part, raised or not.
   return {
-    parts: { base: buildBase(spec), front: front.geom, frame: buildFrame(spec), back: buildBack(lib, role, text, spec), ...extras },
-    colours,
+    parts: { base: buildBase(spec), front: front.geom, icon: front.icon, frame, back, ...extras },
+    colours: { ...colours, icon: colours.front },
     name: front.name,
     spec,
     magnet,
     depthClamped: fit.clamped ? fit.max : null,
+    above: { front: R.text ? above(front.geom) : 0, icon: R.icon ? above(front.icon) : 0, frame: R.frame ? above(frame) : 0 },
   };
 }
 
