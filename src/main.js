@@ -399,6 +399,11 @@ function pickedBadge(roles) {
 
 // ------------------------------------------------------------ scripts
 
+/** A saved script that renames or re-icons official characters (older scripts: by their names). */
+const scriptHasOwn = (sc) => !!sc && (sc.custom ?? Object.entries(sc.labels || {}).some(([id, label]) => {
+  const role = state.lib.roles.find((r) => scriptKey(r.id) === id || scriptKey(r.en) === id);
+  return role && !isOwnName(role, label);
+}));
 /** The sheet shows an edition ("tb") or one of your scripts ("s:<id>"). */
 const scriptOf = (view) => (view?.startsWith("s:") ? loadScripts().find((x) => x.id === view.slice(2)) ?? null : null);
 /** A script's characters that are in the library, and the ids that aren't (with their names, when known). */
@@ -410,6 +415,21 @@ function scriptRoles(sc) {
     if (r) { if (!roles.includes(r)) roles.push(r); } else missing.push(sc.labels?.[id] || id);
   }
   return { roles, missing };
+}
+/** True when a name is one of the character's own (in any language). */
+const isOwnName = (role, name) => [role.en, role.es, ...Object.values(role.names || {})].some((x) => x && scriptKey(x) === scriptKey(name));
+/**
+ * True when Script Tool JSON gives official characters names or icons of its own. Those show on
+ * the tokens, but not on the character sheet or night order from the official site.
+ */
+function scriptCustomizes(data) {
+  if (!Array.isArray(data)) return false;
+  const byKey = new Map(state.lib.roles.flatMap((r) => [[scriptKey(r.en), r], [scriptKey(r.id), r]]));
+  return data.some((e) => {
+    if (typeof e !== "object" || !e?.id || e.id === "_meta") return false;
+    const role = byKey.get(scriptKey(e.id)) || (e.name && byKey.get(scriptKey(e.name)));
+    return !!role && (!!(e.icon || e.image) || (!!e.name && !isOwnName(role, e.name)));
+  });
 }
 /** Reads a script in the Script Tool's JSON format into a name and ids. */
 function readScriptJson(text) {
@@ -427,7 +447,7 @@ function readScriptJson(text) {
     ids.push(id);
     if (entry?.name) labels[id] = entry.name;
   }
-  const script = { name: name?.trim() || t("script.unnamed"), ids, labels };
+  const script = { name: name?.trim() || t("script.unnamed"), ids, labels, custom: scriptCustomizes(data) };
   if (!scriptRoles(script).roles.length) throw new Error(t("import.noneKnown"));
   return script;
 }
@@ -439,6 +459,7 @@ function keepScript(data) {
 }
 function openScriptDialog() {
   $("#scriptDialogText").value = ""; $("#scriptDialogNote").textContent = ""; $("#scriptDialogNote").className = "hint";
+  $("#scriptDialogWarn").hidden = true;
   drawer(false);
   $("#scriptDialog").showModal();
 }
@@ -453,7 +474,7 @@ function applyScriptNames(script) {
   let n = 0;
   for (const [id, label] of Object.entries(script.labels || {})) {
     const role = byKey.get(id);
-    if (!role || [role.en, role.es, ...Object.values(role.names || {})].some((x) => x && scriptKey(x) === scriptKey(label))) continue;
+    if (!role || isOwnName(role, label)) continue;
     const key = charKey(role), own = state.overrides.get(key) ?? {};
     if (own.text) continue;
     state.overrides.set(key, { ...own, text: label });
@@ -582,6 +603,7 @@ function renderSheet() {
       + (inScript.missing.length ? t("script.missing", { list: inScript.missing.join(", ") }) : "")
     : t(`edition.lead.${ed}`);
   $("#scriptActions").hidden = !sc || !!q;
+  $("#scriptCustomWarn").hidden = !scriptHasOwn(sc);
   if (sc && $("#scriptActions").dataset.for !== sc.id) {   // a different script: fresh buttons
     $("#scriptActions").dataset.for = sc.id;
     $("#scriptNote").textContent = "";
@@ -1040,6 +1062,11 @@ function wire() {
   $("#scriptNew").onclick = openScriptDialog;
   $("#scriptDialogCancel").onclick = () => $("#scriptDialog").close();
   $("#scriptDialogSave").onclick = () => saveFromDialog($("#scriptDialogText").value);
+  // Warn as soon as the pasted JSON renames or re-icons official characters.
+  $("#scriptDialogText").oninput = (e) => {
+    let data = null; try { data = JSON.parse(e.target.value); } catch { /* not JSON yet */ }
+    $("#scriptDialogWarn").hidden = !scriptCustomizes(data);
+  };
   $("#scriptDialogFile").onchange = async (e) => { const f = e.target.files[0]; e.target.value = ""; if (f) saveFromDialog(await f.text()); };
   $("#scriptInviteSkip").onclick = () => $("#scriptInvite").close();
   $("#scriptShare").onclick = shareScript;

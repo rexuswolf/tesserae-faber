@@ -74,6 +74,7 @@
         <button class="pill" type="button" id="scriptJson" data-i18n="script.json"></button>
         <button class="pill danger" type="button" id="scriptDelete" data-i18n="script.delete"></button>
         <p class="hint" id="scriptNote" aria-live="polite"></p>
+        <p class="hint warn" id="scriptCustomWarn" data-i18n="script.customWarn" hidden></p>
       </div>
       <div class="filters">
         <input type="search" id="search" class="search" autocomplete="off" data-i18n-attr="placeholder:sheet.search aria-label:sheet.search">
@@ -305,6 +306,7 @@
   <p class="hint" data-i18n="script.dialogIntro"></p>
   <label class="pill file"><span data-i18n="script.file"></span><input type="file" id="scriptDialogFile" accept="application/json,.json" hidden></label>
   <label class="field"><span data-i18n="script.paste"></span><textarea class="text" id="scriptDialogText" rows="5" spellcheck="false" placeholder='[{"id":"_meta","name":"…"},"washerwoman","librarian",…]'></textarea></label>
+  <p class="hint warn" id="scriptDialogWarn" data-i18n="script.customWarn" aria-live="polite" hidden></p>
   <p class="hint" id="scriptDialogNote" aria-live="polite"></p>
   <div class="dialog-actions"><button class="pill" type="button" id="scriptDialogCancel" data-i18n="script.cancel"></button><button class="forge" type="button" id="scriptDialogSave" data-i18n="script.add"></button></div>
 </dialog>

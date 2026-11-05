@@ -82,6 +82,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .script-dialog { width: min(560px, calc(100% - 32px)); }
 .script-dialog .file { display: inline-block; margin: 6px 0 12px; }
 .script-dialog .text { width: 100%; font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; resize: vertical; }
+.script-dialog #scriptDialogWarn { margin: 12px 0 4px; line-height: 1.45; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; }
 .dialog-actions .forge { padding-inline: 20px; }
 .invite-tokens { display: flex; flex-wrap: wrap; gap: 6px; max-height: 40vh; overflow-y: auto; }
