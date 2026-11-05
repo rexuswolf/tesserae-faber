@@ -8,7 +8,7 @@ import {
 } from "./firebase.js";
 import { planPlates, FILAMENT_SLOTS, PRINTERS, printerOf, NOZZLES, nozzleOf } from "./bambu/plates.js";
 import { colourIssues, LIGHT_DEPTH } from "./colour-checks.js";
-import { iconFromSvg, gameIcon, gameIconPreview, searchGameIcons, scriptEntryIcon, iconForScript } from "./icons.js";
+import { iconFromSvg, gameIcon, gameIconPreview, searchGameIcons, scriptEntryIcon, iconForScript, placeGameIcon } from "./icons.js";
 import { plateFeatures } from "./bambu/estimate.js";
 import { PAGE, layoutCoins, backX } from "./pdf/layout.js";
 import { t, uiLang, setUiLang, LANGUAGES } from "./i18n.js";
@@ -56,7 +56,8 @@ const state = {
     ...structuredClone(DEFAULT_SPEC), style: "classic", frame: "rim", frameWidth: 0.8, back: "none", depth: 0.2,
     colours: { ...DEFAULT_SPEC.colours, base: FILAMENTS.black, front: "team", frame: "team" },
   },
-  overrides: new Map(Object.entries(loadJSON(OVERRIDES_KEY, {}))),   // key -> { text?, spec? }
+  // key -> { text?, spec?, icon? }; game-icons placed before they sat with the library's are moved there
+  overrides: new Map(Object.entries(loadJSON(OVERRIDES_KEY, {})).map(([k, v]) => [k, v?.icon ? { ...v, icon: placeGameIcon(v.icon) } : v])),
   step: 1,
   pick: new Map(),         // token key ("c:imp", "r:imp:0") -> copies
   designs: [],
@@ -305,6 +306,7 @@ async function boot() {
     if (broken) return libraryGate(broken);
     state.lib = await loadLibrary(roles);
     state.lib.roles.push(...infoRoles());   // the grimoire's info tokens: cards, an edition of their own
+    syncHomebrew();                          // your scripts' own characters
     gateState = null;
     startApp();
   } catch (err) {
@@ -406,12 +408,41 @@ const scriptHasOwn = (sc) => !!sc && (sc.custom ?? Object.entries(sc.labels || {
 }));
 /** The sheet shows an edition ("tb") or one of your scripts ("s:<id>"). */
 const scriptOf = (view) => (view?.startsWith("s:") ? loadScripts().find((x) => x.id === view.slice(2)) ?? null : null);
+
+/**
+ * A script entry that defines a character of its own (homebrew): a name and a team, usually
+ * an ability and a picture too. Official characters only ever come as an id, so a definition
+ * is the script's own character even when it shares a name with an official one. Returns its
+ * team (the Script Tool's "traveler" is our "traveller"), or null.
+ */
+function homebrewTeam(e) {
+  if (!e || typeof e !== "object" || e.id === "_meta" || typeof e.name !== "string" || !e.name.trim()) return null;
+  const team = e.team === "traveler" ? "traveller" : e.team;
+  return team !== "info" && TEAMS[team] ? team : null;
+}
+/** A homebrew character's role id: its script and its own id ("hb_1a2b3c4d_engineer"). */
+const homebrewId = (sc, id) => `hb_${sc.id}_${id}`;
+/** Where a character comes from: its edition, or for a homebrew one, its script's name. */
+const editionName = (role, lang) => EDITIONS[role.edition]?.name[lang] || (role.kind === "homebrew" ? scriptOf(role.edition)?.name : "") || "";
+/** A script's homebrew characters as roles, drawn and printed like the library's. */
+const homebrewRoles = (sc) => (sc.homebrew || []).map((h) => ({
+  id: homebrewId(sc, h.id), kind: "homebrew", en: h.name, es: h.name, names: {}, fem: {}, team: h.team,
+  edition: `s:${sc.id}`, reminders: { en: h.reminders || [] }, ability: h.ability,
+  g: h.icon?.g ?? "translate(0 0) scale(1)", body: h.icon?.body ?? "",
+}));
+/** Puts every saved script's homebrew characters in the library, replacing the ones there. */
+function syncHomebrew() {
+  for (const r of state.lib.roles) if (r.kind === "homebrew") state.lib.icons.delete(r.id);
+  const roles = state.lib.roles.filter((r) => r.kind !== "homebrew");
+  state.lib.roles.splice(0, Infinity, ...roles, ...loadScripts().flatMap(homebrewRoles));
+}
 /** A script's characters that are in the library, and the ids that aren't (with their names, when known). */
 function scriptRoles(sc) {
-  const byKey = new Map(state.lib.roles.flatMap((r) => [[scriptKey(r.en), r], [scriptKey(r.id), r]]));
+  const byKey = new Map(state.lib.roles.filter((r) => r.kind !== "homebrew").flatMap((r) => [[scriptKey(r.en), r], [scriptKey(r.id), r]]));
+  const own = new Set((sc.homebrew || []).map((h) => h.id));
   const roles = [], missing = [];
   for (const id of sc.ids) {
-    const r = byKey.get(id) || (sc.labels?.[id] && byKey.get(scriptKey(sc.labels[id])));
+    const r = own.has(id) ? roleById(homebrewId(sc, id)) : byKey.get(id) || (sc.labels?.[id] && byKey.get(scriptKey(sc.labels[id])));
     if (r) { if (!roles.includes(r)) roles.push(r); } else missing.push(sc.labels?.[id] || id);
   }
   return { roles, missing };
@@ -426,18 +457,21 @@ function scriptCustomizes(data) {
   if (!Array.isArray(data)) return false;
   const byKey = new Map(state.lib.roles.flatMap((r) => [[scriptKey(r.en), r], [scriptKey(r.id), r]]));
   return data.some((e) => {
-    if (typeof e !== "object" || !e?.id || e.id === "_meta") return false;
+    if (typeof e !== "object" || !e?.id || e.id === "_meta" || homebrewTeam(e)) return false;   // homebrew shows as it is
     const role = byKey.get(scriptKey(e.id)) || (e.name && byKey.get(scriptKey(e.name)));
     return !!role && (!!(e.icon || e.image) || (!!e.name && !isOwnName(role, e.name)));
   });
 }
-/** Reads a script in the Script Tool's JSON format into a name and ids. */
+/**
+ * Reads a script in the Script Tool's JSON format into a name, ids, and the characters it
+ * defines itself (homebrew: kept with the script, their icons traced later by traceHomebrew).
+ */
 function readScriptJson(text) {
   let data;
   try { data = JSON.parse(text); } catch { throw new Error(t("import.badJson")); }
   if (!Array.isArray(data)) throw new Error(t("import.notList"));
   let name = null;
-  const ids = [], labels = {};
+  const ids = [], labels = {}, homebrew = [];
   for (const entry of data) {
     const raw = typeof entry === "string" ? entry : entry?.id;
     if (!raw) continue;
@@ -445,17 +479,41 @@ function readScriptJson(text) {
     const id = scriptKey(raw);
     if (!id || ids.includes(id)) continue;
     ids.push(id);
-    if (entry?.name) labels[id] = entry.name;
+    const team = homebrewTeam(entry);
+    if (team) {
+      const reminders = Array.isArray(entry.reminders) ? entry.reminders.filter((x) => typeof x === "string" && x.trim()) : [];
+      homebrew.push({ id, name: entry.name.trim(), team, ability: typeof entry.ability === "string" ? entry.ability : "", reminders, def: entry });
+    } else if (entry?.name) labels[id] = entry.name;
   }
-  const script = { name: name?.trim() || t("script.unnamed"), ids, labels, custom: scriptCustomizes(data) };
-  if (!scriptRoles(script).roles.length) throw new Error(t("import.noneKnown"));
+  const script = { name: name?.trim() || t("script.unnamed"), ids, labels, homebrew, custom: scriptCustomizes(data) };
+  if (!homebrew.length && !scriptRoles(script).roles.length) throw new Error(t("import.noneKnown"));
   return script;
 }
 function keepScript(data) {
   const { list, script } = saveScript(loadScripts(), data);
   storeScripts(list);
+  syncHomebrew();
   goEdition(`s:${script.id}`);
   return script;
+}
+/**
+ * Gives a script's homebrew characters the icons their entries bring: a game-icons.net link,
+ * an SVG, or a picture traced into shapes. One at a time, the sheet redrawn as each lands.
+ * Characters whose picture can't be read keep a name-only token. Returns { got, failed }.
+ */
+async function traceHomebrew(scId, onProgress = () => {}) {
+  const todo = (loadScripts().find((x) => x.id === scId)?.homebrew || []).filter((h) => !h.icon && !h.noIcon && (h.def?.image || h.def?.icon));
+  let got = 0, failed = 0;
+  for (const [i, h] of todo.entries()) {
+    onProgress(i, todo.length);
+    const icon = await scriptEntryIcon(h.def).catch(() => null);
+    const list = loadScripts(), own = list.find((x) => x.id === scId)?.homebrew?.find((x) => x.id === h.id);
+    if (!own) return { got, failed };   // the script was deleted meanwhile
+    if (icon) { own.icon = icon; got++; } else { own.noIcon = true; failed++; }
+    storeScripts(list);
+    syncHomebrew(); scheduleSheet();
+  }
+  return { got, failed };
 }
 function openScriptDialog() {
   $("#scriptDialogText").value = ""; $("#scriptDialogNote").textContent = ""; $("#scriptDialogNote").className = "hint";
@@ -484,16 +542,16 @@ function applyScriptNames(script) {
   return n;
 }
 /**
- * A script's icons for official characters ("icon": "author/name" from game-icons.net, or the
- * Script Tool's "image" when it's an SVG) become those characters' own icons, unless they
- * already have one. Returns how many did; icons that can't be fetched or printed are skipped.
+ * A script's icons for official characters (its "image": a game-icons.net link, an SVG, or a
+ * picture to trace; or our older "icon": "author/name") become those characters' own icons,
+ * unless they already have one. Returns how many did; icons that can't be read are skipped.
  */
 async function applyScriptIcons(text) {
   let data; try { data = JSON.parse(text); } catch { return 0; }
   const byKey = new Map(state.lib.roles.flatMap((r) => [[scriptKey(r.en), r], [scriptKey(r.id), r]]));
   let n = 0;
   for (const entry of Array.isArray(data) ? data : []) {
-    if (typeof entry !== "object" || !entry?.id || entry.id === "_meta" || (!entry.icon && !entry.image)) continue;
+    if (typeof entry !== "object" || !entry?.id || entry.id === "_meta" || (!entry.icon && !entry.image) || homebrewTeam(entry)) continue;
     const role = byKey.get(scriptKey(entry.id)) || (entry.name && byKey.get(scriptKey(entry.name)));
     if (!role || ownIcon(role.id)) continue;
     try {
@@ -507,11 +565,22 @@ async function applyScriptIcons(text) {
   if (n) { storeOverrides(); scheduleSheet(); }
   return n;
 }
-/** The script as Script Tool JSON, with the names and icons you've given its characters. */
+/**
+ * The script as Script Tool JSON, with the names and icons you've given its characters. Its
+ * homebrew characters go out as they came in, with your name and icon for them.
+ */
 function scriptJsonWithOwn(sc) {
   const { roles } = scriptRoles(sc);
-  const byKey = new Map(roles.flatMap((r) => [[scriptKey(r.en), r], [scriptKey(r.id), r]]));
+  const byKey = new Map(roles.filter((r) => r.kind !== "homebrew").flatMap((r) => [[scriptKey(r.en), r], [scriptKey(r.id), r]]));
   const entries = sc.ids.map((id) => {
+    const h = sc.homebrew?.find((x) => x.id === id);
+    if (h) {
+      const own = state.overrides.get(`c:${homebrewId(sc, id)}`);
+      const def = { ...(h.def || { id: h.id, name: h.name, team: h.team, ability: h.ability, reminders: h.reminders }) };
+      if (own?.text) def.name = own.text;
+      if (own?.icon) { delete def.icon; Object.assign(def, iconForScript(own.icon)); }
+      return def;
+    }
     const r = byKey.get(id) || (sc.labels?.[id] && byKey.get(scriptKey(sc.labels[id])));
     const own = r && state.overrides.get(charKey(r));
     if (!own?.text && !own?.icon) return sc.labels?.[id] ? { id, name: sc.labels[id] } : id;
@@ -527,6 +596,12 @@ async function saveFromDialog(text) {
     $("#scriptNote").textContent = t("script.saved", { name: script.name }) + (named ? ` ${t("script.named", { n: named })}` : "");
     const iconed = await applyScriptIcons(text);
     if (iconed) $("#scriptNote").textContent += ` ${t("script.iconed", { n: iconed })}`;
+    if (script.homebrew?.length) {
+      const said = $("#scriptNote").textContent, show = (x) => { if (scriptOf(state.edition)?.id === script.id) $("#scriptNote").textContent = `${said} ${x}`; };
+      show(t("script.homebrew", { n: script.homebrew.length }));
+      const { got, failed } = await traceHomebrew(script.id, (i, n) => show(t("script.tracing", { i: i + 1, n })));
+      show([t("script.homebrew", { n: script.homebrew.length }), got ? t("script.traced", { n: got }) : "", failed ? t("script.untraced", { n: failed }) : ""].filter(Boolean).join(" "));
+    }
   } catch (err) {
     $("#scriptDialogNote").className = "hint warn";
     $("#scriptDialogNote").textContent = t("import.failed", { message: err.message });
@@ -599,7 +674,7 @@ function renderSheet() {
   // header
   $("#edTitle").textContent = q ? t("sheet.results", { q: $("#search").value.trim() }) : sc ? sc.name : EDITIONS[ed].name[lang];
   $("#edLead").textContent = q ? t("sheet.leadSearch")
-    : sc ? t("script.lead", { n: inScript.roles.length, eds: new Set(inScript.roles.map((r) => r.edition)).size })
+    : sc ? t("script.lead", { n: inScript.roles.length, eds: new Set(inScript.roles.filter((r) => r.kind !== "homebrew").map((r) => r.edition)).size })
       + (inScript.missing.length ? t("script.missing", { list: inScript.missing.join(", ") }) : "")
     : t(`edition.lead.${ed}`);
   $("#scriptActions").hidden = !sc || !!q;
@@ -694,7 +769,7 @@ function rowHtml(r, q, remHits) {
   const other = tokenLang() === "en" ? roleName(r, uiLang() === "en" ? "es" : uiLang()) : r.en;
   return `<div class="row${isCard(r) ? " info" : ""}" data-picked="${isPicked(ck)}">
     ${thumb(ck, null)}
-    <div class="who" data-pick="${ck}"><b>${esc(textFor(ck, r, null))}</b>${other !== textFor(ck, r, null) ? `<small>${esc(other)}</small>` : ""}${q || state.edition.startsWith("s:") ? `<em>${esc(EDITIONS[r.edition]?.name[lang] || "")}</em>` : ""}</div>
+    <div class="who" data-pick="${ck}"><b>${esc(textFor(ck, r, null))}</b>${other !== textFor(ck, r, null) ? `<small>${esc(other)}</small>` : ""}${q || (state.edition.startsWith("s:") && r.kind !== "homebrew") ? `<em>${esc(editionName(r, lang))}</em>` : ""}</div>
     <div class="rems">${rems.length ? rems.map((_, i) => `<div class="rem${remHits?.has(i) ? " hit" : ""}">${thumb(remKey(r, i), i)}<span>${esc(textFor(remKey(r, i), r, i))}</span></div>`).join("") : `<span class="none">${esc(t("sheet.noReminders"))}</span>`}</div>
   </div>`;
 }
@@ -781,7 +856,7 @@ function renderWorkshop() {
     if (!token.magnet && $("#xray").getAttribute("aria-pressed") === "true") { $("#xray").setAttribute("aria-pressed", "false"); view3d("setXray", false); }
 
     $("#name").textContent = text;
-    $("#sub").textContent = [isRem ? textFor(charKey(role), role, null) : null, TEAMS[role.team].label[lang], EDITIONS[role.edition]?.name[lang],
+    $("#sub").textContent = [isRem ? textFor(charKey(role), role, null) : null, TEAMS[role.team].label[lang], editionName(role, lang),
       role.en !== text && !isRem ? role.en : null].filter(Boolean).join(" · ");
 
     // the whole set, or this token only
@@ -1078,6 +1153,11 @@ function wire() {
     const b = e.currentTarget, sc = scriptOf(state.edition); if (!sc) return;
     if (b.dataset.confirm !== "1") { b.dataset.confirm = "1"; b.textContent = t("script.deleteConfirm"); return; }
     storeScripts(loadScripts().filter((x) => x.id !== sc.id));
+    // its homebrew characters go with it, and so do their tokens in the selection
+    const gone = (k) => roleIdOf(k).startsWith(`hb_${sc.id}_`);
+    if ([...state.pick.keys()].some(gone)) { for (const k of [...state.pick.keys()]) if (gone(k)) state.pick.delete(k); persistPicks(); }
+    if (gone(state.sel.key)) { const first = state.lib.roles.find((r) => r.en === "Fortune Teller") || state.lib.roles[0]; state.sel = { key: charKey(first), role: first, reminder: null }; }
+    syncHomebrew();
     goEdition(EDITION_ORDER.find((x) => state.lib.roles.some((r) => r.edition === x)));
   };
   window.addEventListener("hashchange", openSharedScript);

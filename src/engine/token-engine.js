@@ -374,7 +374,8 @@ const iconMarkup = (role) => role.body ?? role.d.map((d) => `<path d="${d}"/>`).
  */
 function iconOf(role, spec) {
   const own = spec?.icon;
-  return own?.body ? { key: `icon:${own.id}`, g: own.g, body: own.body } : { key: role.en, g: role.g, body: iconMarkup(role) };
+  // keyed by id: a script's own character can share an official one's name
+  return own?.body ? { key: `icon:${own.id}`, g: own.g, body: own.body } : { key: role.id ?? role.en, g: role.g, body: iconMarkup(role) };
 }
 const iconSvg = (icon) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${TRACE_VIEW} ${TRACE_VIEW}"><g transform="${icon.g}">${icon.body}</g></svg>`;
 

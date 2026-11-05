@@ -6,6 +6,8 @@
  *           Ids the library doesn't know (homebrew) are kept, so nothing is lost.
  *   labels  names for those ids when the imported JSON gave them ({ id: "Name" }).
  *   custom  true when the imported JSON gave official characters names or icons of their own.
+ *   homebrew  the characters the script defines itself: [{ id, name, team, ability, reminders,
+ *           def (the entry as it came), icon? (traced or loaded from its "image"), noIcon? }].
  *
  * A link carries the script in its fragment, which never reaches the server:
  *   https://midnight-mint.web.app/#s=Mi%20pueblo~washerwoman.librarian.imp
@@ -28,10 +30,10 @@ export function storeScripts(list) {
 }
 
 /** Adds a script, or returns the one already saved with the same name and characters. */
-export function saveScript(list, { name, ids, labels = {}, custom }) {
+export function saveScript(list, { name, ids, labels = {}, custom, homebrew }) {
   const same = list.find((s) => s.name === name && s.ids.join() === ids.join());
   if (same) return { list, script: same };
-  const script = { id: crypto.randomUUID().slice(0, 8), name, ids, labels, ...(custom === undefined ? {} : { custom }), added: Date.now() };
+  const script = { id: crypto.randomUUID().slice(0, 8), name, ids, labels, ...(custom === undefined ? {} : { custom }), ...(homebrew?.length ? { homebrew } : {}), added: Date.now() };
   return { list: [...list, script], script };
 }
 
