@@ -44,8 +44,9 @@
 
 **Design them**
 - Your own icons: give any character another icon from game-icons.net (searched in the workshop, credited in *About the tool*) or an SVG of your own; its reminders share it. A script can bring its own names and icons in the Script Tool's `image` (a game-icons.net link, an SVG, or a picture to trace), and *Download JSON* keeps them.
-- Two layouts: the name in an arc around the icon (the classic token), or a coloured window over the top half
-  with the name straight and large below.
+- Four layouts: the name in an arc under the icon (the classic token); a coloured window over the top half with
+  the name straight and large below; the symbol alone, as large as it fits; or the name twice, at the bottom and
+  turned round at the top, so it reads right way up from both sides of the table.
 - Relief, part by part: the name, the frame and the icon each flush with the coin or raised (0.4 to 1.2 mm).
   Flush, nobody can feel which token it is and it prints face-down; with anything raised it prints face-up.
 - Templates to start from: *Edition* (the default: the edition's name in gold on the back), *Fast print* (1.2 mm,

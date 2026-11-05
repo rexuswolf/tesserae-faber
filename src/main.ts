@@ -5,8 +5,8 @@ import {
 } from "./engine/token-engine.ts";
 /** The face parts that can be raised, in the order the Layout section lists them. */
 const RELIEF_PARTS: ReliefPart[] = ["text", "frame", "icon"];
-/** Each layout's name size (mm): the arc's runs along the edge, the window's has the lower half. */
-const LAYOUT_TEXT: Record<TokenStyle, number> = { classic: DEFAULT_SPEC.textSize, window: 6 };
+/** Each layout's name size (mm): the arcs' run along the edge, the window's has the lower half. */
+const LAYOUT_TEXT: Record<TokenStyle, number> = { classic: DEFAULT_SPEC.textSize, window: 6, solo: DEFAULT_SPEC.textSize, double: DEFAULT_SPEC.textSize };
 import { infoRoles } from "./info-tokens.ts";
 import {
   onUser, signIn, signOutUser, isAdmin, loadRoles, uploadRoles, listAccountDesigns, deleteAccountDesign,
@@ -1061,9 +1061,10 @@ function renderWorkshop() {
     const n = token.name;
     const small = n.letterHeight < smallLetters();
     $("#nameHint").className = "hint" + (small ? " warn" : "");
-    $("#nameHint").textContent = n.total == null
-      ? t("name.hintWindow", { lines: n.lines, mm: n.letterHeight.toFixed(1), small, nozzle: nozzleMm() })
-      : t("name.hint", { arc: n.total.toFixed(0), mm: n.letterHeight.toFixed(1), shrunk: n.scale < 1, small, nozzle: nozzleMm() });
+    $("#nameHint").textContent = !Number.isFinite(n.letterHeight) ? t("name.hintSolo")
+      : n.total == null
+      ? t("name.hintWindow", { lines: n.lines, mm: (Math.floor(n.letterHeight * 10) / 10).toFixed(1), small, nozzle: nozzleMm() })
+      : t("name.hint", { arc: n.total.toFixed(0), mm: (Math.floor(n.letterHeight * 10) / 10).toFixed(1), shrunk: n.scale < 1, small, nozzle: nozzleMm() });
     renderColourWarn(role, spec, key);
   });
 }
@@ -1178,13 +1179,14 @@ function syncControls(spec: TokenSpec) {
   $("#styleHint").textContent = t(`style.${s.style}.help`);
   // Relief: each face part flat or raised; the height only matters with something raised.
   const relief = reliefOf(s), raised = hasRelief(s);
-  $("#reliefEls").innerHTML = RELIEF_PARTS.map((k) => `<div class="relief-el"><span><b>${esc(t(`relief.${k}`))}</b><small>${esc(t(`relief.${k}.help`))}</small></span><span class="seg2" role="group" aria-label="${esc(t(`relief.${k}`))}" data-relief="${k}"><button type="button" data-v="flat" aria-pressed="${!relief[k]}">${esc(t("relief.flat"))}</button><button type="button" data-v="raised" aria-pressed="${relief[k]}">${esc(t("relief.raised"))}</button></span></div>`).join("");
+  $("#reliefEls").innerHTML = RELIEF_PARTS.map((k) => `<div class="relief-el"><span><b>${esc(t(`relief.${k}`))}</b><small>${esc(t(`relief.${k}.help`))}</small></span><span class="seg2" role="group" aria-label="${esc(t(`relief.${k}`))}" data-relief="${k}"><button type="button" data-v="flat" aria-pressed="${!relief[k]}"${k === "text" && s.style === "solo" ? " disabled" : ""}>${esc(t("relief.flat"))}</button><button type="button" data-v="raised" aria-pressed="${relief[k]}"${k === "text" && s.style === "solo" ? " disabled" : ""}>${esc(t("relief.raised"))}</button></span></div>`).join("");
   $("#reliefHeightRow").hidden = !raised;
   const total = (s.height + reliefTop(s)).toFixed(1).replace(".", dec);
   $("#reliefHint").className = "hint" + (raised ? " warn" : "");
   $("#reliefHint").textContent = raised ? t("relief.raisedHelp", { total }) : t("relief.flatHelp");
   // The curved-name controls don't apply to the window style.
-  for (const id of ["spacing", "maxArc"]) $("#" + id).closest<HTMLElement>(".row")!.hidden = s.style === "window";
+  for (const id of ["spacing", "maxArc"]) $("#" + id).closest<HTMLElement>(".row")!.hidden = s.style === "window" || s.style === "solo";
+  $("#textSize").closest<HTMLElement>(".row")!.hidden = s.style === "solo";   // no name on the face
   // Magnet: the hole, the pause and how thick the coin has to be.
   const m = magnetLayout(s), dec2 = (v: unknown) => String(v).replace(".", dec);
   $("#magnetSizeRow").hidden = !m;
@@ -1847,7 +1849,7 @@ function renderPrintStep() {
     }).filter((x) => x.mm < smallLetters()).sort((a, b) => a.mm - b.mm);
     const smallNote = smalls.length ? `<div class="q-note warn small-text"><span aria-hidden="true">⚠</span><div>
       <p>${esc(t("print.small", { n: smalls.length, mm: dec1(smallLetters()) }))}</p>
-      <ul>${smalls.map((x) => `<li><button type="button" data-fix="${x.k}">${esc(x.label)}</button> <small>${esc(dec1(x.mm))} mm</small></li>`).join("")}</ul></div></div>` : "";
+      <ul>${smalls.map((x) => `<li><button type="button" data-fix="${x.k}">${esc(x.label)}</button> <small>${esc(dec1(Math.floor(x.mm * 10) / 10))} mm</small></li>`).join("")}</ul></div></div>` : "";
     const slots = [...new Set(plan.plates.flatMap((p) => [...p.slots]))].sort((a, b) => a - b);
     // Estimates: grams per filament and minutes per plate (Bambu Studio has the exact figures).
     const est = plateEstimates(plan), gramsBy = new Map<number, number>();

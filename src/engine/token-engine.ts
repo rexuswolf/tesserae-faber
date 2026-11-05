@@ -87,9 +87,11 @@ export const FILAMENTS = {
   bronze: "#9a6a3a",
 };
 
-/** Token layouts: "classic" (icon in the middle, curved name) and "window" (a coloured
- *  window over the top half with the icon on it, the name straight and large below). */
-export const TOKEN_STYLES: { id: TokenStyle }[] = [{ id: "classic" }, { id: "window" }];
+/** Token layouts: "classic" (icon in the middle, curved name), "window" (a coloured window
+ *  over the top half with the icon on it, the name straight and large below), "solo" (the
+ *  icon alone, as large as the coin allows) and "double" (the name along the bottom and again
+ *  along the top, turned round, so it reads right way up from both sides of the table). */
+export const TOKEN_STYLES: { id: TokenStyle }[] = [{ id: "classic" }, { id: "window" }, { id: "solo" }, { id: "double" }];
 
 export const DEFAULT_SPEC: TokenSpec = {
   style: "classic",
@@ -124,6 +126,9 @@ export const DEFAULT_SPEC: TokenSpec = {
 export function reminderSpec(spec: TokenSpec): TokenSpec {
   return {
     ...spec,
+    // A reminder needs its word, and on a small coin it fits once: icon-only and two-name
+    // designs give their reminders the classic layout.
+    style: spec.style === "solo" || spec.style === "double" ? "classic" : spec.style,
     diameter: spec.reminderDiameter ?? 32,
     textSize: 3,
     iconScale: 0.68,
@@ -413,19 +418,95 @@ function tracedMatrix(sizeMm: number, z: number, mirrorX = false, offsetY = 0) {
   return chain(T(0, offsetY, z), S(mirrorX ? -1 : 1, 1, 1), S(k, -k, 1), T(-TRACE_VIEW / 2, -TRACE_VIEW / 2, 0));
 }
 
+// ---------------------------------------------------------------- icon-only and two-name layouts
+
+/** Each name's widest arc in the "double" layout (°): two of 180° would meet at the sides. */
+const DOUBLE_ARC = 160;
+/** Room kept around the fitted icon (mm): from each name's letters, and from the frame. */
+const NAME_GAP = 1.2, EDGE_GAP = 1.5;
+
+/** The name as laid out for this design: once, twice (the "double" arcs are narrower), or none. */
+function arcName(lib: Library, text: string, spec: TokenSpec) {
+  if (spec.style === "solo") return null;
+  return layoutName(lib, text, spec.style === "double" ? { ...spec, maxArc: Math.min(spec.maxArc, DOUBLE_ARC) } : spec);
+}
+/** The turns the name is drawn at (radians): the "double" layout repeats it upside down. */
+const nameTurns = (spec: TokenSpec) => (spec.style === "double" ? [0, Math.PI] : [0]);
+
+/** An icon's outline points about its box centre (icon units, y up), and that centre; cached. */
+const iconOutlines = new WeakMap<THREE.Shape[], { cx: number; cy: number; w: number; h: number; rel: [number, number][] }>();
+function iconOutline(shapes: THREE.Shape[]) {
+  let o = iconOutlines.get(shapes);
+  if (!o) {
+    const pts = shapes.flatMap((sh) => sh.getPoints(4)), box = new THREE.Box2().setFromPoints(pts);
+    const cx = (box.min.x + box.max.x) / 2, cy = (box.min.y + box.max.y) / 2;
+    o = { cx, cy, w: box.max.x - box.min.x, h: box.max.y - box.min.y, rel: pts.map((p): [number, number] => [p.x - cx, -(p.y - cy)]) };
+    iconOutlines.set(shapes, o);
+  }
+  return o;
+}
+
+const fitted = new Map<string, number>();
+/**
+ * "solo" and "double": the icon centred, at the largest scale (mm per icon unit) that keeps
+ * NAME_GAP clear of each name's letters and EDGE_GAP clear of the frame; iconScale then
+ * shrinks or grows it from there. Returns the placement in icon units.
+ */
+function fittedIcon(lib: Library, role: Role, spec: TokenSpec, text: string) {
+  const shapes = iconShapes(lib, role, spec), o = iconOutline(shapes);
+  const key = [iconOf(role, spec).key, text, spec.style, spec.diameter, spec.textSize, spec.spacing, spec.margin, spec.maxArc, spec.frame, spec.frameWidth].join("|");
+  if (!fitted.has(key)) {
+    const edge = frameInner(spec), L = arcName(lib, text, spec);
+    // each name's ink as an annular sector: the angles it covers and how near the centre it reaches
+    const sectors: { lo: number; hi: number; rIn: number }[] = [];
+    if (L) {
+      let lo = Infinity, hi = -Infinity, rIn = Infinity;
+      L.chars.forEach((ch, i) => {
+        if (ch === " ") return;
+        const a = (L.angles[i] * Math.PI) / 180, rot = a + Math.PI / 2, c = Math.cos(rot), sn = Math.sin(rot);
+        for (const [gx, gy] of glyphPoints(lib, ch)) {
+          const x = gx * L.em, y = gy * L.em;
+          const px = L.radius * Math.cos(a) + x * c - y * sn, py = L.radius * Math.sin(a) + x * sn + y * c;
+          const deg = ((Math.atan2(py, px) * 180) / Math.PI + 360) % 360;
+          lo = Math.min(lo, deg); hi = Math.max(hi, deg); rIn = Math.min(rIn, Math.hypot(px, py));
+        }
+      });
+      if (lo <= hi) for (const turn of nameTurns(spec)) { const d = (turn * 180) / Math.PI; sectors.push({ lo: lo + d - (d ? 360 : 0), hi: hi + d - (d ? 360 : 0), rIn }); }
+    }
+    const fits = (k: number) => o.rel.every(([ux, uy]) => {
+      const x = ux * k, y = uy * k, r = Math.hypot(x, y);
+      if (r > edge - EDGE_GAP) return false;
+      const deg = ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360, da = ((NAME_GAP / Math.max(r, 0.5)) * 180) / Math.PI;
+      return !sectors.some((sc) => deg >= sc.lo - da && deg <= sc.hi + da && r > sc.rIn - NAME_GAP);
+    });
+    let lo = 0, hi = spec.diameter / Math.max(o.w, o.h, 1e-6);
+    for (let i = 0; i < 32; i++) { const m = (lo + hi) / 2; if (fits(m)) lo = m; else hi = m; }
+    fitted.set(key, lo);
+    if (fitted.size > 2000) fitted.delete(fitted.keys().next().value!);
+  }
+  return { shapes, k: fitted.get(key)! * (spec.iconScale || 1), cx: o.cx, cy: o.cy };
+}
+
 function buildFront(lib: Library, role: Role, text: string, spec: TokenSpec) {
   const top = spec.height - spec.depth;
-  const icon = extrude(iconShapes(lib, role, spec), inlayHeight(spec, "icon"), tracedMatrix(spec.diameter * spec.iconScale, top, false, spec.iconOffsetY || 0));
-  const L = layoutName(lib, text, spec);
-  const letters = L.chars.map((c, i) => {
+  let icon;
+  if (spec.style === "solo" || spec.style === "double") {
+    const f = fittedIcon(lib, role, spec, text);
+    icon = extrude(f.shapes, inlayHeight(spec, "icon"), chain(T(0, 0, top), S(f.k, -f.k, 1), T(-f.cx, -f.cy, 0)));
+  } else {
+    icon = extrude(iconShapes(lib, role, spec), inlayHeight(spec, "icon"), tracedMatrix(spec.diameter * spec.iconScale, top, false, spec.iconOffsetY || 0));
+  }
+  const L = arcName(lib, text, spec);
+  const letters = L ? nameTurns(spec).flatMap((turn) => L.chars.map((c, i) => {
     if (c === " ") return null;
     const g = glyph(lib, c);
     const a = THREE.MathUtils.degToRad(L.angles[i]);
-    return extrude(g.shapes, inlayHeight(spec, "text"), chain(
+    return extrude(g.shapes, inlayHeight(spec, "text"), chain(RZ(turn),
       T(L.radius * Math.cos(a), L.radius * Math.sin(a), top),
       RZ(a + Math.PI / 2), S(L.em, L.em, 1), T(-g.center, 0, 0)), 4);
-  });
-  return { geom: merge(letters), icon, name: L };
+  })) : [];
+  // no name ("solo"): nothing to be too small
+  return { geom: merge(letters), icon, name: L ?? { letterHeight: Infinity, scale: 1, total: 0 } };
 }
 
 function buildFrame(spec: TokenSpec) {
@@ -1060,7 +1141,8 @@ export const SMALL_LETTERS_MM = 2.5;
 export function nameLetterHeight(lib: Library, input: SpecInput, text: string, role: Role | null = null) {
   if (isCard(role)) return cardLayout(lib, text, cardSpec(input)).cap;
   const spec = windowFrame({ ...DEFAULT_SPEC, ...input, colours: { ...DEFAULT_SPEC.colours, ...input?.colours } });
-  return spec.style === "window" ? windowLayout(lib, text, spec).cap : layoutName(lib, text, spec).letterHeight;
+  if (spec.style === "window") return windowLayout(lib, text, spec).cap;
+  return arcName(lib, text, spec)?.letterHeight ?? Infinity;   // "solo" has no name to be too small
 }
 
 // ---------------------------------------------------------------- info cards
@@ -1262,15 +1344,25 @@ export function tokenSvg(lib: Library, role: Role, input: SpecInput | undefined,
     }
     if (spec.frame !== "none") body += `<circle r="${(R - FRAME_INSET - spec.frameWidth / 2).toFixed(2)}" fill="none" stroke="${c.frame}" stroke-width="${spec.frameWidth}"/>`;
   } else if (side === "front") {
-    body += `<g fill="${c.front}" transform="translate(0 ${-(spec.iconOffsetY || 0)}) scale(${k}) translate(${-TRACE_VIEW / 2} ${-TRACE_VIEW / 2})"><g transform="${iconOf(role, spec).g}">${iconOf(role, spec).body}</g></g>`;
-    const L = layoutName(lib, label, spec);
+    const icon = iconOf(role, spec);
+    if (spec.style === "solo" || spec.style === "double") {
+      const f = fittedIcon(lib, role, spec, label);
+      body += `<g fill="${c.front}" transform="scale(${f.k.toFixed(5)}) translate(${(-f.cx).toFixed(3)} ${(-f.cy).toFixed(3)})"><g transform="${icon.g}">${icon.body}</g></g>`;
+    } else {
+      body += `<g fill="${c.front}" transform="translate(0 ${-(spec.iconOffsetY || 0)}) scale(${k}) translate(${-TRACE_VIEW / 2} ${-TRACE_VIEW / 2})"><g transform="${icon.g}">${icon.body}</g></g>`;
+    }
+    const L = arcName(lib, label, spec);
     // SVG y points down: angle a in engine space is -a on screen.
-    L.chars.forEach((ch, i) => {
-      if (ch === " ") return;
-      const a = L.angles[i];
-      const x = L.radius * Math.cos((a * Math.PI) / 180), y = -L.radius * Math.sin((a * Math.PI) / 180);
-      body += letterSvg(lib, ch, x, y, -(a + 90), L.em, c.front);
-    });
+    if (L) for (const turn of nameTurns(spec)) {
+      let letters = "";
+      L.chars.forEach((ch, i) => {
+        if (ch === " ") return;
+        const a = L.angles[i];
+        const x = L.radius * Math.cos((a * Math.PI) / 180), y = -L.radius * Math.sin((a * Math.PI) / 180);
+        letters += letterSvg(lib, ch, x, y, -(a + 90), L.em, c.front);
+      });
+      body += turn ? `<g transform="rotate(180)">${letters}</g>` : letters;
+    }
     const fd = frameDesign(spec);
     if (fd) body += `<path fill="${c.frame}" fill-rule="nonzero" d="${shapesToPath(fd.shapes, 0, 0, 48)}"/>`;
   } else {

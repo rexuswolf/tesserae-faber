@@ -61,7 +61,7 @@ export interface Role {
 
 // ---------------------------------------------------------------- the design (spec)
 
-export type TokenStyle = "classic" | "window";
+export type TokenStyle = "classic" | "window" | "solo" | "double";
 export type MagnetKind = "none" | "pocket" | "hidden";
 /** The face parts that can stand out of the coin. */
 export type ReliefPart = "text" | "frame" | "icon";
