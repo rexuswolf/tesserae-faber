@@ -93,19 +93,22 @@ function gameIconPath(url) {
 /**
  * How pictures are traced, as a number stored with each traced icon. Raise it when tracing
  * changes, and icons traced the old way are traced again (2: near-white details became gaps;
- * 3: only an icon over 90% near-white keeps its whole shape, so outlined drawings keep their lines).
+ * 3: only an icon over 90% near-white keeps its whole shape, so outlined drawings keep their lines;
+ * 4: a drop shadow, grey and see-through, isn't part of the icon).
  */
-export const TRACE_VERSION = 3;
+export const TRACE_VERSION = 4;
 /** True for an icon traced from a picture before the current way of tracing. */
 export const tracedBefore = (icon) => !!icon?.url && icon.source === "script" && !/\.svg(\?|#|$)/i.test(icon.url) && !icon.url.startsWith("data:") && (icon.traced ?? 1) < TRACE_VERSION;
 
+/** A drop shadow's pixel: grey (no colour) and see-through. An icon's own colours are opaque. */
+const shadowPx = (r, g, b, a) => a < 250 && Math.max(r, g, b) - Math.min(r, g, b) < 25;
 /** Near-white: light and nearly grey (cream, white), not a light colour like yellow or sky blue. */
 const nearWhite = (r, g, b) => 0.2126 * r + 0.7152 * g + 0.0722 * b > 190 && Math.max(r, g, b) - Math.min(r, g, b) < 60;
 
 /**
  * A picture (PNG, JPEG, WebP…) traced into an icon: its opaque pixels become shapes, placed
  * like the library's icons. Details drawn in white or cream on top of the icon (a page's lines,
- * an outline, a drawing's white fill) become gaps, as they'd be in a one-colour print; unless
+ * an outline, a drawing's white fill) become gaps, and a grey see-through drop shadow is left out, as they'd be in a one-colour print; unless
  * nearly all the icon is that light (over 90%), when it's a white icon and keeps its whole shape. The host must allow reading it
  * (CORS). Throws when it can't be read, or when it's opaque edge to edge (a photo or a square
  * image: no shape to find).
@@ -123,7 +126,7 @@ async function tracedIcon(url, name) {
   let opaque = 0, light = 0;
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const i = (y * S + x) * 4;
-    if (data[i + 3] <= 128) continue;
+    if (data[i + 3] <= 128 || shadowPx(data[i], data[i + 1], data[i + 2], data[i + 3])) continue;
     opaque++;
     if (nearWhite(data[i], data[i + 1], data[i + 2])) light++;
   }
@@ -131,7 +134,7 @@ async function tracedIcon(url, name) {
   let x0 = W, y0 = H, x1 = -1, y1 = -1, count = 0;
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const i = (y * S + x) * 4;
-    if (data[i + 3] <= 128 || (cutLight && nearWhite(data[i], data[i + 1], data[i + 2]))) continue;
+    if (data[i + 3] <= 128 || shadowPx(data[i], data[i + 1], data[i + 2], data[i + 3]) || (cutLight && nearWhite(data[i], data[i + 1], data[i + 2]))) continue;
     on[y * W + x] = 1; count++;
     if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
   }
