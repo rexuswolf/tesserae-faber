@@ -49,7 +49,8 @@ const state = {
   edition: "tb", team: "all",
   sel: null,              // { key, role, reminder: index | null }
   tab: "set",   // what the controls edit: "set" or "token"
-  section: "presets",
+  section: "presets",   // what the panel shows; "presets" is the templates, open under their line
+  lastSection: "text",
   // Default set style: "Impresión rápida" (black coin, team colour, thin team rim, no back).
   spec: loadJSON(STYLE_KEY, null) || {
     ...structuredClone(DEFAULT_SPEC), style: "classic", frame: "rim", frameWidth: 0.8, back: "none", depth: 0.2,
@@ -698,14 +699,44 @@ function writableSpec() {
   const key = state.sel.key, own = state.overrides.get(key);
   if (own?.spec) return own.spec;
   const spec = structuredClone(state.spec);
+  spec.fromPreset = templateOf(state.spec).preset?.id;   // for the template line
   delete spec.preset;   // resets go to the set's values
   state.overrides.set(key, { ...own, spec });
   return spec;
+}
+/** Whether a spec differs from a template in anything the template sets (the magnet is a choice of its own). */
+function differsFrom(p, spec) {
+  const colours = (c) => ({ ...DEFAULT_SPEC.colours, ...c });
+  return Object.entries(presetSpec(p)).some(([k, v]) => !PRESET_KEEPS.has(k)
+    && JSON.stringify(k === "colours" ? colours(v) : v) !== JSON.stringify(k === "colours" ? colours(spec.colours) : spec[k] ?? DEFAULT_SPEC[k]));
+}
+/** The template a spec started from, or for one saved before this was kept, the template it matches. */
+function templateOf(spec) {
+  const id = spec.preset ?? spec.fromPreset;
+  const preset = PRESETS.find((p) => p.id === id) ?? PRESETS.find((p) => !differsFrom(p, spec));
+  return { preset, modified: !!preset && differsFrom(preset, spec) };
+}
+/** Before a change: a spec that matches a template but never named it keeps which one, or it'd be lost. */
+function rememberTemplate(spec) {
+  if (spec.preset || spec.fromPreset) return;
+  const { preset } = templateOf(spec);
+  if (preset) spec.fromPreset = preset.id;
+}
+/** The line above the sections: which template, and the way to the others. */
+function renderTemplateRow() {
+  const open = state.section === "presets", row = $("#tplRow");
+  row.setAttribute("aria-expanded", String(open));
+  if (open) { row.innerHTML = `<b>${esc(t("tpl.choose"))}</b><em>${esc(t("tpl.done"))}</em>`; return; }
+  const { preset, modified } = templateOf(editingSpec());
+  row.innerHTML = `<span>${esc(t("tpl.label"))}</span><b>${esc(preset ? t(`preset.${preset.id}`) : t("tpl.none"))}</b>${modified ? `<small>${esc(t("tpl.modified"))}</small>` : ""}<em>${esc(t("tpl.change"))}</em>`;
 }
 /** Each section turns the 3D view to what it changes. */
 const SECTION_VIEW = { presets: "angle", text: "top", frame: "top", back: "back", coin: "angle", magnet: "back" };
 function showSection(section) {
   state.section = section;
+  if (section !== "presets") state.lastSection = section;
+  $("#sections").hidden = section === "presets";
+  renderTemplateRow();
   $$(".sections [data-section]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.section === section)));
   $$(".ws-panel").forEach((p) => { p.hidden = p.dataset.panel !== section; });
   $("#styleFields").scrollTop = 0;
@@ -748,6 +779,7 @@ function renderWorkshop() {
     // The design tiles show a coin: a card shows them on a character.
     const tileRole = isCard(role) ? state.lib.roles.find((r) => !isCard(r) && r.edition === "tb") ?? role : role;
     renderPresets(tileRole, editing);
+    renderTemplateRow();
     renderBackTiles(tileRole, editing);
     renderFrameTiles(tileRole, editing);
     syncControls(editing);
@@ -786,6 +818,7 @@ const dec1 = (v) => v.toFixed(1).replace(".", uiLang() === "es" ? "," : ".");
 /** The fix for light inlays: the depth that covers the coin, on the style the token actually uses. */
 function deepen() {
   const key = state.sel.key, own = state.overrides.get(key)?.spec;
+  rememberTemplate(own ?? state.spec);
   (own ?? state.spec).depth = LIGHT_DEPTH;
   if (own) storeOverrides(); else storeJSON(STYLE_KEY, state.spec);
   renderWorkshop(); scheduleSheet();
@@ -816,9 +849,9 @@ function deepenAll() {
   let set = false, own = false;
   for (const x of selectionColourIssues().filter((x) => x.light.length)) {
     const o = state.overrides.get(x.k)?.spec;
-    if (o) { o.depth = LIGHT_DEPTH; own = true; } else set = true;
+    if (o) { rememberTemplate(o); o.depth = LIGHT_DEPTH; own = true; } else set = true;
   }
-  if (set) { state.spec.depth = LIGHT_DEPTH; storeJSON(STYLE_KEY, state.spec); }
+  if (set) { rememberTemplate(state.spec); state.spec.depth = LIGHT_DEPTH; storeJSON(STYLE_KEY, state.spec); }
   if (own) storeOverrides();
   if (state.sel) renderWorkshop();
   renderSheet(); renderSpine(); renderQueue();
@@ -847,11 +880,10 @@ function renderBackTiles(role, spec) {
 
 /** The premade designs, each previewed with the selected character. */
 function renderPresets(role, editing) {
-  const same = (p) => Object.entries(p.spec).every(([k, v]) => JSON.stringify(k === "colours" ? { ...DEFAULT_SPEC.colours, ...editing.colours, ...v } : v) === JSON.stringify(k === "colours" ? { ...DEFAULT_SPEC.colours, ...editing.colours } : editing[k] ?? DEFAULT_SPEC[k]));
+  const chosen = templateOf(editing).preset;
   $("#presets").innerHTML = PRESETS.map((p) =>
-    `<button class="preset" type="button" data-preset="${p.id}" aria-pressed="${same(p)}" title="${esc(t(`preset.${p.id}.help`))}">${tokenSvg(state.lib, role, { ...presetSpec(p), diameter: 45 }, { text: textFor(charKey(role), role, null) })}<span>${esc(t(`preset.${p.id}`))}</span></button>`).join("");
+    `<button class="preset" type="button" data-preset="${p.id}" aria-pressed="${p === chosen}" title="${esc(t(`preset.${p.id}.help`))}">${tokenSvg(state.lib, role, { ...presetSpec(p), diameter: 45 }, { text: textFor(charKey(role), role, null) })}<span>${esc(t(`preset.${p.id}`))}</span></button>`).join("");
   // what the chosen one is: under the tiles, so a phone has it too
-  const chosen = PRESETS.find(same);
   $("#presetHelp").textContent = chosen ? t(`preset.${chosen.id}.help`) : "";
 }
 
@@ -914,7 +946,9 @@ function resetField(key) {
 
 /** Applies a style change to whatever the controls are editing. */
 function changeStyle(mutate) {
-  mutate(writableSpec());
+  const target = writableSpec();
+  rememberTemplate(target);
+  mutate(target);
   if (state.tab === "set") storeJSON(STYLE_KEY, state.spec); else storeOverrides();
   renderWorkshop();
   scheduleSheet();
@@ -1094,10 +1128,10 @@ function wire() {
     if (state.tab === "token" && state.section === "presets") showSection("text");   // a token's text and icon are what's new here
     renderWorkshop();
   });
-  $$(".sections [data-section]").forEach((b) => b.onclick = () => {
-    showSection(b.dataset.section);
-    view3d("setView", SECTION_VIEW[b.dataset.section]); syncView(SECTION_VIEW[b.dataset.section]);
-  });
+  const goSection = (section) => { showSection(section); view3d("setView", SECTION_VIEW[section]); syncView(SECTION_VIEW[section]); };
+  $$(".sections [data-section]").forEach((b) => b.onclick = () => goSection(b.dataset.section));
+  // opens the templates; closing goes back to the section you were on
+  $("#tplRow").onclick = () => goSection(state.section === "presets" ? state.lastSection : "presets");
   for (const key of ["style", "windowFinish", "frame", "back", "magnet", "magnetSize"]) {
     $(`[data-choice=${key}]`).onclick = (e) => {
       const b = e.target.closest("button"); if (!b) return;

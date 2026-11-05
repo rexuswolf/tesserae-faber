@@ -92,10 +92,10 @@
       </div>
       <p class="scope-note"><span id="styleScope"></span> <button class="link" type="button" id="resetToken" data-i18n="ws.reset" hidden></button></p>
     </div>
-    <!-- templates replace the whole design; after the line, each section adjusts one part of it -->
-    <div class="sections" role="tablist" data-i18n-attr="aria-label:ws.sections">
-      <button type="button" role="tab" data-section="presets" aria-selected="true" data-i18n="presets.title"></button>
-      <i class="sections-sep" aria-hidden="true"></i>
+    <!-- the template isn't one more section: it replaces the whole design, and each section adjusts one part of it.
+         Open, the templates sit right under this line and the sections wait until it closes. -->
+    <button class="tpl-row" type="button" id="tplRow" aria-expanded="true" aria-controls="presetsPanel"></button>
+    <div class="sections" id="sections" role="tablist" data-i18n-attr="aria-label:ws.sections" hidden>
       <button type="button" role="tab" data-section="text" aria-selected="false" data-i18n="sec.text"></button>
       <button type="button" role="tab" data-section="frame" aria-selected="false" data-i18n="sec.frame"></button>
       <button type="button" role="tab" data-section="back" aria-selected="false" data-i18n="sec.back"></button>
@@ -104,7 +104,7 @@
     </div>
     <div class="ws-body" id="styleFields">
       <div class="ws-warn" id="colourWarn" hidden></div>
-      <section class="ws-panel" data-panel="presets" role="tabpanel">
+      <section class="ws-panel" id="presetsPanel" data-panel="presets">
         <div class="presets" id="presetsBox">
           <div class="preset-list" id="presets"></div>
           <p class="hint" id="presetHelp"></p>

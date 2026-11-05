@@ -310,12 +310,21 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .scope button[aria-pressed=true] { background: var(--bone); color: var(--velvet-deep); font-weight: 600; }
 .scope-note { margin: 7px 2px 0; font-size: 12.5px; line-height: 1.35; color: var(--dust); }
 .scope-note .link { font-size: 12.5px; color: var(--bone); }
-.sections { flex: none; display: flex; justify-content: space-between; align-items: center; gap: 2px; padding: 6px 10px; border-bottom: 1px solid var(--seam); overflow-x: auto; scrollbar-width: none; }
+.sections { flex: none; display: flex; justify-content: space-around; align-items: center; gap: 2px; padding: 6px 10px; border-bottom: 1px solid var(--seam); overflow-x: auto; scrollbar-width: none; }
 .sections::-webkit-scrollbar { display: none; }
 .sections button { flex: none; border: 0; background: none; border-radius: 9px; padding: 6px 7px; font-size: 13px; color: var(--dust); cursor: pointer; }
 .sections button:hover { color: var(--bone); }
 .sections button[aria-selected=true] { background: var(--bone); color: var(--velvet-deep); font-weight: 600; }
-.sections-sep { flex: none; width: 1px; align-self: stretch; margin: 3px 2px; background: rgba(239, 230, 214, .28); }
+.sections[hidden] { display: none; }
+/* the template: a line of its own over the sections */
+.tpl-row { flex: none; width: 100%; display: flex; align-items: center; gap: 7px; padding: 8px 16px; border: 0; border-bottom: 1px solid var(--seam); background: rgba(239, 230, 214, .04); color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.tpl-row:hover { background: rgba(239, 230, 214, .08); }
+.tpl-row[aria-expanded=true] { background: rgba(201, 162, 39, .13); }
+.tpl-row span { flex: none; font-size: 12.5px; color: var(--dust); }
+.tpl-row b { min-width: 0; font: 400 16px/1.2 var(--display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tpl-row small { flex: none; font-size: 12px; color: var(--brass); }
+.tpl-row em { flex: none; margin-left: auto; font-style: normal; font-size: 12.5px; color: var(--bone); border: 1px solid rgba(239, 230, 214, .3); border-radius: 999px; padding: 3px 11px; }
+.tpl-row:hover em { background: var(--bone); color: var(--velvet-deep); border-color: var(--bone); }
 .ws-body { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 16px 18px; }
 .ws-panel { display: flex; flex-direction: column; gap: 12px; }
 .ws-panel[hidden] { display: none; }
@@ -516,7 +525,6 @@ dialog .import { margin-top: 10px; }
   .app[data-step="2"] { grid-template-columns: 360px minmax(0, 1fr); }
   .sections { padding-inline: 6px; gap: 0; }
   .sections button { padding-inline: 5px; font-size: 12.5px; }
-  .sections-sep { margin-inline: 1px; }
   #rows .row { grid-template-columns: 64px minmax(0, 1fr); }
   #rows .row .rems { grid-column: 2; }
   #rows .row > .tok-w { grid-row: span 2; align-self: start; }
