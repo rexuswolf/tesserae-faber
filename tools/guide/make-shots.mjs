@@ -40,7 +40,7 @@ for (const lang of ["en", "es"]) {
   };
   await shot(1);
   await page.evaluate(() => { window.__mm.goStep(2); window.__mm.designToken("c:imp"); });
-  await page.click('.tabs [data-tab="set"]'); await page.waitForTimeout(2500);
+  await page.click('.scope [data-tab="set"]'); await page.waitForTimeout(2500);
   await shot(2);
   await page.evaluate(() => window.__mm.goStep(3)); await page.waitForTimeout(1200);
   await shot(3);

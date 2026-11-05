@@ -48,7 +48,8 @@ const state = {
   user: null, lib: null,
   edition: "tb", team: "all",
   sel: null,              // { key, role, reminder: index | null }
-  tab: "set",
+  tab: "set",   // what the controls edit: "set" or "token"
+  section: "presets",
   // Default set style: "Impresión rápida" (black coin, team colour, thin team rim, no back).
   spec: loadJSON(STYLE_KEY, null) || {
     ...structuredClone(DEFAULT_SPEC), style: "classic", frame: "rim", frameWidth: 0.8, back: "none", depth: 0.2,
@@ -686,10 +687,28 @@ function selectToken(key) {
 
 // ------------------------------------------------------------ workshop
 
-/** The spec the style controls edit: the set's, or the selected token's own. */
+/** The spec the style controls show: the set's, or the selected token's own if it has one. */
 function editingSpec() {
-  if (state.tab === "token") return state.overrides.get(state.sel.key)?.spec ?? null;
+  if (state.tab === "token") return state.overrides.get(state.sel.key)?.spec ?? state.spec;
   return state.spec;
+}
+/** The spec a change goes to. In "this token only", the first change gives the token its own copy of the set's. */
+function writableSpec() {
+  if (state.tab !== "token") return state.spec;
+  const key = state.sel.key, own = state.overrides.get(key);
+  if (own?.spec) return own.spec;
+  const spec = structuredClone(state.spec);
+  delete spec.preset;   // resets go to the set's values
+  state.overrides.set(key, { ...own, spec });
+  return spec;
+}
+/** Each section turns the 3D view to what it changes. */
+const SECTION_VIEW = { presets: "angle", text: "top", frame: "top", back: "back", coin: "angle", magnet: "back" };
+function showSection(section) {
+  state.section = section;
+  $$(".sections [data-section]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.section === section)));
+  $$(".ws-panel").forEach((p) => { p.hidden = p.dataset.panel !== section; });
+  $("#styleFields").scrollTop = 0;
 }
 
 let raf = 0;
@@ -712,29 +731,26 @@ function renderWorkshop() {
     $("#sub").textContent = [isRem ? textFor(charKey(role), role, null) : null, TEAMS[role.team].label[lang], EDITIONS[role.edition]?.name[lang],
       role.en !== text && !isRem ? role.en : null].filter(Boolean).join(" · ");
 
-    // tabs
-    $$(".tabs [data-tab]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === state.tab)));
-    $("#styleControls").hidden = state.tab === "saved";
-    $("#savedPanel").hidden = state.tab !== "saved";
+    // the whole set, or this token only
+    $$(".scope [data-tab]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.tab === state.tab)));
     const own = state.overrides.get(key);
     $("#tokenOnly").hidden = state.tab !== "token";
+    $("#textOnlyHint").hidden = state.tab === "token";
     $("#printed").value = own?.text ?? "";
     renderIconField();
     $("#printed").placeholder = isRem ? remindersOf(role)[reminder] : charName(role, key);
     const femName = !isRem && role.fem?.[tokenLang()];
     $("#femRow").hidden = !femName;
     if (femName) { $("#fem").checked = !!own?.fem; $("#femLabel").textContent = t("ws.fem", { name: femName }); }
-    $("#ownStyle").checked = !!own?.spec;
-    $("#resetToken").hidden = !own;
-    $("#styleScope").textContent = state.tab === "set" ? t("ws.scopeSet") : own?.spec ? t("ws.scopeTokenOn") : t("ws.scopeTokenOff");
+    $("#resetToken").hidden = !own || state.tab !== "token";
+    $("#styleScope").textContent = state.tab === "set" ? t("ws.scopeSet") : t("ws.scopeToken", { name: text });
     const editing = editingSpec();
-    $("#styleFields").disabled = !editing;
     // The design tiles show a coin: a card shows them on a character.
     const tileRole = isCard(role) ? state.lib.roles.find((r) => !isCard(r) && r.edition === "tb") ?? role : role;
     renderPresets(tileRole, editing);
-    renderBackTiles(tileRole, editing ?? state.spec);
-    renderFrameTiles(tileRole, editing ?? state.spec);
-    syncControls(editing ?? state.spec);
+    renderBackTiles(tileRole, editing);
+    renderFrameTiles(tileRole, editing);
+    syncControls(editing);
 
     $("#depthHint").className = "hint" + (token.depthClamped ? " warn" : "");
     $("#depthHint").textContent = token.depthClamped
@@ -746,7 +762,6 @@ function renderWorkshop() {
     $("#nameHint").textContent = n.total == null
       ? t("name.hintWindow", { lines: n.lines, mm: n.letterHeight.toFixed(1), small, nozzle: nozzleMm() })
       : t("name.hint", { arc: n.total.toFixed(0), mm: n.letterHeight.toFixed(1), shrunk: n.scale < 1, small, nozzle: nozzleMm() });
-    $("#nameSummary").textContent = `${n.letterHeight.toFixed(1)} mm`;
     renderColourWarn(role, spec, key);
   });
 }
@@ -758,7 +773,7 @@ function renderColourWarn(role, spec, key) {
   box.hidden = !clash.length && !light.length;
   if (box.hidden) return;
   // "front" is the name and the icon: two words in the list ("the name, the icon and the frame")
-  const parts = (list) => { const w = list.flatMap((p) => (p === "front" ? [t("colour.part.name"), t("colour.part.icon")] : [t(`colour.part.${p}`)])); return `${w.slice(0, -1).join(", ")}${t("colour.and")}${w.at(-1)}`; };
+  const parts = (list) => { const w = list.flatMap((p) => (p === "front" ? [t("colour.part.name"), t("colour.part.icon")] : [t(`colour.part.${p}`)])); return w.length > 1 ? `${w.slice(0, -1).join(", ")}${t("colour.and")}${w.at(-1)}` : w[0]; };
   const own = !!state.overrides.get(key)?.spec;
   box.innerHTML = [
     clash.length ? `<p><span aria-hidden="true">⚠</span> ${esc(t("colour.clash", { parts: parts(clash), n: clash.length }))}</p>` : "",
@@ -832,11 +847,12 @@ function renderBackTiles(role, spec) {
 
 /** The premade designs, each previewed with the selected character. */
 function renderPresets(role, editing) {
-  $("#presetsBox").hidden = !editing;
-  if (!editing) return;
   const same = (p) => Object.entries(p.spec).every(([k, v]) => JSON.stringify(k === "colours" ? { ...DEFAULT_SPEC.colours, ...editing.colours, ...v } : v) === JSON.stringify(k === "colours" ? { ...DEFAULT_SPEC.colours, ...editing.colours } : editing[k] ?? DEFAULT_SPEC[k]));
   $("#presets").innerHTML = PRESETS.map((p) =>
-    `<button class="preset" type="button" data-preset="${p.id}" aria-pressed="${same(p)}">${tokenSvg(state.lib, role, { ...presetSpec(p), diameter: 45 }, { text: textFor(charKey(role), role, null) })}<span>${esc(t(`preset.${p.id}`))}</span><small>${esc(t(`preset.${p.id}.help`))}</small></button>`).join("");
+    `<button class="preset" type="button" data-preset="${p.id}" aria-pressed="${same(p)}" title="${esc(t(`preset.${p.id}.help`))}">${tokenSvg(state.lib, role, { ...presetSpec(p), diameter: 45 }, { text: textFor(charKey(role), role, null) })}<span>${esc(t(`preset.${p.id}`))}</span></button>`).join("");
+  // what the chosen one is: under the tiles, so a phone has it too
+  const chosen = PRESETS.find(same);
+  $("#presetHelp").textContent = chosen ? t(`preset.${chosen.id}.help`) : "";
 }
 
 /** Puts a spec's values into the style controls. */
@@ -847,23 +863,18 @@ function syncControls(spec) {
     $("#" + id).value = s[id];
     $(`output[data-for=${id}]`).textContent = (+s[id]).toFixed(dp).replace(".", dec) + unit;
   }
-  $("#styleSummary").textContent = t(`style.${s.style}`);
   $("#styleHint").textContent = t(`style.${s.style}.help`);
   $("#windowFinishRow").hidden = s.style !== "window";
   $("#windowDepthRow").hidden = s.style !== "window" || s.windowFinish === "flat";
   $("#styleHint").textContent = t(s.style === "window" ? `windowFinish.${s.windowFinish}.help` : `style.${s.style}.help`);
   // The curved-name controls don't apply to the window style.
   for (const id of ["spacing", "maxArc"]) $("#" + id).closest(".row").hidden = s.style === "window";
-  $("#frameSummary").textContent = t(`frame.${s.frame}`);
-  $("#backSummary").textContent = t(`back.${s.back}`);
   // Magnet: the hole, the pause and how thick the coin has to be.
   const m = magnetLayout(s), dec2 = (v) => String(v).replace(".", dec);
   $("#magnetSizeRow").hidden = !m;
-  $("#magnetSummary").textContent = m ? `${t(`magnet.${m.kind}`)} · ${m.md}×${m.mt}` : t("magnet.none");
   $("#magnetHint").textContent = !m ? t("magnet.none.help")
     : t(`magnet.${m.kind}.help`, { d: dec2((m.radius * 2).toFixed(1)), size: `${m.md} × ${m.mt}`, z: dec2(m.pauseZ) })
       + (s.height < m.minHeight ? " " + t("magnet.taller", { from: dec2(s.height), to: dec2(m.minHeight) }) : "");
-  $("#coinSummary").textContent = `${s.diameter} × ${dec2(Math.max(s.height, m?.minHeight ?? 0))} mm`;
   $$("[data-choice] button").forEach((b) => b.setAttribute("aria-pressed", String(s[b.parentElement.dataset.choice] === b.dataset.v)));
   $$(".metal").forEach((box) => $$("button", box).forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === s.colours[box.dataset.colour]))));
   // The window style's front is the window itself; its relief icon takes the coin's colour.
@@ -872,7 +883,7 @@ function syncControls(spec) {
   const { spec: base, name } = baseSpec();
   for (const b of $$("[data-reset]")) {
     const k = b.dataset.reset, own = b.closest(".row") || b.previousElementSibling;
-    b.hidden = JSON.stringify(fieldValue(s, k)) === JSON.stringify(fieldValue(base, k)) || !!own?.closest("[hidden]");
+    b.hidden = JSON.stringify(fieldValue(s, k)) === JSON.stringify(fieldValue(base, k)) || !!own?.closest("[hidden]:not(.ws-panel)");   // a closed section keeps its resets
     b.title = name ? t("reset.toPreset", { name }) : t("reset.toSet");
     b.setAttribute("aria-label", b.title);
   }
@@ -886,7 +897,8 @@ function fieldValue(spec, key) {
 /** What a field resets to: the design (preset) it started from, else for a token its set's
  *  style and for the set "Fast print" (the starting style). `name` is the preset's, if any. */
 function baseSpec() {
-  const p = PRESETS.find((x) => x.id === editingSpec()?.preset);
+  if (state.tab === "token" && !state.overrides.get(state.sel.key)?.spec) return { spec: state.spec, name: null };
+  const p = PRESETS.find((x) => x.id === editingSpec().preset);
   if (p) return { spec: presetSpec(p), name: t(`preset.${p.id}`) };
   if (state.tab === "token") return { spec: state.spec, name: null };
   return { spec: presetSpec(PRESETS[0]), name: t(`preset.${PRESETS[0].id}`) };
@@ -902,9 +914,7 @@ function resetField(key) {
 
 /** Applies a style change to whatever the controls are editing. */
 function changeStyle(mutate) {
-  const target = editingSpec();
-  if (!target) return;
-  mutate(target);
+  mutate(writableSpec());
   if (state.tab === "set") storeJSON(STYLE_KEY, state.spec); else storeOverrides();
   renderWorkshop();
   scheduleSheet();
@@ -1047,7 +1057,12 @@ function wire() {
     if (onCopyStep(e)) return;
     const b = e.target.closest("[data-design]"); if (b) designToken(b.dataset.design);
   };
-  $("#designStage").addEventListener("click", (e) => { const b = e.target.closest("[data-side]"); if (b) { flow.side = b.dataset.side; renderDesignStage(); } });
+  // a mouse wheel moves the strip of tokens sideways
+  $("#designGrid").addEventListener("wheel", (e) => {
+    const g = e.currentTarget;
+    if (Math.abs(e.deltaY) <= Math.abs(e.deltaX) || g.scrollWidth <= g.clientWidth) return;
+    g.scrollLeft += e.deltaY; e.preventDefault();
+  }, { passive: false });
   // step 3: how to print
   $("#printPage").addEventListener("change", (e) => {
     if (e.target.id !== "paperBacks") return;
@@ -1074,7 +1089,15 @@ function wire() {
     view3d("setXray", on);
     if (on) { view3d("setView", "side"); syncView("side"); }
   };
-  $$(".tabs [data-tab]").forEach((b) => b.onclick = () => { state.tab = b.dataset.tab; renderWorkshop(); });
+  $$(".scope [data-tab]").forEach((b) => b.onclick = () => {
+    state.tab = b.dataset.tab;
+    if (state.tab === "token" && state.section === "presets") showSection("text");   // a token's text and icon are what's new here
+    renderWorkshop();
+  });
+  $$(".sections [data-section]").forEach((b) => b.onclick = () => {
+    showSection(b.dataset.section);
+    view3d("setView", SECTION_VIEW[b.dataset.section]); syncView(SECTION_VIEW[b.dataset.section]);
+  });
   for (const key of ["style", "windowFinish", "frame", "back", "magnet", "magnetSize"]) {
     $(`[data-choice=${key}]`).onclick = (e) => {
       const b = e.target.closest("button"); if (!b) return;
@@ -1118,11 +1141,6 @@ function wire() {
     setOwn(state.sel.key, own);
   };
   wireIcons();
-  $("#ownStyle").onchange = (e) => {
-    const own = { ...(state.overrides.get(state.sel.key) || {}) };
-    if (e.target.checked) { own.spec = structuredClone(state.spec); delete own.spec.preset; } else delete own.spec;   // resets go to the set's values
-    setOwn(state.sel.key, own);
-  };
   $("#fem").onchange = (e) => {
     const own = { ...(state.overrides.get(state.sel.key) || {}) };
     if (e.target.checked) own.fem = true; else delete own.fem;
@@ -1293,7 +1311,7 @@ const PRINT_WAY_KEY = "midnight-mint-print-way", PRINTER_KEY = "midnight-mint-pr
 const flow = { way: loadJSON(PRINT_WAY_KEY, "3d") === "paper" ? "paper" : "3d", printer: printerOf(loadJSON(PRINTER_KEY, "a1")).id,
   nozzle: nozzleOf(loadJSON(NOZZLE_KEY, "0.4")).id,   // 3D: the printer's nozzle, 0.4 mm (standard) or 0.2 mm
   backs: loadJSON(PAPER_BACKS_KEY, true) !== false,   // paper: print the backs too (double-sided)
-  side: "front", undo: null };
+  undo: null };
 /** Letters smaller than this (mm) may not print cleanly: the 3D nozzle's limit; on paper, the 0.4 mm one's. */
 const smallLetters = () => (flow.way === "3d" ? nozzleOf(flow.nozzle).smallLetters : SMALL_LETTERS_MM);
 const nozzleMm = () => String(flow.way === "3d" ? nozzleOf(flow.nozzle).mm : 0.4).replace(".", uiLang() === "es" ? "," : ".");
@@ -1309,7 +1327,7 @@ function goStep(step) {
     // the workshop shows a picked token, preferably the one already selected
     if (!state.sel || !isPicked(state.sel.key)) { const k = state.pick.keys().next().value; selectToken(k); }
     renderWorkshop(); renderDesignStage();
-    $("#designStage").scrollTo?.({ top: 0 });
+    revealPicked();
   }
   if (step === 3) { $("#printNote").textContent = ""; renderPrintStep(); $("#printPage").scrollTo({ top: 0 }); }
   if (step === 1) renderSheet();
@@ -1405,14 +1423,12 @@ function renderQueueList() {
 
 function renderDesignStage() {
   const keys = sortKeys(state.pick.keys()), total = queueNow().length;
-  $("#designHint").textContent = t("design.hint", { n: total });
-  $$("#designStage [data-side]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.side === flow.side)));
   $("#designGrid").innerHTML = keys.map((k) => {
     const role = tokenRole(k), ri = tokenRem(k), text = textFor(k, role, ri);
-    const spec = { ...specFor(k, ri != null), ...(flow.side === "back" ? { magnet: "none" } : {}) };
+    const spec = specFor(k, ri != null);
     const label = ri != null ? `${textFor(charKey(role), role, null)}: ${text}` : text;
     // the copies stepper sits beside the button (a button can't hold buttons), over the coin's foot
-    return `<div class="ds-item${ri != null ? " r" : ""}"><button class="ds-cell${ri != null ? " r" : ""}${isCard(role) ? " card" : ""}" type="button" data-design="${k}" aria-current="${state.sel?.key === k}" title="${esc(t("design.tap"))}">${tokenSvg(state.lib, role, spec, { text, side: flow.side })}${state.overrides.has(k) ? `<span class="mark" title="${esc(t("sheet.own"))}">✎</span>` : ""}<span>${esc(label)}</span></button>${copyStepper(k, label, { removable: true })}</div>`;
+    return `<div class="ds-item${ri != null ? " r" : ""}"><button class="ds-cell${ri != null ? " r" : ""}${isCard(role) ? " card" : ""}" type="button" data-design="${k}" aria-current="${state.sel?.key === k}" title="${esc(t("design.tap"))}">${tokenSvg(state.lib, role, spec, { text })}${state.overrides.has(k) ? `<span class="mark" title="${esc(t("sheet.own"))}">✎</span>` : ""}<span>${esc(label)}</span></button>${copyStepper(k, label, { removable: true })}</div>`;
   }).join("");
 }
 /** Takes a token out of the selection from step 2, with Undo. The workshop moves on to another
@@ -1424,21 +1440,23 @@ function dropFromDesign(key) {
   if (!state.pick.size) { goStep(1); return; }
   if (!isPicked(state.sel?.key)) { selectToken(sortKeys(state.pick.keys())[0]); renderWorkshop(); renderDesignStage(); }
 }
-/** Tapping one of your tokens: the workshop shows it, ready to give it its own design. */
+/** Tapping one of your tokens: the workshop shows it. What you're editing (set or token) stays as it is. */
 function designToken(key) {
   selectToken(key);
-  state.tab = "token";
   renderWorkshop(); renderDesignStage();
-  if (PHONE.matches) $("#workshop").scrollTo({ top: 0, behavior: "smooth" });
+  revealPicked();
 }
+/** Keeps the selected token in view in the strip. */
+function revealPicked() { $("#designGrid .ds-cell[aria-current=true]")?.scrollIntoView({ inline: "nearest", block: "nearest" }); }
 /** The pen on a token with its own changes: to step 2, showing it. Step 2 only holds picked tokens, so it picks it first. */
 function editToken(key) {
   if (!isPicked(key)) { setPick(key, true); picksChanged(); }
   if ($("#queueDrawer").open) $("#queueDrawer").close();
   selectToken(key);
   state.tab = "token";
+  showSection("text");
   goStep(2);
-  if (PHONE.matches) $("#workshop").scrollTo({ top: 0, behavior: "smooth" });
+  revealPicked();
 }
 
 // ------------------------------------------------------------ step 3: how to print

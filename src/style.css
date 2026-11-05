@@ -247,7 +247,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .empty { padding: 40px 0; color: var(--dust); }
 
 /* workshop */
-.workshop { grid-area: ws; background: var(--velvet-mid); border-right: 1px solid var(--seam); display: flex; flex-direction: column; min-height: 0; overflow-y: auto; }
+.workshop { grid-area: ws; background: var(--velvet-mid); border-right: 1px solid var(--seam); display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
 /* Language and account: app-wide, so they live with the app's chrome, not the token panel. */
 /* sidebar foot: the CCC seal (opens the credits) beside the language and account, one short line under */
 .spine-foot { border-top: 1px solid var(--seam); padding: 12px 14px 14px; display: grid; gap: 8px; }
@@ -288,37 +288,39 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .me .menu p { margin: 0 0 4px; color: var(--dust); font-size: 13px; overflow-wrap: anywhere; }
 .me .menu button { text-align: left; border: 0; background: none; padding: 6px 4px; cursor: pointer; border-radius: 6px; }
 .me .menu button:hover { background: rgba(239, 230, 214, .06); }
-/* The 3D preview stays pinned at the top while the controls scroll under it. */
-.stage-wrap { position: sticky; top: 0; z-index: 4; flex: none; padding: 6px 14px 8px; background: var(--velvet-mid); box-shadow: 0 10px 14px -10px rgba(0, 0, 0, .6); }
-.stage { position: relative; height: 280px; border-radius: 16px; background: radial-gradient(70% 70% at 50% 45%, #43193a, var(--velvet) 75%); }
-@media (max-height: 760px) { .stage { height: 220px; } }
+/* Step 2's right side: the 3D preview, with the name and download over it, above your tokens. */
+.view-panel { position: relative; flex: 1; min-height: 0; padding: 12px; }
+.stage { position: relative; height: 100%; border-radius: 16px; background: radial-gradient(70% 70% at 50% 45%, #43193a, var(--velvet) 75%); }
 .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
 .turn { position: absolute; left: 10px; bottom: 10px; display: flex; gap: 4px; }
 .turn .pill { padding: 4px 10px; font-size: 12.5px; }
-.caption { padding: 12px 20px 4px; }
-.caption h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 30px; line-height: 1.05; }
+.caption { position: absolute; left: 30px; right: 110px; top: 24px; pointer-events: none; }
+.caption h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 30px; line-height: 1.05; overflow-wrap: anywhere; }
 .caption p { margin: 4px 0 0; color: var(--dust); font-size: 13px; }
-.ws-actions { display: flex; gap: 8px; padding: 10px 18px 6px; }
-.ws-actions .forge { flex: 1; }
+.ws-actions { position: absolute; right: 24px; top: 24px; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; max-width: 240px; }
+.ws-actions .note { margin: 0; text-align: right; }
 /* Colour problems of the token in the workshop (colour-checks.js), above the style controls. */
-.ws-warn { margin: 2px 18px 8px; padding: 9px 12px; display: grid; gap: 8px; font-size: 13px; line-height: 1.45; color: var(--warn);
+.ws-warn { margin: 0 0 12px; padding: 9px 12px; display: grid; gap: 8px; font-size: 13px; line-height: 1.45; color: var(--warn);
   border: 1px solid color-mix(in srgb, var(--warn) 40%, transparent); border-radius: 10px; background: color-mix(in srgb, var(--warn) 8%, transparent); }
 .ws-warn p { margin: 0; }
 .ws-warn .pill { display: block; margin-top: 7px; font-size: 13px; }
-.tabs { display: grid; grid-template-columns: repeat(3, 1fr); margin: 10px 18px 0; border-bottom: 1px solid var(--seam); }
-.tabs button { border: 0; background: none; padding: 9px 0; cursor: pointer; font-size: 14px; color: var(--dust); border-bottom: 2px solid transparent; }
-.tabs button[aria-selected=true] { color: var(--bone); border-bottom-color: var(--brass); }
-.ws-body { padding: 12px 18px; }
-#styleControls { display: flex; flex-direction: column; gap: 10px; }
-.token-only { display: grid; gap: 10px; padding-bottom: 6px; }
+.ws-head { flex: none; padding: 12px 16px 10px; border-bottom: 1px solid var(--seam); }
+.scope { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; padding: 3px; border-radius: 999px; background: rgba(239, 230, 214, .06); }
+.scope button { border: 0; background: none; border-radius: 999px; padding: 6px 8px; font-size: 13.5px; color: var(--dust); cursor: pointer; }
+.scope button[aria-pressed=true] { background: var(--bone); color: var(--velvet-deep); font-weight: 600; }
+.scope-note { margin: 7px 2px 0; font-size: 12.5px; line-height: 1.35; color: var(--dust); }
+.scope-note .link { font-size: 12.5px; color: var(--bone); }
+.sections { flex: none; display: flex; justify-content: space-between; align-items: center; gap: 2px; padding: 6px 10px; border-bottom: 1px solid var(--seam); overflow-x: auto; scrollbar-width: none; }
+.sections::-webkit-scrollbar { display: none; }
+.sections button { flex: none; border: 0; background: none; border-radius: 9px; padding: 6px 7px; font-size: 13px; color: var(--dust); cursor: pointer; }
+.sections button:hover { color: var(--bone); }
+.sections button[aria-selected=true] { background: var(--bone); color: var(--velvet-deep); font-weight: 600; }
+.sections-sep { flex: none; width: 1px; align-self: stretch; margin: 3px 2px; background: rgba(239, 230, 214, .28); }
+.ws-body { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 16px 18px; }
+.ws-panel { display: flex; flex-direction: column; gap: 12px; }
+.ws-panel[hidden] { display: none; }
+.token-only { display: grid; gap: 10px; }
 .field { display: grid; gap: 4px; font-size: 13px; color: var(--dust); }
-fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
-fieldset:disabled { opacity: .45; }
-.ws-body details { border-top: 1px solid var(--seam); padding: 10px 0; }
-.ws-body summary { cursor: pointer; font-family: var(--display); font-size: 19px; list-style: none; display: flex; justify-content: space-between; align-items: baseline; }
-.ws-body summary::-webkit-details-marker { display: none; }
-summary small { font-family: var(--ui); font-size: 12.5px; color: var(--dust); }
-.rows { display: flex; flex-direction: column; gap: 12px; padding-top: 10px; }
 .ws-body .row { display: grid; grid-template-columns: 1fr auto auto; gap: 2px 8px; align-items: center; padding: 0; border: 0; }
 .ws-body .row output { color: var(--dust); font-size: 13px; font-variant-numeric: tabular-nums; }
 .ws-body .row input[type=range] { grid-column: 1 / -1; accent-color: var(--brass); }
@@ -328,11 +330,11 @@ summary small { font-family: var(--ui); font-size: 12.5px; color: var(--dust); }
 .reset-f:hover { color: var(--brass); }
 .reset-f.group { align-self: flex-end; margin-top: -8px; }
 .choices .pill { font-size: 13px; padding: 5px 11px; }
-[data-choice=back] { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+[data-choice=back] { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .back-tile { border: 1px solid transparent; background: none; border-radius: 12px; padding: 6px 2px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11.5px; color: var(--dust); text-align: center; line-height: 1.15; }
 .back-tile svg, .upload-tile { width: 56px; height: 56px; }
-[data-choice=frame] { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-.frame-tile svg { width: 76px; height: 76px; }
+[data-choice=frame] { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.frame-tile svg { width: 56px; height: 56px; }
 .upload-tile { display: grid; place-items: center; border-radius: 50%; border: 1px dashed var(--seam); font-size: 12px; }
 .back-tile:hover { background: rgba(239, 230, 214, .05); }
 .back-tile[aria-pressed=true] { border-color: var(--brass); color: var(--bone); background: rgba(201, 162, 39, .08); }
@@ -362,15 +364,14 @@ summary small { font-family: var(--ui); font-size: 12.5px; color: var(--dust); }
 .flow-back:hover { color: var(--bone); }
 
 /* step 2: your tokens in the set's design */
-.design-stage { grid-area: main; overflow-y: auto; min-width: 0; padding: 22px 28px 40px; background: radial-gradient(80% 60% at 50% 0%, #33122a 0%, var(--velvet-deep) 75%); }
-.ds-head { display: flex; align-items: baseline; gap: 6px 14px; flex-wrap: wrap; margin-bottom: 16px; }
-.ds-head h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 30px; }
-.ds-head .hint { margin: 0; }
-.ds-side { margin-left: auto; display: flex; gap: 6px; }
-.ds-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 14px 10px; }
+.design-stage { grid-area: main; display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; background: radial-gradient(80% 60% at 50% 0%, #33122a 0%, var(--velvet-deep) 75%); }
+.ds-grid { flex: none; display: flex; align-items: flex-start; gap: 4px; overflow-x: auto; padding: 8px 14px; border-top: 1px solid var(--seam); }
 .ds-cell { position: relative; display: grid; justify-items: center; gap: 4px; padding: 8px 2px; border: 0; border-radius: 12px; background: none; color: var(--dust); font: inherit; font-size: 12px; line-height: 1.2; text-align: center; cursor: pointer; }
-.ds-cell svg { width: 86px; height: 86px; filter: drop-shadow(0 8px 12px rgba(0, 0, 0, .45)); transition: transform .15s; }
-.ds-cell.r svg { width: 62px; height: 62px; margin: 12px 0; }
+.ds-cell { width: 104px; }
+.ds-cell.card { width: 132px; }
+.ds-cell > span:not(.mark) { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.ds-cell svg { width: 72px; height: 72px; filter: drop-shadow(0 8px 12px rgba(0, 0, 0, .45)); transition: transform .15s; }
+.ds-cell.r svg { width: 52px; height: 52px; margin: 10px 0; }
 .ds-cell:hover svg { transform: translateY(-3px); }
 /* the open token: the highlight takes in its copies stepper too */
 .ds-item:has(.ds-cell[aria-current=true]) { background: rgba(201, 162, 39, .12); }
@@ -378,7 +379,7 @@ summary small { font-family: var(--ui); font-size: 12.5px; color: var(--dust); }
 .ds-cell .mark { position: absolute; top: 4px; right: 12px; background: var(--brass); color: var(--velvet-deep); border-radius: 999px; font-size: 10px; font-weight: 700; padding: 0 5px; line-height: 16px; }
 /* the copies stepper, over the coin's foot: padding 8 + coin − half the stepper */
 /* the copies stepper: on its own line under the name, never over the coin or its label */
-.ds-item { display: grid; align-content: start; justify-items: center; border-radius: 12px; padding-bottom: 8px; }
+.ds-item { flex: none; display: grid; align-content: start; justify-items: center; border-radius: 12px; padding-bottom: 8px; }
 .ds-item .cp { margin-top: -2px; }
 .ds-item > .ds-cell { justify-self: stretch; }
 
@@ -513,6 +514,9 @@ dialog .import { margin-top: 10px; }
 @media (max-width: 1180px) {
   :root { --spine-w: 180px; }
   .app[data-step="2"] { grid-template-columns: 360px minmax(0, 1fr); }
+  .sections { padding-inline: 6px; gap: 0; }
+  .sections button { padding-inline: 5px; font-size: 12.5px; }
+  .sections-sep { margin-inline: 1px; }
   #rows .row { grid-template-columns: 64px minmax(0, 1fr); }
   #rows .row .rems { grid-column: 2; }
   #rows .row > .tok-w { grid-row: span 2; align-self: start; }
@@ -520,7 +524,7 @@ dialog .import { margin-top: 10px; }
 }
 @media (max-width: 900px) {
   .app, .app[data-step="2"], .app[data-step="3"] { grid-template-columns: minmax(0, 1fr); grid-template-areas: "top" "main" "bar"; }
-  /* step 2: your tokens in a strip on top, the controls under them */
+  /* step 2: the 3D token and a strip of your tokens on top, the controls under them */
   .app[data-step="2"] { grid-template-rows: auto auto minmax(0, 1fr) auto; grid-template-areas: "top" "main" "ws" "bar"; }
   .search { flex: 1 1 100%; }
   .topbar { gap: 8px; padding: 8px 12px; }
@@ -552,17 +556,31 @@ dialog .import { margin-top: 10px; }
   .app[data-step="3"] .qb-toggle .stack { display: none; }
   .app[data-step="3"] .qb-toggle { padding-left: 14px; }
   .workshop { border-right: 0; }
-  .design-stage { overflow: visible; padding: 12px 12px 10px; border-bottom: 1px solid var(--seam); }
-  .ds-head { margin-bottom: 8px; }
-  .ds-head h2 { font-size: 20px; }
-  .ds-grid { display: flex; overflow-x: auto; gap: 4px; padding-bottom: 4px; }
-  .ds-item { flex: none; }
-  .ds-cell { width: 80px; }
-  .ds-cell svg { width: 62px; height: 62px; } .ds-cell.r svg { width: 46px; height: 46px; margin: 8px 0; }
-  .stage { height: 200px; }
+  .design-stage { border-bottom: 1px solid var(--seam); }
+  .view-panel { flex: none; height: 186px; padding: 6px 8px 4px; }
+  .turn { flex-direction: column; align-items: flex-start; left: 8px; bottom: 8px; gap: 3px; }
+  .turn .pill { padding: 2px 9px; font-size: 12px; }
+  .caption { left: 20px; right: 80px; top: 14px; }
+  .caption h2 { font-size: 19px; }
+  .caption p { display: none; }
+  .ws-actions { right: 16px; top: 12px; max-width: 150px; }
+  .ds-grid { padding: 2px 8px 4px; gap: 2px; border-top: 0; }
+  .ds-cell { width: 60px; padding: 4px 2px; }
+  .ds-cell.card { width: 72px; }
+  .ds-cell > span:not(.mark) { display: none; }
+  .ds-cell svg, .ds-cell.r svg { width: 50px; height: 50px; margin: 0; }
+  .ds-cell.card svg, .ds-cell.card.r svg { width: 64px; }
+  .ds-cell .mark { top: 0; right: 0; }
+  .sections { padding-block: 6px; }
   .print-page { padding: 16px 14px 30px; }
   .ways { grid-template-columns: 1fr; }
 }
+/* a short phone keeps room to edit under the 3D token */
+@media (max-width: 900px) and (max-height: 720px) { .view-panel { height: 130px; } }
+/* the narrowest phones: the selection keeps only its count */
+@media (max-width: 400px) { .qb-toggle .stack { display: none; } .qb-toggle { padding-left: 14px; } }
+/* and they name only the current step */
+@media (max-width: 380px) { .flow-step:not([aria-current=step]) b { display: none; } .flow-step:not([aria-current=step]) { padding-right: 5px; } }
 @media (prefers-reduced-motion: reduce) { .tok svg, .workshop, .spine { transition: none; } }
 
 /* credits */
@@ -599,12 +617,15 @@ dialog .import { margin-top: 10px; }
 .credit-icons p { margin: 2px 0 8px; font-size: 12.5px; color: var(--dust); line-height: 1.6; }
 
 /* premade designs */
-.presets { display: grid; gap: 8px; padding-bottom: 10px; border-bottom: 1px solid var(--seam); }
-.presets-title { margin: 0; font-family: var(--display); font-size: 19px; }
-.preset-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.presets { display: grid; gap: 8px; }
+.preset-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; }
+.saved-zone { display: grid; gap: 8px; justify-items: start; padding-top: 12px; border-top: 1px solid var(--seam); }
+.saved-zone .list { justify-self: stretch; }
+.saved-zone .hint { margin: 0; }
+.zone-title { margin: 0; font-family: var(--display); font-weight: 400; font-size: 18px; }
+.zone-title small { font-family: var(--ui); font-size: 12.5px; color: var(--dust); }
 .preset { border: 1px solid var(--seam); background: rgba(23, 8, 18, .5); border-radius: 12px; padding: 8px 6px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; font-size: 12.5px; line-height: 1.2; }
-.preset svg { width: 54px; height: 54px; }
-.preset small { color: var(--dust); font-size: 11px; }
+.preset svg { width: 52px; height: 52px; }
 .preset[aria-pressed=true] { border-color: var(--brass); background: rgba(201, 162, 39, .1); }
 @media (max-width: 900px) { .spine .brand img { width: 30px; height: 30px; } }
 /* the phone's top bar has no room for "?": the guide opens from the sidebar's footer there */

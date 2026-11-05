@@ -85,38 +85,38 @@
 
   <!-- workshop -->
   <aside class="workshop" id="workshop">
-    <div class="stage-wrap">
-    <div class="stage">
-      <canvas id="view" data-i18n-attr="aria-label:view.aria"></canvas>
-      <div class="turn" role="group" data-i18n-attr="aria-label:view.group">
-        <button class="pill" type="button" data-view="angle" aria-pressed="true" data-i18n="view.angle"></button>
-        <button class="pill" type="button" data-view="top" aria-pressed="false" data-i18n="view.front"></button>
-        <button class="pill" type="button" data-view="back" aria-pressed="false" data-i18n="view.back"></button>
-        <button class="pill" type="button" id="xray" aria-pressed="false" hidden data-i18n="view.xray" data-i18n-attr="title:view.xrayHelp"></button>
+    <div class="ws-head">
+      <div class="scope" role="group" data-i18n-attr="aria-label:ws.scopeGroup">
+        <button type="button" data-tab="set" aria-pressed="true" data-i18n="ws.set"></button>
+        <button type="button" data-tab="token" aria-pressed="false" data-i18n="ws.token"></button>
       </div>
+      <p class="scope-note"><span id="styleScope"></span> <button class="link" type="button" id="resetToken" data-i18n="ws.reset" hidden></button></p>
     </div>
+    <!-- templates replace the whole design; after the line, each section adjusts one part of it -->
+    <div class="sections" role="tablist" data-i18n-attr="aria-label:ws.sections">
+      <button type="button" role="tab" data-section="presets" aria-selected="true" data-i18n="presets.title"></button>
+      <i class="sections-sep" aria-hidden="true"></i>
+      <button type="button" role="tab" data-section="text" aria-selected="false" data-i18n="sec.text"></button>
+      <button type="button" role="tab" data-section="frame" aria-selected="false" data-i18n="sec.frame"></button>
+      <button type="button" role="tab" data-section="back" aria-selected="false" data-i18n="sec.back"></button>
+      <button type="button" role="tab" data-section="coin" aria-selected="false" data-i18n="sec.coin"></button>
+      <button type="button" role="tab" data-section="magnet" aria-selected="false" data-i18n="sec.magnet"></button>
     </div>
-    <div class="caption">
-      <h2 id="name">&nbsp;</h2>
-      <p id="sub"></p>
-    </div>
-    <div class="ws-actions">
-      <button class="pill" id="download" type="button" data-i18n="act.stl"></button>
-    </div>
-    <div class="ws-warn" id="colourWarn" hidden></div>
-    <div class="tabs" role="tablist">
-      <button role="tab" type="button" data-tab="set" aria-selected="true" data-i18n="ws.set"></button>
-      <button role="tab" type="button" data-tab="token" aria-selected="false" data-i18n="ws.token"></button>
-      <button role="tab" type="button" data-tab="saved" aria-selected="false"><span data-i18n="ws.saved"></span> <small id="savedSummary"></small></button>
-    </div>
-    <div class="ws-body">
-      <!-- shared style controls: edit the set style, or this token's own style -->
-      <section id="styleControls">
+    <div class="ws-body" id="styleFields">
+      <div class="ws-warn" id="colourWarn" hidden></div>
+      <section class="ws-panel" data-panel="presets" role="tabpanel">
         <div class="presets" id="presetsBox">
-          <p class="presets-title" data-i18n="presets.title"></p>
           <div class="preset-list" id="presets"></div>
+          <p class="hint" id="presetHelp"></p>
         </div>
-        <p class="hint" id="styleScope"></p>
+        <div class="saved-zone" id="savedPanel">
+          <h3 class="zone-title"><span data-i18n="ws.saved"></span> <small id="savedSummary"></small></h3>
+          <button class="pill" type="button" id="save" data-i18n="act.save"></button>
+          <p class="hint" id="saveNote" data-i18n="saved.help"></p>
+          <ul class="list" id="saved"></ul>
+        </div>
+      </section>
+      <section class="ws-panel" data-panel="text" role="tabpanel" hidden>
         <div class="token-only" id="tokenOnly">
           <label class="field"><span data-i18n="ws.printedText"></span><input class="text" type="text" id="printed" autocomplete="off"></label>
           <label class="check" id="femRow" hidden><input type="checkbox" id="fem"> <span id="femLabel"></span></label>
@@ -134,88 +134,68 @@
               <div class="icon-results" id="iconResults"></div>
             </div>
           </div>
-          <label class="check"><input type="checkbox" id="ownStyle"> <span data-i18n="ws.ownStyle"></span></label>
-          <button class="link" type="button" id="resetToken" data-i18n="ws.reset"></button>
         </div>
-        <fieldset id="styleFields">
-          <details open>
-            <summary><span data-i18n="sec.style"></span> <small id="styleSummary"></small></summary>
-            <div class="rows">
-              <div class="choices" data-choice="style"></div>
-              <div class="choices" data-choice="windowFinish" id="windowFinishRow"></div>
-              <p class="hint" id="styleHint"></p>
-              <div class="row" id="windowDepthRow"><label for="windowDepth" data-i18n="range.windowDepth"></label><output data-for="windowDepth"></output><input type="range" id="windowDepth" min="0.4" max="1.6" step="0.2" value="0.8"></div>
-            </div>
-          </details>
-          <details>
-            <summary><span data-i18n="sec.name"></span> <small id="nameSummary"></small></summary>
-            <div class="rows">
-              <p class="hint" id="nameHint"></p>
-              <p class="metal-label" id="frontColourLabel"></p>
-              <div class="metal" data-colour="front" data-i18n-attr="aria-label:front.colour"></div>
-              <div class="row"><label for="textSize" data-i18n="range.textSize"></label><output data-for="textSize"></output><input type="range" id="textSize" min="2" max="6" step="0.1" value="4"></div>
-              <div class="row"><label for="spacing" data-i18n="range.spacing"></label><output data-for="spacing"></output><input type="range" id="spacing" min="0.8" max="2" step="0.05" value="1.1"></div>
-              <div class="row"><label for="maxArc" data-i18n="range.maxArc"></label><output data-for="maxArc"></output><input type="range" id="maxArc" min="90" max="240" step="5" value="180"></div>
-            </div>
-          </details>
-          <details>
-            <summary><span data-i18n="sec.frame"></span> <small id="frameSummary"></small></summary>
-            <div class="rows">
-              <div class="choices" data-choice="frame"></div>
-              <div class="row"><label for="frameWidth" data-i18n="range.frameWidth"></label><output data-for="frameWidth"></output><input type="range" id="frameWidth" min="0.4" max="2" step="0.1" value="0.8"></div>
-              <div class="metal" data-colour="frame" data-i18n-attr="aria-label:frame.aria"></div>
-            </div>
-          </details>
-          <details>
-            <summary><span data-i18n="sec.back"></span> <small id="backSummary"></small></summary>
-            <div class="rows">
-              <div class="choices" data-choice="back"></div>
-              <input type="file" id="upload" accept=".svg,image/svg+xml" hidden data-i18n-attr="aria-label:upload.aria">
-              <p class="hint" id="uploadHint" hidden></p>
-              <div class="metal" data-colour="back" data-i18n-attr="aria-label:back.aria"></div>
-            </div>
-          </details>
-          <details>
-            <summary><span data-i18n="sec.magnet"></span> <small id="magnetSummary"></small></summary>
-            <div class="rows">
-              <div class="choices" data-choice="magnet"></div>
-              <div class="choices" data-choice="magnetSize" id="magnetSizeRow"></div>
-              <p class="hint" id="magnetHint"></p>
-            </div>
-          </details>
-          <details>
-            <summary><span data-i18n="sec.coin"></span> <small id="coinSummary"></small></summary>
-            <div class="rows">
-              <p class="metal-label" data-i18n="coin.colour"></p>
-              <div class="metal" data-colour="base" data-i18n-attr="aria-label:coin.colour"></div>
-              <div class="row"><label for="diameter" data-i18n="range.diameter"></label><output data-for="diameter"></output><input type="range" id="diameter" min="30" max="60" step="1" value="45"></div>
-              <div class="row"><label for="height" data-i18n="range.height"></label><output data-for="height"></output><input type="range" id="height" min="1.2" max="4" step="0.2" value="2"></div>
-              <div class="row"><label for="depth" data-i18n="range.depth"></label><output data-for="depth"></output><input type="range" id="depth" min="0.2" max="1.6" step="0.2" value="0.2"></div>
-              <p class="hint" id="depthHint"></p>
-              <div class="row"><label for="iconScale" data-i18n="range.iconScale"></label><output data-for="iconScale"></output><input type="range" id="iconScale" min="0.6" max="1.2" step="0.05" value="1"></div>
-            </div>
-          </details>
-        </fieldset>
+        <p class="hint" id="textOnlyHint" data-i18n="ws.textInToken"></p>
+        <div class="choices" data-choice="style"></div>
+        <div class="choices" data-choice="windowFinish" id="windowFinishRow"></div>
+        <p class="hint" id="styleHint"></p>
+        <div class="row" id="windowDepthRow"><label for="windowDepth" data-i18n="range.windowDepth"></label><output data-for="windowDepth"></output><input type="range" id="windowDepth" min="0.4" max="1.6" step="0.2" value="0.8"></div>
+        <p class="hint" id="nameHint"></p>
+        <div class="row"><label for="textSize" data-i18n="range.textSize"></label><output data-for="textSize"></output><input type="range" id="textSize" min="2" max="6" step="0.1" value="4"></div>
+        <div class="row"><label for="spacing" data-i18n="range.spacing"></label><output data-for="spacing"></output><input type="range" id="spacing" min="0.8" max="2" step="0.05" value="1.1"></div>
+        <div class="row"><label for="maxArc" data-i18n="range.maxArc"></label><output data-for="maxArc"></output><input type="range" id="maxArc" min="90" max="240" step="5" value="180"></div>
+        <div class="row"><label for="iconScale" data-i18n="range.iconScale"></label><output data-for="iconScale"></output><input type="range" id="iconScale" min="0.6" max="1.2" step="0.05" value="1"></div>
+        <p class="metal-label" id="frontColourLabel"></p>
+        <div class="metal" data-colour="front" data-i18n-attr="aria-label:front.colour"></div>
       </section>
-      <section id="savedPanel" hidden>
-        <button class="pill" type="button" id="save" data-i18n="act.save"></button>
-        <p class="hint" id="saveNote" data-i18n="saved.help"></p>
-        <ul class="list" id="saved"></ul>
+      <section class="ws-panel" data-panel="frame" role="tabpanel" hidden>
+        <div class="choices" data-choice="frame"></div>
+        <div class="row"><label for="frameWidth" data-i18n="range.frameWidth"></label><output data-for="frameWidth"></output><input type="range" id="frameWidth" min="0.4" max="2" step="0.1" value="0.8"></div>
+        <div class="metal" data-colour="frame" data-i18n-attr="aria-label:frame.aria"></div>
+      </section>
+      <section class="ws-panel" data-panel="back" role="tabpanel" hidden>
+        <div class="choices" data-choice="back"></div>
+        <input type="file" id="upload" accept=".svg,image/svg+xml" hidden data-i18n-attr="aria-label:upload.aria">
+        <p class="hint" id="uploadHint" hidden></p>
+        <div class="metal" data-colour="back" data-i18n-attr="aria-label:back.aria"></div>
+      </section>
+      <section class="ws-panel" data-panel="coin" role="tabpanel" hidden>
+        <p class="metal-label" data-i18n="coin.colour"></p>
+        <div class="metal" data-colour="base" data-i18n-attr="aria-label:coin.colour"></div>
+        <div class="row"><label for="diameter" data-i18n="range.diameter"></label><output data-for="diameter"></output><input type="range" id="diameter" min="30" max="60" step="1" value="45"></div>
+        <div class="row"><label for="height" data-i18n="range.height"></label><output data-for="height"></output><input type="range" id="height" min="1.2" max="4" step="0.2" value="2"></div>
+        <div class="row"><label for="depth" data-i18n="range.depth"></label><output data-for="depth"></output><input type="range" id="depth" min="0.2" max="1.6" step="0.2" value="0.2"></div>
+        <p class="hint" id="depthHint"></p>
+      </section>
+      <section class="ws-panel" data-panel="magnet" role="tabpanel" hidden>
+        <div class="choices" data-choice="magnet"></div>
+        <div class="choices" data-choice="magnetSize" id="magnetSizeRow"></div>
+        <p class="hint" id="magnetHint"></p>
       </section>
     </div>
-    <p class="hint note" id="exportNote"></p>
   </aside>
 
-  <!-- step 2: the picked tokens, in the set's design; tap one to give it its own -->
+  <!-- step 2: the token in 3D over your picked tokens; tap one to see it -->
   <section class="design-stage" id="designStage">
-    <header class="ds-head">
-      <h2 data-i18n="design.title"></h2>
-      <p class="hint" id="designHint"></p>
-      <div class="ds-side" role="group" data-i18n-attr="aria-label:view.group">
-        <button class="pill" type="button" data-side="front" aria-pressed="true" data-i18n="design.front"></button>
-        <button class="pill" type="button" data-side="back" aria-pressed="false" data-i18n="design.back"></button>
+    <div class="view-panel">
+      <div class="stage">
+        <canvas id="view" data-i18n-attr="aria-label:view.aria"></canvas>
+        <div class="turn" role="group" data-i18n-attr="aria-label:view.group">
+          <button class="pill" type="button" data-view="angle" aria-pressed="true" data-i18n="view.angle"></button>
+          <button class="pill" type="button" data-view="top" aria-pressed="false" data-i18n="view.front"></button>
+          <button class="pill" type="button" data-view="back" aria-pressed="false" data-i18n="view.back"></button>
+          <button class="pill" type="button" id="xray" aria-pressed="false" hidden data-i18n="view.xray" data-i18n-attr="title:view.xrayHelp"></button>
+        </div>
       </div>
-    </header>
+      <div class="caption">
+        <h2 id="name">&nbsp;</h2>
+        <p id="sub"></p>
+      </div>
+      <div class="ws-actions">
+        <button class="pill" id="download" type="button" data-i18n="act.stl"></button>
+        <p class="hint note" id="exportNote"></p>
+      </div>
+    </div>
     <div class="ds-grid" id="designGrid"></div>
   </section>
 

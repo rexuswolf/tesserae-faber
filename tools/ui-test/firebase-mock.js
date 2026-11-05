@@ -33,8 +33,7 @@ setTimeout(() => {
     else if (k === "pick") click(`#rows [data-pick="${v}"]`);
     else if (k === "step") window.__mm.goStep(+v);
     else if (k === "ed") click(`#editions [data-ed="${v}"]`);
-    else if (k === "token") click('.tabs [data-tab="token"]');
-    else if (k === "own") { const c = document.querySelector("#ownStyle"); c.checked = true; c.dispatchEvent(new Event("change")); }
+    else if (k === "token") click('.scope [data-tab="token"]');
     else if (k === "frame") click(`[data-choice="frame"] [data-v="${v}"]`);
     else if (k === "style") click(`[data-choice="style"] [data-v="${v}"]`);
     else if (k === "finish") click(`[data-choice="windowFinish"] [data-v="${v}"]`);
@@ -88,8 +87,7 @@ setTimeout(() => {
   const h = location.hash;
   const m = h.match(/preset=(\w+)/); if (m) document.querySelector(`[data-preset="${m[1]}"]`)?.click();
   if (h.includes("showback")) setTimeout(() => {
-    const d = [...document.querySelectorAll(".ws-body details")].find((x) => x.querySelector("[data-choice=back]"));
-    d.open = true; d.scrollIntoView();
+    document.querySelector('[data-section="back"]').click();
   }, 800);
 }, 5000);
 
@@ -97,16 +95,15 @@ setTimeout(() => {
 setTimeout(() => {
   const h = location.hash;
   if (!h.includes("showframe")) return;
-  const d = [...document.querySelectorAll(".ws-body details")].find((x) => x.querySelector("[data-choice=frame]"));
-  d.open = true; d.scrollIntoView();
+  document.querySelector('[data-section="frame"]').click();
   const m = h.match(/frame=(\w+)/); if (m) setTimeout(() => document.querySelector(`[data-choice=frame] [data-v="${m[1]}"]`)?.click(), 300);
 }, 5800);
 
-// Test-only: #open=frame,base opens the sections holding those colour rows and scrolls to the first
+// Test-only: #open=frame opens the section holding that colour row or choice
 setTimeout(() => {
   const m = location.hash.match(/open=([\w,]+)/); if (!m) return;
-  const ds = m[1].split(",").map((k) => document.querySelector(`[data-colour=${k}], [data-choice=${k}]`)?.closest("details")).filter(Boolean);
-  ds.forEach((d) => { d.open = true; }); ds[0]?.scrollIntoView();
+  const panel = document.querySelector(`[data-colour=${m[1].split(",")[0]}], [data-choice=${m[1].split(",")[0]}]`)?.closest(".ws-panel");
+  if (panel) document.querySelector(`[data-section="${panel.dataset.panel}"]`).click();
 }, 5800);
 
 // Test-only: #xray turns on the X-ray view
