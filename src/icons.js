@@ -91,9 +91,23 @@ function gameIconPath(url) {
 }
 
 /**
+ * How pictures are traced, as a number stored with each traced icon. Raise it when tracing
+ * changes, and icons traced the old way are traced again (2: near-white details became gaps).
+ */
+export const TRACE_VERSION = 2;
+/** True for an icon traced from a picture before the current way of tracing. */
+export const tracedBefore = (icon) => !!icon?.url && icon.source === "script" && !/\.svg(\?|#|$)/i.test(icon.url) && !icon.url.startsWith("data:") && (icon.traced ?? 1) < TRACE_VERSION;
+
+/** Near-white: light and nearly grey (cream, white), not a light colour like yellow or sky blue. */
+const nearWhite = (r, g, b) => 0.2126 * r + 0.7152 * g + 0.0722 * b > 190 && Math.max(r, g, b) - Math.min(r, g, b) < 60;
+
+/**
  * A picture (PNG, JPEG, WebP…) traced into an icon: its opaque pixels become shapes, placed
- * like the library's icons. The host must allow reading it (CORS). Throws when it can't be
- * read, or when it's opaque edge to edge (a photo or a square image: no shape to find).
+ * like the library's icons. Details drawn in white or cream on top of the icon (a page's lines,
+ * an outline) become gaps, as they'd be in a one-colour print; unless most of the icon is that
+ * light, when it's a white icon and keeps its whole shape. The host must allow reading it
+ * (CORS). Throws when it can't be read, or when it's opaque edge to edge (a photo or a square
+ * image: no shape to find).
  */
 async function tracedIcon(url, name) {
   const img = new Image();
@@ -105,13 +119,22 @@ async function tracedIcon(url, name) {
   cx.drawImage(img, 0, 0, img.naturalWidth * k, img.naturalHeight * k);
   const { data } = cx.getImageData(0, 0, S, S);   // throws when the host doesn't allow it
   const W = Math.round(img.naturalWidth * k), H = Math.round(img.naturalHeight * k), on = new Uint8Array(W * H);
+  let opaque = 0, light = 0;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = (y * S + x) * 4;
+    if (data[i + 3] <= 128) continue;
+    opaque++;
+    if (nearWhite(data[i], data[i + 1], data[i + 2])) light++;
+  }
+  const cutLight = light < opaque * 0.6;   // otherwise it's a white icon: keep it whole
   let x0 = W, y0 = H, x1 = -1, y1 = -1, count = 0;
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-    if (data[(y * S + x) * 4 + 3] <= 128) continue;
+    const i = (y * S + x) * 4;
+    if (data[i + 3] <= 128 || (cutLight && nearWhite(data[i], data[i + 1], data[i + 2]))) continue;
     on[y * W + x] = 1; count++;
     if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
   }
-  if (!count || count > W * H * 0.97) throw new Error("no-shapes");
+  if (!count || opaque > W * H * 0.97) throw new Error("no-shapes");
   const P = 2, w = x1 - x0 + 1 + 2 * P, h = y1 - y0 + 1 + 2 * P, mask = new ImageData(w, h);
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
     const sx = x + x0 - P, sy = y + y0 - P, o = (y * w + x) * 4;
@@ -130,7 +153,7 @@ async function tracedIcon(url, name) {
   // fit the shapes (not the margin traced around them) into the library's box
   const cw = w - 2 * P, ch = h - 2 * P, s = (BOX * TRACED_FILL) / Math.max(cw, ch);
   const g = `translate(${(BOX_X + (BOX - cw * s) / 2 - P * s).toFixed(3)} ${(BOX_Y + (BOX - ch * s) / 2 - P * s).toFixed(3)}) scale(${s.toFixed(6)})`;
-  return { ...icon, g, url };
+  return { ...icon, g, url, traced: TRACE_VERSION };
 }
 
 /**

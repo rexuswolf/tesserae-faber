@@ -56,6 +56,7 @@ export const BACK_STYLES = [
   { id: "rosa", label: "Compass rose" },
   { id: "sol", label: "Sunburst" },
   { id: "eclipse", label: "Eclipse" },
+  { id: "orbitas", label: "Orbits" },
   { id: "edition", label: "Edition" },
   { id: "custom", label: "Your SVG" },
 ];
@@ -314,12 +315,13 @@ export function layoutName(lib, text, spec) {
 }
 
 /**
- * Edition back: the edition's full name in the centre, one word per line, as
+ * Edition back: the edition's full name (a homebrew character's: its script's) in the centre, one word per line, as
  * large as fits inside a fine double rim, with a small star above and below.
  * Filled shapes in coin coordinates (mm, y up), shared by the 3D model and 2D.
  */
 function editionBack(lib, role, spec) {
-  const ed = EDITIONS[role.edition];
+  // a script's own (homebrew) characters carry their script's name instead
+  const ed = EDITIONS[role.edition] ?? (role.editionName ? { name: { en: role.editionName } } : null);
   if (!ed) return null;
   const R = spec.diameter / 2, out = R - 0.7;
   const shapes = [annulus(out, out - 0.6), annulus(out - 1.2, out - 1.65)];
@@ -695,6 +697,16 @@ function crescent(cx, cy, r, bx, by, br, n = 120) {
 }
 
 /** A beaded border: n small discs on a circle. */
+/** An elliptical band (a planet's ring): semi-axes a and b, band width w, turned by rot, at (x, y). */
+function ellipseRing(a, b, w, rot, x = 0, y = 0, n = 120) {
+  const at = (A, B, i) => {
+    const t = (i * TAU) / n, ex = A * Math.cos(t), ey = B * Math.sin(t);
+    return new THREE.Vector2(x + ex * Math.cos(rot) - ey * Math.sin(rot), y + ex * Math.sin(rot) + ey * Math.cos(rot));
+  };
+  const sh = new THREE.Shape(Array.from({ length: n }, (_, i) => at(a, b, i)));
+  sh.holes.push(new THREE.Path(Array.from({ length: n }, (_, i) => at(a - w, b - w, n - i))));
+  return sh;
+}
 const beads = (r, n, size) => Array.from({ length: n }, (_, i) => disc(size, ...pt(r, (i * TAU) / n).toArray()));
 
 // ---------------------------------------------------------------- designed frames
@@ -942,6 +954,18 @@ function backShapes(id, R) {
       sh.push(crescent(-R * 0.06, -R * 0.02, mr, R * 0.1, R * 0.08, mr * 0.9));
       for (const [x, y, s] of [[0.42, 0.34, 1.0], [0.4, -0.4, 0.7], [0.5, -0.06, 0.55], [-0.08, 0.55, 0.5], [0.3, 0.58, 0.4]])
         sh.push(sparkle(x * R, y * R, 1.7 * s + 0.4, 0.45 * s + 0.2));
+      return sh;
+    }
+    case "orbitas": {
+      // A rayed sun, three orbits with their planets (the middle one ringed), in a beaded rim.
+      const sh = [annulus(out, out - 0.6), ...beads(out - 1.4, 48, 0.3), disc(R * 0.13)];
+      for (let i = 0; i < 12; i++) sh.push(taper(R * 0.17, R * 0.25, (i * TAU) / 12, 1.0, 0.45));
+      const orbits = [R * 0.4, R * 0.6, R * 0.8];
+      for (const r of orbits) sh.push(annulus(r + 0.25, r - 0.25));
+      const p1 = pt(orbits[0], 0.7).toArray(), p2 = pt(orbits[1], 3.6).toArray(), p3 = pt(orbits[2], 5.35).toArray();
+      sh.push(disc(R * 0.06, ...p1));
+      sh.push(disc(R * 0.085, ...p2), ellipseRing(R * 0.16, R * 0.055, 0.5, -0.35, ...p2));
+      sh.push(disc(R * 0.05, ...p3), disc(0.4, p3[0] + R * 0.085, p3[1] + R * 0.04));
       return sh;
     }
     default:

@@ -8,7 +8,7 @@ import {
 } from "./firebase.js";
 import { planPlates, FILAMENT_SLOTS, PRINTERS, printerOf, NOZZLES, nozzleOf } from "./bambu/plates.js";
 import { colourIssues, LIGHT_DEPTH } from "./colour-checks.js";
-import { iconFromSvg, gameIcon, gameIconPreview, searchGameIcons, scriptEntryIcon, iconForScript, placeGameIcon } from "./icons.js";
+import { iconFromSvg, gameIcon, gameIconPreview, searchGameIcons, scriptEntryIcon, iconForScript, placeGameIcon, tracedBefore } from "./icons.js";
 import { plateFeatures } from "./bambu/estimate.js";
 import { PAGE, layoutCoins, backX } from "./pdf/layout.js";
 import { t, uiLang, setUiLang, LANGUAGES } from "./i18n.js";
@@ -428,7 +428,7 @@ const editionName = (role, lang) => EDITIONS[role.edition]?.name[lang] || (role.
 /** A script's homebrew characters as roles, drawn and printed like the library's. */
 const homebrewRoles = (sc) => (sc.homebrew || []).map((h) => ({
   id: homebrewId(sc, h.id), kind: "homebrew", en: h.name, es: h.name, names: {}, fem: {}, team: h.team,
-  edition: `s:${sc.id}`, reminders: { en: h.reminders || [] }, ability: h.ability,
+  edition: `s:${sc.id}`, editionName: sc.name, reminders: { en: h.reminders || [] }, ability: h.ability,
   loading: !h.icon && !h.noIcon && !!(h.def?.image || h.def?.icon),   // its icon is on its way
   g: h.icon?.g ?? "translate(0 0) scale(1)", body: h.icon?.body ?? "",
 }));
@@ -509,19 +509,24 @@ async function traceHomebrew(scId, onProgress = () => {}) {
   tracing.add(scId);
   try { return await traceEach(scId, onProgress); } finally { tracing.delete(scId); }
 }
-/** Icons left to prepare when the app was closed during an import: carry on in the background. */
+/** A homebrew character still to get its icon, or whose picture was traced the old way. */
+const needsIcon = (h) => !h.noIcon && !!(h.def?.image || h.def?.icon) && (!h.icon || tracedBefore(h.icon));
+/**
+ * Icons left to prepare when the app was closed during an import, and pictures traced before
+ * tracing improved: carry on in the background (a re-traced token keeps its icon meanwhile).
+ */
 function resumeHomebrew() {
-  for (const sc of loadScripts()) if (sc.homebrew?.some((h) => !h.icon && !h.noIcon && (h.def?.image || h.def?.icon))) traceHomebrew(sc.id);
+  for (const sc of loadScripts()) if (sc.homebrew?.some(needsIcon)) traceHomebrew(sc.id);
 }
 async function traceEach(scId, onProgress) {
-  const todo = (loadScripts().find((x) => x.id === scId)?.homebrew || []).filter((h) => !h.icon && !h.noIcon && (h.def?.image || h.def?.icon));
+  const todo = (loadScripts().find((x) => x.id === scId)?.homebrew || []).filter(needsIcon);
   let got = 0, failed = 0;
   for (const [i, h] of todo.entries()) {
     onProgress(i, todo.length);
     const icon = await scriptEntryIcon(h.def).catch(() => null);
     const list = loadScripts(), own = list.find((x) => x.id === scId)?.homebrew?.find((x) => x.id === h.id);
     if (!own) return { got, failed };   // the script was deleted meanwhile
-    if (icon) { own.icon = icon; got++; } else { own.noIcon = true; failed++; }
+    if (icon) { own.icon = icon; got++; } else if (!own.icon) { own.noIcon = true; failed++; }   // a re-trace that fails keeps the old icon
     storeScripts(list);
     syncHomebrew(); scheduleSheet();
   }
