@@ -37,6 +37,7 @@ const tokens = [
 const collection = {
   format: "midnight-mint/collection", version: 1,
   name: "Blood on the Clocktower", theme: "botc",
+  brand: { logo: "/logo-mark.svg" },   // Midnight Mint's clock: the collection keeps its own mark
   // what Clocktower's own app says: on its loading screen (with the Community Created Content mark) and in About
   loader: {
     text: { es: "Abriendo el grimorio…", en: "Opening the grimoire…" },
@@ -77,7 +78,7 @@ if (builtIn) {
   const indexFile = path.join(root, "public/collections/index.json");
   let index = [];
   try { index = JSON.parse(fs.readFileSync(indexFile, "utf8")); } catch { /* a first one */ }
-  const entry = { id: "botc", file: "/collections/botc.json", name: "Blood on the Clocktower", accent: "#c9a227", tokens: tokens.length,
+  const entry = { id: "botc", file: "/collections/botc.json", name: "Blood on the Clocktower", logo: "/logo-mark.svg", accent: "#c9a227", tokens: tokens.length,
     text: { es: "Todas las ediciones, el Grimorio y tus guiones.", en: "Every edition, the Grimoire and your scripts." } };
   index = [entry, ...index.filter((x) => x.id !== entry.id)];
   fs.writeFileSync(indexFile, JSON.stringify(index, null, 2) + "\n");

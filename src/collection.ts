@@ -44,10 +44,13 @@ export interface OwnSection { id: string; title: Names; open: boolean; catalogs:
 export interface OwnTheme { accent: Hex; background: Hex; surface: Hex; text: Hex; muted: Hex; glow?: Hex; font?: string }
 /** What the collection says about itself, at the top of "About". */
 export interface OwnAbout { text?: Names; credits?: Names; links?: { label: Names; url: string }[] }
-/** Its mark: a logo (an image as a data: URI, or an https address) and the name beside it (else "Midnight Mint"). */
+/** Its mark: a logo (an image as a data: URI, an https address, or one of the app's own files) and a name to show beside it instead of the collection's. */
 export interface OwnBrand { logo?: string; title?: Names }
 /** A logo a collection may carry: an uploaded image, or one on the web. */
-export const okLogo = (v: unknown): v is string => typeof v === "string" && (/^data:image\/(svg\+xml|png|webp|jpeg)[;,]/.test(v) || /^https:\/\//.test(v)) && v.length < 400000;
+export const okLogo = (v: unknown): v is string => typeof v === "string" && (/^data:image\/(svg\+xml|png|webp|jpeg)[;,]/.test(v) || /^https:\/\//.test(v) || /^\/[\w./-]+\.(svg|png|webp)$/.test(v)) && v.length < 400000;
+/** The app's own mark (Tesserae Faber), for collections without one: in full, small (around 32 px) and for the tab. */
+export const APP_LOGO = "/tesserae-faber.svg", APP_LOGO_SMALL = "/tesserae-faber-small.svg", APP_ICON = "/tesserae-faber-icon.svg";
+export const APP_NAME = "Tesserae Faber";
 /** Its loading screen: the line it shows, and whether it carries the Community Created Content mark. */
 export interface OwnLoader { text?: Names; footer?: Names; ccc?: boolean }
 export interface Collection {
@@ -69,6 +72,8 @@ export const COLLECTION_FORMAT = "midnight-mint/collection";
 
 /** Ready themes. "botc" is Clocktower's own, drawn by the stylesheet itself; "graphite" is the creator's default. */
 export const THEMES: Record<string, OwnTheme | null> = {
+  // the app's own: basalt and bone, ochre for the accent, a red glow (the logo's colours)
+  faber: { accent: "#c9963a", background: "#1c1a18", surface: "#26221f", text: "#ece3d0", muted: "#b5aa94", glow: "#3a2420", font: "Marcellus" },
   graphite: { accent: "#4fd1c5", background: "#111317", surface: "#1b1f24", text: "#e8eaed", muted: "#98a1ab", glow: "#1d2a2c" },
   botc: null,
   forest: { accent: "#7bc47f", background: "#0f1511", surface: "#18211b", text: "#e6efe7", muted: "#97a89b", glow: "#1e2f22" },
@@ -76,7 +81,7 @@ export const THEMES: Record<string, OwnTheme | null> = {
   ember: { accent: "#ff8a5c", background: "#160f0d", surface: "#211714", text: "#f3e9e4", muted: "#b29c93", glow: "#33201a" },
 };
 /** The fonts a theme can use for headings (the page loads these). */
-export const THEME_FONTS = ["Bricolage Grotesque", "Gloock", "Instrument Sans"];
+export const THEME_FONTS = ["Marcellus", "Bricolage Grotesque", "Gloock", "Instrument Sans"];
 const isHex = (v: unknown): v is Hex => typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v);
 /** A theme from a file: a known id, or colours that are all valid. */
 export function readTheme(v: unknown): string | OwnTheme | undefined {
@@ -154,7 +159,7 @@ export function loadCollection(id = OWN_ID): Collection | null {
 export function storeCollection(c: Collection, id = OWN_ID): boolean {
   if (!id) return false;
   try { localStorage.setItem(keyOf(id), JSON.stringify(c)); } catch { return false; }
-  const theme = typeof c.theme === "object" ? c.theme : THEMES[c.theme ?? "graphite"];
+  const theme = typeof c.theme === "object" ? c.theme : THEMES[c.theme ?? "faber"];
   const entry: CollectionEntry = { id, name: nameIn(c.name, "es"), ...(c.brand?.logo ? { logo: c.brand.logo } : {}), accent: theme?.accent ?? "#c9a227", tokens: c.tokens.length, updated: Date.now() };
   storeList([entry, ...listCollections().filter((x) => x.id !== id)]);
   return true;

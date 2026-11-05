@@ -19,7 +19,7 @@ import { PAGE, layoutCoins, backX } from "./pdf/layout.ts";
 import { t, uiLang, setUiLang, LANGUAGES } from "./i18n.ts";
 import { TRANSLATIONS, VILLACUERVOS_URL, translationById, translationGroups } from "./translations.ts";
 import { uiIcon, UI_ICONS, TEAM_ICONS } from "./ui-icons.ts";
-import { OWN, OWN_ID, collectionUrl, listCollections, addCollection, deleteCollection, starterCollection, builtInCollections, openBuiltIn, MODE, loadCollection, storeCollection, collectionRoles, collectionFile, readCollectionFile, readTokenList, GROUP_COLOURS, newId, nameIn, withName, catalogsOf, isLocked, THEMES, THEME_FONTS, okLogo } from "./collection.ts";
+import { OWN, OWN_ID, collectionUrl, listCollections, addCollection, deleteCollection, starterCollection, builtInCollections, openBuiltIn, MODE, loadCollection, storeCollection, collectionRoles, collectionFile, readCollectionFile, readTokenList, GROUP_COLOURS, newId, nameIn, withName, catalogsOf, isLocked, THEMES, THEME_FONTS, okLogo, APP_LOGO, APP_LOGO_SMALL, APP_ICON, APP_NAME } from "./collection.ts";
 import type { Collection, OwnToken, OwnCatalog, OwnSection, OwnTheme, CollectionEntry } from "./collection.ts";
 import { loadScripts, storeScripts, saveScript, scriptLink, readLink, scriptJson, idKey as scriptKey } from "./scripts.ts";
 import type { HomebrewEntry, NewScript, Script, ScriptJsonEntry } from "./scripts.ts";
@@ -2497,9 +2497,9 @@ function remapLinked(id: string, before: string[], after: string[]) {
 
 /** The collection's colours on the whole app: Clocktower's own stylesheet for "botc", else its theme's. */
 function applyOwnTheme() {
-  const root = document.documentElement, th = coll.theme ?? "graphite";
+  const root = document.documentElement, th = coll.theme ?? "faber";
   // "botc" is the stylesheet's own colours: nothing to set
-  const colours: OwnTheme | null = th === "botc" ? null : typeof th === "string" ? THEMES[th] ?? THEMES.graphite : th;
+  const colours: OwnTheme | null = th === "botc" ? null : typeof th === "string" ? THEMES[th] ?? THEMES.faber : th;
   root.dataset.theme = th === "botc" ? "botc" : "";
   const vars: Record<string, string | undefined> = colours ? {
     "--velvet": colours.surface, "--velvet-mid": colours.surface, "--velvet-deep": colours.background, "--brass": colours.accent,
@@ -2513,19 +2513,21 @@ function applyOwnTheme() {
 
 /** The collection's mark: its logo on the top bar, the loading screen and the tab, and its name beside it. */
 function applyOwnBrand() {
-  const logo = coll.brand?.logo || "/logo-mark.svg", title = nameIn(coll.brand?.title, uiLang());
-  for (const img of $$<HTMLImageElement>(".brand img, .gate-logo, .coll-logo")) img.src = logo;
+  const own = coll.brand?.logo, name = nameIn(coll.brand?.title, uiLang()) || nameIn(coll.name, uiLang());
+  $<HTMLImageElement>(".gate-logo").src = own || APP_LOGO;
+  for (const img of $$<HTMLImageElement>(".coll-logo")) img.src = own || APP_LOGO_SMALL;
   const icon = $<HTMLLinkElement>("#favicon");
-  icon.href = logo; icon.type = logo.startsWith("data:image/svg") || logo.endsWith(".svg") ? "image/svg+xml" : "";
-  for (const el of $$(".brand-title")) { el.textContent = title; el.hidden = !title; }
-  for (const el of $$(".coll-name")) el.textContent = title || nameIn(coll.name, uiLang());
-  for (const el of $$(".brand .wordmark, .gate-card .wordmark")) el.hidden = !!title;
-  document.title = title ? `${title} · Midnight Mint` : nameIn(coll.name, uiLang()) ? `${nameIn(coll.name, uiLang())} · Midnight Mint` : "Midnight Mint";
+  icon.href = own || APP_ICON; icon.type = (own || APP_ICON).startsWith("data:image/svg") || (own || APP_ICON).endsWith(".svg") ? "image/svg+xml" : "";
+  // the loading screen: the collection's logo and name, the app's name small beneath
+  for (const el of $$(".gate-card .wordmark")) el.hidden = true;
+  for (const el of $$(".brand-title")) { el.textContent = name; el.hidden = !name; }
+  for (const el of $$(".coll-name")) el.textContent = name;
+  document.title = name ? `${name} · ${APP_NAME}` : APP_NAME;
 }
 
 function openOwnSettings() {
   const lang = uiLang();
-  $<HTMLImageElement>("#osLogo").src = coll.brand?.logo || "/logo-mark.svg";
+  $<HTMLImageElement>("#osLogo").src = coll.brand?.logo || APP_LOGO;
   $<HTMLInputElement>("#osBrandTitle").value = nameIn(coll.brand?.title, lang);
   $("#osLogoNote").textContent = "";
   $<HTMLInputElement>("#osName").value = nameIn(coll.name, lang);
@@ -2537,15 +2539,15 @@ function openOwnSettings() {
   $<HTMLDialogElement>("#ownSettings").showModal();
 }
 function renderOwnThemes() {
-  const th = coll.theme ?? "graphite", custom = typeof th === "object" ? th : null;
+  const th = coll.theme ?? "faber", custom = typeof th === "object" ? th : null;
   $("#osThemes").innerHTML = Object.entries(THEMES).map(([id, c]) => {
     const sw = c ?? { background: "#170812", surface: "#2a0f20", accent: "#c9a227", text: "#efe6d6" };
     return `<button type="button" class="os-theme" data-theme-id="${id}" aria-pressed="${th === id}"><span style="background:${sw.background};border-color:${sw.surface}"><i style="background:${sw.accent}"></i><b style="color:${sw.text}">Aa</b></span>${esc(t(`own.theme.${id}`))}</button>`;
   }).join("") + `<button type="button" class="os-theme" data-theme-id="custom" aria-pressed="${!!custom}"><span class="custom"><i></i><b>+</b></span>${esc(t("own.theme.custom"))}</button>`;
-  const base = custom ?? (typeof th === "string" ? THEMES[th] : null) ?? THEMES.graphite!;
+  const base = custom ?? (typeof th === "string" ? THEMES[th] : null) ?? THEMES.faber!;
   $("#osCustom").hidden = !custom;
   for (const k of ["accent", "background", "surface", "text", "muted"] as const) $<HTMLInputElement>(`#os-${k}`).value = base[k];
-  $("#osFont").innerHTML = THEME_FONTS.map((f) => `<option${(custom?.font ?? "Bricolage Grotesque") === f ? " selected" : ""}>${esc(f)}</option>`).join("");
+  $("#osFont").innerHTML = THEME_FONTS.map((f) => `<option${(custom?.font ?? "Marcellus") === f ? " selected" : ""}>${esc(f)}</option>`).join("");
 }
 function wireOwnSettings() {
   const dlg = $<HTMLDialogElement>("#ownSettings");
@@ -2553,7 +2555,7 @@ function wireOwnSettings() {
   $("#osThemes").onclick = (e) => {
     const b = hit(e, "[data-theme-id]"); if (!b) return;
     const id = b.dataset.themeId!;
-    if (id === "custom") { const cur = coll.theme ?? "graphite"; coll.theme = { ...(typeof cur === "object" ? cur : THEMES[cur] ?? THEMES.graphite!) }; }
+    if (id === "custom") { const cur = coll.theme ?? "faber"; coll.theme = { ...(typeof cur === "object" ? cur : THEMES[cur] ?? THEMES.faber!) }; }
     else coll.theme = id;
     storeCollection(coll); applyOwnTheme(); renderOwnThemes();
   };
@@ -2571,7 +2573,7 @@ function wireOwnSettings() {
     coll.brand = { ...coll.brand, logo: url }; storeCollection(coll); applyOwnBrand();
     $<HTMLImageElement>("#osLogo").src = url; $("#osLogoNote").textContent = "";
   };
-  $("#osLogoReset").onclick = () => { if (coll.brand) delete coll.brand.logo; storeCollection(coll); applyOwnBrand(); $<HTMLImageElement>("#osLogo").src = "/logo-mark.svg"; };
+  $("#osLogoReset").onclick = () => { if (coll.brand) delete coll.brand.logo; storeCollection(coll); applyOwnBrand(); $<HTMLImageElement>("#osLogo").src = APP_LOGO; };
   $("#osCancel").onclick = () => dlg.close();
   $("#osSave").onclick = () => {
     const lang = uiLang(), v = (id: string) => $<HTMLInputElement>(id).value.trim();
@@ -2598,7 +2600,7 @@ async function collectionsByKind() {
 /** The top bar menu's (and the phone drawer's) list of collections to go to, the app's own first. */
 async function renderSwitchList() {
   const { built, mine } = await collectionsByKind(), lang = uiLang();
-  const item = (id: string, name: string, logo?: string) => `<a role="menuitem" href="${collectionUrl(id)}"${id === OWN_ID ? ' aria-current="true"' : ""}><img src="${esc(logo || "/logo-mark.svg")}" alt=""><b>${esc(name)}</b></a>`;
+  const item = (id: string, name: string, logo?: string) => `<a role="menuitem" href="${collectionUrl(id)}"${id === OWN_ID ? ' aria-current="true"' : ""}><img src="${esc(logo || APP_LOGO_SMALL)}" alt=""><b>${esc(name)}</b></a>`;
   const html = `<p class="cm-h">${esc(t("own.homeBuilt"))}</p>${built.map(({ b, kept }) => item(b.id, b.name, kept?.logo ?? b.logo)).join("")}
     <p class="cm-h">${esc(t("own.homeMine"))}</p>${mine.map((c) => item(c.id, c.name, c.logo)).join("") || `<p class="hint cm-empty">${esc(t("own.homeEmpty"))}</p>`}`;
   for (const el of $$(".coll-list")) el.innerHTML = html;
@@ -2606,11 +2608,12 @@ async function renderSwitchList() {
 }
 async function renderOwnHome() {
   $("#gate").hidden = true; $("#app").hidden = true; $("#ownHome").hidden = false;
-  document.title = "Midnight Mint";
+  document.title = APP_NAME;
+  $<HTMLLinkElement>("#favicon").href = APP_ICON;
   const { built, mine } = await collectionsByKind(), lang = uiLang();
   const when = (ms: number) => new Intl.DateTimeFormat(lang, { day: "numeric", month: "short" }).format(ms);
   const card = (id: string, name: string, logo: string | undefined, accent: string | undefined, sub: string, actions: string) => `<article class="oh-card" style="--acc:${esc(accent ?? "#4fd1c5")}">
-      <a class="oh-open" href="${collectionUrl(id)}"><img src="${esc(logo || "/logo-mark.svg")}" alt=""><span><b>${esc(name)}</b><small>${esc(sub)}</small></span></a>
+      <a class="oh-open" href="${collectionUrl(id)}"><img src="${esc(logo || APP_LOGO)}" alt=""><span><b>${esc(name)}</b><small>${esc(sub)}</small></span></a>
       <span class="oh-actions">${actions}</span></article>`;
   const exp = (id: string) => `<button class="link" type="button" data-oh-export="${esc(id)}">${esc(t("own.export"))}</button>`;
   $("#ownHomeBuilt").innerHTML = built.map(({ b, kept }) => card(b.id, b.name, kept?.logo ?? b.logo, b.accent, nameIn(b.text, lang) || t("own.homeCount", { n: b.tokens, when: "" }),

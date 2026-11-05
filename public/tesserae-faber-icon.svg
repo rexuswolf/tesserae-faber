@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <title>Tesserae Faber</title>
+  <polygon points="94,50 72,88.11 28,88.11 6,50 28,11.89 72,11.89" fill="#c9963a" stroke="#c9963a" stroke-width="8" stroke-linejoin="round"/>
+  <polygon points="86,50 68,81.18 32,81.18 14,50 32,18.82 68,18.82" fill="#a8392c" stroke="#a8392c" stroke-width="4" stroke-linejoin="round"/>
+  <polygon points="65,50 57.5,62.99 42.5,62.99 35,50 42.5,37.01 57.5,37.01" fill="#ece3d0"/>
+</svg>

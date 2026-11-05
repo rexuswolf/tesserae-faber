@@ -857,10 +857,10 @@ html[data-mode=own] .own-spine-h { display: none; }   /* the creator's sections 
 .os-brand-fields { display: grid; gap: 8px; }
 .os-brand-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 /* /crear: the list of collections */
-.own-home { min-height: 100vh; padding: 48px 20px 60px; background: radial-gradient(90% 60% at 50% 0%, #1d2a2c 0%, #111317 70%); color: #e8eaed; --bone: #e8eaed; --dust: #98a1ab; --seam: rgba(232,234,237,.12); --brass: #4fd1c5; --velvet-deep: #111317; }
+.own-home { min-height: 100vh; padding: 48px 20px 60px; background: radial-gradient(90% 60% at 50% 0%, #3a2420 0%, #1c1a18 70%); color: #ece3d0; --bone: #ece3d0; --dust: #b5aa94; --seam: rgba(236,227,208,.13); --brass: #c9963a; --velvet-deep: #1c1a18; --display: "Marcellus", serif; }
 .oh-head, .oh-tools, .oh-list { max-width: 820px; margin: 0 auto; }
 .oh-brand { display: inline-flex; align-items: center; gap: 12px; }
-.oh-head h1 { font: 800 40px/1.1 "Bricolage Grotesque", sans-serif; letter-spacing: -.02em; margin: 26px 0 6px; }
+.oh-head h1 { font: 400 40px/1.1 "Marcellus", serif; margin: 26px 0 6px; }
 .oh-tools { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 18px; margin-bottom: 18px; }
 .oh-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
 .oh-card { position: relative; display: grid; gap: 6px; border: 1px solid var(--seam); border-radius: 16px; padding: 14px; background: rgba(232,234,237,.03); border-top: 3px solid var(--acc); }
@@ -920,3 +920,10 @@ html[data-mode=own]:not([data-theme=botc]) .cs-text b { font-weight: 700; letter
 .coll-list b { font-weight: 500; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .coll-list .cm-empty { padding: 2px 10px 4px; font-size: 12px; }
 .coll-list + a { border-top: 1px solid var(--seam); margin-top: 4px; padding-top: 10px; }
+/* Tesserae Faber's wordmark: inscription capitals with a little ochre hexagon between the words */
+.faber-wm { font: 400 26px/1 "Marcellus", serif; letter-spacing: .13em; white-space: nowrap; color: #ece3d0; }
+.faber-wm .ip { display: inline-block; width: .26em; height: .225em; background: #c9963a; clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%); transform: translateY(-.28em); margin: 0 .2em 0 .08em; }
+.oh-brand .faber-wm { font-size: 28px; }
+.oh-brand img { width: 56px; height: 56px; }
+.gate-faber { margin: 10px 0 0; font-size: 14px; color: var(--dust); text-align: center; }
+.gate-faber .ip { background: var(--brass); }

@@ -8,7 +8,7 @@
 <link rel="icon" type="image/svg+xml" href="/logo-mark.svg" id="favicon">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Gloock&family=Instrument+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Gloock&family=Marcellus&family=Instrument+Sans:wght@400;500;600&display=swap">
 <!-- Wordmark "Grimorio": the blackletter face is only used for "Midnight", so load just those letters. -->
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&text=Midnight&display=swap">
 <link rel="stylesheet" href="/src/style.css">
@@ -23,7 +23,7 @@
     <div class="brand botc-only"><img src="/logo-mark.svg" alt="" width="36" height="36"><span class="wordmark"><span class="wm-mid">Midnight</span><span class="wm-mint">Mint</span></span><span class="brand-title" hidden></span></div>
     <!-- the generic creator: the collection is the brand; its menu has the way back to the list and its settings -->
     <div class="coll-switch own-only">
-      <button type="button" id="collSwitch" aria-haspopup="menu" aria-expanded="false" aria-controls="collMenu"><img class="coll-logo" src="/logo-mark.svg" alt="" width="34" height="34"><span class="cs-text"><b class="coll-name"></b><small>Midnight Mint</small></span><span class="chev" aria-hidden="true">▾</span></button>
+      <button type="button" id="collSwitch" aria-haspopup="menu" aria-expanded="false" aria-controls="collMenu"><img class="coll-logo" src="/tesserae-faber-small.svg" alt="" width="34" height="34"><span class="cs-text"><b class="coll-name"></b><small>Tesserae Faber</small></span><span class="chev" aria-hidden="true">▾</span></button>
       <div class="coll-menu" id="collMenu" role="menu" hidden>
         <div class="coll-list"></div>
         <a role="menuitem" href="/crear"><span aria-hidden="true">‹</span><b data-i18n="own.homeTitle"></b><small data-i18n="own.menuBack"></small></a>
@@ -47,7 +47,7 @@
     <div class="spine-scroll">
       <!-- the generic creator on a phone: the collection and its menu head the drawer (the top bar has no room) -->
       <details class="own-drawer own-only">
-        <summary><img class="coll-logo" src="/logo-mark.svg" alt="" width="34" height="34"><span class="cs-text"><b class="coll-name"></b><small>Midnight Mint</small></span><span class="chev" aria-hidden="true">▾</span></summary>
+        <summary><img class="coll-logo" src="/tesserae-faber-small.svg" alt="" width="34" height="34"><span class="cs-text"><b class="coll-name"></b><small>Tesserae Faber</small></span><span class="chev" aria-hidden="true">▾</span></summary>
         <div class="coll-menu-items">
         <div class="coll-list"></div>
         <a role="menuitem" href="/crear"><span aria-hidden="true">‹</span><b data-i18n="own.homeTitle"></b><small data-i18n="own.menuBack"></small></a>
@@ -295,7 +295,7 @@
 <!-- the generic creator at /crear: your collections, to open one, start one or bring one in -->
 <main class="own-home own-only" id="ownHome" hidden>
   <header class="oh-head">
-    <span class="oh-brand"><img src="/logo-mark.svg" alt="" width="44" height="44"><span class="mark wordmark"><span class="wm-mid">Midnight</span><span class="wm-mint">Mint</span></span></span>
+    <span class="oh-brand"><img src="/tesserae-faber.svg" alt="" width="56" height="56"><span class="faber-wm">TESSERAE<span class="ip" aria-hidden="true"></span>FABER</span></span>
     <h1 data-i18n="own.homeTitle"></h1>
     <p class="hint" data-i18n="own.homeLead"></p>
   </header>
@@ -317,6 +317,7 @@
     <img class="gate-logo" src="/logo-mark.svg" alt="" width="88" height="88">
     <p class="mark wordmark"><span class="wm-mid">Midnight</span><span class="wm-mint">Mint</span></p>
     <p class="brand-title gate-title-brand" hidden></p>
+    <p class="faber-wm gate-faber own-only">TESSERAE<span class="ip" aria-hidden="true"></span>FABER</p>
     <h2 id="gateTitle">Abriendo el grimorio…</h2>
     <p id="gateText"></p>
     <button class="forge" type="button" id="gateAction" hidden></button>

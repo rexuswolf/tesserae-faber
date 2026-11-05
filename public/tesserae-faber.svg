@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <title>Tesserae Faber</title>
+  <polygon points="96,50 73,89.84 27,89.84 4,50 27,10.16 73,10.16" fill="#a8392c" stroke="#a8392c" stroke-width="3.4" stroke-linejoin="round"/>
+  <polygon points="92.4,50 71.2,86.72 28.8,86.72 7.6,50 28.8,13.28 71.2,13.28" fill="#ece3d0"/>
+  <polygon points="91,50 70.5,85.51 29.5,85.51 9,50 29.5,14.49 70.5,14.49" fill="#3b3632"/>
+  <polygon points="88.4,50 86.85,52.68 83.75,52.68 82.2,50 83.75,47.32 86.85,47.32" fill="#c9963a"/>
+  <rect x="79.1" y="53.91" width="5" height="5" rx=".7" fill="#ece3d0" transform="rotate(120 81.6 56.41)"/>
+  <rect x="75.68" y="59.83" width="5" height="5" rx=".7" fill="#ece3d0" transform="rotate(120 78.18 62.33)"/>
+  <rect x="72.27" y="65.74" width="5" height="5" rx=".7" fill="#ece3d0" transform="rotate(120 74.77 68.24)"/>
+  <rect x="68.85" y="71.66" width="5" height="5" rx=".7" fill="#ece3d0" transform="rotate(120 71.35 74.16)"/>
+  <polygon points="70.75,80.57 69.2,83.26 66.1,83.26 64.55,80.57 66.1,77.89 69.2,77.89" fill="#c9963a"/>
+  <rect x="57.75" y="78.07" width="5" height="5" rx=".7" fill="#ece3d0" transform="rotate(180 60.25 80.57)"/>
+  <rect x="50.92" y="78.07" width="5" height="5" rx=".7" fill="#ece3d0" transform="rotate(180 53.42 80.57)"/>
+  <rect x="44.08" y="78.07" width="5" height="5" rx=".7" fill="#ece3d0" transform="rotate(180 46.58 80.57)"/>
+  <rect x="37.25" y="78.07" width="5" height="5" rx=".7" fill="#ece3d0" transform="rotate(180 39.75 80.57)"/>
+  <polygon points="35.45,80.57 33.9,83.26 30.8,83.26 29.25,80.57 30.8,77.89 33.9,77.89" fill="#c9963a"/>
+  <rect x="26.15" y="71.66" width="5" height="5" rx=".7" fill="#ece3d0" transform="rotate(-120 28.65 74.16)"/>
+  <rect x="22.73" y="65.74" width="5" height="5" rx=".7" fill="#ece3d0" transform="rotate(-120 25.23 68.24)"/>
+  <rect x="19.32" y="59.83" width="5" height="5" rx=".7" fill="#ece3d0" transform="rotate(-120 21.82 62.33)"/>
+  <rect x="15.9" y="53.91" width="5" height="5" rx=".7" fill="#ece3d0" transform="rotate(-120 18.4 56.41)"/>
+  <polygon points="17.8,50 16.25,52.68 13.15,52.68 11.6,50 13.15,47.32 16.25,47.32" fill="#c9963a"/>
+  <rect x="15.9" y="41.09" width="5" height="5" rx=".7" fill="#ece3d0" transform="rotate(-60 18.4 43.59)"/>
+  <rect x="19.32" y="35.17" width="5" height="5" rx=".7" fill="#ece3d0" transform="rotate(-60 21.82 37.67)"/>
+  <rect x="22.73" y="29.26" width="5" height="5" rx=".7" fill="#ece3d0" transform="rotate(-60 25.23 31.76)"/>
+  <rect x="26.15" y="23.34" width="5" height="5" rx=".7" fill="#ece3d0" transform="rotate(-60 28.65 25.84)"/>
+  <polygon points="35.45,19.43 33.9,22.11 30.8,22.11 29.25,19.43 30.8,16.74 33.9,16.74" fill="#c9963a"/>
+  <rect x="37.25" y="16.93" width="5" height="5" rx=".7" fill="#ece3d0" transform="rotate(0 39.75 19.43)"/>
+  <rect x="44.08" y="16.93" width="5" height="5" rx=".7" fill="#ece3d0" transform="rotate(0 46.58 19.43)"/>
+  <rect x="50.92" y="16.93" width="5" height="5" rx=".7" fill="#ece3d0" transform="rotate(0 53.42 19.43)"/>
+  <rect x="57.75" y="16.93" width="5" height="5" rx=".7" fill="#ece3d0" transform="rotate(0 60.25 19.43)"/>
+  <polygon points="70.75,19.43 69.2,22.11 66.1,22.11 64.55,19.43 66.1,16.74 69.2,16.74" fill="#c9963a"/>
+  <rect x="68.85" y="23.34" width="5" height="5" rx=".7" fill="#ece3d0" transform="rotate(60 71.35 25.84)"/>
+  <rect x="72.27" y="29.26" width="5" height="5" rx=".7" fill="#ece3d0" transform="rotate(60 74.77 31.76)"/>
+  <rect x="75.68" y="35.17" width="5" height="5" rx=".7" fill="#ece3d0" transform="rotate(60 78.18 37.67)"/>
+  <rect x="79.1" y="41.09" width="5" height="5" rx=".7" fill="#ece3d0" transform="rotate(60 81.6 43.59)"/>
+  <polygon points="79.6,50 64.8,75.63 35.2,75.63 20.4,50 35.2,24.37 64.8,24.37" fill="#ece3d0"/>
+  <polygon points="78.2,50 64.1,74.42 35.9,74.42 21.8,50 35.9,25.58 64.1,25.58" fill="#a8392c"/>
+  <path d="M35.6 42.8H47.4V45.6H46.9Q46.6 44.4 45.2 44.4H42.5V57.3Q42.5 58 44 58.2V58.6H39V58.2Q40.5 58 40.5 57.3V44.4H37.8Q36.4 44.4 36.1 45.6H35.6Z" fill="#ece3d0"/><path d="M53.4 42.8H63.8V45.6H63.3Q63 44.4 61.6 44.4H56.6V50H60Q61 50 61.2 49.2H61.6V52.4H61.2Q61 51.6 60 51.6H56.6V57.3Q56.6 58 58.1 58.2V58.6H53.4V58.2Q54.6 58 54.6 57.3V44.1Q54.6 43.4 53.4 43.2Z" fill="#ece3d0"/>
+  <polygon points="52.42,50.6 51.21,52.7 48.79,52.7 47.58,50.6 48.79,48.5 51.21,48.5" fill="#ece3d0"/>
+</svg>

@@ -3,6 +3,7 @@
     "id": "botc",
     "file": "/collections/botc.json",
     "name": "Blood on the Clocktower",
+    "logo": "/logo-mark.svg",
     "accent": "#c9a227",
     "tokens": 191,
     "text": {

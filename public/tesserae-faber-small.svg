@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <title>Tesserae Faber</title>
+  <polygon points="94,50 72,88.11 28,88.11 6,50 28,11.89 72,11.89" fill="#c9963a" stroke="#c9963a" stroke-width="8" stroke-linejoin="round"/>
+  <polygon points="86,50 68,81.18 32,81.18 14,50 32,18.82 68,18.82" fill="#a8392c" stroke="#a8392c" stroke-width="4" stroke-linejoin="round"/>
+  <g transform="translate(50 50.7) scale(1.75) translate(-49.7 -50.7)"><path d="M35.6 42.8H47.4V45.6H46.9Q46.6 44.4 45.2 44.4H42.5V57.3Q42.5 58 44 58.2V58.6H39V58.2Q40.5 58 40.5 57.3V44.4H37.8Q36.4 44.4 36.1 45.6H35.6Z" fill="#ece3d0" transform="translate(2.6 0)"/><path d="M53.4 42.8H63.8V45.6H63.3Q63 44.4 61.6 44.4H56.6V50H60Q61 50 61.2 49.2H61.6V52.4H61.2Q61 51.6 60 51.6H56.6V57.3Q56.6 58 58.1 58.2V58.6H53.4V58.2Q54.6 58 54.6 57.3V44.1Q54.6 43.4 53.4 43.2Z" fill="#ece3d0" transform="translate(-2.6 0)"/></g>
+</svg>
