@@ -221,7 +221,13 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .tok svg { display: block; border-radius: 50%; transition: transform .15s; }
 .tok:hover svg { transform: scale(1.06); }
 .tok[aria-current=true] svg { box-shadow: 0 0 0 3px var(--brass); }
-.tok .mark { position: absolute; top: -2px; right: -4px; background: var(--brass); color: var(--velvet-deep); border-radius: 999px; font-size: 10px; font-weight: 700; padding: 0 5px; line-height: 16px; }
+/* the pen on a token with its own changes opens it: a small mark with a finger-sized target */
+.own-pen { position: relative; border: 0; cursor: pointer; }
+.own-pen::after { content: ""; position: absolute; inset: -8px; }
+.tok-w .own-pen { position: absolute; top: -2px; right: -4px; background: var(--brass); color: var(--velvet-deep); border-radius: 999px; font-size: 10px; font-weight: 700; padding: 0 5px; line-height: 16px; }
+.tok-w .own-pen:hover { background: var(--bone); }
+.q-item .own-pen { background: none; color: var(--dust); font: 400 14px var(--ui); margin-left: 6px; padding: 0 2px; }
+.q-item .own-pen:hover { color: var(--brass); }
 /* info cards: a wider thumbnail, and no reminders */
 #rows .row.info .rems { display: none; }
 #rows .tok.card svg, #rows .row > .tok-w .tok.card svg { width: 96px; height: auto; border-radius: 6px; }
@@ -408,7 +414,6 @@ summary small { font-family: var(--ui); font-size: 12.5px; color: var(--dust); }
 .q-item > .pic svg { width: 48px; height: 48px; display: block; }
 .q-item > .pic { grid-row: span 2; }
 .q-item b { font-family: var(--display); font-weight: 400; font-size: 18px; overflow-wrap: anywhere; }
-.q-item b small { font: 400 12px var(--ui); color: var(--dust); margin-left: 6px; }
 .qty { display: inline-flex; align-items: center; border: 1px solid var(--seam); border-radius: 999px; }
 .qty button { width: 32px; height: 32px; border: 0; border-radius: 50%; background: none; color: var(--dust); font-size: 17px; cursor: pointer; }
 .qty button:hover:not(:disabled) { color: var(--bone); background: rgba(239, 230, 214, .07); }

@@ -649,6 +649,12 @@ function onCopyStep(e) {
   return true;
 }
 
+/** The mark of a token with its own changes, and the way to them. Beside the token's button: a button can't hold buttons. */
+function ownPen(key, name) {
+  const label = esc(t("sheet.editOwn", { name }));
+  return `<button class="own-pen" type="button" data-edit="${key}" title="${label}" aria-label="${label}">✎</button>`;
+}
+
 function rowHtml(r, q, remHits) {
   const lang = uiLang(), ck = charKey(r);
   // Each token is a toggle: picked tokens light up with a check, and show their copies.
@@ -658,7 +664,7 @@ function rowHtml(r, q, remHits) {
     const own = state.overrides.has(key), copies = state.pick.get(key) || 0;
     const name = textFor(key, r, reminder);
     // once picked, a small stepper adds copies; tapping the token still drops it
-    return `<span class="tok-w"><button class="tok${isCard(r) ? " card" : ""}" type="button" data-pick="${key}" aria-pressed="${copies > 0}" aria-label="${esc(name)}">${tokenSvg(state.lib, r, spec, { text: name })}<span class="ck" aria-hidden="true">✓</span>${own ? `<span class="mark" title="${esc(t("sheet.own"))}">✎</span>` : ""}</button>${copyStepper(key, name)}</span>`;
+    return `<span class="tok-w"><button class="tok${isCard(r) ? " card" : ""}" type="button" data-pick="${key}" aria-pressed="${copies > 0}" aria-label="${esc(name)}">${tokenSvg(state.lib, r, spec, { text: name })}<span class="ck" aria-hidden="true">✓</span></button>${own ? ownPen(key, name) : ""}${copyStepper(key, name)}</span>`;
   };
   const rems = remindersOf(r);
   const other = tokenLang() === "en" ? roleName(r, uiLang() === "en" ? "es" : uiLang()) : r.en;
@@ -1014,6 +1020,8 @@ function wire() {
   $("#teamChips").onclick = (e) => { const b = e.target.closest("[data-team]"); if (b) { state.team = b.dataset.team; renderSheet(); } };
   // step 1: tap a token to pick it (or drop it); a team or everything shown at once
   $("#rows").onclick = (e) => {
+    const pen = e.target.closest("[data-edit]");
+    if (pen) { editToken(pen.dataset.edit); return; }
     if (onCopyStep(e)) return;
     const pick = e.target.closest("[data-pick]"), team = e.target.closest("[data-pick-team]");
     if (pick) { const k = pick.dataset.pick; setPick(k, !isPicked(k)); picksChanged(); return; }
@@ -1356,6 +1364,8 @@ function undoPicks() {
   flow.undo = null; $("#queueToast").hidden = $("#appToast").hidden = true;
 }
 function onQueueClick(e) {
+  const pen = e.target.closest("[data-edit]");
+  if (pen) { editToken(pen.dataset.edit); return; }
   const plus = e.target.closest("[data-plus]"), minus = e.target.closest("[data-minus]"), rm = e.target.closest("[data-unpick]");
   if (plus) { const k = plus.dataset.plus; state.pick.set(k, (state.pick.get(k) || 0) + 1); picksChanged(); }
   else if (minus) {
@@ -1383,7 +1393,7 @@ function renderQueueList() {
       const name = textFor(ck, r, null);
       const pic = tokenSvg(state.lib, r, { ...specFor(ck, false), back: "none" }, { text: name });
       return `<div class="q-item"><span class="pic">${pic}</span>
-        <b>${esc(name)}${state.overrides.has(ck) ? ` <small title="${esc(t("sheet.own"))}">✎</small>` : ""}</b>
+        <b>${esc(name)}${state.overrides.has(ck) ? ` ${ownPen(ck, name)}` : ""}</b>
         <span class="qty"><button type="button" data-minus="${ck}" ${copies ? "" : "disabled"} aria-label="${esc(t("queue.lessCopy", { name }))}">−</button><span>${copies}</span><button type="button" data-plus="${ck}" aria-label="${esc(t("queue.moreCopy", { name }))}">+</button></span>
         ${rems.length ? `<div class="q-rems">${rems.map((k) => { const ri = tokenRem(k), w = textFor(k, r, ri); return `<span class="q-rem">${tokenSvg(state.lib, r, specFor(k, true), { text: w })}${esc(w)}${(state.pick.get(k) || 1) > 1 ? ` ×${state.pick.get(k)}` : ""}<button type="button" data-unpick="${k}" aria-label="${esc(t("queue.removeAria", { name: `${name}: ${w}` }))}">×</button></span>`; }).join("")}</div>` : ""}
       </div>`;
@@ -1419,6 +1429,15 @@ function designToken(key) {
   selectToken(key);
   state.tab = "token";
   renderWorkshop(); renderDesignStage();
+  if (PHONE.matches) $("#workshop").scrollTo({ top: 0, behavior: "smooth" });
+}
+/** The pen on a token with its own changes: to step 2, showing it. Step 2 only holds picked tokens, so it picks it first. */
+function editToken(key) {
+  if (!isPicked(key)) { setPick(key, true); picksChanged(); }
+  if ($("#queueDrawer").open) $("#queueDrawer").close();
+  selectToken(key);
+  state.tab = "token";
+  goStep(2);
   if (PHONE.matches) $("#workshop").scrollTo({ top: 0, behavior: "smooth" });
 }
 
