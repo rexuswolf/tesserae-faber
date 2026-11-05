@@ -13,7 +13,7 @@
   <a href="#license-and-credits">License and credits</a>
 </p>
 
-![The app: editions and a saved script in the sidebar, the Trouble Brewing sheet, the token workshop and the print queue](docs/screenshots/app.png)
+![The design step: the templates on the left, a big 3D token, and your tokens in a strip beneath it](docs/screenshots/app.png)
 
 <p align="center"><img src="public/ccc-sleeve.png" alt="Community Created Content" width="172"></p>
 
@@ -28,7 +28,7 @@
 - Every character and reminder token of each edition, in English or in 12 community translations from
   [Villacuervos](https://villacuervos.es): six Spanish ones, Asturian, Catalan, Valencian, Basque, Galician
   and Portuguese. Where a translation has them, characters can also take their feminine form.
-- Search by character or reminder text, and filter by team.
+- Search by character or reminder text, including the names you gave them, and filter by team.
 - Add a whole edition (or whatever is on screen) to the print queue in one click, with or without its reminders.
 - Keep your own **scripts**: import the Script Tool's JSON and the script sits beside the editions.
   Scripts live in your browser; share one with a link (the script travels inside it) or download it as JSON.
@@ -39,13 +39,13 @@
 
 **Design them**
 - Your own icons: give any character another icon from game-icons.net (searched in the workshop, credited in *Credits*) or an SVG of your own; its reminders share it. A script can bring its own names and icons (`{"id": "gambler", "name": "…", "icon": "lorc/drill"}`, or the Script Tool's `image` when it's an SVG), and *Download JSON* keeps them.
-- Ready-made designs to start from: *Fast print*, *Pitch-black night*, *Midnight*, *Ivory coin* and *High legibility*, all with the frame in the team colour. A magnet (glued into a pocket, or hidden inside with a pause) is a choice of its own and stays when you switch designs.
+- Templates to start from: *Fast print*, *Pitch-black night*, *Midnight*, *Ivory coin* and *High legibility*, all with the frame in the team colour. A line over the controls says which one you started from and whether you've modified it. A magnet (glued into a pocket, or hidden inside with a pause) is a choice of its own and stays when you switch templates.
 - Two layouts: **classic** (name curved along the edge) and **window** (a framed picture with a straight name).
   The window can be flat, so nobody can feel which character they drew.
-- 9 frame designs, and 6 back designs plus the edition's name or your own SVG, each drawn on your character as you choose.
+- 12 frame designs, and 6 back designs plus the edition's name or your own SVG, each drawn on your character as you choose.
 - Any of the 10 filament colours for the coin, the frame and the back; the name and icon take the team colour.
-- A live 3D preview you can turn around, with front and back views.
-- Style the whole set at once, or give a single token its own look, and save designs in your browser.
+- A big live 3D preview you can turn around, with front and back views; it turns by itself to the part you're editing.
+- Style the whole set at once, or switch to *This token only* to give one token its own text, icon or look. A pen marks those tokens and takes you straight back to them. Save designs in your browser.
 
 | Frames | Backs |
 |---|---|
