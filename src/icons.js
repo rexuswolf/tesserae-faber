@@ -94,21 +94,52 @@ function gameIconPath(url) {
  * How pictures are traced, as a number stored with each traced icon. Raise it when tracing
  * changes, and icons traced the old way are traced again (2: near-white details became gaps;
  * 3: only an icon over 90% near-white keeps its whole shape, so outlined drawings keep their lines;
- * 4: a drop shadow, grey and see-through, isn't part of the icon).
+ * 4: a drop shadow, grey and see-through, isn't part of the icon;
+ * 5: a texture's light specks stay icon, and the shape's edges are smoothed).
  */
-export const TRACE_VERSION = 4;
+export const TRACE_VERSION = 5;
 /** True for an icon traced from a picture before the current way of tracing. */
 export const tracedBefore = (icon) => !!icon?.url && icon.source === "script" && !/\.svg(\?|#|$)/i.test(icon.url) && !icon.url.startsWith("data:") && (icon.traced ?? 1) < TRACE_VERSION;
 
 /** A drop shadow's pixel: grey (no colour) and see-through. An icon's own colours are opaque. */
 const shadowPx = (r, g, b, a) => a < 250 && Math.max(r, g, b) - Math.min(r, g, b) < 25;
+/** Near-white patches smaller than `min` pixels (a texture's highlights) stay part of the icon. */
+function keepSpecks(kind, W, H, min) {
+  const seen = new Uint8Array(W * H), stack = [], patch = [];
+  for (let start = 0; start < W * H; start++) {
+    if (kind[start] !== 2 || seen[start]) continue;
+    patch.length = 0; stack.push(start); seen[start] = 1;
+    while (stack.length) {
+      const j = stack.pop(); patch.push(j);
+      const x = j % W;
+      for (const n of [x + 1 < W ? j + 1 : -1, x > 0 ? j - 1 : -1, j + W < W * H ? j + W : -1, j - W]) {
+        if (n >= 0 && !seen[n] && kind[n] === 2) { seen[n] = 1; stack.push(n); }
+      }
+    }
+    if (patch.length < min) for (const j of patch) kind[j] = 1;
+  }
+}
+/** Smooths a 0/1 mask: each pixel takes what most of its (2r+1)² neighbours are (rough edges, specks). */
+function smoothMask(on, W, H, r) {
+  const I = new Uint32Array((W + 1) * (H + 1));   // running sums, so each window is four reads
+  for (let y = 0; y < H; y++) {
+    let row = 0;
+    for (let x = 0; x < W; x++) { row += on[y * W + x]; I[(y + 1) * (W + 1) + x + 1] = I[y * (W + 1) + x + 1] + row; }
+  }
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const xa = Math.max(0, x - r), xb = Math.min(W, x + r + 1), ya = Math.max(0, y - r), yb = Math.min(H, y + r + 1);
+    const sum = I[yb * (W + 1) + xb] - I[ya * (W + 1) + xb] - I[yb * (W + 1) + xa] + I[ya * (W + 1) + xa];
+    on[y * W + x] = sum * 2 > (xb - xa) * (yb - ya) ? 1 : 0;
+  }
+}
 /** Near-white: light and nearly grey (cream, white), not a light colour like yellow or sky blue. */
 const nearWhite = (r, g, b) => 0.2126 * r + 0.7152 * g + 0.0722 * b > 190 && Math.max(r, g, b) - Math.min(r, g, b) < 60;
 
 /**
  * A picture (PNG, JPEG, WebP…) traced into an icon: its opaque pixels become shapes, placed
  * like the library's icons. Details drawn in white or cream on top of the icon (a page's lines,
- * an outline, a drawing's white fill) become gaps, and a grey see-through drop shadow is left out, as they'd be in a one-colour print; unless
+ * an outline, a drawing's white fill) become gaps, but a texture's light specks don't; a grey
+ * see-through drop shadow is left out, and the shape's edges are smoothed, as they'd be in a one-colour print; unless
  * nearly all the icon is that light (over 90%), when it's a white icon and keeps its whole shape. The host must allow reading it
  * (CORS). Throws when it can't be read, or when it's opaque edge to edge (a photo or a square
  * image: no shape to find).
@@ -131,11 +162,20 @@ async function tracedIcon(url, name) {
     if (nearWhite(data[i], data[i + 1], data[i + 2])) light++;
   }
   const cutLight = light < opaque * 0.9;   // otherwise it's a white icon: keep it whole
-  let x0 = W, y0 = H, x1 = -1, y1 = -1, count = 0;
+  // each pixel: 0 not icon, 1 icon, 2 near-white (a gap, unless it's only a speck)
+  const kind = new Uint8Array(W * H);
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const i = (y * S + x) * 4;
-    if (data[i + 3] <= 128 || shadowPx(data[i], data[i + 1], data[i + 2], data[i + 3]) || (cutLight && nearWhite(data[i], data[i + 1], data[i + 2]))) continue;
-    on[y * W + x] = 1; count++;
+    if (data[i + 3] <= 128 || shadowPx(data[i], data[i + 1], data[i + 2], data[i + 3])) continue;
+    kind[y * W + x] = cutLight && nearWhite(data[i], data[i + 1], data[i + 2]) ? 2 : 1;
+  }
+  keepSpecks(kind, W, H, 60);
+  for (let j = 0; j < W * H; j++) on[j] = kind[j] === 1 ? 1 : 0;
+  smoothMask(on, W, H, 2);
+  let x0 = W, y0 = H, x1 = -1, y1 = -1, count = 0;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    if (!on[y * W + x]) continue;
+    count++;
     if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
   }
   if (!count || opaque > W * H * 0.97) throw new Error("no-shapes");
