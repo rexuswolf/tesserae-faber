@@ -47,7 +47,7 @@ const PLATE_LABEL = {
 
 const state = {
   user: null, lib: null,
-  edition: "tb", team: "all",
+  edition: "all", team: "all",   // the sheet opens on every character
   sel: null,              // { key, role, reminder: index | null }
   tab: "set",   // what the controls edit: "set" or "token"
   section: "presets",   // what the panel shows; "presets" is the templates, open under their line
@@ -378,7 +378,7 @@ function startApp() {
   }
   const first = state.lib.roles.find((r) => r.en === "Fortune Teller") || state.lib.roles[0];
   if (!state.sel) state.sel = { key: charKey(first), role: first, reminder: null };
-  state.edition = state.sel.role.edition || "tb";
+  state.edition = "all";
   buildChoices();
   state.pick = loadPicks();
   persistPicks();
@@ -765,7 +765,7 @@ const searchQuery = () => fold($("#search").value.trim());
 
 function renderSheet() {
   const lang = uiLang(), q = searchQuery();
-  if (state.edition.startsWith("s:") && !scriptOf(state.edition)) state.edition = "tb";   // a deleted script
+  if (state.edition.startsWith("s:") && !scriptOf(state.edition)) state.edition = "all";   // a deleted script
   const ed = state.edition, sc = scriptOf(ed), inScript = sc && scriptRoles(sc);
   // header
   $("#edTitle").textContent = q ? t("sheet.results", { q: $("#search").value.trim() }) : sc ? sc.name : ed === "all" ? t("library.all") : EDITIONS[ed].name[lang];
@@ -1252,7 +1252,7 @@ function wire() {
     if ([...state.pick.keys()].some(gone)) { for (const k of [...state.pick.keys()]) if (gone(k)) state.pick.delete(k); persistPicks(); }
     if (gone(state.sel.key)) { const first = state.lib.roles.find((r) => r.en === "Fortune Teller") || state.lib.roles[0]; state.sel = { key: charKey(first), role: first, reminder: null }; }
     syncHomebrew();
-    goEdition(EDITION_ORDER.find((x) => state.lib.roles.some((r) => r.edition === x)));
+    goEdition("all");
   };
   window.addEventListener("hashchange", openSharedScript);
   // phone: the top bar opens the sidebar as a drawer (step 1)
