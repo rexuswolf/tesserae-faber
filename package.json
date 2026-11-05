@@ -6,8 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "typecheck": "tsc --noEmit",
     "preview": "vite preview",
-    "deploy": "vite build && firebase deploy"
+    "deploy": "tsc --noEmit && vite build && firebase deploy"
   },
   "dependencies": {
     "firebase": "^11.10.0",
@@ -19,7 +20,9 @@
   },
   "devDependencies": {
     "@iconify-json/game-icons": "^1.2.4",
+    "@types/three": "~0.160.0",
     "firebase-tools": "^15.34.2",
+    "typescript": "~5.9.3",
     "vite": "^6.4.5"
   },
   "license": "PolyForm-Noncommercial-1.0.0"
