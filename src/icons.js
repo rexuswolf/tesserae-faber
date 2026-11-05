@@ -92,9 +92,10 @@ function gameIconPath(url) {
 
 /**
  * How pictures are traced, as a number stored with each traced icon. Raise it when tracing
- * changes, and icons traced the old way are traced again (2: near-white details became gaps).
+ * changes, and icons traced the old way are traced again (2: near-white details became gaps;
+ * 3: only an icon over 90% near-white keeps its whole shape, so outlined drawings keep their lines).
  */
-export const TRACE_VERSION = 2;
+export const TRACE_VERSION = 3;
 /** True for an icon traced from a picture before the current way of tracing. */
 export const tracedBefore = (icon) => !!icon?.url && icon.source === "script" && !/\.svg(\?|#|$)/i.test(icon.url) && !icon.url.startsWith("data:") && (icon.traced ?? 1) < TRACE_VERSION;
 
@@ -104,8 +105,8 @@ const nearWhite = (r, g, b) => 0.2126 * r + 0.7152 * g + 0.0722 * b > 190 && Mat
 /**
  * A picture (PNG, JPEG, WebP…) traced into an icon: its opaque pixels become shapes, placed
  * like the library's icons. Details drawn in white or cream on top of the icon (a page's lines,
- * an outline) become gaps, as they'd be in a one-colour print; unless most of the icon is that
- * light, when it's a white icon and keeps its whole shape. The host must allow reading it
+ * an outline, a drawing's white fill) become gaps, as they'd be in a one-colour print; unless
+ * nearly all the icon is that light (over 90%), when it's a white icon and keeps its whole shape. The host must allow reading it
  * (CORS). Throws when it can't be read, or when it's opaque edge to edge (a photo or a square
  * image: no shape to find).
  */
@@ -126,7 +127,7 @@ async function tracedIcon(url, name) {
     opaque++;
     if (nearWhite(data[i], data[i + 1], data[i + 2])) light++;
   }
-  const cutLight = light < opaque * 0.6;   // otherwise it's a white icon: keep it whole
+  const cutLight = light < opaque * 0.9;   // otherwise it's a white icon: keep it whole
   let x0 = W, y0 = H, x1 = -1, y1 = -1, count = 0;
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const i = (y * S + x) * 4;
