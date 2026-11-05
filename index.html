@@ -22,7 +22,7 @@
       <svg viewBox="0 0 18 18" width="18" height="18" aria-hidden="true"><path d="M3 5h12M3 9h12M3 13h12" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
     <div class="brand"><img src="/logo-mark.svg" alt="" width="36" height="36"><span class="wordmark"><span class="wm-mid">Midnight</span><span class="wm-mint">Mint</span></span></div>
     <nav class="flow-steps" id="flowSteps" data-i18n-attr="aria-label:flow.aria"></nav>
-    <button class="tlang-trigger botc-only" id="tokenLangBtn" type="button" aria-haspopup="dialog"></button>
+    <button class="tlang-trigger" id="tokenLangBtn" type="button" aria-haspopup="dialog"></button>
   </header>
 
   <!-- the sidebar: editions (more groups, like scripts, can join them), then language, account and credits.
@@ -96,6 +96,7 @@
       </div>
       <div class="own-actions own-only" id="ownActions" hidden>
         <button class="pill add" type="button" id="ownNewTok" data-i18n="own.newToken"></button>
+        <button class="pill" type="button" id="ownCatList" data-i18n="own.addFromList"></button>
         <button class="pill" type="button" id="ownCatRename" data-i18n="own.renameCatalog"></button>
         <button class="pill danger" type="button" id="ownCatDelete" data-i18n="own.deleteCatalog"></button>
       </div>
@@ -358,6 +359,7 @@
     <div class="own-pv" id="ownTokPv"></div>
     <div class="own-fields">
       <label class="field"><span data-i18n="own.name"></span><input class="text" id="ownTokName" autocomplete="off"></label>
+      <label class="field" id="ownTokTypeRow"><span data-i18n="own.type"></span><select class="text" id="ownTokType"></select></label>
       <label class="field"><span data-i18n="own.group"></span><select class="text" id="ownTokGroup"></select></label>
     </div>
   </div>
@@ -381,9 +383,25 @@
 <dialog id="ownGroupsDlg" class="own-dialog" aria-labelledby="ownGroupsTitle">
   <form method="dialog" class="close"><button class="pill" data-i18n="admin.close"></button></form>
   <h2 id="ownGroupsTitle" data-i18n="own.groups"></h2>
+  <h3 data-i18n="own.types"></h3>
+  <p class="hint" data-i18n="own.typesHelp"></p>
+  <div class="own-groups" id="ownTypeList"></div>
+  <button class="pill" type="button" id="ownTypeAdd" data-i18n="own.addType"></button>
+  <h3 data-i18n="own.groupsH"></h3>
   <p class="hint" data-i18n="own.groupsHelp"></p>
   <div class="own-groups" id="ownGroupList"></div>
   <button class="pill" type="button" id="ownGroupAdd" data-i18n="own.addGroup"></button>
+</dialog>
+
+<!-- the generic creator: a catalog made in an open section, or tokens added to one, from a list -->
+<dialog id="ownCat" class="own-dialog" aria-labelledby="ownCatTitle">
+  <h2 id="ownCatTitle"></h2>
+  <label class="field" id="ownCatNameRow"><span data-i18n="own.catName"></span><input class="text" id="ownCatName" autocomplete="off"></label>
+  <label class="field"><span data-i18n="own.catList"></span><textarea class="text" id="ownCatText" rows="5" spellcheck="false"></textarea></label>
+  <p class="hint" data-i18n="own.catListHelp"></p>
+  <label class="pill file"><span data-i18n="own.catFile"></span><input type="file" id="ownCatFile" accept="application/json,.json,.txt" hidden></label>
+  <p class="hint warn" id="ownCatNote" aria-live="polite"></p>
+  <div class="dialog-actions"><button class="pill" type="button" id="ownCatCancel" data-i18n="script.cancel"></button><button class="forge" type="button" id="ownCatSave"></button></div>
 </dialog>
 
 <dialog id="scriptInvite" class="script-dialog" aria-labelledby="scriptInviteTitle">

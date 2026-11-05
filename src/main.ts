@@ -19,8 +19,8 @@ import { PAGE, layoutCoins, backX } from "./pdf/layout.ts";
 import { t, uiLang, setUiLang, LANGUAGES } from "./i18n.ts";
 import { TRANSLATIONS, VILLACUERVOS_URL, translationById, translationGroups } from "./translations.ts";
 import { uiIcon, UI_ICONS, TEAM_ICONS } from "./ui-icons.ts";
-import { OWN, MODE, loadCollection, storeCollection, collectionRoles, collectionFile, readCollectionFile, GROUP_COLOURS, newId } from "./collection.ts";
-import type { Collection, OwnToken } from "./collection.ts";
+import { OWN, MODE, loadCollection, storeCollection, collectionRoles, collectionFile, readCollectionFile, readTokenList, GROUP_COLOURS, newId, nameIn, withName, catalogsOf, isLocked } from "./collection.ts";
+import type { Collection, OwnToken, OwnCatalog, OwnSection } from "./collection.ts";
 import { loadScripts, storeScripts, saveScript, scriptLink, readLink, scriptJson, idKey as scriptKey } from "./scripts.ts";
 import type { HomebrewEntry, NewScript, Script, ScriptJsonEntry } from "./scripts.ts";
 import type { Translation } from "./translations.ts";
@@ -106,7 +106,7 @@ const state: {
   designs: [],
 };
 /** The generic creator's collection (/crear); empty, and unused, in Clocktower. */
-let coll: Collection = OWN ? loadCollection() : { name: "", groups: [], tokens: [], catalogs: [] };
+let coll: Collection = OWN ? loadCollection() : { name: "", types: [], groups: [], tokens: [], sections: [] };
 
 // After a deploy, a page opened earlier may ask for code files that no longer
 // exist (their names change with each version). Reload once to get the new ones.
@@ -396,7 +396,7 @@ async function boot() {
   try {
     if (OWN) {   // your own collection: no library to fetch
       applyGroups();
-      state.lib = await loadLibrary(collectionRoles(coll));
+      state.lib = await loadLibrary(collectionRoles(coll, uiLang()));
       gateState = null;
       startApp();
       return;
@@ -449,11 +449,11 @@ function startApp() {
     wire();
   }
   const first = state.lib!.roles.find((r) => r.en === "Fortune Teller") || state.lib!.roles[0];
-  if (OWN) { $(".own-spine-h h2").textContent = t("own.catalogs"); $("#ownCollName").textContent = coll.name; }
+  if (OWN) syncOwnChrome();
   if (!state.sel) state.sel = { key: charKey(first), role: first, reminder: null };
   // back where you were: the same view and team filter, if it still exists
   const view = loadJSON<{ edition?: string; team?: unknown }>(VIEW_KEY, {});
-  const known = (ed: string | undefined) => ed === "all" || (ed?.startsWith("k:") ? !!catalogOf(ed) : ed?.startsWith("s:") ? !!scriptOf(ed) : state.lib!.roles.some((r) => r.edition === ed));
+  const known = (ed: string | undefined) => ed === "all" || (ed?.startsWith("k:") ? !!catalogOf(ed) : ed?.startsWith("t:") ? !!typeOfView(ed) : ed?.startsWith("s:") ? !!scriptOf(ed) : state.lib!.roles.some((r) => r.edition === ed));
   state.edition = known(view.edition) ? view.edition! : "all";
   state.team = typeof view.team === "string" ? view.team : "all";
   buildChoices();
@@ -843,14 +843,17 @@ const searchQuery = () => fold($<HTMLInputElement>("#search").value.trim());
 function renderSheet() {
   const lang = uiLang(), q = searchQuery();
   if (state.edition.startsWith("s:") && !scriptOf(state.edition)) state.edition = "all";   // a deleted script
-  if (state.edition.startsWith("k:") && !catalogOf(state.edition)) state.edition = "all";   // a deleted catalog
-  const ed = state.edition, sc = scriptOf(ed), inScript = sc && scriptRoles(sc), cat = catalogOf(ed);
+  // the generic creator: a deleted catalog or type, or "all", shows the first type's entry
+  if (OWN && !catalogOf(state.edition) && !typeOfView(state.edition)) state.edition = `t:${coll.types[0].id}`;
+  const ed = state.edition, sc = scriptOf(ed), inScript = sc && scriptRoles(sc), cat = catalogOf(ed), ty = typeOfView(ed);
+  const catOpen = !!cat && catalogsOf(coll).some(({ k, s: sec }) => k === cat && sec.open);
   // header
-  $("#edTitle").textContent = q ? t("sheet.results", { q: $<HTMLInputElement>("#search").value.trim() }) : cat ? cat.name : sc ? sc.name : ed === "all" ? t(OWN ? "own.all" : "library.all") : EDITIONS[ed].name[lang];
-  $("#ownActions").hidden = !OWN || !!q;
-  $("#ownCatRename").hidden = $("#ownCatDelete").hidden = !cat;
+  $("#edTitle").textContent = q ? t("sheet.results", { q: $<HTMLInputElement>("#search").value.trim() }) : cat ? nameIn(cat.name, lang) : ty ? nameIn(ty.title, lang) : sc ? sc.name : ed === "all" ? t("library.all") : EDITIONS[ed].name[lang];
+  // the generic creator's actions: new tokens in a type's entry or an open catalog; the open catalog itself
+  $("#ownActions").hidden = !OWN || !!q || !(ty || catOpen);
+  $("#ownCatRename").hidden = $("#ownCatDelete").hidden = $("#ownCatList").hidden = !catOpen;
   $("#edLead").textContent = q ? t("sheet.leadSearch")
-    : OWN ? t(cat ? "own.leadCatalog" : "own.leadAll", { n: (cat ? cat.tokens.length : state.lib!.roles.length) })
+    : OWN ? t(cat ? "own.leadCatalog" : "own.leadAll", { n: (cat ? cat.tokens.length : state.lib!.roles.filter((r) => typeOfToken(r.id) === ty?.id).length) })
     : sc ? t("script.lead", { n: inScript!.roles.length, eds: new Set(inScript!.roles.filter((r) => r.kind !== "homebrew").map((r) => r.edition)).size })
       + (inScript!.missing.length ? t("script.missing", { list: inScript!.missing.join(", ") }) : "")
     : ed === "all" ? t("library.allLead", { n: allCharacters().length })
@@ -865,7 +868,7 @@ function renderSheet() {
   $("#scriptShare").textContent = t(PHONE.matches && (navigator as Partial<Navigator>).share ? "script.share" : "script.copy");
 
   // which characters
-  let roles = q ? state.lib!.roles : cat ? cat.tokens.map(roleById).filter((r): r is Role => !!r) : sc ? inScript!.roles : ed === "all" ? allCharacters() : state.lib!.roles.filter((r) => r.edition === ed);
+  let roles = q ? state.lib!.roles : cat ? cat.tokens.map(roleById).filter((r): r is Role => !!r) : ty ? state.lib!.roles.filter((r) => typeOfToken(r.id) === ty.id) : sc ? inScript!.roles : ed === "all" ? allCharacters() : state.lib!.roles.filter((r) => r.edition === ed);
   const teamsHere = TEAM_ORDER.filter((tm) => roles.some((r) => r.team === tm));
   if (state.team !== "all" && !teamsHere.includes(state.team as Team)) state.team = "all";
   storeJSON(VIEW_KEY, { edition: state.edition, team: state.team });   // where to come back to
@@ -961,7 +964,7 @@ function rowHtml(r: Role, q: string, remHits: Set<number> | undefined) {
   }).join("");
   return `<div class="row${isCard(r) ? " info" : ""}${rems.length ? "" : " no-rems"}" data-picked="${isPicked(ck)}" data-row="${ck}">
     ${thumb(ck, null)}
-    <div class="who" data-pick="${ck}"><b>${esc(catalogText(r, null))}</b>${!OWN && other !== catalogText(r, null) ? `<small>${esc(other)}</small>` : ""}${!OWN && (q || state.edition === "all" || (state.edition.startsWith("s:") && r.kind !== "homebrew")) ? `<em>${esc(editionName(r, lang))}</em>` : ""}${r.loading ? `<small>${esc(t("sheet.iconLoading"))}</small>` : ""}${OWN ? `<button class="own-edit" type="button" data-own-edit="${esc(r.id)}">${esc(t("own.edit"))}</button>` : ""}</div>
+    <div class="who" data-pick="${ck}"><b>${esc(catalogText(r, null))}</b>${other !== catalogText(r, null) ? `<small>${esc(other)}</small>` : ""}${OWN ? (ownHome(r) && (q || catalogOf(state.edition) !== ownHomeCatalog(r.id)) ? `<em>${esc(ownHome(r))}</em>` : "") : q || state.edition === "all" || (state.edition.startsWith("s:") && r.kind !== "homebrew") ? `<em>${esc(editionName(r, lang))}</em>` : ""}${r.loading ? `<small>${esc(t("sheet.iconLoading"))}</small>` : ""}${OWN && !isLocked(coll, r.id) ? `<button class="own-edit" type="button" data-own-edit="${esc(r.id)}">${esc(t("own.edit"))}</button>` : ""}</div>
     ${rems.length ? `<div class="rems">${chips}</div>` : ""}
   </div>`;
 }
@@ -2157,11 +2160,20 @@ $("#libraryFile").onchange = async (e) => {
 
 // ------------------------------------------------------------ the generic creator (/crear)
 //
-// Your own collection stands in for Clocktower's library: each token is a character whose team
-// is its colour group, its linked tokens are its reminders, and each catalog is an edition
-// ("k:<id>"). Everything after picking (design, queue, print) is the same app.
+// Your own collection (collection.ts) stands in for Clocktower's library: each token is a
+// character whose team is its colour group and whose reminders are its linked tokens. The
+// sidebar has a fixed entry per type ("t:<id>", like "All characters" and "Grimoire"), then the
+// sections with their catalogs ("k:<id>", like the editions and scripts). Everything after
+// picking (design, queue, print) is the same app.
 
-const catalogOf = (view: string | null | undefined) => (OWN && view?.startsWith("k:") ? coll.catalogs.find((k) => k.id === view.slice(2)) ?? null : null);
+const catalogOf = (view: string | null | undefined): OwnCatalog | null =>
+  (OWN && view?.startsWith("k:") ? catalogsOf(coll).find(({ k }) => k.id === view.slice(2))?.k ?? null : null);
+const typeOfView = (view: string | null | undefined) => (OWN && view?.startsWith("t:") ? coll.types.find((x) => x.id === view.slice(2)) ?? null : null);
+const typeOfToken = (id: string) => coll.tokens.find((x) => x.id === id)?.type;
+/** The closed catalog a token came in ("Trouble Brewing"), shown under its name like an edition. */
+const ownHomeCatalog = (id: string) => coll.sections.find((s) => !s.open && s.catalogs.some((k) => k.tokens.includes(id)))?.catalogs.find((k) => k.tokens.includes(id)) ?? null;
+const ownHome = (r: Role) => { const k = ownHomeCatalog(r.id); return k ? nameIn(k.name, uiLang()) : ""; };
+const sectionOf = (k: OwnCatalog) => coll.sections.find((s) => s.catalogs.includes(k))!;
 
 /** The collection's groups take the place of the teams in every table that sorts, names or colours by team. */
 function applyGroups() {
@@ -2171,60 +2183,111 @@ function applyGroups() {
   const slug = (x: string) => x.normalize("NFD").replace(/\p{M}/gu, "").replace(/[^A-Za-z0-9]+/g, "_").replace(/^_|_$/g, "");
   for (const g of coll.groups) {
     const id = g.id as Team;
-    for (const lang of Object.keys(TEAM_PLURAL)) { TEAM_PLURAL[lang][id] = g.name; PLATE_LABEL[lang][id] = g.name; }
+    for (const lang of Object.keys(TEAM_PLURAL)) { TEAM_PLURAL[lang][id] = nameIn(g.name, lang); PLATE_LABEL[lang][id] = nameIn(g.name, lang); }
     PLATE_GROUP[id] = id;
-    TEAMS[id] = { label: { en: g.name, es: g.name }, colour: g.colour, file: slug(g.name) || id };
-    TEAM_ICONS[id] = "two-coins";
+    TEAMS[id] = { label: { en: nameIn(g.name, "en"), es: nameIn(g.name, "es") }, colour: g.colour, file: slug(nameIn(g.name, "en")) || id };
+    TEAM_ICONS[id] = g.icon && UI_ICONS[g.icon] ? g.icon : TEAM_ICONS[id] ?? "two-coins";
   }
+}
+
+/** What depends on the collection itself: its name, its look, and the token language when it has several. */
+function syncOwnChrome() {
+  $("#ownCollName").textContent = nameIn(coll.name, uiLang());
+  document.documentElement.dataset.theme = coll.theme ?? "";
+  $("#tokenLangBtn").hidden = !((coll.languages?.length ?? 0) > 1);
 }
 
 /** After any change to the collection: keep it, redraw, and drop picks and designs of tokens that are gone. */
 function collectionChanged() {
   storeCollection(coll);
   applyGroups();
-  state.lib!.roles = collectionRoles(coll);
-  const ids = new Set(coll.tokens.map((t) => t.id)), linkedOf = new Map(coll.tokens.map((t) => [t.id, t.linked.length]));
+  state.lib!.roles = collectionRoles(coll, uiLang());
+  const ids = new Set(coll.tokens.map((x) => x.id)), linkedOf = new Map(coll.tokens.map((x) => [x.id, x.linked.length]));
   const alive = (k: string) => { const [kind, id, i] = k.split(":"); return ids.has(id) && (kind !== "r" || +i < linkedOf.get(id)!); };
   for (const k of [...state.pick.keys()]) if (!alive(k)) state.pick.delete(k);
   for (const k of [...state.overrides.keys()]) if (!alive(k)) state.overrides.delete(k);
   persistPicks(); storeOverrides();
   const sel = state.sel && roleById(state.sel.role.id);
   state.sel = sel && alive(state.sel!.key) ? { ...state.sel!, role: sel } : { key: charKey(state.lib!.roles[0]), role: state.lib!.roles[0], reminder: null };
-  $("#ownCollName").textContent = coll.name;
+  syncOwnChrome();
   renderAll(); renderQueue();
 }
 
 function renderOwnSpine() {
-  const all = state.lib!.roles, q = searchQuery();
-  const sub = (roles: Role[]) => t("own.count", { n: roles.length, l: roles.reduce((n, r) => n + remindersOf(r).length, 0) });
-  $("#library").innerHTML = `<button class="ed" type="button" data-ed="all" aria-current="${state.edition === "all" && !q}">${uiIcon("two-coins")}
-    <span>${esc(t("own.all"))}<small>${esc(sub(all))}</small></span>${pickedBadge(all)}</button>`;
-  $("#editions").innerHTML = coll.catalogs.map((k) => {
-    const roles = k.tokens.map(roleById).filter((r): r is Role => !!r);
-    return `<button class="ed" type="button" data-ed="k:${esc(k.id)}" aria-current="${state.edition === `k:${k.id}` && !q}">
-      <span>${esc(k.name)}<small>${esc(sub(roles))}</small></span>${pickedBadge(roles)}</button>`;
-  }).join("") || `<p class="scripts-empty">${esc(t("own.noCatalogs"))}</p>`;
+  if (!catalogOf(state.edition) && !typeOfView(state.edition)) state.edition = `t:${coll.types[0].id}`;
+  const q = searchQuery(), lang = uiLang();
+  const rolesOf = (ids: string[]) => ids.map(roleById).filter((r): r is Role => !!r);
+  const sub = (roles: Role[], card: boolean) => card ? t("ed.countInfo", { n: roles.length }) : t("own.count", { n: roles.length, l: roles.reduce((n, r) => n + remindersOf(r).length, 0) });
+  $("#library").innerHTML = coll.types.map((ty) => {
+    const roles = state.lib!.roles.filter((r) => typeOfToken(r.id) === ty.id);
+    return `<button class="ed" type="button" data-ed="t:${esc(ty.id)}" aria-current="${state.edition === `t:${ty.id}` && !q}">${uiIcon(ty.icon && UI_ICONS[ty.icon] ? ty.icon : ty.shape === "card" ? "id-card" : "two-coins")}
+      <span>${esc(nameIn(ty.title, lang))}<small>${esc(sub(roles, ty.shape === "card"))}</small></span>${pickedBadge(roles)}</button>`;
+  }).join("");
+  $("#editions").innerHTML = coll.sections.map((sec) => `
+    <div class="spine-h spine-sec"><h2>${esc(nameIn(sec.title, lang))}</h2>${sec.open ? `<button class="spine-add" type="button" data-sec-new="${esc(sec.id)}" title="${esc(t("own.newCatalog"))}" aria-label="${esc(t("own.newCatalog"))}">+</button>` : ""}</div>
+    ${sec.catalogs.map((k) => {
+      const roles = rolesOf(k.tokens);
+      return `<button class="ed" type="button" data-ed="k:${esc(k.id)}" aria-current="${state.edition === `k:${k.id}` && !q}">
+        <span>${esc(nameIn(k.name, lang))}<small>${esc(sub(roles, false))}</small></span>${pickedBadge(roles)}</button>`;
+    }).join("") || (sec.open ? `<p class="scripts-empty">${esc(t("own.noCatalogs"))}</p>` : "")}`).join("");
+}
+
+// a catalog made (in an open section) or added to: a name, and optionally a list of tokens
+let catTarget: { section: OwnSection } | { catalog: OwnCatalog } | null = null;
+function openCatalogDialog(target: NonNullable<typeof catTarget>) {
+  catTarget = target;
+  const adding = "catalog" in target;
+  $("#ownCatTitle").textContent = t(adding ? "own.addFromList" : "own.newCatalog");
+  $("#ownCatNameRow").hidden = adding;
+  $<HTMLInputElement>("#ownCatName").value = "";
+  $<HTMLTextAreaElement>("#ownCatText").value = "";
+  $("#ownCatNote").textContent = "";
+  $("#ownCatSave").textContent = t(adding ? "own.add" : "own.create");
+  $<HTMLDialogElement>("#ownCat").showModal();
+  (adding ? $("#ownCatText") : $("#ownCatName")).focus();
 }
 
 function wireOwn() {
-  $("#catalogNew").onclick = () => {
-    const name = prompt(t("own.newCatalogPrompt"), t("own.newCatalogName"))?.trim(); if (!name) return;
-    const k = { id: newId("k"), name, tokens: [] }; coll.catalogs.push(k);
-    state.edition = `k:${k.id}`; collectionChanged();
+  $("#editions").addEventListener("click", (e) => {
+    const b = hit(e, "[data-sec-new]"); if (!b) return;
+    e.stopPropagation();
+    openCatalogDialog({ section: coll.sections.find((s) => s.id === b.dataset.secNew)! });
+  });
+  closeOnBackdrop($<HTMLDialogElement>("#ownCat"));
+  $("#ownCatCancel").onclick = () => $<HTMLDialogElement>("#ownCat").close();
+  $<HTMLInputElement>("#ownCatFile").onchange = async (e) => {
+    const f = input(e).files?.[0]; input(e).value = ""; if (!f) return;
+    $<HTMLTextAreaElement>("#ownCatText").value = await f.text();
   };
+  $("#ownCatSave").onclick = () => {
+    const text = $<HTMLTextAreaElement>("#ownCatText").value.trim();
+    const list = text ? readTokenList(coll, text) : { name: null, ids: [], missing: [] };
+    if (text && !list.ids.length) { $("#ownCatNote").textContent = t("own.listNone"); return; }
+    if ("section" in catTarget!) {
+      const name = $<HTMLInputElement>("#ownCatName").value.trim() || list.name || t("own.newCatalogName");
+      const k = { id: newId("k"), name, tokens: list.ids };
+      catTarget.section.catalogs.push(k); state.edition = `k:${k.id}`;
+    } else {
+      const k = catTarget!.catalog; for (const id of list.ids) if (!k.tokens.includes(id)) k.tokens.push(id);
+    }
+    $<HTMLDialogElement>("#ownCat").close();
+    collectionChanged();
+    if (list.missing.length) $("#edLead").textContent += " " + t("own.listMissing", { list: list.missing.join(", ") });
+  };
+  $("#ownCatList").onclick = () => { const k = catalogOf(state.edition); if (k) openCatalogDialog({ catalog: k }); };
   $("#ownCatRename").onclick = () => {
     const k = catalogOf(state.edition); if (!k) return;
-    const name = prompt(t("own.renamePrompt"), k.name)?.trim(); if (!name) return;
-    k.name = name; collectionChanged();
+    const name = prompt(t("own.renamePrompt"), nameIn(k.name, uiLang()))?.trim(); if (!name) return;
+    k.name = withName(k.name, uiLang(), name); collectionChanged();
   };
   $("#ownCatDelete").onclick = () => {
-    const k = catalogOf(state.edition); if (!k || !confirm(t("own.deleteCatalogConfirm", { name: k.name }))) return;
-    coll.catalogs = coll.catalogs.filter((x) => x !== k); state.edition = "all"; collectionChanged();
+    const k = catalogOf(state.edition); if (!k || !confirm(t("own.deleteCatalogConfirm", { name: nameIn(k.name, uiLang()) }))) return;
+    const sec = sectionOf(k); sec.catalogs = sec.catalogs.filter((x) => x !== k); state.edition = "all"; collectionChanged();
   };
-  $("#ownCollName").onclick = () => { const name = prompt(t("own.renamePrompt"), coll.name)?.trim(); if (name) { coll.name = name; collectionChanged(); } };
+  $("#ownCollName").onclick = () => { const name = prompt(t("own.renamePrompt"), nameIn(coll.name, uiLang()))?.trim(); if (name) { coll.name = withName(coll.name, uiLang(), name); collectionChanged(); } };
   $("#ownNewTok").onclick = () => openOwnToken(null);
   $("#ownGroups").onclick = () => { renderOwnGroups(); $<HTMLDialogElement>("#ownGroupsDlg").showModal(); };
-  $("#ownExport").onclick = () => saveFile(new Blob([JSON.stringify(collectionFile(coll), null, 2)], { type: "application/json" }), `${coll.name.replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase() || "coleccion"}.json`);
+  $("#ownExport").onclick = () => saveFile(new Blob([JSON.stringify(collectionFile(coll), null, 2)], { type: "application/json" }), `${nameIn(coll.name, "en").replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase() || "collection"}.json`);
   $("#ownImport").onclick = () => $("#ownImportFile").click();
   $<HTMLInputElement>("#ownImportFile").onchange = async (e) => {
     const f = input(e).files?.[0]; input(e).value = ""; if (!f) return;
@@ -2232,78 +2295,110 @@ function wireOwn() {
     try {
       const next = await readCollectionFile(JSON.parse(await f.text()), (i, n) => { noteEl.textContent = t("own.importing", { i, n }); });
       if (!next.tokens.length) throw new Error("empty");
-      if (coll.tokens.length > 1 && !confirm(t("own.importConfirm", { name: next.name }))) { noteEl.textContent = ""; return; }
-      coll = next; state.edition = "all"; state.pick.clear(); noteEl.textContent = t("own.imported", { n: next.tokens.length });
+      if (coll.tokens.length > 1 && !confirm(t("own.importConfirm", { name: nameIn(next.name, uiLang()) }))) { noteEl.textContent = ""; return; }
+      coll = next; state.edition = "all"; state.team = "all"; state.pick.clear(); noteEl.textContent = t("own.imported", { n: next.tokens.length });
       collectionChanged();
     } catch { noteEl.textContent = t("own.importFailed"); }
   };
-  // groups
+  // types and groups
   $("#ownGroupAdd").onclick = () => {
     const used = new Set(coll.groups.map((g) => g.colour));
     coll.groups.push({ id: newId("g"), name: t("own.groupName", { n: coll.groups.length + 1 }), colour: GROUP_COLOURS.find((c) => !used.has(c)) ?? GROUP_COLOURS[0] });
     collectionChanged(); renderOwnGroups();
   };
-  $("#ownGroupList").onclick = (e) => {
-    const sw = hit(e, "[data-colour]"), del = hit(e, "[data-gdel]");
+  $("#ownTypeAdd").onclick = () => {
+    coll.types.push({ id: newId("y"), name: t("own.typeName", { n: coll.types.length + 1 }), title: t("own.typeTitle", { n: coll.types.length + 1 }), shape: "coin" });
+    collectionChanged(); renderOwnGroups();
+  };
+  $("#ownGroupsDlg").addEventListener("click", (e) => {
+    const sw = hit(e, "[data-colour]"), del = hit(e, "[data-gdel]"), tdel = hit(e, "[data-tdel]");
     if (sw) { coll.groups.find((g) => g.id === sw.dataset.for)!.colour = sw.dataset.colour as Hex; collectionChanged(); renderOwnGroups(); }
     if (del) {
       const id = del.dataset.gdel!, to = coll.groups.find((g) => g.id !== id)!.id;
       coll.tokens.forEach((tk) => { if (tk.group === id) tk.group = to; });
       coll.groups = coll.groups.filter((g) => g.id !== id); collectionChanged(); renderOwnGroups();
     }
-  };
-  $("#ownGroupList").onchange = (e) => {
-    const id = input(e).dataset.gname; if (!id) return;
-    coll.groups.find((g) => g.id === id)!.name = input(e).value.trim() || t("own.groupName", { n: 1 }); collectionChanged();
-  };
+    if (tdel) {
+      const id = tdel.dataset.tdel!, to = coll.types.find((x) => x.id !== id)!.id;
+      coll.tokens.forEach((tk) => { if (tk.type === id) tk.type = to; });
+      coll.types = coll.types.filter((x) => x.id !== id); collectionChanged(); renderOwnGroups();
+    }
+  });
+  $("#ownGroupsDlg").addEventListener("change", (e) => {
+    const el = e.target as HTMLInputElement, lang = uiLang();
+    if (el.dataset.gname) { const g = coll.groups.find((x) => x.id === el.dataset.gname)!; g.name = withName(g.name, lang, el.value.trim() || t("own.groupName", { n: 1 })); }
+    else if (el.dataset.tname) { const ty = coll.types.find((x) => x.id === el.dataset.tname)!; ty.name = withName(ty.name, lang, el.value.trim() || ty.id); }
+    else if (el.dataset.ttitle) { const ty = coll.types.find((x) => x.id === el.dataset.ttitle)!; ty.title = withName(ty.title, lang, el.value.trim() || nameIn(ty.name, lang)); }
+    else if (el.dataset.tshape) coll.types.find((x) => x.id === el.dataset.tshape)!.shape = el.value === "card" ? "card" : "coin";
+    else return;
+    collectionChanged();
+  });
   closeOnBackdrop($<HTMLDialogElement>("#ownGroupsDlg"));
   wireOwnToken();
 }
 
 function renderOwnGroups() {
+  const lang = uiLang();
+  $("#ownTypeList").innerHTML = coll.types.map((ty) => `<div class="own-group">
+    <span class="own-type-fields">
+      <label class="field"><span>${esc(t("own.typeNameLabel"))}</span><input class="text" value="${esc(nameIn(ty.name, lang))}" data-tname="${esc(ty.id)}"></label>
+      <label class="field"><span>${esc(t("own.typeTitleLabel"))}</span><input class="text" value="${esc(nameIn(ty.title, lang))}" data-ttitle="${esc(ty.id)}"></label>
+      <label class="field"><span>${esc(t("own.shape"))}</span><select class="text" data-tshape="${esc(ty.id)}"><option value="coin"${ty.shape === "coin" ? " selected" : ""}>${esc(t("own.shapeCoin"))}</option><option value="card"${ty.shape === "card" ? " selected" : ""}>${esc(t("own.shapeCard"))}</option></select></label>
+    </span>
+    <small>${esc(t("own.groupCount", { n: coll.tokens.filter((tk) => tk.type === ty.id).length }))}</small>
+    ${coll.types.length > 1 ? `<button class="link" type="button" data-tdel="${esc(ty.id)}">${esc(t("own.deleteGroup"))}</button>` : ""}
+  </div>`).join("");
   $("#ownGroupList").innerHTML = coll.groups.map((g) => `<div class="own-group">
-    <input class="text" value="${esc(g.name)}" data-gname="${esc(g.id)}" aria-label="${esc(t("own.groupNameLabel"))}">
+    <input class="text" value="${esc(nameIn(g.name, lang))}" data-gname="${esc(g.id)}" aria-label="${esc(t("own.groupNameLabel"))}">
     <span class="own-swatches">${GROUP_COLOURS.map((c) => `<button type="button" style="background:${c}" data-colour="${c}" data-for="${esc(g.id)}" aria-pressed="${c === g.colour}" aria-label="${c}"></button>`).join("")}</span>
     <small>${esc(t("own.groupCount", { n: coll.tokens.filter((tk) => tk.group === g.id).length }))}</small>
     ${coll.groups.length > 1 ? `<button class="link" type="button" data-gdel="${esc(g.id)}">${esc(t("own.deleteGroup"))}</button>` : ""}
   </div>`).join("");
 }
 
-// a token, made or changed: the editor holds a copy until it's saved
-let ownDraft: (OwnToken & { cats: string[]; isNew: boolean }) | null = null;
+// a token, made or changed: the editor holds a copy until it's saved. Names are edited in the
+// token language (a collection with translations keeps the others).
+let ownDraft: (OwnToken & { cats: string[] }) | null = null;
 function openOwnToken(id: string | null) {
-  const tk = id ? coll.tokens.find((x) => x.id === id) : null;
-  const here = catalogOf(state.edition);
+  const tk = id ? coll.tokens.find((x) => x.id === id) : null, lang = tokenLang();
+  const here = catalogOf(state.edition), hereType = typeOfView(state.edition);
+  const openCats = coll.sections.filter((s) => s.open).flatMap((s) => s.catalogs);
   ownDraft = tk
-    ? { ...structuredClone(tk), cats: coll.catalogs.filter((k) => k.tokens.includes(tk.id)).map((k) => k.id), isNew: false }
-    : { id: newId("t"), name: "", group: state.team !== "all" && coll.groups.some((g) => g.id === state.team) ? state.team : coll.groups[0].id, icon: null, linked: [], cats: here ? [here.id] : [], isNew: true };
+    ? { ...structuredClone(tk), cats: openCats.filter((k) => k.tokens.includes(tk.id)).map((k) => k.id) }
+    : { id: newId("t"), type: hereType?.id ?? coll.types[0].id, name: "", icon: null, linked: [], cats: here ? [here.id] : [],
+        group: state.team !== "all" && coll.groups.some((g) => g.id === state.team) ? state.team : coll.groups[0].id };
   $("#ownTokTitle").textContent = t(tk ? "own.editToken" : "own.newTokenTitle");
   $("#ownTokSave").textContent = t(tk ? "own.save" : "own.add");
   $("#ownTokDelete").hidden = !tk;
-  $<HTMLInputElement>("#ownTokName").value = ownDraft.name;
+  $<HTMLInputElement>("#ownTokName").value = nameIn(ownDraft.name, lang);
   $<HTMLInputElement>("#ownTokIq").value = ""; $("#ownTokHits").innerHTML = "";
-  $("#ownTokGroup").innerHTML = coll.groups.map((g) => `<option value="${esc(g.id)}"${g.id === ownDraft!.group ? " selected" : ""}>${esc(g.name)}</option>`).join("");
-  $("#ownTokCats").innerHTML = coll.catalogs.map((k) => `<label class="check"><input type="checkbox" value="${esc(k.id)}"${ownDraft!.cats.includes(k.id) ? " checked" : ""}> ${esc(k.name)}</label>`).join("") || `<p class="hint">${esc(t("own.noCatalogs"))}</p>`;
+  $("#ownTokTypeRow").hidden = coll.types.length < 2;
+  $("#ownTokType").innerHTML = coll.types.map((x) => `<option value="${esc(x.id)}"${x.id === ownDraft!.type ? " selected" : ""}>${esc(nameIn(x.name, uiLang()))}</option>`).join("");
+  $("#ownTokGroup").innerHTML = coll.groups.map((g) => `<option value="${esc(g.id)}"${g.id === ownDraft!.group ? " selected" : ""}>${esc(nameIn(g.name, uiLang()))}</option>`).join("");
+  $("#ownTokCats").innerHTML = openCats.map((k) => `<label class="check"><input type="checkbox" value="${esc(k.id)}"${ownDraft!.cats.includes(k.id) ? " checked" : ""}> ${esc(nameIn(k.name, uiLang()))}</label>`).join("") || `<p class="hint">${esc(t("own.noCatalogs"))}</p>`;
   renderOwnLinked(); drawOwnPreview();
   $<HTMLDialogElement>("#ownTok").showModal();
   if (!tk) $("#ownTokName").focus();
 }
 function renderOwnLinked() {
-  $("#ownTokLinked").innerHTML = ownDraft!.linked.map((w, i) => `<span class="own-link"><input class="text" value="${esc(w)}" data-li="${i}" aria-label="${esc(t("own.linked"))}"><button class="link" type="button" data-ldel="${i}" aria-label="${esc(t("own.remove"))}">✕</button></span>`).join("");
+  const lang = tokenLang();
+  $("#ownTokLinked").innerHTML = ownDraft!.linked.map((w, i) => `<span class="own-link"><input class="text" value="${esc(nameIn(w, lang))}" data-li="${i}" aria-label="${esc(t("own.linked"))}"><button class="link" type="button" data-ldel="${i}" aria-label="${esc(t("own.remove"))}">✕</button></span>`).join("");
 }
 function drawOwnPreview() {
   const d = ownDraft!;
-  const role = { ...collectionRoles({ ...coll, tokens: [d] })[0], id: `__draft_${d.id}`, iconKey: `__draft:${d.icon?.id ?? "none"}` };
+  const role = { ...collectionRoles({ ...coll, tokens: [d] }, uiLang())[0], id: `__draft_${d.id}`, iconKey: `__draft:${d.icon?.id ?? "none"}` };
   const spec = { ...state.spec, lang: tokenLang() };
-  const name = d.name.trim() || t("own.namePlaceholder");
+  const name = nameIn(d.name, tokenLang()).trim() || t("own.namePlaceholder");
+  const card = coll.types.find((x) => x.id === d.type)?.shape === "card";
   $("#ownTokPv").innerHTML = tokenSvg(state.lib!, role, spec, { text: name })
-    + (d.linked.length ? `<span class="own-pv-links">${d.linked.slice(0, 4).map((w) => tokenSvg(state.lib!, role, reminderSpec(spec), { text: w || "…" })).join("")}</span>` : "");
+    + (d.linked.length && !card ? `<span class="own-pv-links">${d.linked.slice(0, 4).map((w) => tokenSvg(state.lib!, role, reminderSpec(spec), { text: nameIn(w, tokenLang()) || "…" })).join("")}</span>` : "");
 }
 function wireOwnToken() {
   const dlg = $<HTMLDialogElement>("#ownTok");
   closeOnBackdrop(dlg);
-  $("#ownTokName").oninput = (e) => { ownDraft!.name = input(e).value; drawOwnPreview(); };
+  $("#ownTokName").oninput = (e) => { ownDraft!.name = withName(ownDraft!.name, tokenLang(), input(e).value); drawOwnPreview(); };
   $("#ownTokGroup").onchange = (e) => { ownDraft!.group = (e.target as HTMLSelectElement).value; drawOwnPreview(); };
+  $("#ownTokType").onchange = (e) => { ownDraft!.type = (e.target as HTMLSelectElement).value; drawOwnPreview(); };
   let timer: ReturnType<typeof setTimeout> | undefined;
   $("#ownTokIq").oninput = (e) => {
     clearTimeout(timer);
@@ -2324,38 +2419,41 @@ function wireOwnToken() {
   };
   $("#ownTokNoIcon").onclick = () => { ownDraft!.icon = null; drawOwnPreview(); };
   $("#ownTokAddLinked").onclick = () => { ownDraft!.linked.push(""); renderOwnLinked(); drawOwnPreview(); $<HTMLInputElement>(`[data-li="${ownDraft!.linked.length - 1}"]`).focus(); };
-  $("#ownTokLinked").oninput = (e) => { const i = input(e).dataset.li; if (i != null) { ownDraft!.linked[+i] = input(e).value; drawOwnPreview(); } };
+  $("#ownTokLinked").oninput = (e) => { const i = input(e).dataset.li; if (i != null) { ownDraft!.linked[+i] = withName(ownDraft!.linked[+i], tokenLang(), input(e).value); drawOwnPreview(); } };
   $("#ownTokLinked").onclick = (e) => { const b = hit(e, "[data-ldel]"); if (b) { ownDraft!.linked.splice(+b.dataset.ldel!, 1); renderOwnLinked(); drawOwnPreview(); } };
   $("#ownTokCancel").onclick = () => dlg.close();
   $("#ownTokSave").onclick = () => {
-    const d = ownDraft!; d.name = d.name.trim();
-    if (!d.name) { $("#ownTokName").focus(); return; }
+    const d = ownDraft!, lang = tokenLang();
+    if (!nameIn(d.name, lang).trim()) { $("#ownTokName").focus(); return; }
+    const linked = d.linked.filter((w) => nameIn(w, lang).trim());
     // a linked token taken out shifts the ones after it: their picks and own designs follow them
     const old = coll.tokens.find((x) => x.id === d.id);
-    if (old) remapLinked(d.id, old.linked, d.linked.map((w) => w.trim()));
-    const tk: OwnToken = { id: d.id, name: d.name, group: d.group, icon: d.icon, linked: d.linked.map((w) => w.trim()).filter(Boolean) };
+    if (old) remapLinked(d.id, old.linked.map((w) => nameIn(w, lang)), linked.map((w) => nameIn(w, lang)));
+    const { cats: _cats, ...tk } = { ...d, linked };
     if (old) Object.assign(old, tk); else coll.tokens.push(tk);
     const cats = new Set($$<HTMLInputElement>("#ownTokCats input:checked").map((x) => x.value));
-    for (const k of coll.catalogs) { const has = k.tokens.includes(d.id); if (cats.has(k.id) && !has) k.tokens.push(d.id); if (!cats.has(k.id) && has) k.tokens = k.tokens.filter((x) => x !== d.id); }
+    for (const k of coll.sections.filter((s) => s.open).flatMap((s) => s.catalogs)) {
+      const has = k.tokens.includes(d.id);
+      if (cats.has(k.id) && !has) k.tokens.push(d.id);
+      if (!cats.has(k.id) && has) k.tokens = k.tokens.filter((x) => x !== d.id);
+    }
     dlg.close();
     collectionChanged();
   };
   $("#ownTokDelete").onclick = () => {
     const d = ownDraft!;
     if (coll.tokens.length <= 1) { alert(t("own.lastToken")); return; }
-    if (!confirm(t("own.deleteTokenConfirm", { name: d.name }))) return;
+    if (!confirm(t("own.deleteTokenConfirm", { name: nameIn(d.name, tokenLang()) }))) return;
     coll.tokens = coll.tokens.filter((x) => x.id !== d.id);
-    coll.catalogs.forEach((k) => { k.tokens = k.tokens.filter((x) => x !== d.id); });
+    for (const { k } of catalogsOf(coll)) k.tokens = k.tokens.filter((x) => x !== d.id);
     dlg.close();
     collectionChanged();
   };
 }
 /** Linked tokens are picked and designed by their place ("r:id:2"): when the list changes, they keep theirs. */
 function remapLinked(id: string, before: string[], after: string[]) {
-  const kept = after.map((w) => w).filter(Boolean);
-  const moveMap = new Map<number, number>();
-  const used = new Set<number>();
-  kept.forEach((w, ni) => { const oi = before.findIndex((b, i) => b === w && !used.has(i)); if (oi >= 0) { used.add(oi); moveMap.set(oi, ni); } });
+  const moveMap = new Map<number, number>(), used = new Set<number>();
+  after.forEach((w, ni) => { const oi = before.findIndex((b, i) => b === w && !used.has(i)); if (oi >= 0) { used.add(oi); moveMap.set(oi, ni); } });
   for (const store of [state.pick, state.overrides] as Map<string, unknown>[]) {
     const moved = new Map<string, unknown>();
     for (const [k, v] of [...store]) {

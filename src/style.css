@@ -787,7 +787,7 @@ dialog .import { margin-top: 10px; }
 /* ---------- the generic creator (/crear): its own colours, and what only one of the two apps has ---------- */
 html:not([data-mode=own]) .own-only { display: none !important; }
 html[data-mode=own] .botc-only { display: none !important; }
-html[data-mode=own] {
+html[data-mode=own]:not([data-theme=botc]) {
   --velvet: #1b1f24;
   --velvet-mid: #171a1f;
   --velvet-deep: #111317;
@@ -797,7 +797,7 @@ html[data-mode=own] {
   --seam: rgba(232, 234, 237, .12);
   --display: "Bricolage Grotesque", "Helvetica Neue", sans-serif;
 }
-html[data-mode=own] h1, html[data-mode=own] dialog h2 { font-weight: 700; letter-spacing: -.01em; }
+html[data-mode=own]:not([data-theme=botc]) h1, html[data-mode=own]:not([data-theme=botc]) dialog h2 { font-weight: 700; letter-spacing: -.01em; }
 .own-tools { display: grid; gap: 8px; margin-top: 4px; }
 .own-coll { margin: 0; display: grid; }
 .own-coll small { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--dust); font-weight: 600; }
@@ -827,9 +827,12 @@ html[data-mode=own] h1, html[data-mode=own] dialog h2 { font-weight: 700; letter
 .own-swatches button { width: 24px; height: 24px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; padding: 0; }
 .own-swatches button[aria-pressed=true] { border-color: var(--bone); }
 @media (max-width: 560px) { .own-tok-grid { grid-template-columns: 1fr; } .own-pv { justify-self: center; } }
-html[data-mode=own] .sheet, html[data-mode=own] .design-stage { background: radial-gradient(90% 60% at 30% 0%, #1d2a2c 0%, var(--velvet-deep) 70%); }
-html[data-mode=own] .stage { background: radial-gradient(70% 70% at 50% 45%, #22302f, var(--velvet) 75%); }
-html[data-mode=own] .gate { background: radial-gradient(120% 90% at 50% 38%, #1f2b2c 0%, var(--velvet) 45%, var(--velvet-deep) 100%); }
+html[data-mode=own]:not([data-theme=botc]) .sheet, html[data-mode=own]:not([data-theme=botc]) .design-stage { background: radial-gradient(90% 60% at 30% 0%, #1d2a2c 0%, var(--velvet-deep) 70%); }
+html[data-mode=own]:not([data-theme=botc]) .stage { background: radial-gradient(70% 70% at 50% 45%, #22302f, var(--velvet) 75%); }
+html[data-mode=own]:not([data-theme=botc]) .gate { background: radial-gradient(120% 90% at 50% 38%, #1f2b2c 0%, var(--velvet) 45%, var(--velvet-deep) 100%); }
 .own-tools { padding: 0 12px; }
 .own-tools .spine-rule { margin-inline: 0; }
 .own-tools > .pill, .own-io .pill { justify-self: start; }
+html[data-mode=own] .own-spine-h { display: none; }   /* the creator's sections draw their own headings */
+.own-type-fields { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; grid-column: 1 / -1; }
+@media (max-width: 560px) { .own-type-fields { grid-template-columns: 1fr; } }
