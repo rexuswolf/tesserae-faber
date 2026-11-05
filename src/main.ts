@@ -1415,6 +1415,7 @@ function wire() {
       list.forEach((r) => setPick(charKey(r), on)); picksChanged();
     }
   };
+  wireCollSwitch();
   if (OWN) wireOwn();
   // "Add to queue": a menu of what to add (see renderAddMenu)
   $("#addBtn").onclick = (e) => { openAddMenu($("#addMenu").hidden, e.detail === 0); };
@@ -2268,6 +2269,25 @@ function openCatalogDialog(target: NonNullable<typeof catTarget>) {
   (adding ? $("#ownCatText") : $("#ownCatName")).focus();
 }
 
+/**
+ * The collection switch, the brand of both apps: the collection's logo and name over "Tesserae
+ * Faber", opening the list of collections (the app's and yours) and, for one of your own, its
+ * settings. Clocktower (/botc) wears it too.
+ */
+let openCollMenu: (on: boolean) => void = () => {};
+function wireCollSwitch() {
+  const menu = $("#collMenu"), sw = $("#collSwitch");
+  openCollMenu = (on: boolean) => { menu.hidden = !on; sw.setAttribute("aria-expanded", String(on)); if (on) { $("#ownNote").textContent = ""; void renderSwitchList(); } };
+  sw.onclick = () => openCollMenu(menu.hidden);
+  document.addEventListener("click", (e) => { if (!menu.hidden && !hit(e, ".coll-switch")) openCollMenu(false); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !menu.hidden) { openCollMenu(false); sw.focus(); } });
+  if (!OWN) {   // Clocktower: its clock and name
+    for (const img of $$<HTMLImageElement>(".coll-logo")) img.src = "/logo-mark.svg";
+    for (const el of $$(".coll-name")) el.textContent = "Blood on the Clocktower";
+  }
+  void renderSwitchList();
+}
+
 function wireOwn() {
   $("#editions").addEventListener("click", (e) => {
     const b = hit(e, "[data-sec-new]"); if (!b) return;
@@ -2305,17 +2325,11 @@ function wireOwn() {
     const k = catalogOf(state.edition); if (!k || !confirm(t("own.deleteCatalogConfirm", { name: nameIn(k.name, uiLang()) }))) return;
     const sec = sectionOf(k); sec.catalogs = sec.catalogs.filter((x) => x !== k); state.edition = "all"; collectionChanged();
   };
-  // the collection's menu, on the top bar
-  const menu = $("#collMenu"), sw = $("#collSwitch");
-  const openMenu = (on: boolean) => { menu.hidden = !on; sw.setAttribute("aria-expanded", String(on)); if (on) { $("#ownNote").textContent = ""; renderSwitchList(); } };
-  sw.onclick = () => openMenu(menu.hidden);
-  document.addEventListener("click", (e) => { if (!menu.hidden && !hit(e, ".coll-switch")) openMenu(false); });
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !menu.hidden) { openMenu(false); sw.focus(); } });
   // the same items in the top bar's menu and, on a phone, at the head of the drawer
   document.addEventListener("click", (e) => {
     const b = hit(e, "[data-coll]"); if (!b) return;
     const what = b.dataset.coll!;
-    if (what !== "import") { openMenu(false); drawer(false); }
+    if (what !== "import") { openCollMenu(false); drawer(false); }
     if (what === "settings") openOwnSettings();
     if (what === "groups") { renderOwnGroups(); $<HTMLDialogElement>("#ownGroupsDlg").showModal(); }
     if (what === "export") saveFile(new Blob([JSON.stringify(collectionFile(coll), null, 2)], { type: "application/json" }), `${nameIn(coll.name, "en").replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase() || "collection"}.json`);
@@ -2610,7 +2624,7 @@ async function collectionsByKind() {
 /** The top bar menu's (and the phone drawer's) list of collections to go to, the app's own first. */
 async function renderSwitchList() {
   const { built, mine } = await collectionsByKind(), lang = uiLang();
-  const item = (id: string, name: string, logo?: string, href?: string) => `<a role="menuitem" href="${href ?? collectionUrl(id)}"${id === OWN_ID ? ' aria-current="true"' : ""}><img src="${esc(logo || APP_LOGO_SMALL)}" alt=""><b>${esc(name)}</b></a>`;
+  const item = (id: string, name: string, logo?: string, href?: string) => `<a role="menuitem" href="${href ?? collectionUrl(id)}"${(OWN ? id === OWN_ID : id === "botc") ? ' aria-current="true"' : ""}><img src="${esc(logo || APP_LOGO_SMALL)}" alt=""><b>${esc(name)}</b></a>`;
   const html = `<p class="cm-h">${esc(t("own.homeBuilt"))}</p>${built.map(({ b, kept }) => item(b.id, b.name, kept?.logo ?? b.logo, b.href)).join("")}
     <p class="cm-h">${esc(t("own.homeMine"))}</p>${mine.map((c) => item(c.id, c.name, c.logo)).join("") || `<p class="hint cm-empty">${esc(t("own.homeEmpty"))}</p>`}`;
   for (const el of $$(".coll-list")) el.innerHTML = html;
