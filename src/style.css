@@ -873,3 +873,40 @@ html[data-mode=own] .own-spine-h { display: none; }   /* the creator's sections 
 .oh-actions .danger { color: #f0a46b; }
 .own-back { display: inline-block; color: var(--dust); font-size: 13px; text-decoration: none; margin-bottom: 4px; }
 .own-back:hover { color: var(--bone); }
+/* the generic creator: the collection as the brand, with its menu */
+.coll-switch { position: relative; min-width: 0; }
+#collSwitch { display: flex; align-items: center; gap: 9px; min-width: 0; max-width: 340px; border: 1px solid transparent; background: none; border-radius: 12px; padding: 4px 10px 4px 4px; cursor: pointer; text-align: left; }
+#collSwitch:hover, #collSwitch[aria-expanded=true] { border-color: var(--seam); background: rgba(239, 230, 214, .04); }
+#collSwitch img { width: 34px; height: 34px; flex: none; object-fit: contain; }
+.cs-text { display: grid; min-width: 0; }
+.cs-text b { font: 400 18px/1.15 var(--display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html[data-mode=own]:not([data-theme=botc]) .cs-text b { font-weight: 700; letter-spacing: -.01em; }
+.cs-text small { font-size: 11px; color: var(--dust); letter-spacing: .04em; }
+#collSwitch .chev { color: var(--dust); font-size: 12px; }
+.coll-menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: 20; width: 290px; display: grid; background: var(--velvet-deep); border: 1px solid var(--seam); border-radius: 14px; padding: 6px; box-shadow: 0 18px 44px rgba(0, 0, 0, .5); }
+.coll-menu[hidden] { display: none; }
+.coll-menu a, .coll-menu button { display: grid; grid-template-columns: 22px 1fr; gap: 0 8px; align-items: center; padding: 8px 10px; border-radius: 9px; border: 0; background: none; color: inherit; text-decoration: none; text-align: left; cursor: pointer; font: inherit; }
+.coll-menu a:hover, .coll-menu button:hover, .coll-menu a:focus-visible, .coll-menu button:focus-visible { background: rgba(239, 230, 214, .07); }
+.coll-menu span { color: var(--brass); text-align: center; }
+.coll-menu b { font-weight: 500; font-size: 14.5px; }
+.coll-menu small { grid-column: 2; color: var(--dust); font-size: 12px; }
+.coll-menu hr { border: 0; border-top: 1px solid var(--seam); margin: 4px 6px; }
+.coll-menu .hint:empty { display: none; }
+.coll-menu .hint { padding: 4px 10px; }
+/* a phone: the collection and its menu head the drawer instead */
+.own-drawer { display: none; }
+@media (max-width: 900px) {
+  .coll-switch { display: none !important; }
+  html[data-mode=own] .own-drawer { display: block; margin: 0 0 10px; border-bottom: 1px solid var(--seam); padding-bottom: 8px; }
+  .own-drawer summary { display: flex; align-items: center; gap: 9px; list-style: none; cursor: pointer; padding: 4px 8px; border-radius: 12px; }
+  .own-drawer summary::-webkit-details-marker { display: none; }
+  .own-drawer summary img { width: 34px; height: 34px; object-fit: contain; flex: none; }
+  .own-drawer summary .chev { margin-left: auto; color: var(--dust); }
+  .own-drawer[open] summary .chev { transform: rotate(180deg); }
+  .coll-menu-items { display: grid; padding-top: 4px; }
+}
+.coll-menu-items a, .coll-menu-items button { display: grid; grid-template-columns: 22px 1fr; gap: 0 8px; align-items: center; padding: 8px 10px; border-radius: 9px; border: 0; background: none; color: inherit; text-decoration: none; text-align: left; cursor: pointer; font: inherit; }
+.coll-menu-items span { color: var(--brass); text-align: center; }
+.coll-menu-items b { font-weight: 500; font-size: 14.5px; }
+.coll-menu-items small { grid-column: 2; color: var(--dust); font-size: 12px; }
+.coll-menu-items hr { border: 0; border-top: 1px solid var(--seam); margin: 4px 6px; }

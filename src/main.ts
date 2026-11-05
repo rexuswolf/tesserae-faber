@@ -2204,7 +2204,7 @@ function applyGroups() {
 
 /** What depends on the collection itself: its name, its look, and the token language when it has several. */
 function syncOwnChrome() {
-  $("#ownCollName").textContent = nameIn(coll.name, uiLang());
+  for (const el of $$(".coll-name")) el.textContent = nameIn(coll.brand?.title, uiLang()) || nameIn(coll.name, uiLang());
   applyOwnTheme(); applyOwnBrand();
   $("#tokenLangBtn").hidden = !((coll.languages?.length ?? 0) > 1);
 }
@@ -2296,12 +2296,24 @@ function wireOwn() {
     const k = catalogOf(state.edition); if (!k || !confirm(t("own.deleteCatalogConfirm", { name: nameIn(k.name, uiLang()) }))) return;
     const sec = sectionOf(k); sec.catalogs = sec.catalogs.filter((x) => x !== k); state.edition = "all"; collectionChanged();
   };
-  $("#ownCollName").onclick = () => openOwnSettings();
+  // the collection's menu, on the top bar
+  const menu = $("#collMenu"), sw = $("#collSwitch");
+  const openMenu = (on: boolean) => { menu.hidden = !on; sw.setAttribute("aria-expanded", String(on)); if (on) $("#ownNote").textContent = ""; };
+  sw.onclick = () => openMenu(menu.hidden);
+  document.addEventListener("click", (e) => { if (!menu.hidden && !hit(e, ".coll-switch")) openMenu(false); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !menu.hidden) { openMenu(false); sw.focus(); } });
+  // the same items in the top bar's menu and, on a phone, at the head of the drawer
+  document.addEventListener("click", (e) => {
+    const b = hit(e, "[data-coll]"); if (!b) return;
+    const what = b.dataset.coll!;
+    if (what !== "import") { openMenu(false); drawer(false); }
+    if (what === "settings") openOwnSettings();
+    if (what === "groups") { renderOwnGroups(); $<HTMLDialogElement>("#ownGroupsDlg").showModal(); }
+    if (what === "export") saveFile(new Blob([JSON.stringify(collectionFile(coll), null, 2)], { type: "application/json" }), `${nameIn(coll.name, "en").replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase() || "collection"}.json`);
+    if (what === "import") $("#ownImportFile").click();
+  });
   wireOwnSettings();
   $("#ownNewTok").onclick = () => openOwnToken(null);
-  $("#ownGroups").onclick = () => { renderOwnGroups(); $<HTMLDialogElement>("#ownGroupsDlg").showModal(); };
-  $("#ownExport").onclick = () => saveFile(new Blob([JSON.stringify(collectionFile(coll), null, 2)], { type: "application/json" }), `${nameIn(coll.name, "en").replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase() || "collection"}.json`);
-  $("#ownImport").onclick = () => $("#ownImportFile").click();
   $<HTMLInputElement>("#ownImportFile").onchange = async (e) => {
     const f = input(e).files?.[0]; input(e).value = ""; if (!f) return;
     const noteEl = $("#ownNote");
@@ -2311,7 +2323,7 @@ function wireOwn() {
       const id = addCollection(next);   // a collection of its own, beside this one
       if (!id) { noteEl.textContent = t("own.storageFull"); return; }
       location.href = collectionUrl(id);
-    } catch { noteEl.textContent = t("own.importFailed"); }
+    } catch { noteEl.textContent = t("own.importFailed"); if (PHONE.matches) alert(t("own.importFailed")); }   // the note is in the top bar menu, which a phone hides
   };
   // types and groups
   $("#ownGroupAdd").onclick = () => {
@@ -2500,10 +2512,11 @@ function applyOwnTheme() {
 /** The collection's mark: its logo on the top bar, the loading screen and the tab, and its name beside it. */
 function applyOwnBrand() {
   const logo = coll.brand?.logo || "/logo-mark.svg", title = nameIn(coll.brand?.title, uiLang());
-  for (const img of $$<HTMLImageElement>(".brand img, .gate-logo")) img.src = logo;
+  for (const img of $$<HTMLImageElement>(".brand img, .gate-logo, .coll-logo")) img.src = logo;
   const icon = $<HTMLLinkElement>("#favicon");
   icon.href = logo; icon.type = logo.startsWith("data:image/svg") || logo.endsWith(".svg") ? "image/svg+xml" : "";
   for (const el of $$(".brand-title")) { el.textContent = title; el.hidden = !title; }
+  for (const el of $$(".coll-name")) el.textContent = title || nameIn(coll.name, uiLang());
   for (const el of $$(".brand .wordmark, .gate-card .wordmark")) el.hidden = !!title;
   document.title = title ? `${title} · Midnight Mint` : nameIn(coll.name, uiLang()) ? `${nameIn(coll.name, uiLang())} · Midnight Mint` : "Midnight Mint";
 }
