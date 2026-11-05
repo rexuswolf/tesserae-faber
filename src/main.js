@@ -53,10 +53,11 @@ const state = {
   tab: "set",   // what the controls edit: "set" or "token"
   section: "presets",   // what the panel shows; "presets" is the templates, open under their line
   lastSection: "text",
-  // Default set style: "Impresión rápida" (black coin, team colour, thin team rim, no back).
+  // Default set style: "Edición" (black coin, team colour, thin team rim, the edition's name in
+  // gold on the back), the first of PRESETS.
   spec: loadJSON(STYLE_KEY, null) || {
-    ...structuredClone(DEFAULT_SPEC), style: "classic", frame: "rim", frameWidth: 0.8, back: "none", depth: 0.2,
-    colours: { ...DEFAULT_SPEC.colours, base: FILAMENTS.black, front: "team", frame: "team" },
+    ...structuredClone(DEFAULT_SPEC), preset: "edicion", style: "classic", frame: "rim", frameWidth: 0.8, back: "edition", depth: 0.4,
+    colours: { ...DEFAULT_SPEC.colours, base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold },
   },
   // key -> { text?, spec?, icon? }; game-icons placed before they sat with the library's are moved there
   overrides: new Map(Object.entries(loadJSON(OVERRIDES_KEY, {})).map(([k, v]) => [k, v?.icon ? { ...v, icon: placeGameIcon(v.icon) } : v])),
@@ -96,9 +97,15 @@ let gateState = null;
  *  magnet, which is a choice of its own. Every design keeps the frame in the team colour, like
  *  the name, so a token's side reads the same whatever the design. */
 const PRESETS = [
-  { id: "rapida", spec: { style: "classic", frame: "rim", frameWidth: 0.8, back: "none", depth: 0.2,
+  // The default: the edition's name (a homebrew's script) in gold on the back; gold on a dark
+  // coin needs two layers (0.4 mm) to cover it.
+  { id: "edicion", spec: { style: "classic", frame: "rim", frameWidth: 0.8, back: "edition", depth: 0.4,
     colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } } },
-  { id: "noche", spec: { style: "classic", frame: "fases", frameWidth: 0.8, back: "none", depth: 0.2,
+  // The thinnest token that holds up: one layer of colour on 1 mm of black (opaque, stiff at
+  // 45 mm), no back. 1.2 mm is also the thickness slider's floor.
+  { id: "rapida", spec: { style: "classic", height: 1.2, frame: "rim", frameWidth: 0.8, back: "none", depth: 0.2,
+    colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } } },
+  { id: "noche", spec: { style: "classic", frame: "fases", frameWidth: 0.8, back: "eclipse", depth: 0.4,
     colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } } },
   // The gold midnight clock on the back is light on a dark coin: 0.4 mm covers it.
   { id: "medianoche", spec: { style: "classic", frame: "firmamento", frameWidth: 0.8, back: "medianoche", depth: 0.4,
@@ -1140,7 +1147,7 @@ function fieldValue(spec, key) {
   return spec[key] ?? DEFAULT_SPEC[key];
 }
 /** What a field resets to: the design (preset) it started from, else for a token its set's
- *  style and for the set "Fast print" (the starting style). `name` is the preset's, if any. */
+ *  style and for the set "Edition" (the starting style). `name` is the preset's, if any. */
 function baseSpec() {
   if (state.tab === "token" && !state.overrides.get(state.sel.key)?.spec) return { spec: state.spec, name: null };
   const p = PRESETS.find((x) => x.id === editingSpec().preset);
