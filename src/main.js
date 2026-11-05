@@ -33,6 +33,7 @@ const STYLE_KEY = "midnight-mint-style";
 const OVERRIDES_KEY = "midnight-mint-overrides";
 const DESIGNS_KEY = "midnight-mint-designs";
 const TOKEN_LANG_KEY = "midnight-mint-token-lang";
+const VIEW_KEY = "midnight-mint-view";   // the sheet you were on (all, an edition or a script) and its team filter
 const EDITION_ORDER = ["tb", "bmr", "snv", "carousel", "fabled", "loric", "grimoire"];
 const TEAM_ORDER = ["townsfolk", "outsider", "minion", "demon", "traveller", "fabled", "loric", "info"];
 const TEAM_PLURAL = {
@@ -378,7 +379,11 @@ function startApp() {
   }
   const first = state.lib.roles.find((r) => r.en === "Fortune Teller") || state.lib.roles[0];
   if (!state.sel) state.sel = { key: charKey(first), role: first, reminder: null };
-  state.edition = "all";
+  // back where you were: the same view and team filter, if it still exists
+  const view = loadJSON(VIEW_KEY, {});
+  const known = (ed) => ed === "all" || (ed?.startsWith("s:") ? !!scriptOf(ed) : state.lib.roles.some((r) => r.edition === ed));
+  state.edition = known(view.edition) ? view.edition : "all";
+  state.team = typeof view.team === "string" ? view.team : "all";
   buildChoices();
   state.pick = loadPicks();
   persistPicks();
@@ -787,6 +792,7 @@ function renderSheet() {
   let roles = q ? state.lib.roles : sc ? inScript.roles : ed === "all" ? allCharacters() : state.lib.roles.filter((r) => r.edition === ed);
   const teamsHere = TEAM_ORDER.filter((tm) => roles.some((r) => r.team === tm));
   if (state.team !== "all" && !teamsHere.includes(state.team)) state.team = "all";
+  storeJSON(VIEW_KEY, { edition: state.edition, team: state.team });   // where to come back to
   // each team: its icon in the team colour, and how many characters it has here
   $("#teamChips").innerHTML = [["all", t("team.all"), roles.length], ...teamsHere.map((tm) => [tm, TEAM_PLURAL[lang][tm], roles.filter((r) => r.team === tm).length])]
     .map(([id, label, n]) => `<button class="pill" type="button" data-team="${id}" aria-pressed="${state.team === id}"${id === "all" ? "" : ` style="--c: ${TEAMS[id].colour}"`}>${id === "all" ? "" : uiIcon(TEAM_ICONS[id])}<span class="lbl">${esc(label)}</span><small>${n}</small></button>`).join("");
