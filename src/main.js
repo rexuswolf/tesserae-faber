@@ -139,6 +139,12 @@ function specFor(key, isReminder) {
   const spec = { ...DEFAULT_SPEC, ...base, colours: { ...DEFAULT_SPEC.colours, ...base.colours }, lang: tokenLang(), icon: ownIcon(roleIdOf(key)) };
   return isReminder ? reminderSpec(spec) : spec;
 }
+/**
+ * A token as the catalog has it, for step 1 (Pick): the default design with the character's
+ * own name and icon. The set's design and a token's own changes show in the queue and step 2.
+ */
+const catalogSpec = (isReminder) => (isReminder ? reminderSpec({ ...DEFAULT_SPEC, lang: tokenLang() }) : { ...DEFAULT_SPEC, lang: tokenLang() });
+const catalogText = (role, reminder) => (reminder != null ? remindersOf(role)[reminder] : roleName(role, tokenLang()));
 /** The text printed on a token. */
 function textFor(key, role, reminder) {
   const own = state.overrides.get(key)?.text;
@@ -736,7 +742,7 @@ function renderSheet() {
 
   if (!roles.length) { $("#rows").innerHTML = `<p class="empty">${esc(t("sheet.noResults"))}</p>`; return; }
   $("#rows").innerHTML = TEAM_ORDER.map((team) => {
-    const list = roles.filter((r) => r.team === team).sort(byName);
+    const list = roles.filter((r) => r.team === team).sort((a, b) => collator().compare(catalogText(a, null), catalogText(b, null)));
     if (!list.length) return "";
     const teamOn = list.every((r) => isPicked(charKey(r)));
     return `<div class="team-h"><i style="background:${TEAMS[team].colour}"></i><span>${esc(TEAM_PLURAL[lang][team])}</span><small>${list.length}</small>
@@ -776,9 +782,9 @@ function rowHtml(r, q, remHits) {
   // Each token is a toggle: picked tokens light up with a check, and show their copies.
   const thumb = (key, reminder) => {
     const isRem = reminder != null;
-    const spec = { ...specFor(key, isRem), diameter: isRem ? reminderSpec(DEFAULT_SPEC).diameter : 45, back: "none" };
+    const spec = { ...catalogSpec(isRem), diameter: isRem ? reminderSpec(DEFAULT_SPEC).diameter : 45, back: "none" };
     const own = state.overrides.has(key), copies = state.pick.get(key) || 0;
-    const name = textFor(key, r, reminder);
+    const name = catalogText(r, reminder);
     // once picked, a small stepper adds copies; tapping the token still drops it
     // a homebrew token whose icon is still on its way pulses where the icon will go
     const loading = r.loading ? ` loading" style="--team: ${TEAMS[r.team].colour}` : "";
@@ -788,8 +794,8 @@ function rowHtml(r, q, remHits) {
   const other = tokenLang() === "en" ? roleName(r, uiLang() === "en" ? "es" : uiLang()) : r.en;
   return `<div class="row${isCard(r) ? " info" : ""}" data-picked="${isPicked(ck)}">
     ${thumb(ck, null)}
-    <div class="who" data-pick="${ck}"><b>${esc(textFor(ck, r, null))}</b>${other !== textFor(ck, r, null) ? `<small>${esc(other)}</small>` : ""}${q || (state.edition.startsWith("s:") && r.kind !== "homebrew") ? `<em>${esc(editionName(r, lang))}</em>` : ""}${r.loading ? `<small>${esc(t("sheet.iconLoading"))}</small>` : ""}</div>
-    <div class="rems">${rems.length ? rems.map((_, i) => `<div class="rem${remHits?.has(i) ? " hit" : ""}">${thumb(remKey(r, i), i)}<span>${esc(textFor(remKey(r, i), r, i))}</span></div>`).join("") : `<span class="none">${esc(t("sheet.noReminders"))}</span>`}</div>
+    <div class="who" data-pick="${ck}"><b>${esc(catalogText(r, null))}</b>${other !== catalogText(r, null) ? `<small>${esc(other)}</small>` : ""}${q || (state.edition.startsWith("s:") && r.kind !== "homebrew") ? `<em>${esc(editionName(r, lang))}</em>` : ""}${r.loading ? `<small>${esc(t("sheet.iconLoading"))}</small>` : ""}</div>
+    <div class="rems">${rems.length ? rems.map((_, i) => `<div class="rem${remHits?.has(i) ? " hit" : ""}">${thumb(remKey(r, i), i)}<span>${esc(catalogText(r, i))}</span></div>`).join("") : `<span class="none">${esc(t("sheet.noReminders"))}</span>`}</div>
   </div>`;
 }
 
