@@ -297,8 +297,10 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .ccc-link img { display: block; width: 86px; max-width: 100%; height: auto; opacity: .9; }
 .ccc-link:hover img { opacity: 1; }
 /* the guide's button, centred; "About" under the sleeve and the language */
-/* the guide and the flag, centred together; in a narrow sidebar they take a line each */
-.foot-row { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; }
+/* Footer pieces share the sidebar's width: the guide stretches beside the flag, the banner and
+   "About" fill it too. In the narrow desktop sidebar the flag takes a line of its own. */
+.foot-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.foot-row .guide-btn { flex: 1; justify-content: center; }
 /* the app's language: the flag, a button that opens a dialog */
 .lang-btn { flex: none; display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 1px solid var(--seam); border-radius: 50%; background: none; cursor: pointer; }
 .lang-btn:hover { border-color: var(--brass); }
@@ -310,13 +312,13 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .ui-lang-list button[aria-current=true] { border-color: var(--brass); background: rgba(201, 162, 39, .1); }
 .ui-lang-list img { width: 28px; height: 28px; border-radius: 50%; flex: none; }
 .ui-lang-list .check { margin-left: auto; color: var(--brass); }
-.ccc-banner { display: block; justify-self: center; width: min(140px, 100%); min-width: 0; }
+.ccc-banner { display: block; width: 100%; min-width: 0; }
 .ccc-banner img { display: block; width: 100%; height: auto; opacity: .9; }
 .ccc-banner:hover img { opacity: 1; }
 .guide-btn { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--seam); background: rgba(239, 230, 214, .05); border-radius: 999px; padding: 5px 12px 5px 5px; white-space: nowrap; cursor: pointer; font-size: 13px; }
 .guide-btn:hover { border-color: var(--brass); }
 .guide-btn .q { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: var(--brass); color: var(--velvet-deep); font-weight: 700; font-size: 12.5px; }
-.about-link { justify-self: center; font-size: 12.5px; color: var(--dust); text-decoration: underline; text-underline-offset: 2px; }
+.about-link { text-align: center; font-size: 12.5px; color: var(--dust); text-decoration: underline; text-underline-offset: 2px; }
 .about-link:hover { color: var(--bone); }
 .spine .me .menu { top: auto; bottom: 42px; right: auto; left: 0; }
 /* Language menu: the current circle flag; opens a list of every language. */
@@ -582,6 +584,7 @@ dialog .import { margin-top: 10px; }
 /* ---------------------------------------------------------------- narrow screens */
 @media (max-width: 1180px) {
   :root { --spine-w: 180px; }
+  .foot-row { flex-wrap: wrap; justify-content: center; }
   .app[data-step="2"] { grid-template-columns: 360px minmax(0, 1fr); }
   .sections { padding-inline: 6px; gap: 0; }
   .sections button { padding-inline: 5px; font-size: 12.5px; }
