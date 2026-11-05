@@ -436,11 +436,32 @@ function openScriptDialog() {
   drawer(false);
   $("#scriptDialog").showModal();
 }
+/**
+ * A script's own names for official characters ({"id": "gambler", "name": "Sondeainfiernos"})
+ * become those tokens' printed text, unless you've already given them one. A name that's just
+ * the character's own (in any language) only helps find it, so it's left alone. Returns how
+ * many tokens got a name.
+ */
+function applyScriptNames(script) {
+  const byKey = new Map(state.lib.roles.flatMap((r) => [[scriptKey(r.en), r], [scriptKey(r.id), r]]));
+  let n = 0;
+  for (const [id, label] of Object.entries(script.labels || {})) {
+    const role = byKey.get(id);
+    if (!role || [role.en, role.es, ...Object.values(role.names || {})].some((x) => x && scriptKey(x) === scriptKey(label))) continue;
+    const key = charKey(role), own = state.overrides.get(key) ?? {};
+    if (own.text) continue;
+    state.overrides.set(key, { ...own, text: label });
+    n++;
+  }
+  if (n) { storeOverrides(); scheduleSheet(); }
+  return n;
+}
 function saveFromDialog(text) {
   try {
     const script = keepScript(readScriptJson(text));
+    const named = applyScriptNames(script);
     $("#scriptDialog").close();
-    $("#scriptNote").textContent = t("script.saved", { name: script.name });
+    $("#scriptNote").textContent = t("script.saved", { name: script.name }) + (named ? ` ${t("script.named", { n: named })}` : "");
   } catch (err) {
     $("#scriptDialogNote").className = "hint warn";
     $("#scriptDialogNote").textContent = t("import.failed", { message: err.message });
