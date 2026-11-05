@@ -595,12 +595,12 @@ function renderSheet() {
     .map(([id, label]) => `<button class="pill" type="button" data-team="${id}" aria-pressed="${state.team === id}">${esc(label)}</button>`).join("");
   if (state.team !== "all") roles = roles.filter((r) => r.team === state.team);
 
-  // search matches the name (English, Spanish or the token language) or any reminder text
+  // search matches the name (English, Spanish, the token language or your own text) or any reminder text (yours too)
   const hits = new Map();
   if (q) {
     roles = roles.filter((r) => {
-      const remHits = remindersOf(r).map((text, i) => [text, r.reminders?.en?.[i]].some((s) => s && fold(s).includes(q)) ? i : -1).filter((i) => i >= 0);
-      const nameHit = [r.en, r.es, roleName(r, tokenLang()), r.fem?.[tokenLang()]].some((s) => s && fold(s).includes(q));
+      const remHits = remindersOf(r).map((text, i) => [text, r.reminders?.en?.[i], textFor(remKey(r, i), r, i)].some((s) => s && fold(s).includes(q)) ? i : -1).filter((i) => i >= 0);
+      const nameHit = [r.en, r.es, roleName(r, tokenLang()), r.fem?.[tokenLang()], textFor(charKey(r), r, null)].some((s) => s && fold(s).includes(q));
       if (remHits.length) hits.set(r.id, new Set(remHits));
       return nameHit || remHits.length;
     });
