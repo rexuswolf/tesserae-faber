@@ -1043,6 +1043,7 @@ export const uiLang = () => lang;
 const OWN_PAGE = /^\/crear(\/|$)/.test(location.pathname);
 const OWN_STR: Record<string, Record<string, Entry>> = {
   es: {
+    "gate.opening": "Abriendo tu colección…",
     "sheet.search": "Buscar una ficha",
     "sheet.leadSearch": "Busca en toda tu colección, por el nombre de las fichas y de sus asociadas.",
     "sheet.noReminders": "Sin asociadas",
@@ -1077,6 +1078,7 @@ const OWN_STR: Record<string, Record<string, Entry>> = {
     "preset.marfil.help": "Blanca, con el marco del color del grupo y el reverso grabado en bronce.",
   },
   en: {
+    "gate.opening": "Opening your collection…",
     "sheet.search": "Search tokens",
     "sheet.leadSearch": "Searches your whole collection, by the names of the tokens and their linked ones.",
     "sheet.noReminders": "No linked tokens",
