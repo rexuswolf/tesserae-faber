@@ -13,6 +13,18 @@ export function createViewer(canvas, { background = null } = {}) {
   camera.up.set(0, 0, 1);
   const controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true;
+  // A mouse wheel's click (about 100 px) moves the camera ~12%, not three's 5%.
+  controls.zoomSpeed = 2.5;
+  // This three (0.160) reads every wheel delta as pixels; Firefox gives lines (3 a click), which
+  // barely moved the camera. Lines and pages become pixels before the controls see them.
+  canvas.addEventListener("wheel", (e) => {
+    if (e.deltaMode === 0 || e.mmPixels) return;
+    e.stopImmediatePropagation(); e.preventDefault();
+    const k = e.deltaMode === 1 ? 33 : 800;
+    const px = new WheelEvent("wheel", { deltaX: e.deltaX * k, deltaY: e.deltaY * k, clientX: e.clientX, clientY: e.clientY, ctrlKey: e.ctrlKey, bubbles: true, cancelable: true });
+    px.mmPixels = true;
+    canvas.dispatchEvent(px);
+  }, { capture: true, passive: false });
   // Bright enough that a face seen straight on ("front" or "back") shows its filament's colour,
   // as the flat thumbnails do.
   const KEY = 2.9;
@@ -77,6 +89,8 @@ export function createViewer(canvas, { background = null } = {}) {
     controls.update();
     controls.enableDamping = true;
     const d = diameter;
+    // close enough to read a letter, not so close the camera goes into the coin; never lost
+    controls.minDistance = d * 0.8; controls.maxDistance = d * 6;
     if (kind === "top") camera.position.set(0, -0.001, d * 2.5);
     else if (kind === "back") camera.position.set(0, 0.001, -d * 2.5);
     else if (kind === "side") camera.position.set(d * 0.3, -d * 1.25, d * 0.42);
