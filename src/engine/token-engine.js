@@ -368,13 +368,28 @@ function editionBack(lib, role, spec) {
  */
 const iconMarkup = (role) => role.body ?? role.d.map((d) => `<path d="${d}"/>`).join("");
 
-function iconShapes(lib, role) {
-  if (!lib.icons.has(role.en)) {
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${TRACE_VIEW} ${TRACE_VIEW}"><g transform="${role.g}">${iconMarkup(role)}</g></svg>`;
-    lib.icons.set(role.en, parseSvgShapes(svg));
-  }
-  return lib.icons.get(role.en);
+/**
+ * The icon a token shows: the design's own (spec.icon: {id, g, body}, an uploaded SVG or a
+ * game-icons.net icon, placed in the same 127.56-unit square) or the character's.
+ */
+function iconOf(role, spec) {
+  const own = spec?.icon;
+  return own?.body ? { key: `icon:${own.id}`, g: own.g, body: own.body } : { key: role.en, g: role.g, body: iconMarkup(role) };
 }
+const iconSvg = (icon) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${TRACE_VIEW} ${TRACE_VIEW}"><g transform="${icon.g}">${icon.body}</g></svg>`;
+
+function iconShapes(lib, role, spec) {
+  const icon = iconOf(role, spec);
+  if (!lib.icons.has(icon.key)) lib.icons.set(icon.key, parseSvgShapes(iconSvg(icon)));
+  return lib.icons.get(icon.key);
+}
+
+/** How many filled shapes an icon ({g, body}) has: 0 means it can't be printed (strokes only, or not vector). */
+export function iconShapeCount(icon) {
+  try { return parseSvgShapes(iconSvg(icon)).length; } catch { return 0; }
+}
+/** The square icons are drawn in (SVG units): an icon's `g` places its markup inside it. */
+export const ICON_VIEW = TRACE_VIEW;
 
 /** Matrix placing traced-SVG shapes (y down, 0..127.56) centred on the coin. */
 function tracedMatrix(sizeMm, z, mirrorX = false, offsetY = 0) {
@@ -384,7 +399,7 @@ function tracedMatrix(sizeMm, z, mirrorX = false, offsetY = 0) {
 
 function buildFront(lib, role, text, spec) {
   const top = spec.height - spec.depth;
-  const icon = extrude(iconShapes(lib, role), spec.depth, tracedMatrix(spec.diameter * spec.iconScale, top, false, spec.iconOffsetY || 0));
+  const icon = extrude(iconShapes(lib, role, spec), spec.depth, tracedMatrix(spec.diameter * spec.iconScale, top, false, spec.iconOffsetY || 0));
   const L = layoutName(lib, text, spec);
   const letters = L.chars.map((c, i) => {
     if (c === " ") return null;
@@ -558,7 +573,7 @@ function shapesToPath(shapes, dx, y, div = 6) {
 
 /** Matrix that fits the role's icon into the window (from its SVG coordinates). */
 function windowIconMatrix(lib, role, W, z, spec) {
-  const shapes = iconShapes(lib, role);
+  const shapes = iconShapes(lib, role, spec);
   const box = boundsOf(shapes), size = new THREE.Vector2(); box.getSize(size);
   const h = W.icon.top - W.icon.bottom;
   const k = Math.min((2 * W.icon.halfWidth) / Math.max(size.x, 1e-6), h / Math.max(size.y, 1e-6)) * (spec.iconScale || 1);
@@ -1204,7 +1219,7 @@ export function tokenSvg(lib, role, spec, { side = "front", text } = {}) {
     const I = windowIconMatrix(lib, role, W, 0, spec);
     const d = windowPoints(W.Rw, W.cutY).map((pt, i) => `${i ? "L" : "M"}${pt.x.toFixed(2)} ${(-pt.y).toFixed(2)}`).join("") + "Z";
     body += `<path d="${d}" fill="${c.front}"/>`;
-    body += `<g fill="${c.base}" transform="translate(0 ${(-I.cy).toFixed(3)}) scale(${I.k.toFixed(5)}) translate(${(-I.bcx).toFixed(3)} ${(-I.bcy).toFixed(3)})"><g transform="${role.g}">${iconMarkup(role)}</g></g>`;
+    body += `<g fill="${c.base}" transform="translate(0 ${(-I.cy).toFixed(3)}) scale(${I.k.toFixed(5)}) translate(${(-I.bcx).toFixed(3)} ${(-I.bcy).toFixed(3)})"><g transform="${iconOf(role, spec).g}">${iconOf(role, spec).body}</g></g>`;
     // The name as outlines from the same font as the 3D model, so both always match.
     for (const line of W.lines) {
       const shapes = lib.font.generateShapes(line.text, W.em);
@@ -1213,7 +1228,7 @@ export function tokenSvg(lib, role, spec, { side = "front", text } = {}) {
     }
     if (spec.frame !== "none") body += `<circle r="${(R - FRAME_INSET - spec.frameWidth / 2).toFixed(2)}" fill="none" stroke="${c.frame}" stroke-width="${spec.frameWidth}"/>`;
   } else if (side === "front") {
-    body += `<g fill="${c.front}" transform="translate(0 ${-(spec.iconOffsetY || 0)}) scale(${k}) translate(${-TRACE_VIEW / 2} ${-TRACE_VIEW / 2})"><g transform="${role.g}">${iconMarkup(role)}</g></g>`;
+    body += `<g fill="${c.front}" transform="translate(0 ${-(spec.iconOffsetY || 0)}) scale(${k}) translate(${-TRACE_VIEW / 2} ${-TRACE_VIEW / 2})"><g transform="${iconOf(role, spec).g}">${iconOf(role, spec).body}</g></g>`;
     const L = layoutName(lib, label, spec);
     // SVG y points down: angle a in engine space is -a on screen.
     L.chars.forEach((ch, i) => {

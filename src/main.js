@@ -8,6 +8,7 @@ import {
 } from "./firebase.js";
 import { planPlates, FILAMENT_SLOTS, PRINTERS, printerOf, NOZZLES, nozzleOf } from "./bambu/plates.js";
 import { colourIssues, LIGHT_DEPTH } from "./colour-checks.js";
+import { iconFromSvg, gameIcon, gameIconPreview, searchGameIcons, scriptEntryIcon, iconForScript } from "./icons.js";
 import { plateFeatures } from "./bambu/estimate.js";
 import { PAGE, layoutCoins, backX } from "./pdf/layout.js";
 import { t, uiLang, setUiLang, LANGUAGES } from "./i18n.js";
@@ -127,9 +128,12 @@ const charName = (role, key = charKey(role), lang = tokenLang()) =>
   (state.overrides.get(key)?.fem && role.fem?.[lang]) || roleName(role, lang);
 
 /** The style a token uses: its own, or the set's; reminders get the reminder layout. */
+/** A character's own icon (on its token; its reminders share it), or undefined. */
+const ownIcon = (roleId) => state.overrides.get(`c:${roleId}`)?.icon;
+const roleIdOf = (key) => key.split(":")[1];
 function specFor(key, isReminder) {
   const base = state.overrides.get(key)?.spec ?? state.spec;
-  const spec = { ...DEFAULT_SPEC, ...base, colours: { ...DEFAULT_SPEC.colours, ...base.colours }, lang: tokenLang() };
+  const spec = { ...DEFAULT_SPEC, ...base, colours: { ...DEFAULT_SPEC.colours, ...base.colours }, lang: tokenLang(), icon: ownIcon(roleIdOf(key)) };
   return isReminder ? reminderSpec(spec) : spec;
 }
 /** The text printed on a token. */
@@ -456,12 +460,50 @@ function applyScriptNames(script) {
   if (n) { storeOverrides(); scheduleSheet(); }
   return n;
 }
-function saveFromDialog(text) {
+/**
+ * A script's icons for official characters ("icon": "author/name" from game-icons.net, or the
+ * Script Tool's "image" when it's an SVG) become those characters' own icons, unless they
+ * already have one. Returns how many did; icons that can't be fetched or printed are skipped.
+ */
+async function applyScriptIcons(text) {
+  let data; try { data = JSON.parse(text); } catch { return 0; }
+  const byKey = new Map(state.lib.roles.flatMap((r) => [[scriptKey(r.en), r], [scriptKey(r.id), r]]));
+  let n = 0;
+  for (const entry of Array.isArray(data) ? data : []) {
+    if (typeof entry !== "object" || !entry?.id || entry.id === "_meta" || (!entry.icon && !entry.image)) continue;
+    const role = byKey.get(scriptKey(entry.id)) || (entry.name && byKey.get(scriptKey(entry.name)));
+    if (!role || ownIcon(role.id)) continue;
+    try {
+      const icon = await scriptEntryIcon(entry);
+      if (!icon) continue;
+      const key = charKey(role);
+      state.overrides.set(key, { ...(state.overrides.get(key) || {}), icon });
+      n++;
+    } catch { /* not an SVG we can print, or not reachable: keep the character's icon */ }
+  }
+  if (n) { storeOverrides(); scheduleSheet(); }
+  return n;
+}
+/** The script as Script Tool JSON, with the names and icons you've given its characters. */
+function scriptJsonWithOwn(sc) {
+  const { roles } = scriptRoles(sc);
+  const byKey = new Map(roles.flatMap((r) => [[scriptKey(r.en), r], [scriptKey(r.id), r]]));
+  const entries = sc.ids.map((id) => {
+    const r = byKey.get(id) || (sc.labels?.[id] && byKey.get(scriptKey(sc.labels[id])));
+    const own = r && state.overrides.get(charKey(r));
+    if (!own?.text && !own?.icon) return sc.labels?.[id] ? { id, name: sc.labels[id] } : id;
+    return { id, ...(own.text ? { name: own.text } : {}), ...(own.icon ? iconForScript(own.icon) : {}) };
+  });
+  return JSON.stringify([{ id: "_meta", name: sc.name }, ...entries], null, 2);
+}
+async function saveFromDialog(text) {
   try {
     const script = keepScript(readScriptJson(text));
     const named = applyScriptNames(script);
     $("#scriptDialog").close();
     $("#scriptNote").textContent = t("script.saved", { name: script.name }) + (named ? ` ${t("script.named", { n: named })}` : "");
+    const iconed = await applyScriptIcons(text);
+    if (iconed) $("#scriptNote").textContent += ` ${t("script.iconed", { n: iconed })}`;
   } catch (err) {
     $("#scriptDialogNote").className = "hint warn";
     $("#scriptDialogNote").textContent = t("import.failed", { message: err.message });
@@ -671,6 +713,7 @@ function renderWorkshop() {
     const own = state.overrides.get(key);
     $("#tokenOnly").hidden = state.tab !== "token";
     $("#printed").value = own?.text ?? "";
+    renderIconField();
     $("#printed").placeholder = isRem ? remindersOf(role)[reminder] : charName(role, key);
     const femName = !isRem && role.fem?.[tokenLang()];
     $("#femRow").hidden = !femName;
@@ -863,6 +906,55 @@ function changeStyle(mutate) {
 let sheetTimer = 0;
 function scheduleSheet() { clearTimeout(sheetTimer); sheetTimer = setTimeout(() => { renderSheet(); renderSpine(); renderQueue(); }, 180); }
 function storeOverrides() { storeJSON(OVERRIDES_KEY, Object.fromEntries(state.overrides)); }
+/** A token's own text, style, feminine name or icon; with none left, it goes back to the set's. */
+function setOwn(key, own) {
+  if (!own.text && !own.spec && !own.fem && !own.icon) state.overrides.delete(key); else state.overrides.set(key, own);
+  storeOverrides(); renderWorkshop(); scheduleSheet();
+}
+
+// ------------------------------------------------------------ own icons
+
+/** Gives the selected token's character an icon (null: back to its own). Its reminders follow. */
+function setIcon(icon) {
+  const key = charKey(state.sel.role), own = { ...(state.overrides.get(key) || {}) };
+  if (icon) own.icon = icon; else delete own.icon;
+  setOwn(key, own);
+}
+function renderIconField() {
+  const role = state.sel?.role; if (!role) return;
+  const icon = ownIcon(role.id), isRem = state.sel.reminder != null;
+  $("#iconReset").hidden = !icon;
+  $("#iconHint").className = "hint";
+  $("#iconHint").textContent = icon
+    ? t(icon.source === "game-icons" ? "icon.isGame" : "icon.isOwn", { name: icon.name || "SVG", author: icon.author || "" }) + (isRem ? ` ${t("icon.remShares")}` : "")
+    : t("icon.help");
+}
+function wireIcons() {
+  $("#iconUpload").onclick = () => $("#iconFile").click();
+  $("#iconFile").onchange = async (e) => {
+    const file = e.target.files[0]; e.target.value = "";
+    if (!file) return;
+    try { setIcon(iconFromSvg(await file.text(), { source: "upload", name: file.name.replace(/\.svg$/i, "") })); }
+    catch (err) { $("#iconHint").className = "hint warn"; $("#iconHint").textContent = t(err.message === "no-shapes" ? "icon.noShapes" : "icon.notSvg"); }
+  };
+  $("#iconReset").onclick = () => setIcon(null);
+  $("#iconSearchOpen").onclick = () => { const box = $("#iconSearch"); box.hidden = !box.hidden; if (!box.hidden) $("#iconQuery").focus(); };
+  let timer = 0;
+  $("#iconQuery").oninput = (e) => {
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      const hits = await searchGameIcons(e.target.value);
+      $("#iconResults").innerHTML = hits.length
+        ? hits.map((p) => `<button type="button" class="icon-hit" data-gi="${esc(p)}" title="${esc(p.replace("/", " · "))}"><img src="${gameIconPreview(p)}" alt="" loading="lazy"><span>${esc(p.split("/")[1])}</span></button>`).join("")
+        : `<p class="hint">${esc(t(e.target.value.trim() ? "icon.none" : "icon.type"))}</p>`;
+    }, 200);
+  };
+  $("#iconResults").onclick = async (e) => {
+    const b = e.target.closest("[data-gi]"); if (!b) return;
+    try { setIcon(await gameIcon(b.dataset.gi)); $("#iconSearch").hidden = true; }
+    catch { $("#iconHint").className = "hint warn"; $("#iconHint").textContent = t("icon.fetchFailed"); }
+  };
+}
 
 function syncView(v) { $$(".turn .pill[data-view]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.view === v))); }
 
@@ -903,7 +995,7 @@ function wire() {
   $("#scriptShare").onclick = shareScript;
   $("#scriptJson").onclick = () => {
     const sc = scriptOf(state.edition); if (!sc) return;
-    saveFile(new Blob([scriptJson(sc)], { type: "application/json" }), `${sc.name.replace(/[\\/:*?"<>|]+/g, "").trim() || "script"}.json`);
+    saveFile(new Blob([scriptJsonWithOwn(sc)], { type: "application/json" }), `${sc.name.replace(/[\\/:*?"<>|]+/g, "").trim() || "script"}.json`);
   };
   $("#scriptDelete").onclick = (e) => {
     const b = e.currentTarget, sc = scriptOf(state.edition); if (!sc) return;
@@ -1015,20 +1107,18 @@ function wire() {
   // this token only
   $("#printed").oninput = (e) => {
     const own = { ...(state.overrides.get(state.sel.key) || {}), text: e.target.value };
-    if (!own.text && !own.spec && !own.fem) state.overrides.delete(state.sel.key); else state.overrides.set(state.sel.key, own);
-    storeOverrides(); renderWorkshop(); scheduleSheet();
+    setOwn(state.sel.key, own);
   };
+  wireIcons();
   $("#ownStyle").onchange = (e) => {
     const own = { ...(state.overrides.get(state.sel.key) || {}) };
     if (e.target.checked) { own.spec = structuredClone(state.spec); delete own.spec.preset; } else delete own.spec;   // resets go to the set's values
-    if (!own.text && !own.spec && !own.fem) state.overrides.delete(state.sel.key); else state.overrides.set(state.sel.key, own);
-    storeOverrides(); renderWorkshop(); scheduleSheet();
+    setOwn(state.sel.key, own);
   };
   $("#fem").onchange = (e) => {
     const own = { ...(state.overrides.get(state.sel.key) || {}) };
     if (e.target.checked) own.fem = true; else delete own.fem;
-    if (!own.text && !own.spec && !own.fem) state.overrides.delete(state.sel.key); else state.overrides.set(state.sel.key, own);
-    storeOverrides(); renderWorkshop(); scheduleSheet();
+    setOwn(state.sel.key, own);
   };
   $("#resetToken").onclick = () => { state.overrides.delete(state.sel.key); storeOverrides(); renderWorkshop(); scheduleSheet(); };
   $("#download").onclick = forge;
@@ -1122,7 +1212,7 @@ function queueEntry(role, ri) {
     reminder: isRem ? textFor(key, role, ri) : null,
     text: isRem ? null : textFor(key, role, null),
     custom: !!own,
-    spec: { ...structuredClone(own?.spec ?? state.spec), lang: tokenLang() },
+    spec: { ...structuredClone(own?.spec ?? state.spec), lang: tokenLang(), icon: ownIcon(role.id) },
   };
 }
 const isReminder = (q) => q.reminder != null;
@@ -1590,7 +1680,9 @@ function openCredits() {
     ${x.id === cur ? `<em>${esc(t("credits.inUse"))}</em>` : ""}</li>`).join("");
 
   const byAuthor = new Map();
-  for (const r of state.lib?.roles || []) {
+  // the library's icons, and the game-icons.net ones you've chosen for tokens
+  const ownGame = [...state.overrides.values()].map((o) => o.icon).filter((i) => i?.source === "game-icons").map((i) => ({ icon: i.name, author: i.author }));
+  for (const r of [...(state.lib?.roles || []), ...ownGame]) {
     if (!r.icon) continue;
     if (!byAuthor.has(r.author)) byAuthor.set(r.author, new Set());
     byAuthor.get(r.author).add(r.icon);

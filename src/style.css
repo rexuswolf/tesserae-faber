@@ -623,3 +623,13 @@ dialog .import { margin-top: 10px; }
   #rows .row .none { display: none; }
   #rows .row:has(.none) .who { grid-row: 1 / 3; align-self: center; }
 }
+
+/* A token's own icon (workshop, "This token"): the buttons and the game-icons.net search. */
+.icon-field .icon-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 4px; }
+.icon-field .icon-actions .pill { font-size: 13px; }
+.icon-search { margin-top: 8px; display: grid; gap: 8px; }
+.icon-results { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; max-height: 260px; overflow-y: auto; }
+.icon-hit { display: grid; gap: 2px; justify-items: center; padding: 6px 2px; border: 1px solid var(--seam); border-radius: 10px; background: none; color: inherit; cursor: pointer; font: inherit; }
+.icon-hit:hover { border-color: var(--brass); }
+.icon-hit img { width: 36px; height: 36px; border-radius: 6px; }
+.icon-hit span { font-size: 9.5px; color: var(--dust); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

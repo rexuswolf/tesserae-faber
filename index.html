@@ -120,6 +120,20 @@
         <div class="token-only" id="tokenOnly">
           <label class="field"><span data-i18n="ws.printedText"></span><input class="text" type="text" id="printed" autocomplete="off"></label>
           <label class="check" id="femRow" hidden><input type="checkbox" id="fem"> <span id="femLabel"></span></label>
+          <div class="field icon-field" id="iconField">
+            <span data-i18n="icon.label"></span>
+            <div class="icon-actions">
+              <button class="pill" type="button" id="iconSearchOpen" data-i18n="icon.search"></button>
+              <button class="pill" type="button" id="iconUpload" data-i18n="icon.upload"></button>
+              <button class="link" type="button" id="iconReset" data-i18n="icon.reset" hidden></button>
+            </div>
+            <input type="file" id="iconFile" accept=".svg,image/svg+xml" hidden>
+            <p class="hint" id="iconHint"></p>
+            <div class="icon-search" id="iconSearch" hidden>
+              <input class="text" type="search" id="iconQuery" autocomplete="off" data-i18n-attr="placeholder:icon.placeholder">
+              <div class="icon-results" id="iconResults"></div>
+            </div>
+          </div>
           <label class="check"><input type="checkbox" id="ownStyle"> <span data-i18n="ws.ownStyle"></span></label>
           <button class="link" type="button" id="resetToken" data-i18n="ws.reset"></button>
         </div>
