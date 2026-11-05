@@ -20,7 +20,7 @@ import { PAGE, layoutCoins, backX } from "./pdf/layout.ts";
 import { t, uiLang, setUiLang, LANGUAGES } from "./i18n.ts";
 import { TRANSLATIONS, VILLACUERVOS_URL, translationById, translationGroups } from "./translations.ts";
 import { uiIcon, UI_ICONS, TEAM_ICONS } from "./ui-icons.ts";
-import { OWN, OWN_ID, OWN_VIEW, LIST_URL, lastCollection, rememberCollection, collectionUrl, listCollections, addCollection, deleteCollection, starterCollection, builtInCollections, openBuiltIn, MODE, loadCollection, storeCollection, collectionRoles, collectionFile, readCollectionFile, readTokenList, GROUP_COLOURS, newId, nameIn, withName, catalogsOf, isLocked, THEMES, THEME_FONTS, okLogo, APP_LOGO, APP_LOGO_SMALL, APP_ICON, APP_NAME } from "./collection.ts";
+import { OWN, OWN_ID, OWN_VIEW, LIST_URL, lastCollection, rememberCollection, collectionUrl, listCollections, addCollection, deleteCollection, starterCollection, builtInCollections, openBuiltIn, MODE, loadCollection, storeCollection, collectionRoles, collectionFile, readCollectionFile, readTokenList, GROUP_COLOURS, newId, nameIn, withName, catalogsOf, isLocked, THEMES, THEME_FONTS, okLogo, hasCcc, APP_LOGO, APP_LOGO_SMALL, APP_ICON, APP_NAME } from "./collection.ts";
 import type { Collection, OwnToken, OwnCatalog, OwnSection, OwnTheme, CollectionEntry } from "./collection.ts";
 import { loadScripts, storeScripts, saveScript, scriptLink, readLink, scriptJson, idKey as scriptKey } from "./scripts.ts";
 import type { HomebrewEntry, NewScript, Script, ScriptJsonEntry } from "./scripts.ts";
@@ -398,8 +398,7 @@ async function boot() {
   if (handingOver) return;   // handoff.ts is writing what came from the old address, then reloads: start nothing yet
   showGate(() => ({ title: OWN && coll.loader?.text ? nameIn(coll.loader.text, uiLang()) : t("gate.opening") }));
   if (OWN) {   // the collection's own line under the loading screen, and the community mark only if it asks for it
-    $(".gate-card .ccc").hidden = !coll.loader?.ccc && !coll.loader?.footer;
-    $(".gate-card .ccc img").hidden = !coll.loader?.ccc;
+    $(".gate-card .ccc").hidden = !hasCcc(coll) && !coll.loader?.footer;   // the community-made line; the mark itself is in About
     if (coll.loader?.footer) $("#gateCcc").textContent = nameIn(coll.loader.footer, uiLang());
   }
   try {
@@ -2138,8 +2137,9 @@ function openCredits() {
   const paras = (n: Parameters<typeof nameIn>[0] | undefined, cls = "") => nameIn(n, lang).split(/\n\s*\n/).filter((x) => x.trim()).map((x) => `<p${cls}>${esc(x.trim())}</p>`).join("");
   const own = OWN ? `<section class="about own-about"><h3>${esc(nameIn(coll.name, lang))}</h3>${paras(a?.text)}${paras(a?.credits, ' class="hint"')}
       ${a?.links?.length ? `<p class="about-links">${a.links.map((l) => link(l.url, nameIn(l.label, lang))).join(" · ")}</p>` : ""}</section>` : "";
+  const ccc = !OWN || hasCcc(coll) ? `<div class="about-ccc"><img src="/ccc-sleeve.png" alt="Community Created Content"><p>${esc(t("ccc.app"))}</p></div>` : "";
   // About: what the app is and how it treats your things, then the credits
-  $("#creditsBody").innerHTML = `${own}<section class="about"><p>${esc(t(OWN ? "own.aboutApp" : "about.what"))}</p>
+  $("#creditsBody").innerHTML = `${own}${ccc}<section class="about"><p>${esc(t(OWN ? "own.aboutApp" : "about.what"))}</p>
       ${OWN ? "" : `<p class="hint">${esc(t("credits.intro"))}</p>`}
       <p class="hint">${esc(t("about.data"))}</p>
       <p class="about-actions"><button type="button" class="pill" data-guide>${esc(t("guide.open"))}</button></p></section>
@@ -2537,6 +2537,7 @@ function openOwnSettings() {
   $("#osLogoNote").textContent = "";
   $<HTMLInputElement>("#osName").value = nameIn(coll.name, lang);
   $<HTMLInputElement>("#osLoader").value = nameIn(coll.loader?.text, lang);
+  $<HTMLInputElement>("#osCcc").checked = hasCcc(coll);
   $<HTMLTextAreaElement>("#osAbout").value = nameIn(coll.about?.text, lang);
   $<HTMLTextAreaElement>("#osCredits").value = nameIn(coll.about?.credits, lang);
   $<HTMLTextAreaElement>("#osLinks").value = (coll.about?.links ?? []).map((l) => `${nameIn(l.label, lang)} | ${l.url}`).join("\n");
@@ -2586,6 +2587,8 @@ function wireOwnSettings() {
     coll.brand = { ...coll.brand, title: withName(coll.brand?.title ?? "", lang, v("#osBrandTitle")) };
     if (!v("#osBrandTitle")) delete coll.brand.title;
     coll.loader = { ...coll.loader, text: withName(coll.loader?.text ?? "", lang, v("#osLoader")) };
+    delete coll.loader.ccc;   // the mark has its own field now
+    if ($<HTMLInputElement>("#osCcc").checked) coll.ccc = true; else delete coll.ccc;
     if (!v("#osLoader")) delete coll.loader.text;
     const links = v("#osLinks").split("\n").map((l) => l.split("|").map((x) => x.trim())).filter(([label, url]) => label && /^https?:\/\//.test(url ?? "")).map(([label, url]) => ({ label, url }));
     coll.about = { text: withName(coll.about?.text ?? "", lang, v("#osAbout")), credits: withName(coll.about?.credits ?? "", lang, v("#osCredits")), links };

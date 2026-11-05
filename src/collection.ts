@@ -47,6 +47,8 @@ export interface OwnToken {
 }
 export interface OwnCatalog { id: string; name: Names; tokens: string[] }
 export interface OwnSection { id: string; title: Names; open: boolean; catalogs: OwnCatalog[] }
+/** Does it carry the Community Created Content mark? (Kept before it had its own field: on its loading screen.) */
+export const hasCcc = (c: { ccc?: boolean; loader?: { ccc?: boolean } }) => !!(c.ccc || c.loader?.ccc);
 /** A collection's colours: the app's surfaces, text and accent (see THEMES for ready ones). */
 export interface OwnTheme { accent: Hex; background: Hex; surface: Hex; text: Hex; muted: Hex; glow?: Hex; font?: string }
 /** What the collection says about itself, at the top of "About". */
@@ -66,6 +68,8 @@ export interface Collection {
   theme?: string | OwnTheme;
   about?: OwnAbout;
   loader?: OwnLoader;
+  /** It's Blood on the Clocktower content: About carries the Community Created Content mark. */
+  ccc?: boolean;
   brand?: OwnBrand;
   /** The token languages its names come in, when more than one. */
   languages?: string[];
@@ -291,6 +295,7 @@ export async function readCollectionFile(data: unknown, onProgress: (done: numbe
   if (!sections.some((s) => s.open)) sections.push({ id: "mine", title: "Catálogos", open: true, catalogs: [] });
   return {
     name: okName(f.name) ? f.name : "Mi colección",
+    ...(f.ccc || f.loader?.ccc ? { ccc: true } : {}),
     ...(readTheme(f.theme) ? { theme: readTheme(f.theme) } : {}),
     ...(f.about && typeof f.about === "object" ? { about: {
       ...(okName(f.about.text) ? { text: f.about.text } : {}), ...(okName(f.about.credits) ? { credits: f.about.credits } : {}),

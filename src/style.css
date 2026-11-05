@@ -957,3 +957,15 @@ html[data-mode=own] .own-spine-h { display: none; }   /* the creator's sections 
   .oh-cover .oh-actions { position: static; padding: 0 24px 18px; }
   .oh-tile { flex-wrap: wrap; }
 }
+/* the sidebar's foot: the admin on a row of its own, under About */
+.foot-admin { display: flex; justify-content: center; }
+.foot-admin:not(:has(:not([hidden]))) { display: none; }
+.foot-admin .me summary { display: flex; align-items: center; gap: 8px; color: var(--dust); font-size: 13px; padding: 2px 10px 2px 2px; border: 1px solid var(--seam); border-radius: 999px; }
+.foot-admin .me img { width: 26px; height: 26px; }
+.spine .foot-admin .me .menu { bottom: 38px; left: 50%; translate: -50% 0; }
+/* About: the Community Created Content mark, for Clocktower and collections that carry it */
+.about-ccc { display: grid; grid-template-columns: 120px 1fr; gap: 14px; align-items: center; margin: 14px 0 4px; }
+.about-ccc img { width: 120px; height: auto; display: block; }
+.about-ccc p { margin: 0; color: var(--dust); font-size: 13.5px; }
+.os-ccc { align-items: flex-start; margin-top: 10px; }
+.os-ccc small { display: block; color: var(--dust); font-size: 12.5px; }

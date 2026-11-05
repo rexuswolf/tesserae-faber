@@ -255,6 +255,7 @@ const STR: Record<string, Record<string, Entry>> = {
     "me.aria": "Cuenta de administración",
     "me.admin": "Biblioteca",
     "me.signOut": "Cerrar sesión",
+    "me.adminLabel": "Admin",
 
     // drawer sections
     "sec.saved": "Mis tokens",
@@ -356,6 +357,8 @@ const STR: Record<string, Record<string, Entry>> = {
     "own.c.muted": "Texto suave",
     "own.c.font": "Títulos",
     "own.loaderH": "Pantalla de carga",
+    "own.cccLabel": "Sello «Community Created Content»",
+    "own.cccHelp": "Solo para contenido de Blood on the Clocktower: el sello sale en «Acerca de».",
     "own.loaderText": "Lo que dice mientras abre",
     "own.aboutH": "Acerca de",
     "own.aboutText": "Qué es esta colección (sale arriba en «Acerca de»)",
@@ -851,6 +854,7 @@ const STR: Record<string, Record<string, Entry>> = {
     "me.aria": "Admin account",
     "me.admin": "Library",
     "me.signOut": "Sign out",
+    "me.adminLabel": "Admin",
 
     "sec.saved": "My tokens",
     "sec.queue": "Print queue",
@@ -951,6 +955,8 @@ const STR: Record<string, Record<string, Entry>> = {
     "own.c.muted": "Soft text",
     "own.c.font": "Headings",
     "own.loaderH": "Loading screen",
+    "own.cccLabel": "“Community Created Content” mark",
+    "own.cccHelp": "Only for Blood on the Clocktower content: the mark appears in About.",
     "own.loaderText": "What it says while opening",
     "own.aboutH": "About",
     "own.aboutText": "What this collection is (at the top of “About”)",

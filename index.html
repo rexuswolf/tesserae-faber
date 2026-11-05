@@ -70,24 +70,26 @@
       <div id="scripts" class="botc-only"></div>
     </div>
     <footer class="spine-foot">
-    <!-- the guide and the language; the community-content banner; about the tool and its credits -->
+    <!-- the guide and the language; about the tool and its credits (with the Community Created Content mark, where it applies) -->
     <div class="foot-row">
       <button class="guide-btn" type="button" data-guide aria-haspopup="dialog"><span class="q" aria-hidden="true">?</span><span data-i18n="guide.open"></span></button>
       <span class="acc-tools">
       <button class="lang-btn" type="button" id="uiLangBtn" aria-haspopup="dialog"></button>
+      </span>
+    </div>
+    <a href="#" class="about-link" data-about data-i18n="about.link"></a>
+    <!-- the admin (signed in, or ?admin to sign in): a row of its own at the very foot -->
+    <div class="foot-admin">
       <button type="button" class="admin-sign-in" id="adminSignIn" hidden data-i18n="gate.signIn"></button>
       <details class="me" hidden>
-        <summary data-i18n-attr="aria-label:me.aria"><img id="avatar" alt="" referrerpolicy="no-referrer"></summary>
+        <summary data-i18n-attr="aria-label:me.aria"><img id="avatar" alt="" referrerpolicy="no-referrer"><span data-i18n="me.adminLabel"></span></summary>
         <div class="menu">
           <p id="meEmail"></p>
           <button type="button" id="openAdmin" hidden data-i18n="me.admin"></button>
           <button type="button" id="signOut" data-i18n="me.signOut"></button>
         </div>
       </details>
-      </span>
     </div>
-    <a href="#" class="ccc-banner botc-only" data-about data-i18n-attr="title:about.link"><img src="/ccc-sleeve.png" alt="Community Created Content" width="344" height="136"></a>
-    <a href="#" class="about-link" data-about data-i18n="about.link"></a>
     </footer>
   </nav>
   <div class="scrim" id="scrim"></div>
@@ -350,7 +352,6 @@
     <button class="forge" type="button" id="gateAction" hidden></button>
     <button class="pill" type="button" id="gateSecondary" hidden></button>
     <footer class="ccc">
-      <img src="/ccc-sleeve.png" alt="Community Created Content" width="86" height="34">
       <p id="gateCcc" data-i18n="ccc.gate">Herramienta gratuita hecha por la comunidad para imprimir tus propios tokens de personaje. No está afiliada ni respaldada por The Pandemonium Institute.</p>
     </footer>
   </div>
@@ -487,6 +488,7 @@
   </div>
   <h3 data-i18n="own.loaderH"></h3>
   <label class="field"><span data-i18n="own.loaderText"></span><input class="text" id="osLoader" autocomplete="off" data-i18n-attr="placeholder:gate.opening"></label>
+  <label class="check os-ccc"><input type="checkbox" id="osCcc"> <span><span data-i18n="own.cccLabel"></span><small data-i18n="own.cccHelp"></small></span></label>
   <h3 data-i18n="own.aboutH"></h3>
   <label class="field"><span data-i18n="own.aboutText"></span><textarea class="text" id="osAbout" rows="4"></textarea></label>
   <label class="field"><span data-i18n="own.aboutCredits"></span><textarea class="text" id="osCredits" rows="2"></textarea></label>

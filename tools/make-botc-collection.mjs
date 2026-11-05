@@ -37,6 +37,7 @@ const tokens = [
 const collection = {
   format: "midnight-mint/collection", version: 1,
   name: "Blood on the Clocktower", theme: "botc",
+  ccc: true,   // Community Created Content: its mark in About
   brand: { logo: "/logo-mark.svg" },   // Midnight Mint's clock: the collection keeps its own mark
   // what Clocktower's own app says: on its loading screen (with the Community Created Content mark) and in About
   loader: {
@@ -45,7 +46,6 @@ const collection = {
       es: "Herramienta gratuita hecha por la comunidad para imprimir tus propios tokens de personaje. No está afiliada ni respaldada por The Pandemonium Institute.",
       en: "A free, community-made tool for printing your own character tokens. Not affiliated with or endorsed by The Pandemonium Institute.",
     },
-    ccc: true,
   },
   about: {
     text: {
