@@ -41,6 +41,7 @@
       <!-- the generic creator: the collection itself, its colours, and the way in and out as a file -->
       <div class="own-tools own-only">
         <hr class="spine-rule">
+        <a class="own-back" href="/crear" data-i18n="own.backToList"></a>
         <p class="own-coll"><small data-i18n="own.collection"></small><button type="button" id="ownCollName" data-i18n-attr="title:own.renameCollection"></button></p>
         <button class="pill" type="button" id="ownGroups" data-i18n="own.groups"></button>
         <span class="own-io"><button class="pill" type="button" id="ownImport" data-i18n="own.import"></button><button class="pill" type="button" id="ownExport" data-i18n="own.export"></button></span>
@@ -270,6 +271,22 @@
   <!-- "Removed · Undo" on the page itself (step 2), when the drawer isn't open -->
   <div class="toast app-toast" id="appToast" role="status" hidden><span></span><button type="button" data-i18n="queue.undo"></button></div>
 </div>
+
+<!-- the generic creator at /crear: your collections, to open one, start one or bring one in -->
+<main class="own-home own-only" id="ownHome" hidden>
+  <header class="oh-head">
+    <span class="oh-brand"><img src="/logo-mark.svg" alt="" width="44" height="44"><span class="mark wordmark"><span class="wm-mid">Midnight</span><span class="wm-mint">Mint</span></span></span>
+    <h1 data-i18n="own.homeTitle"></h1>
+    <p class="hint" data-i18n="own.homeLead"></p>
+  </header>
+  <div class="oh-tools">
+    <button class="forge" type="button" id="ownHomeNew" data-i18n="own.homeNew"></button>
+    <button class="pill" type="button" id="ownHomeImport" data-i18n="own.import"></button>
+    <input type="file" id="ownHomeFile" accept="application/json,.json" hidden>
+    <p class="hint" id="ownHomeNote" aria-live="polite"></p>
+  </div>
+  <div class="oh-list" id="ownHomeList"></div>
+</main>
 
 <div class="gate" id="gate">
   <details class="lang-menu gate-langs" data-lang-menu hidden></details>

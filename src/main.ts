@@ -19,7 +19,7 @@ import { PAGE, layoutCoins, backX } from "./pdf/layout.ts";
 import { t, uiLang, setUiLang, LANGUAGES } from "./i18n.ts";
 import { TRANSLATIONS, VILLACUERVOS_URL, translationById, translationGroups } from "./translations.ts";
 import { uiIcon, UI_ICONS, TEAM_ICONS } from "./ui-icons.ts";
-import { OWN, MODE, loadCollection, storeCollection, collectionRoles, collectionFile, readCollectionFile, readTokenList, GROUP_COLOURS, newId, nameIn, withName, catalogsOf, isLocked, THEMES, THEME_FONTS, okLogo } from "./collection.ts";
+import { OWN, OWN_ID, collectionUrl, listCollections, addCollection, deleteCollection, starterCollection, MODE, loadCollection, storeCollection, collectionRoles, collectionFile, readCollectionFile, readTokenList, GROUP_COLOURS, newId, nameIn, withName, catalogsOf, isLocked, THEMES, THEME_FONTS, okLogo } from "./collection.ts";
 import type { Collection, OwnToken, OwnCatalog, OwnSection, OwnTheme } from "./collection.ts";
 import { loadScripts, storeScripts, saveScript, scriptLink, readLink, scriptJson, idKey as scriptKey } from "./scripts.ts";
 import type { HomebrewEntry, NewScript, Script, ScriptJsonEntry } from "./scripts.ts";
@@ -55,7 +55,7 @@ const REPO_URL = "https://github.com/rexuswolf/midnight-mint";
 const REPO_PUBLIC = false;
 const QUEUE_KEY = "midnight-mint-queue";   // the old print queue, read once to carry it over
 // The generic creator (/crear) keeps its own queue, style and designs, apart from Clocktower's.
-const KEYS = OWN ? "midnight-mint-own-" : "midnight-mint-";
+const KEYS = OWN ? `midnight-mint-own-${OWN_ID ?? "none"}-` : "midnight-mint-";   // each collection its own
 const PICK_KEY = `${KEYS}picks`;
 const STYLE_KEY = `${KEYS}style`;
 const OVERRIDES_KEY = `${KEYS}overrides`;
@@ -106,8 +106,8 @@ const state: {
   designs: [],
 };
 /** The generic creator's collection (/crear); empty, and unused, in Clocktower. */
-let coll: Collection = OWN ? loadCollection() : { name: "", types: [], groups: [], tokens: [], sections: [] };
-if (OWN) { applyOwnTheme(); applyOwnBrand(); }   // before the loading screen shows: it wears the collection's colours and mark too
+let coll: Collection = (OWN && loadCollection()) || { name: "", types: [], groups: [], tokens: [], sections: [] };
+if (OWN && OWN_ID) { applyOwnTheme(); applyOwnBrand(); }   // before the loading screen shows: it wears the collection's colours and mark too
 
 // After a deploy, a page opened earlier may ask for code files that no longer
 // exist (their names change with each version). Reload once to get the new ones.
@@ -400,6 +400,7 @@ async function boot() {
     if (coll.loader?.footer) $("#gateCcc").textContent = nameIn(coll.loader.footer, uiLang());
   }
   try {
+    if (OWN && (!OWN_ID || !coll.tokens.length)) { renderOwnHome(); return; }   // /crear: the list of collections
     if (OWN) {   // your own collection: no library to fetch
       applyGroups();
       state.lib = await loadLibrary(collectionRoles(coll, uiLang()));
@@ -2307,9 +2308,9 @@ function wireOwn() {
     try {
       const next = await readCollectionFile(JSON.parse(await f.text()), (i, n) => { noteEl.textContent = t("own.importing", { i, n }); });
       if (!next.tokens.length) throw new Error("empty");
-      if (coll.tokens.length > 1 && !confirm(t("own.importConfirm", { name: nameIn(next.name, uiLang()) }))) { noteEl.textContent = ""; return; }
-      coll = next; state.edition = "all"; state.team = "all"; state.pick.clear(); noteEl.textContent = t("own.imported", { n: next.tokens.length });
-      collectionChanged();
+      const id = addCollection(next);   // a collection of its own, beside this one
+      if (!id) { noteEl.textContent = t("own.storageFull"); return; }
+      location.href = collectionUrl(id);
     } catch { noteEl.textContent = t("own.importFailed"); }
   };
   // types and groups
@@ -2570,3 +2571,38 @@ function wireOwnSettings() {
     collectionChanged();
   };
 }
+
+// ------------------------------------------------------------ /crear: the list of your collections
+
+function renderOwnHome() {
+  $("#gate").hidden = true; $("#app").hidden = true; $("#ownHome").hidden = false;
+  document.title = "Midnight Mint";
+  const list = listCollections().sort((a, b) => b.updated - a.updated);
+  const when = (ms: number) => new Intl.DateTimeFormat(uiLang(), { day: "numeric", month: "short" }).format(ms);
+  $("#ownHomeList").innerHTML = list.map((c) => `<article class="oh-card" style="--acc:${esc(c.accent ?? "#4fd1c5")}">
+      <a class="oh-open" href="${collectionUrl(c.id)}"><img src="${esc(c.logo || "/logo-mark.svg")}" alt=""><span><b>${esc(c.name)}</b><small>${esc(t("own.homeCount", { n: c.tokens, when: when(c.updated) }))}</small></span></a>
+      <span class="oh-actions"><button class="link" type="button" data-oh-export="${esc(c.id)}">${esc(t("own.export"))}</button><button class="link danger" type="button" data-oh-delete="${esc(c.id)}">${esc(t("own.homeDelete"))}</button></span>
+    </article>`).join("") || `<p class="hint">${esc(t("own.homeEmpty"))}</p>`;
+}
+function wireOwnHome() {
+  const note = (k: string, v = {}) => { $("#ownHomeNote").textContent = t(k, v); };
+  $("#ownHomeNew").onclick = () => { const id = addCollection(starterCollection()); if (id) location.href = collectionUrl(id); else note("own.storageFull"); };
+  $("#ownHomeImport").onclick = () => $("#ownHomeFile").click();
+  $<HTMLInputElement>("#ownHomeFile").onchange = async (e) => {
+    const f = input(e).files?.[0]; input(e).value = ""; if (!f) return;
+    try {
+      const c = await readCollectionFile(JSON.parse(await f.text()), (i, n) => note("own.importing", { i, n }));
+      const id = addCollection(c);
+      if (id) location.href = collectionUrl(id); else note("own.storageFull");
+    } catch { note("own.importFailed"); }
+  };
+  $("#ownHomeList").onclick = (e) => {
+    const ex = hit(e, "[data-oh-export]"), del = hit(e, "[data-oh-delete]");
+    if (ex) { const c = loadCollection(ex.dataset.ohExport!); if (c) saveFile(new Blob([JSON.stringify(collectionFile(c), null, 2)], { type: "application/json" }), `${nameIn(c.name, "en").replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase() || "collection"}.json`); }
+    if (del) {
+      const entry = listCollections().find((x) => x.id === del.dataset.ohDelete);
+      if (entry && confirm(t("own.homeDeleteConfirm", { name: entry.name }))) { deleteCollection(entry.id); renderOwnHome(); }
+    }
+  };
+}
+if (OWN && !OWN_ID) wireOwnHome();

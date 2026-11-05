@@ -15,6 +15,10 @@ import { gameIcon } from "./icons.ts";
 /** Which app this page is: Clocktower ("/"), or the generic creator ("/crear"). */
 export const MODE: "botc" | "own" = /^\/crear(\/|$)/.test(location.pathname) ? "own" : "botc";
 export const OWN = MODE === "own";
+/** The collection this page shows (/crear/<id>); none at /crear itself, which lists them. */
+export const OWN_ID: string | null = location.pathname.match(/^\/crear\/([\w-]+)/)?.[1] ?? null;
+/** Where a collection opens. */
+export const collectionUrl = (id: string) => `/crear/${id}`;
 
 /** A name: one text, or one per token language ("en", "es", "es-castelgard"…). */
 export type Names = string | Record<string, string>;
@@ -81,7 +85,12 @@ export function readTheme(v: unknown): string | OwnTheme | undefined {
   if (!o || ![o.accent, o.background, o.surface, o.text, o.muted].every(isHex)) return undefined;
   return { accent: o.accent!, background: o.background!, surface: o.surface!, text: o.text!, muted: o.muted!, ...(isHex(o.glow) ? { glow: o.glow } : {}), ...(o.font && THEME_FONTS.includes(o.font) ? { font: o.font } : {}) };
 }
-const KEY = "midnight-mint-own-collection";
+// Each collection is kept on its own ("midnight-mint-own-<id>-collection"), with its own queue,
+// style and designs beside it (main.ts's keys); the list of them, for /crear, apart.
+const LIST_KEY = "midnight-mint-own-collections";
+const keyOf = (id: string) => `midnight-mint-own-${id}-collection`;
+/** A collection in the list: enough to show its card without reading it all. */
+export interface CollectionEntry { id: string; name: string; logo?: string; accent?: string; tokens: number; updated: number }
 
 /** The colours a new group takes in turn: the team colours, which the print export knows. */
 export const GROUP_COLOURS: Hex[] = ["#2f86e0", "#b3191e", "#8a3d9e", "#d4a72c", "#3f9651", "#c9a227", "#a7adb4", "#9a6a3a", "#ece9e2"];
@@ -112,15 +121,57 @@ function upgrade(c: Collection & { catalogs?: OwnCatalog[] }): Collection {
   if (!c.sections) { c.sections = [{ id: "s1", title: "Catálogos", open: true, catalogs: c.catalogs ?? [] }]; delete c.catalogs; }
   return c;
 }
-export function loadCollection(): Collection {
+export function listCollections(): CollectionEntry[] {
+  migrateSingle();
+  try { const l = JSON.parse(localStorage.getItem(LIST_KEY) as string); if (Array.isArray(l)) return l; } catch { /* none */ }
+  return [];
+}
+function storeList(list: CollectionEntry[]) { try { localStorage.setItem(LIST_KEY, JSON.stringify(list)); } catch { /* storage unavailable */ } }
+
+export function loadCollection(id = OWN_ID): Collection | null {
+  if (!id) return null;
+  migrateSingle();
   try {
-    const c = JSON.parse(localStorage.getItem(KEY) as string);
+    const c = JSON.parse(localStorage.getItem(keyOf(id)) as string);
     if (c && Array.isArray(c.groups) && Array.isArray(c.tokens) && c.tokens.length) return upgrade(c);
   } catch { /* storage unavailable or not ours */ }
-  return starterCollection();
+  return null;
 }
-export function storeCollection(c: Collection) {
-  try { localStorage.setItem(KEY, JSON.stringify(c)); } catch { /* storage unavailable or full */ }
+/** Keeps a collection, and its card in the list. Returns false when the browser's storage is full. */
+export function storeCollection(c: Collection, id = OWN_ID): boolean {
+  if (!id) return false;
+  try { localStorage.setItem(keyOf(id), JSON.stringify(c)); } catch { return false; }
+  const theme = typeof c.theme === "object" ? c.theme : THEMES[c.theme ?? "graphite"];
+  const entry: CollectionEntry = { id, name: nameIn(c.name, "es"), ...(c.brand?.logo ? { logo: c.brand.logo } : {}), accent: theme?.accent ?? "#c9a227", tokens: c.tokens.length, updated: Date.now() };
+  storeList([entry, ...listCollections().filter((x) => x.id !== id)]);
+  return true;
+}
+/** A new collection in the list (a fresh one, or one read from a file); returns its id. */
+export function addCollection(c: Collection): string | null {
+  const id = newId("c");
+  return storeCollection(c, id) ? id : null;
+}
+/** Takes a collection out, with its queue, style and designs. */
+export function deleteCollection(id: string) {
+  try { for (const k of Object.keys(localStorage)) if (k.startsWith(`midnight-mint-own-${id}-`)) localStorage.removeItem(k); } catch { /* none */ }
+  storeList(listCollections().filter((x) => x.id !== id));
+}
+/** The creator kept one collection before it kept several: that one becomes the first of the list. */
+function migrateSingle() {
+  try {
+    const old = localStorage.getItem("midnight-mint-own-collection");
+    if (!old || localStorage.getItem(LIST_KEY)) return;
+    const id = "c1";
+    localStorage.setItem(keyOf(id), old);
+    for (const k of ["picks", "style", "overrides", "designs", "view"]) {
+      const v = localStorage.getItem(`midnight-mint-own-${k}`);
+      if (v != null) localStorage.setItem(`midnight-mint-own-${id}-${k}`, v);
+      localStorage.removeItem(`midnight-mint-own-${k}`);
+    }
+    localStorage.removeItem("midnight-mint-own-collection");
+    const c = JSON.parse(old);
+    localStorage.setItem(LIST_KEY, JSON.stringify([{ id, name: nameIn(c.name, "es"), tokens: c.tokens?.length ?? 0, updated: Date.now() }]));
+  } catch { /* storage unavailable */ }
 }
 
 /** Every catalog, with its section. */
