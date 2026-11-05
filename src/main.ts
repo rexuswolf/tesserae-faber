@@ -19,8 +19,8 @@ import { PAGE, layoutCoins, backX } from "./pdf/layout.ts";
 import { t, uiLang, setUiLang, LANGUAGES } from "./i18n.ts";
 import { TRANSLATIONS, VILLACUERVOS_URL, translationById, translationGroups } from "./translations.ts";
 import { uiIcon, UI_ICONS, TEAM_ICONS } from "./ui-icons.ts";
-import { OWN, MODE, loadCollection, storeCollection, collectionRoles, collectionFile, readCollectionFile, readTokenList, GROUP_COLOURS, newId, nameIn, withName, catalogsOf, isLocked } from "./collection.ts";
-import type { Collection, OwnToken, OwnCatalog, OwnSection } from "./collection.ts";
+import { OWN, MODE, loadCollection, storeCollection, collectionRoles, collectionFile, readCollectionFile, readTokenList, GROUP_COLOURS, newId, nameIn, withName, catalogsOf, isLocked, THEMES, THEME_FONTS } from "./collection.ts";
+import type { Collection, OwnToken, OwnCatalog, OwnSection, OwnTheme } from "./collection.ts";
 import { loadScripts, storeScripts, saveScript, scriptLink, readLink, scriptJson, idKey as scriptKey } from "./scripts.ts";
 import type { HomebrewEntry, NewScript, Script, ScriptJsonEntry } from "./scripts.ts";
 import type { Translation } from "./translations.ts";
@@ -107,6 +107,7 @@ const state: {
 };
 /** The generic creator's collection (/crear); empty, and unused, in Clocktower. */
 let coll: Collection = OWN ? loadCollection() : { name: "", types: [], groups: [], tokens: [], sections: [] };
+if (OWN) applyOwnTheme();   // before the loading screen shows: it wears the collection's colours too
 
 // After a deploy, a page opened earlier may ask for code files that no longer
 // exist (their names change with each version). Reload once to get the new ones.
@@ -392,7 +393,12 @@ const ADMIN_ENTRY = new URLSearchParams(location.search).has("admin");
 const adminSignIn = () => signIn().catch((e) => { if (e.code !== "auth/popup-closed-by-user") $("#gateText").textContent = t("gate.signInFailed", { message: e.message }); });
 
 async function boot() {
-  showGate(() => ({ title: t("gate.opening") }));
+  showGate(() => ({ title: OWN && coll.loader?.text ? nameIn(coll.loader.text, uiLang()) : t("gate.opening") }));
+  if (OWN) {   // the collection's own line under the loading screen, and the community mark only if it asks for it
+    $(".gate-card .ccc").hidden = !coll.loader?.ccc && !coll.loader?.footer;
+    $(".gate-card .ccc img").hidden = !coll.loader?.ccc;
+    if (coll.loader?.footer) $("#gateCcc").textContent = nameIn(coll.loader.footer, uiLang());
+  }
   try {
     if (OWN) {   // your own collection: no library to fetch
       applyGroups();
@@ -2119,15 +2125,20 @@ function openCredits() {
     <summary><b>${esc(authorName(a))}</b> <small>${esc(t("credits.count", { n: set.size }))}</small></summary>
     <p>${[...set].sort().map((i) => link(`https://game-icons.net/1x1/${encodeURIComponent(a)}/${encodeURIComponent(i)}.html`, i)).join(", ")}</p></details></li>`).join("");
 
+  // The generic creator: first what the collection says about itself (and its links)
+  const lang = uiLang(), a = OWN ? coll.about : undefined;
+  const paras = (n: Parameters<typeof nameIn>[0] | undefined, cls = "") => nameIn(n, lang).split(/\n\s*\n/).filter((x) => x.trim()).map((x) => `<p${cls}>${esc(x.trim())}</p>`).join("");
+  const own = OWN ? `<section class="about own-about"><h3>${esc(nameIn(coll.name, lang))}</h3>${paras(a?.text)}${paras(a?.credits, ' class="hint"')}
+      ${a?.links?.length ? `<p class="about-links">${a.links.map((l) => link(l.url, nameIn(l.label, lang))).join(" · ")}</p>` : ""}</section>` : "";
   // About: what the app is and how it treats your things, then the credits
-  $("#creditsBody").innerHTML = `<section class="about"><p>${esc(t("about.what"))}</p>
-      <p class="hint">${esc(t("credits.intro"))}</p>
+  $("#creditsBody").innerHTML = `${own}<section class="about"><p>${esc(t(OWN ? "own.aboutApp" : "about.what"))}</p>
+      ${OWN ? "" : `<p class="hint">${esc(t("credits.intro"))}</p>`}
       <p class="hint">${esc(t("about.data"))}</p>
       <p class="about-actions"><button type="button" class="pill" data-guide>${esc(t("guide.open"))}</button></p></section>
     <h2 class="credits-h">${esc(t("credits.title"))}</h2>
-    <section><h3>${esc(t("credits.translations"))}</h3>
+    ${!OWN || (coll.languages?.length ?? 0) > 1 ? `<section><h3>${esc(t("credits.translations"))}</h3>
       <p class="hint">${esc(t("credits.translationsIntro")).replace("Villacuervos", link(VILLACUERVOS_URL, "Villacuervos"))}</p>
-      <ul class="credit-grid">${translations}</ul></section>
+      <ul class="credit-grid">${translations}</ul></section>` : ""}
     <section><h3>${esc(t("credits.icons"))}</h3>
       <p class="hint">${esc(t("credits.iconsIntro")).replace("game-icons.net", link("https://game-icons.net", "game-icons.net"))}</p>
       <ul class="credit-icons">${icons}</ul></section>
@@ -2193,7 +2204,7 @@ function applyGroups() {
 /** What depends on the collection itself: its name, its look, and the token language when it has several. */
 function syncOwnChrome() {
   $("#ownCollName").textContent = nameIn(coll.name, uiLang());
-  document.documentElement.dataset.theme = coll.theme ?? "";
+  applyOwnTheme();
   $("#tokenLangBtn").hidden = !((coll.languages?.length ?? 0) > 1);
 }
 
@@ -2284,7 +2295,8 @@ function wireOwn() {
     const k = catalogOf(state.edition); if (!k || !confirm(t("own.deleteCatalogConfirm", { name: nameIn(k.name, uiLang()) }))) return;
     const sec = sectionOf(k); sec.catalogs = sec.catalogs.filter((x) => x !== k); state.edition = "all"; collectionChanged();
   };
-  $("#ownCollName").onclick = () => { const name = prompt(t("own.renamePrompt"), nameIn(coll.name, uiLang()))?.trim(); if (name) { coll.name = withName(coll.name, uiLang(), name); collectionChanged(); } };
+  $("#ownCollName").onclick = () => openOwnSettings();
+  wireOwnSettings();
   $("#ownNewTok").onclick = () => openOwnToken(null);
   $("#ownGroups").onclick = () => { renderOwnGroups(); $<HTMLDialogElement>("#ownGroupsDlg").showModal(); };
   $("#ownExport").onclick = () => saveFile(new Blob([JSON.stringify(collectionFile(coll), null, 2)], { type: "application/json" }), `${nameIn(coll.name, "en").replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase() || "collection"}.json`);
@@ -2464,4 +2476,73 @@ function remapLinked(id: string, before: string[], after: string[]) {
     }
     for (const [k, v] of moved) store.set(k, v);
   }
+}
+
+// ------------------------------------------------------------ the collection's own look, loading line and About
+
+/** The collection's colours on the whole app: Clocktower's own stylesheet for "botc", else its theme's. */
+function applyOwnTheme() {
+  const root = document.documentElement, th = coll.theme ?? "graphite";
+  // "botc" is the stylesheet's own colours: nothing to set
+  const colours: OwnTheme | null = th === "botc" ? null : typeof th === "string" ? THEMES[th] ?? THEMES.graphite : th;
+  root.dataset.theme = th === "botc" ? "botc" : "";
+  const vars: Record<string, string | undefined> = colours ? {
+    "--velvet": colours.surface, "--velvet-mid": colours.surface, "--velvet-deep": colours.background, "--brass": colours.accent,
+    "--bone": colours.text, "--dust": colours.muted, "--seam": `${colours.text}1f`, "--glow": colours.glow ?? colours.surface,
+    "--display": colours.font ? `"${colours.font}", sans-serif` : undefined,
+  } : {};
+  for (const k of ["--velvet", "--velvet-mid", "--velvet-deep", "--brass", "--bone", "--dust", "--seam", "--glow", "--display"]) {
+    if (vars[k]) root.style.setProperty(k, vars[k]!); else root.style.removeProperty(k);
+  }
+}
+
+function openOwnSettings() {
+  const lang = uiLang();
+  $<HTMLInputElement>("#osName").value = nameIn(coll.name, lang);
+  $<HTMLInputElement>("#osLoader").value = nameIn(coll.loader?.text, lang);
+  $<HTMLTextAreaElement>("#osAbout").value = nameIn(coll.about?.text, lang);
+  $<HTMLTextAreaElement>("#osCredits").value = nameIn(coll.about?.credits, lang);
+  $<HTMLTextAreaElement>("#osLinks").value = (coll.about?.links ?? []).map((l) => `${nameIn(l.label, lang)} | ${l.url}`).join("\n");
+  renderOwnThemes();
+  $<HTMLDialogElement>("#ownSettings").showModal();
+}
+function renderOwnThemes() {
+  const th = coll.theme ?? "graphite", custom = typeof th === "object" ? th : null;
+  $("#osThemes").innerHTML = Object.entries(THEMES).map(([id, c]) => {
+    const sw = c ?? { background: "#170812", surface: "#2a0f20", accent: "#c9a227", text: "#efe6d6" };
+    return `<button type="button" class="os-theme" data-theme-id="${id}" aria-pressed="${th === id}"><span style="background:${sw.background};border-color:${sw.surface}"><i style="background:${sw.accent}"></i><b style="color:${sw.text}">Aa</b></span>${esc(t(`own.theme.${id}`))}</button>`;
+  }).join("") + `<button type="button" class="os-theme" data-theme-id="custom" aria-pressed="${!!custom}"><span class="custom"><i></i><b>+</b></span>${esc(t("own.theme.custom"))}</button>`;
+  const base = custom ?? (typeof th === "string" ? THEMES[th] : null) ?? THEMES.graphite!;
+  $("#osCustom").hidden = !custom;
+  for (const k of ["accent", "background", "surface", "text", "muted"] as const) $<HTMLInputElement>(`#os-${k}`).value = base[k];
+  $("#osFont").innerHTML = THEME_FONTS.map((f) => `<option${(custom?.font ?? "Bricolage Grotesque") === f ? " selected" : ""}>${esc(f)}</option>`).join("");
+}
+function wireOwnSettings() {
+  const dlg = $<HTMLDialogElement>("#ownSettings");
+  closeOnBackdrop(dlg);
+  $("#osThemes").onclick = (e) => {
+    const b = hit(e, "[data-theme-id]"); if (!b) return;
+    const id = b.dataset.themeId!;
+    if (id === "custom") { const cur = coll.theme ?? "graphite"; coll.theme = { ...(typeof cur === "object" ? cur : THEMES[cur] ?? THEMES.graphite!) }; }
+    else coll.theme = id;
+    storeCollection(coll); applyOwnTheme(); renderOwnThemes();
+  };
+  $("#osCustom").oninput = () => {
+    if (typeof coll.theme !== "object") return;
+    for (const k of ["accent", "background", "surface", "text", "muted"] as const) coll.theme[k] = $<HTMLInputElement>(`#os-${k}`).value as Hex;
+    coll.theme.glow = coll.theme.surface;
+    coll.theme.font = $<HTMLSelectElement>("#osFont").value;
+    storeCollection(coll); applyOwnTheme();
+  };
+  $("#osCancel").onclick = () => dlg.close();
+  $("#osSave").onclick = () => {
+    const lang = uiLang(), v = (id: string) => $<HTMLInputElement>(id).value.trim();
+    if (v("#osName")) coll.name = withName(coll.name, lang, v("#osName"));
+    coll.loader = { ...coll.loader, text: withName(coll.loader?.text ?? "", lang, v("#osLoader")) };
+    if (!v("#osLoader")) delete coll.loader.text;
+    const links = v("#osLinks").split("\n").map((l) => l.split("|").map((x) => x.trim())).filter(([label, url]) => label && /^https?:\/\//.test(url ?? "")).map(([label, url]) => ({ label, url }));
+    coll.about = { text: withName(coll.about?.text ?? "", lang, v("#osAbout")), credits: withName(coll.about?.credits ?? "", lang, v("#osCredits")), links };
+    dlg.close();
+    collectionChanged();
+  };
 }

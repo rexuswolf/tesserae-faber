@@ -36,10 +36,18 @@ export interface OwnToken {
 }
 export interface OwnCatalog { id: string; name: Names; tokens: string[] }
 export interface OwnSection { id: string; title: Names; open: boolean; catalogs: OwnCatalog[] }
+/** A collection's colours: the app's surfaces, text and accent (see THEMES for ready ones). */
+export interface OwnTheme { accent: Hex; background: Hex; surface: Hex; text: Hex; muted: Hex; glow?: Hex; font?: string }
+/** What the collection says about itself, at the top of "About". */
+export interface OwnAbout { text?: Names; credits?: Names; links?: { label: Names; url: string }[] }
+/** Its loading screen: the line it shows, and whether it carries the Community Created Content mark. */
+export interface OwnLoader { text?: Names; footer?: Names; ccc?: boolean }
 export interface Collection {
   name: Names;
-  /** "botc": Clocktower's own look (velvet and brass), for its collection. */
-  theme?: string;
+  /** "botc" (Clocktower's velvet and brass), a ready theme's id (THEMES), or colours of its own. */
+  theme?: string | OwnTheme;
+  about?: OwnAbout;
+  loader?: OwnLoader;
   /** The token languages its names come in, when more than one. */
   languages?: string[];
   types: OwnType[];
@@ -49,6 +57,25 @@ export interface Collection {
 }
 
 export const COLLECTION_FORMAT = "midnight-mint/collection";
+
+/** Ready themes. "botc" is Clocktower's own, drawn by the stylesheet itself; "graphite" is the creator's default. */
+export const THEMES: Record<string, OwnTheme | null> = {
+  graphite: { accent: "#4fd1c5", background: "#111317", surface: "#1b1f24", text: "#e8eaed", muted: "#98a1ab", glow: "#1d2a2c" },
+  botc: null,
+  forest: { accent: "#7bc47f", background: "#0f1511", surface: "#18211b", text: "#e6efe7", muted: "#97a89b", glow: "#1e2f22" },
+  ocean: { accent: "#6aa7ff", background: "#0d1320", surface: "#151d2e", text: "#e6ecf7", muted: "#93a0b8", glow: "#1a2742" },
+  ember: { accent: "#ff8a5c", background: "#160f0d", surface: "#211714", text: "#f3e9e4", muted: "#b29c93", glow: "#33201a" },
+};
+/** The fonts a theme can use for headings (the page loads these). */
+export const THEME_FONTS = ["Bricolage Grotesque", "Gloock", "Instrument Sans"];
+const isHex = (v: unknown): v is Hex => typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v);
+/** A theme from a file: a known id, or colours that are all valid. */
+export function readTheme(v: unknown): string | OwnTheme | undefined {
+  if (typeof v === "string") return v in THEMES ? v : undefined;
+  const o = v as Partial<OwnTheme> | null;
+  if (!o || ![o.accent, o.background, o.surface, o.text, o.muted].every(isHex)) return undefined;
+  return { accent: o.accent!, background: o.background!, surface: o.surface!, text: o.text!, muted: o.muted!, ...(isHex(o.glow) ? { glow: o.glow } : {}), ...(o.font && THEME_FONTS.includes(o.font) ? { font: o.font } : {}) };
+}
 const KEY = "midnight-mint-own-collection";
 
 /** The colours a new group takes in turn: the team colours, which the print export knows. */
@@ -180,7 +207,13 @@ export async function readCollectionFile(data: unknown, onProgress: (done: numbe
   }));
   if (!sections.some((s) => s.open)) sections.push({ id: "mine", title: "Catálogos", open: true, catalogs: [] });
   return {
-    name: okName(f.name) ? f.name : "Mi colección", ...(f.theme ? { theme: String(f.theme) } : {}),
+    name: okName(f.name) ? f.name : "Mi colección",
+    ...(readTheme(f.theme) ? { theme: readTheme(f.theme) } : {}),
+    ...(f.about && typeof f.about === "object" ? { about: {
+      ...(okName(f.about.text) ? { text: f.about.text } : {}), ...(okName(f.about.credits) ? { credits: f.about.credits } : {}),
+      ...(Array.isArray(f.about.links) ? { links: f.about.links.filter((l) => l && okName(l.label) && /^https?:\/\//.test(String(l.url))).map((l) => ({ label: l.label, url: String(l.url) })) } : {}),
+    } } : {}),
+    ...(f.loader && typeof f.loader === "object" ? { loader: { ...(okName(f.loader.text) ? { text: f.loader.text } : {}), ...(okName(f.loader.footer) ? { footer: f.loader.footer } : {}), ...(f.loader.ccc ? { ccc: true } : {}) } } : {}),
     ...(Array.isArray(f.languages) ? { languages: f.languages.map(String) } : {}),
     types, groups, tokens, sections,
   };

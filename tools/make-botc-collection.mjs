@@ -8,7 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { EDITIONS, TEAMS } from "../src/engine/token-engine.ts";
 import { infoRoles } from "../src/info-tokens.ts";
-import { TRANSLATIONS } from "../src/translations.ts";
+import { TRANSLATIONS, VILLACUERVOS_URL } from "../src/translations.ts";
 import { TEAM_ICONS } from "../src/ui-icons.ts";
 
 const root = path.resolve(import.meta.dirname, "..");
@@ -34,6 +34,26 @@ const tokens = [
 const collection = {
   format: "midnight-mint/collection", version: 1,
   name: "Blood on the Clocktower", theme: "botc",
+  // what Clocktower's own app says: on its loading screen (with the Community Created Content mark) and in About
+  loader: {
+    text: { es: "Abriendo el grimorio…", en: "Opening the grimoire…" },
+    footer: {
+      es: "Herramienta gratuita hecha por la comunidad para imprimir tus propios tokens de personaje. No está afiliada ni respaldada por The Pandemonium Institute.",
+      en: "A free, community-made tool for printing your own character tokens. Not affiliated with or endorsed by The Pandemonium Institute.",
+    },
+    ccc: true,
+  },
+  about: {
+    text: {
+      es: "Todas las ediciones de Blood on the Clocktower: personajes con sus recordatorios, las fichas de información del Grimorio y tus guiones del Script Tool.",
+      en: "Every Blood on the Clocktower edition: characters with their reminders, the Grimoire's info tokens and your Script Tool scripts.",
+    },
+    credits: {
+      es: "Blood on the Clocktower, sus personajes y sus reglas son de The Pandemonium Institute; esta colección no es oficial ni está respaldada por ellos. Los nombres y recordatorios traducidos vienen de Villacuervos.",
+      en: "Blood on the Clocktower, its characters and its rules belong to The Pandemonium Institute; this collection is unofficial and not endorsed by them. Translated names and reminders come from Villacuervos.",
+    },
+    links: [{ label: "Blood on the Clocktower", url: "https://bloodontheclocktower.com" }, { label: "Villacuervos", url: VILLACUERVOS_URL }],
+  },
   languages: TRANSLATIONS.map((x) => x.id),
   types: [
     { id: "characters", name: { en: "Characters", es: "Personajes" }, title: { en: "All characters", es: "Todos los personajes" }, shape: "coin", icon: "two-coins" },

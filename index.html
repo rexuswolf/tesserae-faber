@@ -393,6 +393,29 @@
   <button class="pill" type="button" id="ownGroupAdd" data-i18n="own.addGroup"></button>
 </dialog>
 
+<!-- the generic creator: the collection's name, its loading line, its About and its colours -->
+<dialog id="ownSettings" class="own-dialog" aria-labelledby="osTitle">
+  <h2 id="osTitle" data-i18n="own.settings"></h2>
+  <label class="field"><span data-i18n="own.name"></span><input class="text" id="osName" autocomplete="off"></label>
+  <h3 data-i18n="own.colours"></h3>
+  <div class="os-themes" id="osThemes"></div>
+  <div class="os-custom" id="osCustom" hidden>
+    <label><input type="color" id="os-accent"><span data-i18n="own.c.accent"></span></label>
+    <label><input type="color" id="os-background"><span data-i18n="own.c.background"></span></label>
+    <label><input type="color" id="os-surface"><span data-i18n="own.c.surface"></span></label>
+    <label><input type="color" id="os-text"><span data-i18n="own.c.text"></span></label>
+    <label><input type="color" id="os-muted"><span data-i18n="own.c.muted"></span></label>
+    <label class="field"><span data-i18n="own.c.font"></span><select class="text" id="osFont"></select></label>
+  </div>
+  <h3 data-i18n="own.loaderH"></h3>
+  <label class="field"><span data-i18n="own.loaderText"></span><input class="text" id="osLoader" autocomplete="off" data-i18n-attr="placeholder:gate.opening"></label>
+  <h3 data-i18n="own.aboutH"></h3>
+  <label class="field"><span data-i18n="own.aboutText"></span><textarea class="text" id="osAbout" rows="4"></textarea></label>
+  <label class="field"><span data-i18n="own.aboutCredits"></span><textarea class="text" id="osCredits" rows="2"></textarea></label>
+  <label class="field"><span data-i18n="own.aboutLinks"></span><textarea class="text" id="osLinks" rows="2" spellcheck="false" placeholder="Web | https://…"></textarea></label>
+  <div class="dialog-actions"><button class="pill" type="button" id="osCancel" data-i18n="script.cancel"></button><button class="forge" type="button" id="osSave" data-i18n="own.save"></button></div>
+</dialog>
+
 <!-- the generic creator: a catalog made in an open section, or tokens added to one, from a list -->
 <dialog id="ownCat" class="own-dialog" aria-labelledby="ownCatTitle">
   <h2 id="ownCatTitle"></h2>
