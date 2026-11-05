@@ -256,6 +256,8 @@ const STR: Record<string, Record<string, Entry>> = {
     "me.admin": "Biblioteca",
     "me.signOut": "Cerrar sesión",
     "me.adminLabel": "Admin",
+    "botc.collections": "Colecciones",
+    "botc.collectionsTitle": "Todas las colecciones de Tesserae Faber",
 
     // drawer sections
     "sec.saved": "Mis tokens",
@@ -855,6 +857,8 @@ const STR: Record<string, Record<string, Entry>> = {
     "me.admin": "Library",
     "me.signOut": "Sign out",
     "me.adminLabel": "Admin",
+    "botc.collections": "Collections",
+    "botc.collectionsTitle": "All Tesserae Faber collections",
 
     "sec.saved": "My tokens",
     "sec.queue": "Print queue",

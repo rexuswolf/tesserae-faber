@@ -21,6 +21,8 @@
     <button class="icon-btn" type="button" id="drawerOpen" aria-controls="spine" aria-expanded="false" data-i18n-attr="aria-label:top.menu">
       <svg viewBox="0 0 18 18" width="18" height="18" aria-hidden="true"><path d="M3 5h12M3 9h12M3 13h12" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
     <div class="brand botc-only"><img src="/logo-mark.svg" alt="" width="36" height="36"><span class="wordmark"><span class="wm-mid">Midnight</span><span class="wm-mint">Mint</span></span><span class="brand-title" hidden></span></div>
+    <!-- Clocktower (/botc) is one of Tesserae Faber's collections: the way to the others -->
+    <a class="tf-link botc-only" href="/colecciones" data-i18n-attr="title:botc.collectionsTitle"><img src="/tesserae-faber-small.svg" alt="" width="22" height="22"><span data-i18n="botc.collections"></span></a>
     <!-- the generic creator: the collection is the brand; its menu has the way back to the list and its settings -->
     <div class="coll-switch own-only">
       <button type="button" id="collSwitch" aria-haspopup="menu" aria-expanded="false" aria-controls="collMenu"><img class="coll-logo" src="/tesserae-faber-small.svg" alt="" width="34" height="34"><span class="cs-text"><b class="coll-name"></b><small>Tesserae Faber</small></span><span class="chev" aria-hidden="true">▾</span></button>
@@ -45,6 +47,7 @@
        On a phone it is a drawer. -->
   <nav class="spine" id="spine" data-i18n-attr="aria-label:spine.aria">
     <div class="spine-scroll">
+      <a class="tf-drawer-link botc-only" href="/colecciones"><img src="/tesserae-faber-small.svg" alt="" width="22" height="22"><span data-i18n="botc.collectionsTitle"></span></a>
       <!-- the generic creator on a phone: the collection and its menu head the drawer (the top bar has no room) -->
       <details class="own-drawer own-only">
         <summary><img class="coll-logo" src="/tesserae-faber-small.svg" alt="" width="34" height="34"><span class="cs-text"><b class="coll-name"></b><small>Tesserae Faber</small></span><span class="chev" aria-hidden="true">▾</span></summary>

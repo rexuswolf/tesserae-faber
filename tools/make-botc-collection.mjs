@@ -81,6 +81,7 @@ if (builtIn) {
   const reminders = tokens.reduce((n, t) => n + (t.linked?.length ?? 0), 0);
   const entry = { id: "botc", file: "/collections/botc.json", name: "Blood on the Clocktower", logo: "/logo-mark.svg", accent: "#c9a227", tokens: tokens.length,
     preview: "/collections/botc-preview.svg",   // tools/make-crear-art.mjs
+    href: "/botc",   // it opens as Midnight Mint, the Clocktower app (the file stays: to export, or to start a collection from)
     facts: { es: `${roles.length} personajes · ${reminders} recordatorios · ${TRANSLATIONS.length} idiomas`, en: `${roles.length} characters · ${reminders} reminders · ${TRANSLATIONS.length} languages` },
     text: { es: "Todas las ediciones, el Grimorio y tus guiones.", en: "Every edition, the Grimoire and your scripts." } };
   index = [entry, ...index.filter((x) => x.id !== entry.id)];

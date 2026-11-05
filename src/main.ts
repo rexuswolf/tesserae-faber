@@ -20,7 +20,7 @@ import { PAGE, layoutCoins, backX } from "./pdf/layout.ts";
 import { t, uiLang, setUiLang, LANGUAGES } from "./i18n.ts";
 import { TRANSLATIONS, VILLACUERVOS_URL, translationById, translationGroups } from "./translations.ts";
 import { uiIcon, UI_ICONS, TEAM_ICONS } from "./ui-icons.ts";
-import { OWN, OWN_ID, OWN_VIEW, LIST_URL, lastCollection, rememberCollection, collectionUrl, listCollections, addCollection, deleteCollection, starterCollection, builtInCollections, openBuiltIn, MODE, loadCollection, storeCollection, collectionRoles, collectionFile, readCollectionFile, readTokenList, GROUP_COLOURS, newId, nameIn, withName, catalogsOf, isLocked, THEMES, THEME_FONTS, okLogo, hasCcc, APP_LOGO, APP_LOGO_SMALL, APP_ICON, APP_NAME } from "./collection.ts";
+import { OWN, OWN_ID, OWN_VIEW, LIST_URL, lastCollection, rememberCollection, collectionUrl, openUrl, listCollections, addCollection, deleteCollection, starterCollection, builtInCollections, openBuiltIn, MODE, loadCollection, storeCollection, collectionRoles, collectionFile, readCollectionFile, readTokenList, GROUP_COLOURS, newId, nameIn, withName, catalogsOf, isLocked, THEMES, THEME_FONTS, okLogo, hasCcc, APP_LOGO, APP_LOGO_SMALL, APP_ICON, APP_NAME } from "./collection.ts";
 import type { Collection, OwnToken, OwnCatalog, OwnSection, OwnTheme, CollectionEntry } from "./collection.ts";
 import { loadScripts, storeScripts, saveScript, scriptLink, readLink, scriptJson, idKey as scriptKey } from "./scripts.ts";
 import type { HomebrewEntry, NewScript, Script, ScriptJsonEntry } from "./scripts.ts";
@@ -65,7 +65,7 @@ const TOKEN_LANG_KEY = "midnight-mint-token-lang";
 const VIEW_KEY = `${KEYS}view`;   // the sheet you were on (all, an edition or a script) and its team filter
 const EDITION_ORDER = ["tb", "bmr", "snv", "carousel", "fabled", "loric", "grimoire"];
 document.documentElement.dataset.mode = MODE;   // the generic creator's own colours (style.css)
-if (!OWN) document.title = "Midnight Mint";   // Clocktower keeps its name (the page's own title is Tesserae Faber's)
+if (!OWN) { document.title = "Midnight Mint"; rememberCollection("botc"); }   // and it's where the front page's "carry on" leads   // Clocktower keeps its name (the page's own title is Tesserae Faber's)
 const TEAM_ORDER: Team[] = ["townsfolk", "outsider", "minion", "demon", "traveller", "fabled", "loric", "info"];
 const TEAM_PLURAL: Record<string, Record<string, string>> = {
   es: { townsfolk: "Aldeanos", outsider: "Forasteros", minion: "Esbirros", demon: "Demonios", traveller: "Viajeros", fabled: "Fábulas", loric: "Lóricos", info: "Fichas de información" },
@@ -402,6 +402,8 @@ async function boot() {
     if (coll.loader?.footer) $("#gateCcc").textContent = nameIn(coll.loader.footer, uiLang());
   }
   try {
+    // a collection with an app of its own (Clocktower): there, at its one address
+    if (OWN && OWN_ID) { const own = (await builtInCollections()).find((b) => b.id === OWN_ID && b.href); if (own) { location.replace(own.href! + location.hash); return; } }
     // a collection that comes with the app, opened for the first time: read from its file
     if (OWN && OWN_ID && !coll.tokens.length) { const c = await openBuiltIn(OWN_ID); if (c) { coll = c; applyOwnTheme(); applyOwnBrand(); } }
     if (OWN && OWN_VIEW === "home") { renderOwnLanding(); return; }   // the front page
@@ -2608,8 +2610,8 @@ async function collectionsByKind() {
 /** The top bar menu's (and the phone drawer's) list of collections to go to, the app's own first. */
 async function renderSwitchList() {
   const { built, mine } = await collectionsByKind(), lang = uiLang();
-  const item = (id: string, name: string, logo?: string) => `<a role="menuitem" href="${collectionUrl(id)}"${id === OWN_ID ? ' aria-current="true"' : ""}><img src="${esc(logo || APP_LOGO_SMALL)}" alt=""><b>${esc(name)}</b></a>`;
-  const html = `<p class="cm-h">${esc(t("own.homeBuilt"))}</p>${built.map(({ b, kept }) => item(b.id, b.name, kept?.logo ?? b.logo)).join("")}
+  const item = (id: string, name: string, logo?: string, href?: string) => `<a role="menuitem" href="${href ?? collectionUrl(id)}"${id === OWN_ID ? ' aria-current="true"' : ""}><img src="${esc(logo || APP_LOGO_SMALL)}" alt=""><b>${esc(name)}</b></a>`;
+  const html = `<p class="cm-h">${esc(t("own.homeBuilt"))}</p>${built.map(({ b, kept }) => item(b.id, b.name, kept?.logo ?? b.logo, b.href)).join("")}
     <p class="cm-h">${esc(t("own.homeMine"))}</p>${mine.map((c) => item(c.id, c.name, c.logo)).join("") || `<p class="hint cm-empty">${esc(t("own.homeEmpty"))}</p>`}`;
   for (const el of $$(".coll-list")) el.innerHTML = html;
   void lang;
@@ -2634,7 +2636,7 @@ async function renderOwnLanding() {
   const name = m?.name ?? b?.b.name, logo = m?.logo ?? b?.kept?.logo ?? b?.b.logo;
   if (!name) return;
   const r = $<HTMLAnchorElement>("#ownResume");
-  r.href = collectionUrl(last); r.hidden = false;
+  r.href = openUrl(last, built.map((x) => x.b)); r.hidden = false;
   r.querySelector("img")!.src = logo || APP_LOGO_SMALL;
   r.querySelector("b")!.textContent = name;
   void lang;
@@ -2647,12 +2649,12 @@ async function renderOwnHome() {
   const when = (ms: number) => new Intl.DateTimeFormat(lang, { day: "numeric", month: "short" }).format(ms);
   const exp = (id: string) => `<button class="link" type="button" data-oh-export="${esc(id)}">${esc(t("own.export"))}</button>`;
   $("#ownHomeBuilt").innerHTML = built.map(({ b, kept }) => `<article class="oh-cover" style="--acc:${esc(b.accent ?? "#c9963a")}">
-      <a class="oh-cover-link" href="${collectionUrl(b.id)}">
+      <a class="oh-cover-link" href="${b.href ?? collectionUrl(b.id)}">
         <span class="who"><img src="${esc(kept?.logo ?? b.logo ?? APP_LOGO)}" alt=""><span><h3>${esc(b.name)}</h3><p>${esc(nameIn(b.text, lang))}</p></span></span>
         ${b.preview ? `<img class="strip" src="${esc(b.preview)}" alt="">` : ""}
         <span class="go"><span class="forge">${esc(t("own.open"))}</span>${esc(nameIn(b.facts, lang) || t("own.homeCount", { n: b.tokens, when: "" }))}</span>
       </a>
-      ${kept ? `<span class="oh-actions">${exp(b.id)}<button class="link" type="button" data-oh-reset="${esc(b.id)}">${esc(t("own.homeReset"))}</button></span>` : ""}
+      ${kept && !b.href ? `<span class="oh-actions">${exp(b.id)}<button class="link" type="button" data-oh-reset="${esc(b.id)}">${esc(t("own.homeReset"))}</button></span>` : ""}
     </article>`).join("");
   $("#ownHomeBuiltH").hidden = !built.length;
   $("#ownHomeList").innerHTML = mine.map((c: CollectionEntry) => `<article class="oh-tile" style="--acc:${esc(c.accent ?? "#c9963a")}">

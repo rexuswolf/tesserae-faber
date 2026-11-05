@@ -108,7 +108,11 @@ const keyOf = (id: string) => `midnight-mint-own-${id}-collection`;
 /** A collection that comes with the app (public/collections/index.json): opened, it's kept like the rest. */
 export interface BuiltInEntry { id: string; file: string; name: string; logo?: string; accent?: string; tokens: number; text?: Names;
   /** A picture of some of its tokens, for its cover; and what it holds, in a line. */
-  preview?: string; facts?: Names }
+  preview?: string; facts?: Names;
+  /** Where it opens when it has an app of its own (Clocktower: /botc, Midnight Mint), instead of /c/<id>. */
+  href?: string }
+/** Where a collection opens: its own app's address for one that has it, else /c/<id>. */
+export const openUrl = (id: string, built: { id: string; href?: string }[]) => built.find((b) => b.id === id)?.href ?? collectionUrl(id);
 let builtIns: Promise<BuiltInEntry[]> | null = null;
 export const builtInCollections = (): Promise<BuiltInEntry[]> => (builtIns ??= fetch("/collections/index.json").then((r) => (r.ok ? (r.json() as Promise<BuiltInEntry[]>) : [])).catch(() => []));
 /** A built-in collection, read from the app's own file and kept in this browser under its id. */
