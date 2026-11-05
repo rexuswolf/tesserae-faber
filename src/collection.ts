@@ -40,6 +40,10 @@ export interface OwnSection { id: string; title: Names; open: boolean; catalogs:
 export interface OwnTheme { accent: Hex; background: Hex; surface: Hex; text: Hex; muted: Hex; glow?: Hex; font?: string }
 /** What the collection says about itself, at the top of "About". */
 export interface OwnAbout { text?: Names; credits?: Names; links?: { label: Names; url: string }[] }
+/** Its mark: a logo (an image as a data: URI, or an https address) and the name beside it (else "Midnight Mint"). */
+export interface OwnBrand { logo?: string; title?: Names }
+/** A logo a collection may carry: an uploaded image, or one on the web. */
+export const okLogo = (v: unknown): v is string => typeof v === "string" && (/^data:image\/(svg\+xml|png|webp|jpeg)[;,]/.test(v) || /^https:\/\//.test(v)) && v.length < 400000;
 /** Its loading screen: the line it shows, and whether it carries the Community Created Content mark. */
 export interface OwnLoader { text?: Names; footer?: Names; ccc?: boolean }
 export interface Collection {
@@ -48,6 +52,7 @@ export interface Collection {
   theme?: string | OwnTheme;
   about?: OwnAbout;
   loader?: OwnLoader;
+  brand?: OwnBrand;
   /** The token languages its names come in, when more than one. */
   languages?: string[];
   types: OwnType[];
@@ -213,6 +218,7 @@ export async function readCollectionFile(data: unknown, onProgress: (done: numbe
       ...(okName(f.about.text) ? { text: f.about.text } : {}), ...(okName(f.about.credits) ? { credits: f.about.credits } : {}),
       ...(Array.isArray(f.about.links) ? { links: f.about.links.filter((l) => l && okName(l.label) && /^https?:\/\//.test(String(l.url))).map((l) => ({ label: l.label, url: String(l.url) })) } : {}),
     } } : {}),
+    ...(f.brand && typeof f.brand === "object" ? { brand: { ...(okLogo(f.brand.logo) ? { logo: f.brand.logo } : {}), ...(okName(f.brand.title) ? { title: f.brand.title } : {}) } } : {}),
     ...(f.loader && typeof f.loader === "object" ? { loader: { ...(okName(f.loader.text) ? { text: f.loader.text } : {}), ...(okName(f.loader.footer) ? { footer: f.loader.footer } : {}), ...(f.loader.ccc ? { ccc: true } : {}) } } : {}),
     ...(Array.isArray(f.languages) ? { languages: f.languages.map(String) } : {}),
     types, groups, tokens, sections,

@@ -848,3 +848,11 @@ html[data-mode=own] .own-spine-h { display: none; }   /* the creator's sections 
 .os-custom input[type=color] { width: 32px; height: 28px; border: 1px solid var(--seam); border-radius: 6px; background: none; padding: 0; }
 .own-about h3 { margin-top: 0; }
 .about-links a { color: var(--brass); }
+.brand-title { font: 700 20px/1.1 var(--display); letter-spacing: -.01em; color: var(--bone); }
+.brand .brand-title { margin-left: 2px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gate-title-brand { margin: 6px 0 0; font-size: 28px; text-align: center; }
+.brand img, .gate-logo { object-fit: contain; }
+.os-brand { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 14px; align-items: start; }
+.os-brand img { width: 64px; height: 64px; object-fit: contain; border: 1px solid var(--seam); border-radius: 12px; padding: 6px; }
+.os-brand-fields { display: grid; gap: 8px; }
+.os-brand-actions { display: flex; gap: 6px; flex-wrap: wrap; }

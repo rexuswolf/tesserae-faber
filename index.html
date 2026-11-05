@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Midnight Mint</title>
 <meta name="description" content="Design 3D-printable tokens for your Blood on the Clocktower group. A free tool made by the community.">
-<link rel="icon" type="image/svg+xml" href="/logo-mark.svg">
+<link rel="icon" type="image/svg+xml" href="/logo-mark.svg" id="favicon">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Gloock&family=Instrument+Sans:wght@400;500;600&display=swap">
@@ -20,7 +20,7 @@
   <header class="topbar" id="topbar">
     <button class="icon-btn" type="button" id="drawerOpen" aria-controls="spine" aria-expanded="false" data-i18n-attr="aria-label:top.menu">
       <svg viewBox="0 0 18 18" width="18" height="18" aria-hidden="true"><path d="M3 5h12M3 9h12M3 13h12" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
-    <div class="brand"><img src="/logo-mark.svg" alt="" width="36" height="36"><span class="wordmark"><span class="wm-mid">Midnight</span><span class="wm-mint">Mint</span></span></div>
+    <div class="brand"><img src="/logo-mark.svg" alt="" width="36" height="36"><span class="wordmark"><span class="wm-mid">Midnight</span><span class="wm-mint">Mint</span></span><span class="brand-title" hidden></span></div>
     <nav class="flow-steps" id="flowSteps" data-i18n-attr="aria-label:flow.aria"></nav>
     <button class="tlang-trigger" id="tokenLangBtn" type="button" aria-haspopup="dialog"></button>
   </header>
@@ -276,6 +276,7 @@
   <div class="gate-card">
     <img class="gate-logo" src="/logo-mark.svg" alt="" width="88" height="88">
     <p class="mark wordmark"><span class="wm-mid">Midnight</span><span class="wm-mint">Mint</span></p>
+    <p class="brand-title gate-title-brand" hidden></p>
     <h2 id="gateTitle">Abriendo el grimorio…</h2>
     <p id="gateText"></p>
     <button class="forge" type="button" id="gateAction" hidden></button>
@@ -397,6 +398,15 @@
 <dialog id="ownSettings" class="own-dialog" aria-labelledby="osTitle">
   <h2 id="osTitle" data-i18n="own.settings"></h2>
   <label class="field"><span data-i18n="own.name"></span><input class="text" id="osName" autocomplete="off"></label>
+  <h3 data-i18n="own.brandH"></h3>
+  <div class="os-brand">
+    <img id="osLogo" alt="" width="64" height="64">
+    <div class="os-brand-fields">
+      <span class="os-brand-actions"><label class="pill file"><span data-i18n="own.logoUpload"></span><input type="file" id="osLogoFile" accept=".svg,.png,.webp,.jpg,.jpeg,image/svg+xml,image/png,image/webp,image/jpeg" hidden></label><button class="pill" type="button" id="osLogoReset" data-i18n="own.logoReset"></button></span>
+      <label class="field"><span data-i18n="own.brandTitle"></span><input class="text" id="osBrandTitle" autocomplete="off" placeholder="Midnight Mint"></label>
+      <p class="hint warn" id="osLogoNote" aria-live="polite"></p>
+    </div>
+  </div>
   <h3 data-i18n="own.colours"></h3>
   <div class="os-themes" id="osThemes"></div>
   <div class="os-custom" id="osCustom" hidden>

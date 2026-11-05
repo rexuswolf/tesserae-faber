@@ -19,7 +19,7 @@ import { PAGE, layoutCoins, backX } from "./pdf/layout.ts";
 import { t, uiLang, setUiLang, LANGUAGES } from "./i18n.ts";
 import { TRANSLATIONS, VILLACUERVOS_URL, translationById, translationGroups } from "./translations.ts";
 import { uiIcon, UI_ICONS, TEAM_ICONS } from "./ui-icons.ts";
-import { OWN, MODE, loadCollection, storeCollection, collectionRoles, collectionFile, readCollectionFile, readTokenList, GROUP_COLOURS, newId, nameIn, withName, catalogsOf, isLocked, THEMES, THEME_FONTS } from "./collection.ts";
+import { OWN, MODE, loadCollection, storeCollection, collectionRoles, collectionFile, readCollectionFile, readTokenList, GROUP_COLOURS, newId, nameIn, withName, catalogsOf, isLocked, THEMES, THEME_FONTS, okLogo } from "./collection.ts";
 import type { Collection, OwnToken, OwnCatalog, OwnSection, OwnTheme } from "./collection.ts";
 import { loadScripts, storeScripts, saveScript, scriptLink, readLink, scriptJson, idKey as scriptKey } from "./scripts.ts";
 import type { HomebrewEntry, NewScript, Script, ScriptJsonEntry } from "./scripts.ts";
@@ -107,7 +107,7 @@ const state: {
 };
 /** The generic creator's collection (/crear); empty, and unused, in Clocktower. */
 let coll: Collection = OWN ? loadCollection() : { name: "", types: [], groups: [], tokens: [], sections: [] };
-if (OWN) applyOwnTheme();   // before the loading screen shows: it wears the collection's colours too
+if (OWN) { applyOwnTheme(); applyOwnBrand(); }   // before the loading screen shows: it wears the collection's colours and mark too
 
 // After a deploy, a page opened earlier may ask for code files that no longer
 // exist (their names change with each version). Reload once to get the new ones.
@@ -2204,7 +2204,7 @@ function applyGroups() {
 /** What depends on the collection itself: its name, its look, and the token language when it has several. */
 function syncOwnChrome() {
   $("#ownCollName").textContent = nameIn(coll.name, uiLang());
-  applyOwnTheme();
+  applyOwnTheme(); applyOwnBrand();
   $("#tokenLangBtn").hidden = !((coll.languages?.length ?? 0) > 1);
 }
 
@@ -2496,8 +2496,22 @@ function applyOwnTheme() {
   }
 }
 
+/** The collection's mark: its logo on the top bar, the loading screen and the tab, and its name beside it. */
+function applyOwnBrand() {
+  const logo = coll.brand?.logo || "/logo-mark.svg", title = nameIn(coll.brand?.title, uiLang());
+  for (const img of $$<HTMLImageElement>(".brand img, .gate-logo")) img.src = logo;
+  const icon = $<HTMLLinkElement>("#favicon");
+  icon.href = logo; icon.type = logo.startsWith("data:image/svg") || logo.endsWith(".svg") ? "image/svg+xml" : "";
+  for (const el of $$(".brand-title")) { el.textContent = title; el.hidden = !title; }
+  for (const el of $$(".brand .wordmark, .gate-card .wordmark")) el.hidden = !!title;
+  document.title = title ? `${title} · Midnight Mint` : nameIn(coll.name, uiLang()) ? `${nameIn(coll.name, uiLang())} · Midnight Mint` : "Midnight Mint";
+}
+
 function openOwnSettings() {
   const lang = uiLang();
+  $<HTMLImageElement>("#osLogo").src = coll.brand?.logo || "/logo-mark.svg";
+  $<HTMLInputElement>("#osBrandTitle").value = nameIn(coll.brand?.title, lang);
+  $("#osLogoNote").textContent = "";
   $<HTMLInputElement>("#osName").value = nameIn(coll.name, lang);
   $<HTMLInputElement>("#osLoader").value = nameIn(coll.loader?.text, lang);
   $<HTMLTextAreaElement>("#osAbout").value = nameIn(coll.about?.text, lang);
@@ -2534,10 +2548,20 @@ function wireOwnSettings() {
     coll.theme.font = $<HTMLSelectElement>("#osFont").value;
     storeCollection(coll); applyOwnTheme();
   };
+  $<HTMLInputElement>("#osLogoFile").onchange = async (e) => {
+    const f = input(e).files?.[0]; input(e).value = ""; if (!f) return;
+    const url = await new Promise<string>((ok) => { const r = new FileReader(); r.onload = () => ok(String(r.result)); r.readAsDataURL(f); });
+    if (!okLogo(url)) { $("#osLogoNote").textContent = t("own.logoTooBig"); return; }
+    coll.brand = { ...coll.brand, logo: url }; storeCollection(coll); applyOwnBrand();
+    $<HTMLImageElement>("#osLogo").src = url; $("#osLogoNote").textContent = "";
+  };
+  $("#osLogoReset").onclick = () => { if (coll.brand) delete coll.brand.logo; storeCollection(coll); applyOwnBrand(); $<HTMLImageElement>("#osLogo").src = "/logo-mark.svg"; };
   $("#osCancel").onclick = () => dlg.close();
   $("#osSave").onclick = () => {
     const lang = uiLang(), v = (id: string) => $<HTMLInputElement>(id).value.trim();
     if (v("#osName")) coll.name = withName(coll.name, lang, v("#osName"));
+    coll.brand = { ...coll.brand, title: withName(coll.brand?.title ?? "", lang, v("#osBrandTitle")) };
+    if (!v("#osBrandTitle")) delete coll.brand.title;
     coll.loader = { ...coll.loader, text: withName(coll.loader?.text ?? "", lang, v("#osLoader")) };
     if (!v("#osLoader")) delete coll.loader.text;
     const links = v("#osLinks").split("\n").map((l) => l.split("|").map((x) => x.trim())).filter(([label, url]) => label && /^https?:\/\//.test(url ?? "")).map(([label, url]) => ({ label, url }));
