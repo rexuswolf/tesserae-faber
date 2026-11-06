@@ -30,7 +30,8 @@ Tokens come in **collections**. Open one, pick its tokens, design them, print th
   ***Draw Steel*** (heroic resources, Malice, Victories, conditions and condition rings), at `/c/drawsteel`.
 - **Your own**: make one from scratch, or import one. You create and edit its tokens (a name, an icon from
   game-icons.net or an SVG, a colour group) and their **linked tokens**, which come and go with them, as a
-  character's reminders do.
+  character's reminders do: *+ Token* and each token's *Edit* open its panel over the sheet, with the token
+  drawn as it prints beside its fields (*Create*, *Create and another*, *Done*).
 
 ![The collections: Blood on the Clocktower as a cover, and your own as a list](docs/screenshots/tf-collections.png)
 
@@ -43,8 +44,8 @@ A collection is laid out like this:
 - **Tokens**: each of one type and one group, with its linked tokens. Names can come in several languages.
 - **Sections**: the sidebar's headings, each **closed** (it comes with the collection, like Clocktower's
   editions) or **open** (yours to add **catalogs** to, from scratch or from a list such as a Script Tool script).
-- **Styles**: the looks it comes with, per shape (a name and a design): its tokens start with the first, and
-  the rest are a click away in the style menu. Without them, a collection has one basic style per shape.
+- **Designs**: the looks it comes with, per shape (a name and a design, `styles` in its file): the first of a
+  shape is its tokens' default. Without them, a collection has *Basic*.
 
 Each collection also has its own look: its name and logo, its colours (a ready theme or your own), what its
 loading screen says, and what its *About* says, with its credits and links. Blood on the Clocktower content can
@@ -96,15 +97,26 @@ The same for every collection.
   turned round at the top, so it reads right way up from both sides of the table.
 - Relief, part by part: the name, the frame and the icon each flush with the coin or raised (0.4 to 1.2 mm).
   Flush, nobody can feel which token it is and it prints face-down; with anything raised it prints face-up.
-- Styles that come with each collection, made for it. Clocktower's: *Edition* (the default: the edition's name in gold on the back), *Fast print* (1.2 mm,
+- Designs in three places:
+  - **The Taller** (`/taller`, from the collection menu or *Edit this design in the Taller*): where designs are made, for every
+    shape (coins, rings, cards). Yours are kept once for all your collections and Clocktower (a colour that is the group's stays the
+    group's, so a design fits any collection); you make one from *Basic* or by duplicating any, rename it, change it with the same
+    controls as the design step and delete it (what used it goes back to its default). The collections' designs are there too, read-only,
+    with *Duplicate to edit*. A design is shown on tokens of the collection the Taller was opened from, or on samples of its own.
+  - **The collection's default per shape**, over the sheet in Pick (*Design: Coins Steel ▾ · Rings Fine ring ▾*): any of the collection's
+    designs or yours, for all its tokens of that shape at once. *Original design* sets them back to the collection's own; tokens with a
+    design or changes of their own are asked about first (kept, or given the new one too).
+  - **A token's own**, in the design step: another design for it, or changes to its look (colours, frame, size…), marked with a pen
+    on the sheet and the strip, and *Back to the default*. Changes there are that token's only.
+- Collections' designs, made for them. Clocktower's: *Edition* (the default: the edition's name in gold on the back), *Fast print* (1.2 mm,
   the thinnest that holds up), *Pitch-black night*, *Midnight*, *Ivory coin* and *High legibility* (the window layout), all with the frame in the team colour.
   Draw Steel's: *Steel*, *Parchment* (raised letters on white) and *Legible* for its coins, *Fine ring* and *Bold ring* for its rings; your own collections start with *Basic*.
-  The style menu adds the collection's styles you don't have yet, and a style can be reset to one. A magnet (glued into a pocket, or hidden inside with a pause) is a choice of its own and stays when you reset a style.
 - 12 frame designs, and 7 back designs plus the edition's name (a homebrew's script) or your own SVG, each drawn on your character as you choose.
 - Any of the 10 filament colours for the coin, the frame and the back; the name and icon take the team's (or group's) colour.
 - A big live 3D preview you can turn around, with front and back views; it turns by itself to the part you're editing.
-- Styles: named looks (*Edition*, *Ivory*, your own) for each shape, each token using one. Changing the look changes the token's style, every token using it, and says how many, with *Only this token* to keep the change to that one. A pen marks the tokens with changes of their own and takes you straight back to them; *Back to the style* takes them away. *New style* makes a copy of the token's style to change, and a token's look can be saved as a new style.
-- One editor for changing a token and, in your own collections, for making one: its shape, its style, what it says (name, icon, group, catalogs, linked tokens, its other state) and how it looks, with *Create* and *Create and another*.
+- What a token says is kept apart from how it looks: your collections' tokens are made and changed in their panel (from the sheet, or
+  *Edit content* in the design step); Clocktower's and a closed collection's keep their printed text, feminine name and icon in the design step,
+  under *What it says*.
 
 | Frames | Backs |
 |---|---|
@@ -123,7 +135,7 @@ The same for every collection.
   They print like the coins: 8 a plate on the A1, 2 on the A1 mini, 8 an A4 sheet.
 
 **Print them**
-- Three steps: **pick** the tokens, **design** them (one design for the set, or one of their own), then **print**:
+- Three steps: **pick** the tokens, **design** them (the collection's design, or one of their own), then **print**:
   see the plates (with their filaments) or the A4 sheets before you download. Copies are set in the queue,
   which lists the characters and the reminders apart, each with its own count.
 - **Bambu Lab A1 or A1 mini, with AMS lite**: download a ready-to-print `.3mf`. Every part already has its filament,
