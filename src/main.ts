@@ -585,8 +585,15 @@ function setLang(lang: string) {
 }
 // Holding a token down on the sheet (a phone has no pointing) turns it over while held, to see its back
 // or its other state; letting go turns it back, and that touch doesn't pick it.
-let peek: { el: HTMLElement; timer: number; shown: boolean } | null = null;
-const PEEK_HINT_KEY = "tesserae-peek-hint";
+let peek: { el: HTMLElement; timer: number; shown: boolean; x: number; y: number } | null = null;
+/** The token a hold turns over: the row's own (anywhere on the row but its linked tokens and buttons). */
+function peekTarget(target: EventTarget | null): HTMLElement | null {
+  const el = target as Element | null;
+  if (!el?.closest || el.closest(".rems, [data-turn], .cp, .own-pen")) return null;
+  const row = el.closest("#rows .row");
+  return row?.querySelector<HTMLElement>(":scope > .tok-w.backed, :scope > .tok-w.two") ?? null;
+}
+const PEEK_HINT_KEY = "tesserae-peek-hint-row";
 function endPeek() {
   if (!peek) return;
   clearTimeout(peek.timer); peek.el.classList.remove("peeking");
@@ -594,16 +601,21 @@ function endPeek() {
 }
 document.addEventListener("pointerdown", (e) => {
   if (e.pointerType === "mouse") return;
-  const w = (e.target as Element).closest?.(".tok-w.backed, .tok-w.two") as HTMLElement | null;
-  if (!w || (e.target as Element).closest("[data-turn]")) return;
-  endPeek();
-  peek = { el: w, shown: false, timer: window.setTimeout(() => { if (peek) { peek.shown = true; w.classList.add("peeking"); } }, 350) };
+  const w = peekTarget(e.target);
+  if (!w) return;
+  endPeek(); peek = null;
+  peek = { el: w, shown: false, x: e.clientX, y: e.clientY, timer: window.setTimeout(() => {
+    if (!peek) return;
+    peek.shown = true; w.classList.add("peeking");
+    navigator.vibrate?.(8);
+  }, 380) };
 }, { passive: true });
 for (const ev of ["pointerup", "pointercancel"]) document.addEventListener(ev, endPeek);
-document.addEventListener("pointermove", (e) => { if (peek && !peek.shown && (Math.abs(e.movementX) + Math.abs(e.movementY) > 6)) endPeek(); }, { passive: true });
+// moving the finger (a scroll) before the hold lands isn't a hold
+document.addEventListener("pointermove", (e) => { if (peek && !peek.shown && Math.hypot(e.clientX - peek.x, e.clientY - peek.y) > 10) { clearTimeout(peek.timer); peek = null; } }, { passive: true });
 // the click that ends a hold isn't a pick
 document.addEventListener("click", (e) => { if (peek?.shown) { e.stopPropagation(); e.preventDefault(); peek = null; } }, true);
-document.addEventListener("contextmenu", (e) => { if ((e.target as Element).closest?.(".tok-w.backed, .tok-w.two")) e.preventDefault(); });
+document.addEventListener("contextmenu", (e) => { if (peekTarget(e.target)) e.preventDefault(); });
 /** Once, on a touch screen with tokens that have a back on the sheet: how to see it. */
 function peekHint() {
   if (!matchMedia("(hover: none)").matches || !$(".tok-w.backed, .tok-w.two")) return;
