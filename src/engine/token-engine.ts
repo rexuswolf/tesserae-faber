@@ -135,7 +135,7 @@ export function reminderSpec(spec: TokenSpec): TokenSpec {
     // designs give their reminders the classic layout.
     style: spec.style === "solo" || spec.style === "double" ? "classic" : spec.style,
     diameter: spec.reminderDiameter ?? 32,
-    textSize: 4,
+    textSize: 5,
     // the icon in the same proportion and place as on its character's token
     iconScale: 0.85,
     iconOffsetY: 1.5,
