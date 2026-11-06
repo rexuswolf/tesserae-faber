@@ -554,7 +554,7 @@ const styleName = (st: Style, shape: TokenShape) => {
 };
 
 /** Set once tidyMyDesigns has gone through your designs. */
-const TIDIED_KEY = "tesserae-styles-tidied";
+const TIDIED_KEY = "tesserae-styles-tidied-2";
 /**
  * Once, for designs made from styles before adoptStyle compared them as they print: one of yours
  * that prints as one of a collection's own (Edition (Clocktower), Steel (Draw Steel)…) is that one
@@ -627,6 +627,24 @@ async function tidyMyDesigns() {
   for (const sh of SHAPES) {
     const keep = mine[sh].filter((d) => used.has(`u:${d.id}`) || !all.some((s) => s[sh].some((x) => printsAs(sh, d.spec, defSpec(x), []))));
     if (keep.length !== mine[sh].length) { mine[sh] = keep; gone = true; }
+  }
+  // then every copy left, as asked: one of yours that prints as a collection's own, or is named after
+  // one with its collection's name after it ("Parchment (Draw Steel)"), goes even where it's used;
+  // what used it takes its collection's default (or the token its design by default)
+  const shipped = new Set(all.flatMap((st) => SHAPES.flatMap((sh) => (st[sh] ?? []).flatMap((x) => (typeof x.name === "string" ? [x.name] : Object.values(x.name ?? {}))))));
+  const isCopy = (sh: TokenShape, d: MyDesign) => all.some((st) => (st[sh] ?? []).some((x) => printsAs(sh, d.spec, defSpec(x), [])))
+    || (() => { const m = d.name.match(/^(.*) \(([^()]+)\)$/); return !!m && shipped.has(m[1]); })();
+  const dropped = new Set<string>();
+  for (const sh of SHAPES) {
+    const keep = mine[sh].filter((d) => !isCopy(sh, d) || (dropped.add(`u:${d.id}`), false));
+    if (keep.length !== mine[sh].length) { mine[sh] = keep; gone = true; }
+  }
+  if (dropped.size) for (const p of prefixes) {
+    const defs = loadJSON<Partial<Record<TokenShape, string>>>(`${p}design-defaults`, {});
+    const own = loadJSON<Record<string, TokenOverride>>(`${p}design-tokens`, {});
+    for (const sh of SHAPES) if (defs[sh] && dropped.has(defs[sh]!)) delete defs[sh];
+    for (const k of Object.keys(own)) { const o = own[k]; if (o?.style && dropped.has(o.style)) { delete o.style; if (!Object.keys(o).length) delete own[k]; } }
+    storeJSON(`${p}design-defaults`, defs); storeJSON(`${p}design-tokens`, own);
   }
   if (gone) storeJSON(MY_DESIGNS_KEY, mine);
   if (known) storeJSON(TIDIED_KEY, 1);
