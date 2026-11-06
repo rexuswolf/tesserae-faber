@@ -136,8 +136,9 @@ export function reminderSpec(spec: TokenSpec): TokenSpec {
     style: spec.style === "solo" || spec.style === "double" ? "classic" : spec.style,
     diameter: spec.reminderDiameter ?? 32,
     textSize: 3,
-    iconScale: 0.68,
-    iconOffsetY: 3,
+    // the icon in the same proportion and place as on its character's token
+    iconScale: 1,
+    iconOffsetY: 0,
     margin: 1.5,
     maxArc: 240,
     frameWidth: Math.min(spec.frameWidth ?? 0.8, 0.6),
