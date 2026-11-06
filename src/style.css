@@ -450,6 +450,13 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .back-tile[aria-pressed=true] { border-color: var(--brass); color: var(--bone); background: rgba(201, 162, 39, .08); }
 .metal { display: flex; flex-wrap: wrap; gap: 6px; }
 .metal-label { margin: 0 0 -4px; font-size: 13px; color: var(--dust); }
+/* A control the selected token doesn't use, there for the set's other shapes (a coin's back
+   while a ring is selected): dimmed, under a line that says so. Whatever the box's layout,
+   the line takes a row of its own. */
+[data-na]::before { content: attr(data-na); display: block; grid-column: 1 / -1; flex-basis: 100%; font-size: 12px; font-style: italic; color: var(--dust); }
+[data-na] > * { opacity: .55; }
+.relief-el[data-na] { flex-wrap: wrap; }
+[data-choice=style][data-na] ~ #styleHint { opacity: .55; }
 .metal button { width: 24px; height: 24px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; box-shadow: inset 0 0 0 1px rgba(239, 230, 214, .22); }
 .metal button[aria-pressed=true] { border-color: var(--bone); }
 .metal .team { background: conic-gradient(#2f86e0 0 25%, #b3191e 0 50%, #8a3d9e 0 75%, #d4a72c 0); }

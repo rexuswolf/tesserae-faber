@@ -10,7 +10,7 @@
 // Each token is a character to the rest of the app (team = group, reminders = linked tokens),
 // so designing and printing are Clocktower's own. A whole collection goes in and out as one
 // JSON file ("midnight-mint/collection", see CollectionFile). Kept in this browser.
-import type { Hex, Role, Team, TokenIcon } from "./types.ts";
+import type { Hex, Role, Team, TokenIcon, TokenShape } from "./types.ts";
 import { gameIcon } from "./icons.ts";
 import { BUILT_INS } from "./builtins.ts";
 
@@ -31,7 +31,6 @@ export const collectionUrl = (id: string) => `/c/${id}`;
 
 /** A name: one text, or one per token language ("en", "es", "es-castelgard"…). */
 export type Names = string | Record<string, string>;
-export type TokenShape = "coin" | "card" | "ring";
 export const SHAPES: TokenShape[] = ["coin", "card", "ring"];
 export interface OwnType { id: string; name: Names; title: Names; shape: TokenShape; icon?: string }
 export interface OwnGroup { id: string; name: Names; colour: Hex; icon?: string }

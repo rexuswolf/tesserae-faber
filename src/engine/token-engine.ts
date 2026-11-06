@@ -17,7 +17,7 @@ import { Font } from "three/addons/loaders/FontLoader.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import type {
   Role, Team, Hex, ColourRef, TokenSpec, SpecInput, TokenStyle, Relief, ReliefPart, Library, Glyph,
-  PartColours, TokenParts, Token, MagnetLayout, TokenIcon,
+  PartColours, TokenParts, Token, MagnetLayout, TokenIcon, TokenShape,
 } from "../types.ts";
 
 export { THREE };
@@ -1160,7 +1160,7 @@ const CARD_PAD = 7, CARD_MAX_CAP = 8, CARD_PITCH = 1.6, CARD_FRAME_INSET = 1.2;
 export const isCard = (role: Role | null | undefined) => role?.kind === "info";
 
 /** A card's spec: the set's colours, frame, height and depth; no style, back or magnet of its own. */
-function cardSpec(spec: SpecInput | undefined): TokenSpec {
+export function cardSpec(spec: SpecInput | undefined): TokenSpec {
   const s = { ...DEFAULT_SPEC, ...spec, colours: { ...DEFAULT_SPEC.colours, ...spec?.colours } };
   // `diameter` is the card's long side, so the 3D view frames it like a coin that size.
   return { ...s, style: "classic", relief: DEFAULT_SPEC.relief, back: "none", magnet: "none", diameter: CARD.w, depth: Math.min(s.depth, s.height - 0.4) };
@@ -1263,6 +1263,16 @@ export function ringSize(spec: { ringBase?: string }) {
   return { base, inner, outer: inner + RING_WIDTH };
 }
 
+/**
+ * The ring's fine edge lines (mm wide, null without a frame) and the band left between them
+ * for the letters, which is as tall as they can be: the default frame width (0.8 mm) gives the
+ * thinnest line that prints well, 0.45 mm, and letters of at most 3.7 mm.
+ */
+export function ringBand(spec: Pick<TokenSpec, "frame" | "frameWidth">) {
+  const line = spec.frame === "none" ? null : Math.min(Math.max(spec.frameWidth * 0.55, 0.45), 0.8);
+  return { line, band: RING_WIDTH - 2 * ((line ?? 0) + RING_TEXT_GAP) };
+}
+
 /** A ring's spec: the set's colours, frame, relief, height and depth; `diameter` its outer edge, so plates, paper and the 3D view size it right. */
 export function ringSpec(input: SpecInput | undefined): TokenSpec {
   const s = normalizeSpec({ ...DEFAULT_SPEC, ...input, colours: { ...DEFAULT_SPEC.colours, ...input?.colours } });
@@ -1278,10 +1288,7 @@ export function ringSpec(input: SpecInput | undefined): TokenSpec {
  */
 export function ringLayout(lib: Library, text: string | null | undefined, spec: TokenSpec) {
   const { inner, outer } = ringSize(spec), mid = (inner + outer) / 2;
-  // fine lines: the default frame width (0.8 mm) gives the thinnest that prints well, 0.45 mm
-  const line = spec.frame === "none" ? null : Math.min(Math.max(spec.frameWidth * 0.55, 0.45), 0.8);
-  // the letters fill the band between the lines, as tall as the name size allows (3.7 mm by default)
-  const band = RING_WIDTH - 2 * ((line ?? 0) + RING_TEXT_GAP);
+  const { line, band } = ringBand(spec);
   const want = Math.min(spec.textSize, band);
   const chars = [...(text || "").toUpperCase().trim()];
   const adv = chars.map((c) => (c === " " ? Math.max(glyph(lib, " ").advance, 0.45) : glyph(lib, c).advance) * spec.spacing);
@@ -1345,6 +1352,59 @@ function ringSvg(lib: Library, role: Role, input: SpecInput | undefined, side: "
   // the ring itself first, in the coin colour (print-pdf.ts reads its colour from it)
   const ring = `M${o} 0A${o} ${o} 0 1 0 ${-o} 0A${o} ${o} 0 1 0 ${o} 0ZM${i} 0A${i} ${i} 0 1 1 ${-i} 0A${i} ${i} 0 1 1 ${i} 0Z`;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${-o - 0.5} ${-o - 0.5} ${2 * o + 1} ${2 * o + 1}" role="img" aria-label="${esc(label)}"><path fill="${c.base}" fill-rule="evenodd" d="${ring}"/>${body}</svg>`;
+}
+
+// ---------------------------------------------------------------- what each shape has
+
+/**
+ * What a token shape can have, the one place that says so: the workshop shows only the
+ * controls the shapes being edited use, and every spec that reaches the print step goes
+ * through shapeSpec, so a back or a magnet never counts for a shape that has none.
+ * Every shape has the colours of its body and name, its thickness and the colour's depth.
+ */
+export interface ShapeFeatures {
+  /** The layout choice (classic, window, solo, double). */
+  layout: boolean;
+  /** An icon on the face: its size, and an icon of the token's own. */
+  icon: boolean;
+  /** The name's letter height as asked for (else it's fitted to the shape). */
+  textSize: boolean;
+  /** Letter spacing. */
+  spacing: boolean;
+  /** How far round the edge the name may go. */
+  maxArc: boolean;
+  /** "designs": any of FRAME_STYLES; "line": only with a frame or without (any design comes out
+   *  as a plain line); its width goes with it. */
+  frame: "designs" | "line";
+  /** The face parts that can stand raised; none: everything flush, printed face-down. */
+  relief: ReliefPart[];
+  back: boolean;
+  magnet: boolean;
+  /** A diameter of its own (a card's size is fixed, a ring's is its miniature base's). */
+  diameter: boolean;
+  /** The miniature base it fits (RING_BASES). */
+  ringBase: boolean;
+}
+export const SHAPE_FEATURES: Record<TokenShape, ShapeFeatures> = {
+  // A coin has everything the workshop offers (some layouts leave a control out: see main.ts).
+  coin: { layout: true, icon: true, textSize: true, spacing: true, maxArc: true, frame: "designs", relief: ["text", "frame", "icon"], back: true, magnet: true, diameter: true, ringBase: false },
+  // A card (85 × 55 mm, Clocktower's Grimoire): the phrase as large as fits, the frame a line
+  // inside the edge, both flush (cardSpec); no icon, back or magnet.
+  card: { layout: false, icon: false, textSize: false, spacing: false, maxArc: false, frame: "line", relief: [], back: false, magnet: false, diameter: false, ringBase: false },
+  // A condition ring: the name round and round at the height asked for (as far as its band
+  // allows, ringBand), a fine line along each edge, either raised (ringSpec); no icon, back or
+  // magnet, and sized by its base.
+  ring: { layout: false, icon: false, textSize: true, spacing: true, maxArc: false, frame: "line", relief: ["text", "frame"], back: false, magnet: false, diameter: false, ringBase: true },
+};
+export const shapeOf = (role: Role | null | undefined): TokenShape => (isCard(role) ? "card" : isRing(role) ? "ring" : "coin");
+
+/** A spec as its shape prints it: a card's or a ring's keeps only what it has (no back, magnet or
+ *  layout), with its real size for `diameter`; a coin's is the spec, filled in. */
+export function shapeSpec(role: Role | null | undefined, input: SpecInput | undefined): TokenSpec {
+  const shape = shapeOf(role);
+  if (shape === "card") return cardSpec(input);
+  if (shape === "ring") return ringSpec(input);
+  return { ...DEFAULT_SPEC, ...input, colours: { ...DEFAULT_SPEC.colours, ...input?.colours } };
 }
 
 /**

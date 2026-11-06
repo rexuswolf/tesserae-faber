@@ -1,7 +1,8 @@
 import { handingOver } from "./handoff.ts";   // first: a browser arriving from midnight-mint.web.app brings its keepings
 import {
   loadLibrary, buildToken, geometryVolume, magnetLayout, MAGNET_SIZES, tokenSvg, roleName, saveFile, reminderSpec, layoutName, nameLetterHeight, SMALL_LETTERS_MM,
-  TEAMS, EDITIONS, FRAME_STYLES, BACK_STYLES, TOKEN_STYLES, FILAMENTS, DEFAULT_SPEC, CARD, isCard, isRing, ringSpec, ringSize, RING_BASES,
+  TEAMS, EDITIONS, FRAME_STYLES, BACK_STYLES, TOKEN_STYLES, FILAMENTS, DEFAULT_SPEC, CARD, isCard, ringSize, ringBand, RING_BASES,
+  SHAPE_FEATURES, shapeOf, shapeSpec, type ShapeFeatures,
   normalizeSpec, reliefOf, hasRelief, reliefTop,
 } from "./engine/token-engine.ts";
 /** The face parts that can be raised, in the order the Layout section lists them. */
@@ -26,12 +27,13 @@ import { loadScripts, storeScripts, saveScript, scriptLink, readLink, scriptJson
 import type { HomebrewEntry, NewScript, Script, ScriptJsonEntry } from "./scripts.ts";
 import type { Translation } from "./translations.ts";
 import type { InlayPart } from "./colour-checks.ts";
+import type { Vars } from "./i18n.ts";
 import type { PaperSize, SheetSlot } from "./pdf/layout.ts";
 import type { Viewer, ViewKind } from "./engine/viewer.ts";
 import type { User } from "firebase/auth";
 import type {
   ColourRef, Hex, Library, MagnetLayout, PartName, PlanToken, PlateItem, PlatePlan, QueueEntry, ReliefPart, Role, SpecColours,
-  SpecInput, Team, Token, TokenIcon, TokenOverride, TokenSpec, TokenStyle, Volumes,
+  SpecInput, Team, Token, TokenIcon, TokenOverride, TokenShape, TokenSpec, TokenStyle, Volumes,
 } from "./types.ts";
 
 /** The first element matching `s`: the app's own markup, so it's there. */
@@ -1124,24 +1126,23 @@ function renderWorkshop() {
     $("#resetToken").hidden = !own || state.tab !== "token";
     $("#styleScope").textContent = state.tab === "set" ? t("ws.scopeSet") : t("ws.scopeToken", { name: text });
     const editing = editingSpec();
-    // The design tiles show a coin: a card or a ring shows them on a character (one of its collection's coins).
-    const coin = (r: Role) => !isCard(r) && !isRing(r);
-    const tileRole = coin(role) ? role : state.lib!.roles.find((r) => coin(r) && (OWN || r.edition === "tb")) ?? role;
-    renderPresets(tileRole, editing);
+    const shapes = designShapes(role);
+    // Layouts, backs and frame designs are drawn on a coin, the one shape that has them: on a
+    // picked one if there is one. Templates too, unless every token they reach is of the selected
+    // token's shape, which then shows them.
+    const isCoin = (r: Role) => shapeOf(r) === "coin";
+    const coinRole = isCoin(role) ? role : [...state.pick.keys()].map(tokenRole).find(isCoin) ?? state.lib!.roles.find((r) => isCoin(r) && (OWN || r.edition === "tb")) ?? role;
+    renderPresets(shapes.all.length === 1 ? role : coinRole, editing);
     renderTemplateRow();
-    renderBackTiles(tileRole, editing);
-    renderFrameTiles(tileRole, editing);
-    renderStyleTiles(tileRole, editing);
-    // A ring has no back or magnet to choose: their sections go while one is open.
-    const ring = isRing(role);
-    for (const b of $$(".sections [data-section=back], .sections [data-section=magnet]")) b.hidden = ring;
-    if (ring && (state.section === "back" || state.section === "magnet")) showSection("coin");
-    syncControls(editing, ring);
+    renderBackTiles(coinRole, editing);
+    renderFrameTiles(shapes.all.every((sh) => SHAPE_FEATURES[sh].frame === "line") ? role : coinRole, editing);
+    renderStyleTiles(coinRole, editing);
+    syncControls(editing, shapes);
 
     $("#depthHint").className = "hint" + (token.depthClamped ? " warn" : "");
     $("#depthHint").textContent = token.depthClamped
       ? t("depth.clamped", { max: token.depthClamped.toFixed(1), core: "0.4" })
-      : t("depth.help");
+      : shapeText("depth.help", shapeOf(role));
     const n = token.name;
     const small = n.letterHeight < smallLetters();
     $("#nameHint").className = "hint" + (small ? " warn" : "");
@@ -1150,22 +1151,39 @@ function renderWorkshop() {
       : n.total == null
       ? t("name.hintWindow", { lines: n.lines, mm: (Math.floor(n.letterHeight * 10) / 10).toFixed(1), small, nozzle: nozzleMm() })
       : t("name.hint", { arc: n.total.toFixed(0), mm: (Math.floor(n.letterHeight * 10) / 10).toFixed(1), shrunk: n.scale < 1, small, nozzle: nozzleMm() });
-    renderColourWarn(role, ring ? token.spec : spec, key);   // a ring's own spec: no back to check
+    renderColourWarn(role, spec, key);
   });
 }
 
+/** The shapes the design controls reach: the selected token's (`mine`), and for the whole set
+ *  every picked token's too, since the set's design goes to all of them. */
+function designShapes(role: Role): { mine: TokenShape; all: TokenShape[] } {
+  const mine = shapeOf(role);
+  if (state.tab === "token") return { mine, all: [mine] };
+  const picked = new Set([mine, ...[...state.pick.keys()].map((k) => shapeOf(tokenRole(k)))]);
+  return { mine, all: SHAPES.filter((sh) => picked.has(sh)) };
+}
+/** A design text that names the token's body: the coin's, or the card's or ring's own version of it. */
+const shapeText = (key: string, shape: TokenShape, vars?: Vars) => {
+  const own = `${key}.${shape}`, text = t(own, vars);
+  return text === own ? t(key, vars) : text;   // the coin's words where they fit any shape
+};
+
 /** Under the token's name: inlays the coin's colour, or light ones too shallow on a dark coin. */
 function renderColourWarn(role: Role, spec: TokenSpec, key: string) {
-  const { clash, light } = colourIssues(role, spec);
+  // checked as the shape prints it: a card or a ring has no back to check
+  const shape = shapeOf(role), { clash, light } = colourIssues(role, shapeSpec(role, spec));
   const box = $("#colourWarn");
   box.hidden = !clash.length && !light.length;
   if (box.hidden) return;
-  // "front" is the name and the icon: two words in the list ("the name, the icon and the frame")
-  const parts = (list: InlayPart[]) => { const w = list.flatMap((p) => (p === "front" ? [t("colour.part.name"), t("colour.part.icon")] : [t(`colour.part.${p}`)])); return w.length > 1 ? `${w.slice(0, -1).join(", ")}${t("colour.and")}${w.at(-1)}` : w[0]; };
+  // Each part in the shape's words: a coin's "front" is its name and its icon (two words in the
+  // list, "the name, the icon and the frame"); a ring's are letters, and its frame two lines.
+  const words = (p: InlayPart) => (p === "front" ? (shape === "ring" ? ["letters"] : SHAPE_FEATURES[shape].icon ? ["name", "icon"] : ["name"]) : [shape === "ring" && p === "frame" ? "lines" : p]);
+  const parts = (list: InlayPart[]) => { const w = list.flatMap(words).map((x) => t(`colour.part.${x}`)); return w.length > 1 ? `${w.slice(0, -1).join(", ")}${t("colour.and")}${w.at(-1)}` : w[0]; };
   const own = !!state.overrides.get(key)?.spec;
   box.innerHTML = [
-    clash.length ? `<p><span aria-hidden="true">⚠</span> ${esc(t("colour.clash", { parts: parts(clash), n: clash.length }))}</p>` : "",
-    light.length ? `<p><span aria-hidden="true">◐</span> ${esc(t("colour.light", { parts: parts(light), n: light.length, mm: dec1(LIGHT_DEPTH) }))}
+    clash.length ? `<p><span aria-hidden="true">⚠</span> ${esc(shapeText("colour.clash", shape, { parts: parts(clash), n: clash.length }))}</p>` : "",
+    light.length ? `<p><span aria-hidden="true">◐</span> ${esc(shapeText("colour.light", shape, { parts: parts(light), n: light.length, mm: dec1(LIGHT_DEPTH) }))}
       <button class="pill" type="button" data-deepen>${esc(t(own ? "colour.deepenToken" : "colour.deepenSet", { mm: dec1(LIGHT_DEPTH) }))}</button></p>` : "",
   ].join("");
 }
@@ -1223,10 +1241,18 @@ function renderStyleTiles(role: Role, spec: TokenSpec) {
     }<span>${esc(t(`style.${st.id}`))}</span></button>`).join("");
 }
 
-/** The frame designs, each drawn on the selected character in the current colours. */
+/** The frame designs, each drawn on the selected character in the current colours. A card or a
+ *  ring (whose shape has frames only as a line) gets two tiles, without and with, drawn on itself. */
 function renderFrameTiles(role: Role, spec: TokenSpec) {
   const s = { ...DEFAULT_SPEC, ...spec, colours: { ...DEFAULT_SPEC.colours, ...spec.colours }, diameter: 45 };
-  const text = textFor(charKey(role), role, null);
+  const text = textFor(charKey(role), role, null), shape = shapeOf(role);
+  if (SHAPE_FEATURES[shape].frame === "line") {
+    // "with" keeps whatever design the set has (a coin of the set would show it), so choosing it changes nothing else
+    const line = s.frame === "none" ? "rim" : s.frame;
+    $("[data-choice=frame]").innerHTML = [["none", t("frame.none")], [line, t(`frame.line.${shape}`)]].map(([v, label]) =>
+      `<button class="back-tile frame-tile" type="button" data-v="${v}" aria-pressed="${s.frame === v}">${tokenSvg(state.lib!, role, { ...s, frame: v }, { text })}<span>${esc(label)}</span></button>`).join("");
+    return;
+  }
   const list = s.style === "window" ? FRAME_STYLES.filter((f) => f.id === "none" || f.id === "rim") : FRAME_STYLES;
   $("[data-choice=frame]").innerHTML = list.map((f) =>
     `<button class="back-tile frame-tile" type="button" data-v="${f.id}" aria-pressed="${(s.style === "window" && s.frame !== "none" ? "rim" : s.frame) === f.id}">${
@@ -1244,43 +1270,105 @@ function renderBackTiles(role: Role, spec: TokenSpec) {
     }<span>${esc(t(`back.${b.id}`))}</span></button>`).join("");
 }
 
-/** The premade designs, each previewed with the selected character. */
+/** The premade designs, each previewed with the selected character (a ring on its own base, which a template keeps). */
 function renderPresets(role: Role, editing: TokenSpec) {
   const chosen = templateOf(editing).preset;
   $("#presets").innerHTML = PRESETS.map((p) =>
-    `<button class="preset" type="button" data-preset="${p.id}" aria-pressed="${p === chosen}" title="${esc(t(`preset.${p.id}.help`))}">${tokenSvg(state.lib!, role, { ...presetSpec(p), diameter: 45 }, { text: textFor(charKey(role), role, null) })}<span>${esc(t(`preset.${p.id}`))}</span></button>`).join("");
+    `<button class="preset" type="button" data-preset="${p.id}" aria-pressed="${p === chosen}" title="${esc(t(`preset.${p.id}.help`))}">${tokenSvg(state.lib!, role, { ...presetSpec(p), diameter: 45, ringBase: editing.ringBase }, { text: textFor(charKey(role), role, null) })}<span>${esc(t(`preset.${p.id}`))}</span></button>`).join("");
   // what the chosen one is: under the tiles, so a phone has it too
   $("#presetHelp").textContent = chosen ? t(`preset.${chosen.id}.help`) : "";
 }
 
-/** Puts a spec's values into the style controls. */
-/** The workshop's fields for a design; `ring` when it's shown on a condition ring, which has no layout or icon and goes by its base. */
-function syncControls(spec: TokenSpec, ring = false) {
+/**
+ * Which shapes use each design control, by what SHAPE_FEATURES says of them and, on a coin, by
+ * its layout: the window and the solo have no curved name, the solo no name at all.
+ */
+const USES = {
+  layout: (f: ShapeFeatures) => f.layout,
+  icon: (f: ShapeFeatures) => f.icon,
+  textSize: (f: ShapeFeatures, s: TokenSpec) => f.textSize && !(f.layout && s.style === "solo"),
+  spacing: (f: ShapeFeatures, s: TokenSpec) => f.spacing && !(f.layout && (s.style === "window" || s.style === "solo")),
+  maxArc: (f: ShapeFeatures, s: TokenSpec) => f.maxArc && s.style !== "window" && s.style !== "solo",
+  relief: (f: ShapeFeatures) => f.relief.length > 0,
+  frameDesigns: (f: ShapeFeatures) => f.frame === "designs",
+  back: (f: ShapeFeatures) => f.back,
+  magnet: (f: ShapeFeatures) => f.magnet,
+  diameter: (f: ShapeFeatures) => f.diameter,
+  ringBase: (f: ShapeFeatures) => f.ringBase,
+};
+
+/**
+ * Puts a design's values into the controls, showing those the shapes it reaches use (see
+ * designShapes): one the selected token doesn't use, there for the set's other tokens, is
+ * dimmed with a note that says so. A section none of them use goes, and if it was open the
+ * Text section opens instead.
+ */
+function syncControls(spec: TokenSpec, { mine, all }: { mine: TokenShape; all: TokenShape[] }) {
   const s = { ...DEFAULT_SPEC, ...spec, colours: { ...DEFAULT_SPEC.colours, ...spec.colours } };
   const dec = uiLang() === "es" ? "," : ".";
   for (const [id, [dp, unit]] of Object.entries(RANGES) as [RangeKey, [number, string]][]) {
     $<HTMLInputElement>("#" + id).value = String(s[id]);
     $(`output[data-for=${id}]`).textContent = (+s[id]).toFixed(dp).replace(".", dec) + unit;
   }
+  // A ring's letters are as tall as asked only up to the band between its edge lines: on a
+  // ring the slider stops there and shows the height they print at.
+  const textSize = $<HTMLInputElement>("#textSize");
+  textSize.max = mine === "ring" ? String(Math.floor(ringBand(s).band * 10) / 10) : "6";
+  if (mine === "ring") { textSize.value = String(s.textSize); $("output[data-for=textSize]").textContent = (Math.min(s.textSize, +textSize.max)).toFixed(1).replace(".", dec) + " mm"; }
+  // Shown if some shape reached uses it; noted if the selected token's doesn't.
+  const na = t(`shape.na.${mine}`);
+  const reach = (el: HTMLElement, use: (f: ShapeFeatures, s: TokenSpec) => boolean) => {
+    const used = all.some((sh) => use(SHAPE_FEATURES[sh], s)), mineToo = use(SHAPE_FEATURES[mine], s);
+    el.hidden = !used;
+    if (used && !mineToo) el.dataset.na = na; else delete el.dataset.na;
+    return used;
+  };
+  const row = (id: string) => $("#" + id).closest<HTMLElement>(".row")!;
+  // the sections
+  const sections: Record<string, (f: ShapeFeatures, s: TokenSpec) => boolean> = {
+    layout: (f) => USES.layout(f) || USES.relief(f), text: () => true, frame: () => true, back: USES.back, coin: () => true, magnet: USES.magnet,
+  };
+  for (const [sec, use] of Object.entries(sections)) {
+    const tab = $(`.sections [data-section=${sec}]`), panel = $(`.ws-panel[data-panel=${sec}]`);
+    tab.hidden = !all.some((sh) => use(SHAPE_FEATURES[sh], s));
+    if (!tab.hidden && !use(SHAPE_FEATURES[mine], s)) panel.dataset.na = na; else delete panel.dataset.na;
+    if (tab.hidden && state.lastSection === sec) state.lastSection = "text";
+    if (tab.hidden && state.section === sec) showSection("text");
+  }
+  $("[data-section=coin]").textContent = shapeText("sec.coin", mine);
+  // Type: the layouts, and which parts stand raised
+  reach($("[data-choice=style]"), USES.layout);
+  $("#styleHint").hidden = $("[data-choice=style]").hidden;
   $("#styleHint").textContent = t(`style.${s.style}.help`);
   // Relief: each face part flat or raised; the height only matters with something raised.
   const relief = reliefOf(s), raised = hasRelief(s);
-  $("#reliefEls").innerHTML = RELIEF_PARTS.filter((k) => !ring || k !== "icon").map((k) => `<div class="relief-el"><span><b>${esc(t(`relief.${k}`))}</b><small>${esc(t(`relief.${k}.help`))}</small></span><span class="seg2" role="group" aria-label="${esc(t(`relief.${k}`))}" data-relief="${k}"><button type="button" data-v="flat" aria-pressed="${!relief[k]}"${k === "text" && s.style === "solo" ? " disabled" : ""}>${esc(t("relief.flat"))}</button><button type="button" data-v="raised" aria-pressed="${relief[k]}"${k === "text" && s.style === "solo" ? " disabled" : ""}>${esc(t("relief.raised"))}</button></span></div>`).join("");
-  $("#reliefHeightRow").hidden = !raised;
+  const parts = RELIEF_PARTS.filter((k) => all.some((sh) => SHAPE_FEATURES[sh].relief.includes(k)));
+  for (const el of [$("[data-panel=layout] .zone-title"), $("#reliefEls"), $("#reliefHint")]) el.hidden = !parts.length;
+  $("#reliefEls").innerHTML = parts.map((k) => `<div class="relief-el"${SHAPE_FEATURES[mine].relief.includes(k) ? "" : ` data-na="${esc(na)}"`}><span><b>${esc(t(`relief.${k}`))}</b><small>${esc(shapeText(`relief.${k}.help`, mine))}</small></span><span class="seg2" role="group" aria-label="${esc(t(`relief.${k}`))}" data-relief="${k}"><button type="button" data-v="flat" aria-pressed="${!relief[k]}"${k === "text" && mine === "coin" && s.style === "solo" ? " disabled" : ""}>${esc(t("relief.flat"))}</button><button type="button" data-v="raised" aria-pressed="${relief[k]}"${k === "text" && mine === "coin" && s.style === "solo" ? " disabled" : ""}>${esc(t("relief.raised"))}</button></span></div>`).join("");
+  $("#reliefHeightRow").hidden = !parts.length || !raised;
   const total = (s.height + reliefTop(s)).toFixed(1).replace(".", dec);
   $("#reliefHint").className = "hint" + (raised ? " warn" : "");
-  $("#reliefHint").textContent = raised ? t("relief.raisedHelp", { total }) : t("relief.flatHelp");
-  // The curved-name controls don't apply to the window style.
-  for (const id of ["spacing", "maxArc"]) $("#" + id).closest<HTMLElement>(".row")!.hidden = s.style === "window" || s.style === "solo";
-  $("#textSize").closest<HTMLElement>(".row")!.hidden = s.style === "solo" && !ring;   // no name on the face
-  // A ring: its name goes all the way round, with no icon; its size is its base's.
-  if (ring) for (const id of ["maxArc", "iconScale", "diameter"]) $("#" + id).closest<HTMLElement>(".row")!.hidden = true;
-  else for (const id of ["iconScale", "diameter"]) $("#" + id).closest<HTMLElement>(".row")!.hidden = false;
-  if (ring) $("#spacing").closest<HTMLElement>(".row")!.hidden = false;
-  for (const el of [$("[data-choice=style]"), $("#styleHint"), $("#iconField")]) el.hidden = ring;
-  $("#ringBaseRow").hidden = !ring;
+  $("#reliefHint").textContent = raised ? t("relief.raisedHelp", { total }) : shapeText("relief.flatHelp", mine);
+  // Text: the name's size and spacing, the icon
+  reach(row("textSize"), USES.textSize);
+  reach(row("spacing"), USES.spacing);
+  reach(row("maxArc"), USES.maxArc);
+  reach(row("iconScale"), USES.icon);
+  // a token's own icon: only in "this token only", so only the token's shape counts
+  $("#iconField").hidden = !SHAPE_FEATURES[mine].icon;
+  // Frame: a coin's designs, or for a card or a ring only with or without (any design is a line there)
+  const frames = $("[data-choice=frame]");
+  if (all.some((sh) => SHAPE_FEATURES[sh].frame === "designs") && SHAPE_FEATURES[mine].frame === "line") frames.dataset.na = t(`frame.lineOnly.${mine}`);
+  else delete frames.dataset.na;
+  // Coin: its size, or the base a ring fits
+  reach(row("diameter"), USES.diameter);
+  reach($("#ringBaseRow"), USES.ringBase);
   const rs = ringSize(s);
   $("#ringBaseHint").textContent = t("ring.baseHelp", { inner: dec1(2 * rs.inner), outer: dec1(2 * rs.outer) });
+  $("#baseColourLabel").textContent = shapeText("coin.colour", mine);
+  $("label[for=height]").textContent = shapeText("range.height", mine);
+  // a section's note says it all: no notes again on what's in it
+  for (const panel of $$(".ws-panel[data-na]")) for (const el of $$("[data-na]", panel)) delete el.dataset.na;
   // Magnet: the hole, the pause and how thick the coin has to be.
   const m = magnetLayout(s), dec2 = (v: unknown) => String(v).replace(".", dec);
   $("#magnetSizeRow").hidden = !m;
@@ -1289,8 +1377,9 @@ function syncControls(spec: TokenSpec, ring = false) {
       + (s.height < m.minHeight ? " " + t("magnet.taller", { from: dec2(s.height), to: dec2(m.minHeight) }) : "");
   $$("[data-choice] button").forEach((b) => b.setAttribute("aria-pressed", String(s[b.parentElement!.dataset.choice as keyof TokenSpec] === b.dataset.v)));
   $$(".metal").forEach((box) => $$("button", box).forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === s.colours[box.dataset.colour as keyof SpecColours]))));
-  // The window style's front is the window itself; its icon takes the coin's colour.
-  $("#frontColourLabel").textContent = t(s.style === "window" ? "front.colourWindow" : "front.colour");
+  // The window style's front is the window itself; its icon takes the coin's colour. A card's
+  // or a ring's front is only its name.
+  $("#frontColourLabel").textContent = mine === "coin" ? t(s.style === "window" ? "front.colourWindow" : "front.colour") : t("front.colourName");
   // Reset buttons: shown where a field differs from its default (see baseSpec), never on a hidden field.
   const { spec: base, name } = baseSpec();
   for (const b of $$("[data-reset]")) {
@@ -1694,8 +1783,9 @@ function queueEntry(role: Role, ri: number | null): QueueEntry {
   };
 }
 const isReminder = (q: QueueEntry): q is QueueEntry & { reminder: string } => q.reminder != null;
-// a ring's spec has its outer edge for its diameter, which plates and paper go by
-const itemSpec = (q: QueueEntry): TokenSpec => (isReminder(q) ? reminderSpec({ ...DEFAULT_SPEC, ...q.spec }) : isRing(roleById(q.roleId)) ? ringSpec(q.spec) : { ...DEFAULT_SPEC, ...q.spec });
+// As its shape prints it (shapeSpec): a card's or ring's has no back or magnet to count, and its
+// real size for a diameter (a ring's outer edge), which plates and paper go by.
+const itemSpec = (q: QueueEntry): TokenSpec => shapeSpec(roleById(q.roleId), isReminder(q) ? reminderSpec({ ...DEFAULT_SPEC, ...q.spec }) : q.spec);
 const queueTitle = (q: QueueEntry, role: Role) => (isReminder(q) ? q.reminder : q.text ?? roleName(role, q.spec.lang));
 const queueLabel = (q: QueueEntry, role: Role) => (isReminder(q) ? `${roleName(role, q.spec.lang)}: ${q.reminder}` : queueTitle(q, role));
 const queueGroup = (q: QueueEntry, role: Role) => PLATE_LABEL[uiLang()][PLATE_GROUP[role.team]] + (isReminder(q) ? t("queue.reminderSuffix") : "");
@@ -1715,22 +1805,18 @@ function queuePlan() {
     const base = itemSpec(q);
     const spec = { ...DEFAULT_SPEC, ...base, colours: { ...DEFAULT_SPEC.colours, ...base.colours } };
     const team = TEAMS[role.team].colour, pick = (v: ColourRef) => (v === "team" ? team : v);
-    const hasBack = spec.back !== "none" && (spec.back !== "custom" || spec.customSvg) && (spec.back !== "seal" || state.lib!.sealSvg) && (spec.back !== "edition" || role.edition);
-    if (isCard(role)) return {   // a card: its body, the phrase and the set's frame; no back
-      q, title: queueLabel(q, role), group: queueGroup(q, role),
-      token: { spec, foot: { w: CARD.w, h: CARD.h }, parts: { base: 1, front: 1, icon: null, frame: spec.frame !== "none" ? 1 : null, back: null },
-        colours: { base: pick(spec.colours.base), front: pick(spec.colours.front), icon: pick(spec.colours.base), frame: pick(spec.colours.frame), back: pick(spec.colours.back) } },
-    };
-    if (isRing(role)) return {   // a ring: its body, the name and dots, the guide lines with a frame; no icon or back
-      q, title: queueLabel(q, role), group: queueGroup(q, role),
-      token: { spec, hole: 2 * ringSize(spec).inner, parts: { base: 1, front: 1, icon: null, frame: spec.frame !== "none" ? 1 : null, back: null },
-        colours: { base: pick(spec.colours.base), front: pick(spec.colours.front), icon: pick(spec.colours.base), frame: pick(spec.colours.frame), back: pick(spec.colours.back) } },
-    };
+    const shape = shapeOf(role), has = SHAPE_FEATURES[shape];
+    const hasBack = has.back && spec.back !== "none" && (spec.back !== "custom" || spec.customSvg) && (spec.back !== "seal" || state.lib!.sealSvg) && (spec.back !== "edition" || role.edition);
     return {
       q, title: queueLabel(q, role), group: queueGroup(q, role),
-      token: { spec, parts: { base: 1, front: 1, icon: 1, frame: spec.frame !== "none" ? 1 : null, back: hasBack ? 1 : null },
+      token: {
+        spec,
+        // a card's footprint is its own; a ring takes up its outer diameter but has no body in its hole
+        ...(shape === "card" ? { foot: { w: CARD.w, h: CARD.h } } : shape === "ring" ? { hole: 2 * ringSize(spec).inner } : {}),
+        parts: { base: 1, front: 1, icon: has.icon ? 1 : null, frame: spec.frame !== "none" ? 1 : null, back: hasBack ? 1 : null },
         // the window's icon is in the coin colour; the classic one in the name's
-        colours: { base: pick(spec.colours.base), front: pick(spec.colours.front), icon: pick(spec.style === "window" ? spec.colours.base : spec.colours.front), frame: pick(spec.colours.frame), back: pick(spec.colours.back) } },
+        colours: { base: pick(spec.colours.base), front: pick(spec.colours.front), icon: pick(has.icon && spec.style !== "window" ? spec.colours.front : spec.colours.base), frame: pick(spec.colours.frame), back: pick(spec.colours.back) },
+      },
     };
   });
   return planPlates(items, { bed: printerOf(flow.printer).bed });

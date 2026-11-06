@@ -63,6 +63,8 @@ export interface Role {
 
 // ---------------------------------------------------------------- the design (spec)
 
+/** A token's shape: a coin, a card (Clocktower's Grimoire) or a condition ring (see SHAPE_FEATURES). */
+export type TokenShape = "coin" | "card" | "ring";
 export type TokenStyle = "classic" | "window" | "solo" | "double";
 export type MagnetKind = "none" | "pocket" | "hidden";
 /** The face parts that can stand out of the coin. */
