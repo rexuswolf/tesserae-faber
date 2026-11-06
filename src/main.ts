@@ -23,7 +23,7 @@ import { TRANSLATIONS, VILLACUERVOS_URL } from "./translations.ts";
 import { uiIcon, UI_ICONS, TEAM_ICONS, SHAPE_ICONS } from "./ui-icons.ts";
 import { BOTC_STYLES } from "./botc-styles.ts";
 import { OWN, OWN_ID, OWN_VIEW, LIST_URL, tallerUrl, builtInStyles, basicStyles, lastCollection, rememberCollection, collectionUrl, openUrl, listCollections, addCollection, deleteCollection, starterCollection, builtInCollections, MODE, loadCollection, storeCollection, collectionRoles, collectionFile, readCollectionFile, readTokenList, SHAPES, tokenRole as ownRole, readBuiltIn, copyBuiltIn, GROUP_COLOURS, newId, nameIn, withName, catalogsOf, isLocked, THEMES, THEME_FONTS, okLogo, hasCcc, builtIn, APP_LOGO, APP_LOGO_SMALL, APP_ICON, APP_NAME, stylesOf } from "./collection.ts";
-import type { StyleDef, Collection, OwnToken, OwnCatalog, OwnSection, OwnTheme, CollectionEntry } from "./collection.ts";
+import type { StyleDef, CollectionStyles, Collection, OwnToken, OwnCatalog, OwnSection, OwnTheme, CollectionEntry } from "./collection.ts";
 import { loadScripts, storeScripts, saveScript, scriptLink, readLink, scriptJson, idKey as scriptKey } from "./scripts.ts";
 import type { HomebrewEntry, NewScript, Script, ScriptJsonEntry } from "./scripts.ts";
 import type { Translation } from "./translations.ts";
@@ -278,8 +278,42 @@ function lookDiff(a: SpecInput, b: SpecInput): string[] {
   for (const k of new Set([...Object.keys(ca), ...Object.keys(cb)])) if (ca[k] !== cb[k]) out.push(`colours.${k}`);
   return out;
 }
-/** Two looks that print the same. */
+/** Two looks that are the same, field by field. */
 const sameLook = (a: SpecInput, b: SpecInput) => !lookDiff(a, b).length;
+/**
+ * What of a look prints on a shape: its fields filled in, but for what the shape hasn't
+ * (SHAPE_FEATURES: a coin's ring base and mark between names; a ring's or card's magnet and back)
+ * and what doesn't show (a magnet's size without a magnet, an uploaded back that isn't the back,
+ * a back face's own look while the back is a design, how high relief stands with none raised).
+ * Styles took such fields from the style they were made over (the magnet, the ring base, an
+ * uploaded back: STYLE_KEEPS), so a collection's style kept that way differs from it only there.
+ */
+function printedLook(shape: TokenShape, spec: SpecInput): Fields {
+  const f = SHAPE_FEATURES[shape], u = normalizeSpec(spec), s = filled(u) as unknown as Fields, c = { ...(s.colours as Fields) };
+  for (const k of NOT_LOOK) delete s[k];
+  if (!f.ringBase) delete s.ringBase;
+  if (!f.separator) delete s.separator;
+  if (!f.magnet) { delete s.magnet; delete s.magnetSize; } else if (s.magnet === "none") delete s.magnetSize;
+  if (!f.back) { delete s.back; delete s.backMode; delete s.backFace; delete s.customSvg; delete c.back; }
+  else {
+    if (s.back !== "custom") delete s.customSvg;
+    if (s.backMode !== "match" && s.backMode !== "own") delete s.backFace;
+  }
+  const raised: string[] = f.relief, relief = Object.fromEntries(Object.entries(reliefOf(u)).filter(([k]) => raised.includes(k)));
+  s.relief = relief;
+  const backRaised = (s.backMode === "match" || s.backMode === "own") && hasRelief(s.backFace as SpecInput | undefined);
+  if (!Object.values(relief).some(Boolean) && !backRaised) delete s.reliefHeight;
+  s.colours = c;
+  return s;
+}
+/** Two looks that print the same on a shape (printedLook). */
+const samePrint = (shape: TokenShape, a: SpecInput, b: SpecInput) => sameValue(printedLook(shape, a), printedLook(shape, b));
+/**
+ * One design in place of another changes nothing printed: they print the same, and so do the
+ * tokens' own changes over each (a token's own back made an uploaded one, say, shows the design's).
+ */
+const printsAs = (shape: TokenShape, a: TokenSpec, b: TokenSpec, looks: LookChanges[]) =>
+  samePrint(shape, a, b) && looks.every((l) => samePrint(shape, applyLook(a, l), applyLook(b, l)));
 /** A look field of a spec ("frame", "colours.base"). */
 const fieldOf = (s: SpecInput, f: string): unknown => (f.startsWith("colours.") ? (s.colours as Fields | undefined)?.[f.slice(8)] : (s as Fields)[f]);
 /** Sets a look field on a spec; nothing (or null, but for the uploaded back) takes it out, so the default holds. */
@@ -408,7 +442,7 @@ function uniqueDesignName(shape: TokenShape, base: string, but?: MyDesign) {
  * token's shape is its character's). Kept since designs were yours: read as they are. Else made,
  * once, from what was kept before, printing exactly as it did:
  *  - a collection's styles (49eeec0, or made from what was kept before them: keptStyles) each
- *    become a design: one of the collection's when it is one unchanged, else one of yours (a copy
+ *    become a design: one of the collection's when it prints as one (adoptStyle), else one of yours (a copy
  *    already there is the same one; a name one of yours or the collection's already has gets the
  *    collection's after it);
  *  - each shape's default is what its first style became;
@@ -472,7 +506,8 @@ function keptStyles(place: (v: TokenOverride) => TokenOverride): { styles: Recor
 const collLabel = () => (OWN ? nameIn(coll.brand?.title, uiLang()) || nameIn(coll.name, uiLang()) : "Clocktower");
 /** A collection's styles and its tokens' own, as designs, defaults and overrides (see loadDesigns). */
 function fromStyles(styles: Record<TokenShape, Style[]>, overrides: Map<string, TokenOverride>) {
-  const refs = Object.fromEntries(SHAPES.map((sh) => [sh, new Map(styles[sh].map((st) => [st.id, adoptStyle(sh, st)]))])) as Record<TokenShape, Map<string, string>>;
+  const looks = [...overrides.values()].flatMap((v) => (v.look ? [v.look] : []));
+  const refs = Object.fromEntries(SHAPES.map((sh) => [sh, new Map(styles[sh].map((st) => [st.id, adoptStyle(sh, st, looks)]))])) as Record<TokenShape, Map<string, string>>;
   for (const sh of SHAPES) { const first = refs[sh].get(styles[sh][0].id)!; if (first !== originalRef(sh)) defaults[sh] = first; }
   for (const [k, v] of overrides) {
     const own = { ...v }, role = roleById(roleIdOf(k));
@@ -490,14 +525,19 @@ function fromStyles(styles: Record<TokenShape, Style[]>, overrides: Map<string, 
     if (!Object.keys(own).length) state.overrides.delete(k);
   }
 }
-/** A style kept by a collection, as a design: what it is (one of the collection's, unchanged), or one of yours. */
-function adoptStyle(shape: TokenShape, st: Style): string {
+/**
+ * A style kept by a collection, as a design: what it is (one of the collection's, unchanged), or one
+ * of yours. Unchanged is as it prints, with the tokens' own changes over it (printsAs): a style made
+ * from one of the collection's kept the magnet, ring base and uploaded back of the style it was made
+ * over, which a coin with no magnet or ring doesn't print.
+ */
+function adoptStyle(shape: TokenShape, st: Style, looks: LookChanges[]): string {
   if (!st.name) {
-    const list = startingStyles(shape);
-    const d = list.find((x) => x.id === st.tpl && sameLook(defSpec(x), st.spec)) ?? list.find((x) => sameLook(defSpec(x), st.spec));
+    const list = startingStyles(shape), same = (x: StyleDef) => printsAs(shape, st.spec, defSpec(x), looks);
+    const d = list.find((x) => x.id === st.tpl && same(x)) ?? list.find(same);
     if (d) return `c:${d.id}`;
   }
-  const twin = myDesigns[shape].find((x) => sameLook(x.spec, st.spec));
+  const twin = myDesigns[shape].find((x) => printsAs(shape, st.spec, x.spec, looks));
   if (twin) return `u:${twin.id}`;
   const { lang: _lang, icon: _icon, ...spec } = structuredClone(st.spec);
   const base = styleName(st, shape), theirs = startingStyles(shape).map(defName);
@@ -512,6 +552,85 @@ const styleName = (st: Style, shape: TokenShape) => {
   const d = st.name ? undefined : startingStyle(shape, st.tpl);
   return st.name || (d ? defName(d) : t("style.mine"));
 };
+
+/** Set once tidyMyDesigns has gone through your designs. */
+const TIDIED_KEY = "tesserae-styles-tidied";
+/**
+ * Once, for designs made from styles before adoptStyle compared them as they print: one of yours
+ * that prints as one of a collection's own (Edition (Clocktower), Steel (Draw Steel)…) is that one
+ * again wherever a collection that has it uses it, as its default or a token's design; a collection
+ * that hasn't it keeps yours. One of yours that prints as one of a collection's and nothing uses any
+ * more goes. Nothing prints differently (printsAs, with each collection's tokens' own changes).
+ * Every collection kept in this browser, and Clocktower; done for good once each one's designs were
+ * known (a collection that comes with the app, read from its file).
+ */
+async function tidyMyDesigns() {
+  try { if (localStorage.getItem(TIDIED_KEY)) return; } catch { return; }
+  const mine = readMyDesigns();
+  const prefixes = new Set<string>();
+  try { for (const k of Object.keys(localStorage)) { const m = k.match(/^(midnight-mint-.*)design-(?:defaults|tokens)$/); if (m) prefixes.add(m[1]); } } catch { return; }
+  // each collection's own designs, per shape
+  let known = true;
+  const theirs = new Map<string, Record<TokenShape, StyleDef[]>>();
+  for (const p of prefixes) {
+    const id = p.match(/^midnight-mint-own-(.+)-$/)?.[1];
+    if (p === "midnight-mint-") { theirs.set(p, BOTC_STYLES); continue; }
+    if (!id) continue;
+    let styles: CollectionStyles | undefined;
+    if (builtIn(id)) { styles = await builtInStyles(id); if (!styles) { known = false; continue; } }
+    else { const c = loadCollection(id); if (!c) continue; styles = c.styles; }
+    theirs.set(p, Object.fromEntries(SHAPES.map((sh) => [sh, stylesOf({ styles }, sh)])) as Record<TokenShape, StyleDef[]>);
+  }
+  const shapeOfMine = (ref: string | undefined) => (ref?.startsWith("u:") ? SHAPES.find((sh) => mine[sh].some((d) => d.id === ref.slice(2))) : undefined);
+  const specOfMine = (sh: TokenShape, ref: string) => mine[sh].find((d) => d.id === ref.slice(2))!.spec;
+  for (const [p, ship] of theirs) {
+    const defs = loadJSON<Partial<Record<TokenShape, string>>>(`${p}design-defaults`, {});
+    const own = loadJSON<Record<string, TokenOverride>>(`${p}design-tokens`, {});
+    const looks = Object.values(own).flatMap((o) => (o?.look ? [o.look] : []));
+    // what one of yours is here: the collection's that prints the same, if it has one
+    const asTheirs = (ref: string | undefined): string | undefined => {
+      const sh = shapeOfMine(ref);
+      const d = sh && ship[sh].find((x) => printsAs(sh, specOfMine(sh, ref!), defSpec(x), looks));
+      return d ? `c:${d.id}` : undefined;
+    };
+    let changed = false;
+    for (const sh of SHAPES) {
+      const to = shapeOfMine(defs[sh]) === sh ? asTheirs(defs[sh]) : undefined;
+      if (!to) continue;
+      if (to === `c:${ship[sh][0].id}`) delete defs[sh]; else defs[sh] = to;   // its own first is the default anyway
+      changed = true;
+    }
+    // a token's: and a design chosen that the token has by default anyway isn't one of its own
+    // (characters first: their linked tokens take theirs)
+    const valid = (sh: TokenShape, ref: string | undefined) => !!ref && (ref.startsWith("c:") ? ship[sh].some((x) => `c:${x.id}` === ref) : mine[sh].some((d) => `u:${d.id}` === ref));
+    const byDefault = (k: string, sh: TokenShape) => {
+      const char = k.startsWith("r:") ? own[`c:${roleIdOf(k)}`]?.style : undefined;
+      return valid(sh, char) ? char! : valid(sh, defs[sh]) ? defs[sh]! : `c:${ship[sh][0].id}`;
+    };
+    for (const k of Object.keys(own).sort((a, b) => Number(a.startsWith("r:")) - Number(b.startsWith("r:")))) {
+      const o = own[k], sh = shapeOfMine(o?.style), to = asTheirs(o?.style);
+      if (!sh || !to) continue;
+      o.style = to;
+      if (to === byDefault(k, sh)) { delete o.style; if (!Object.keys(o).length) delete own[k]; }
+      changed = true;
+    }
+    if (changed) { storeJSON(`${p}design-defaults`, defs); storeJSON(`${p}design-tokens`, own); }
+  }
+  // yours that print as one of a collection's, and nothing uses any more, go
+  const used = new Set<string>();
+  for (const p of prefixes) {
+    for (const r of Object.values(loadJSON<Record<string, string>>(`${p}design-defaults`, {}))) used.add(r);
+    for (const o of Object.values(loadJSON<Record<string, TokenOverride>>(`${p}design-tokens`, {}))) if (o?.style) used.add(o.style);
+  }
+  const all = [BOTC_STYLES, basicStyles(), ...theirs.values()];
+  let gone = false;
+  for (const sh of SHAPES) {
+    const keep = mine[sh].filter((d) => used.has(`u:${d.id}`) || !all.some((s) => s[sh].some((x) => printsAs(sh, d.spec, defSpec(x), []))));
+    if (keep.length !== mine[sh].length) { mine[sh] = keep; gone = true; }
+  }
+  if (gone) storeJSON(MY_DESIGNS_KEY, mine);
+  if (known) storeJSON(TIDIED_KEY, 1);
+}
 
 // ------------------------------------------------------------ tokens: keys, text, style
 
@@ -880,6 +999,7 @@ async function boot() {
     if (OWN && OWN_ID) { const own = (await builtInCollections()).find((b) => b.id === OWN_ID && b.href); if (own) { location.replace(own.href! + location.hash); return; } }
     // a collection that comes with the app: read from its file, every time (it isn't kept here)
     if (READONLY) { const c = await readBuiltIn(OWN_ID!); if (c) { coll = c; applyOwnTheme(); applyOwnBrand(); } }
+    await tidyMyDesigns();   // once: your designs that are a collection's own, that one again
     if (TALLER) { await openTaller(); return; }   // the Taller: designs, for every collection
     if (OWN && OWN_VIEW === "home") { renderOwnLanding(); return; }   // the front page
     if (OWN && (!OWN_ID || !coll.tokens.length)) { renderOwnHome(); return; }   // the list (or a collection that isn't there)
