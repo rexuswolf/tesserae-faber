@@ -1320,7 +1320,6 @@ function renderSheet() {
     $("#scriptDelete").dataset.confirm = ""; $("#scriptDelete").textContent = t("script.delete");
   }
   $("#scriptShare").textContent = t(PHONE.matches && (navigator as Partial<Navigator>).share ? "script.share" : "script.copy");
-  renderDesignBar();
 
   // which characters
   let roles = q ? state.lib!.roles : cat ? cat.tokens.map(roleById).filter((r): r is Role => !!r) : ty ? state.lib!.roles.filter((r) => typeOfToken(r.id) === ty.id) : sc ? inScript!.roles : ed === "all" ? allCharacters() : state.lib!.roles.filter((r) => r.edition === ed);
@@ -1346,6 +1345,9 @@ function renderSheet() {
 
   // Pick everything shown: the characters on screen (edition, team filter, search), with or without reminders.
   state.shown = roles;
+  // the design bar: only the shapes of the tokens on screen
+  barShapes = SHAPES.filter((sh) => roles.some((r) => shapeOf(r) === sh));
+  renderDesignBar();
   $("#addWrap").hidden = !roles.length;
   $("#addLabel").textContent = state.team !== "all" && !q ? t("add.buttonTeam", { who: TEAM_PLURAL[lang][state.team].toLowerCase() }) : t("add.button");
   if (!$("#addMenu").hidden) renderAddMenu();
@@ -1398,9 +1400,9 @@ function rowHtml(r: Role, q: string, remHits: Set<number> | undefined) {
   // Each token is a toggle: picked tokens light up with a check, and show their copies.
   const thumb = (key: string, reminder: number | null) => {
     const isRem = reminder != null;
-    const spec = { ...catalogSpec(isRem), diameter: isRem ? reminderSpec(DEFAULT_SPEC).diameter : 45, back: "none" };
+    const spec = { ...specFor(key, isRem), diameter: isRem ? reminderSpec(DEFAULT_SPEC).diameter : 45, back: "none" };
     const own = hasOwn(key), copies = state.pick.get(key) || 0;
-    const name = catalogText(r, reminder);
+    const name = textFor(key, r, reminder);
     // once picked, a small stepper adds copies; tapping the token still drops it
     // a homebrew token whose icon is still on its way pulses where the icon will go
     const loading = r.loading ? ` loading" style="--team: ${r.colour ?? TEAMS[r.team].colour}` : "";
@@ -1409,7 +1411,7 @@ function rowHtml(r: Role, q: string, remHits: Set<number> | undefined) {
     // turns it over in place to show its other state
     const two = !isRem && !!r.flip;
     const face = tokenSvg(state.lib!, r, spec, { text: name });
-    const art = two ? `<span class="tok-turn">${face}${tokenSvg(state.lib!, r, { ...catalogSpec(false), diameter: 45 }, { side: "back" })}</span>` : face;
+    const art = two ? `<span class="tok-turn">${face}${tokenSvg(state.lib!, r, { ...specFor(key, false), diameter: 45 }, { side: "back" })}</span>` : face;
     return `<span class="tok-w${two ? " two" : ""}"><button class="tok${isCard(r) ? " card" : ""}${loading}" type="button" data-pick="${key}" aria-pressed="${copies > 0}" aria-label="${esc(name)}">${art}<span class="ck" aria-hidden="true">✓</span></button>${two ? `<button class="turn-btn" type="button" data-turn title="${esc(t("sheet.turn"))}" aria-label="${esc(t("sheet.turn"))}">⇄</button>` : ""}${own ? ownPen(key, name) : ""}</span>`;
   };
   const rems = remindersOf(r);
@@ -2950,8 +2952,12 @@ $("#libraryFile").onchange = async (e) => {
 
 /** A token of a shape to draw designs on: the first of the collection's. */
 const sampleRole = (shape: TokenShape) => state.lib!.roles.find((r) => shapeOf(r) === shape && r.id !== state.creating?.draft.id)!;
+/** The shapes the design bar offers: those of the tokens on screen (set by renderSheet). */
+let barShapes: TokenShape[] | null = null;
 function renderDesignBar() {
-  const shapes = shapesHere(), changed = shapes.filter((sh) => defaultRef(sh) !== originalRef(sh));
+  const all = shapesHere(), shapes = (barShapes ?? all).filter((sh) => all.includes(sh));
+  const changed = shapes.filter((sh) => defaultRef(sh) !== originalRef(sh));
+  $(".design-bar-wrap").hidden = !shapes.length;
   $("#designBar").innerHTML = `<span class="db-l">${esc(t("bar.label"))}</span>`
     + shapes.map((sh) => {
       const d = designOf(sh, defaultRef(sh))!;
@@ -3008,7 +3014,7 @@ function wireDesignBar() {
   $("#designBar").onclick = (e) => {
     const chip = hit(e, "[data-default-shape]");
     if (chip) { const sh = chip.dataset.defaultShape as TokenShape; openDefaultMenu(openDefault === sh ? null : sh); return; }
-    if (hit(e, "[data-default-original]")) { openDefaultMenu(null); void setDefaults(Object.fromEntries(shapesHere().map((sh) => [sh, originalRef(sh)]))); return; }
+    if (hit(e, "[data-default-original]")) { openDefaultMenu(null); void setDefaults(Object.fromEntries(shapesHere().filter((sh) => !barShapes || barShapes.includes(sh)).map((sh) => [sh, originalRef(sh)]))); return; }
     if (hit(e, "[data-to-taller]")) rememberReturn();
   };
   $("#defaultMenu").onclick = (e) => {
