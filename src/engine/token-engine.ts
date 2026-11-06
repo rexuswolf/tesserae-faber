@@ -136,7 +136,11 @@ export function reminderSpec(spec: TokenSpec): TokenSpec {
     style: spec.style === "solo" || spec.style === "double" ? "classic" : spec.style,
     diameter: spec.reminderDiameter ?? 32,
     textSize: 5,
-    // the icon in the same proportion and place as on its character's token
+    // the word sized by its length (short ones up to 7 mm, long ones up to 230°), a little more
+    // open than on the character (large letters on a small coin close up at their tops), and
+    // the icon as large as fits clear of it (see AUTO_TEXT)
+    autoText: true,
+    spacing: (spec.spacing ?? 1.1) * 1.14,
     iconScale: 0.85,
     iconOffsetY: 1.5,
     margin: 1.5,
@@ -154,7 +158,7 @@ export function reminderSpec(spec: TokenSpec): TokenSpec {
  * maxArc as before; the icon then takes the largest size that keeps clear of the word and the frame
  * (at most `icon` of the coin, as iconScale), centred in the room left. Classic layout only.
  */
-export const AUTO_TEXT: AutoText = { cap: 7, arc: 120, icon: 0.85 };
+export const AUTO_TEXT: AutoText = { cap: 7, arc: 160, icon: 0.85, maxArc: 230 };
 const autoOf = (spec: TokenSpec): AutoText | null =>
   spec.autoText && spec.style === "classic" ? { ...AUTO_TEXT, ...(spec.autoText === true ? {} : spec.autoText) } : null;
 
