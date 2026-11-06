@@ -3064,7 +3064,8 @@ function renderOwnSpine() {
     return `<button class="ed" type="button" data-ed="t:${esc(ty.id)}" aria-current="${state.edition === `t:${ty.id}` && !q}">${uiIcon(ty.icon && UI_ICONS[ty.icon] ? ty.icon : SHAPE_ICONS[ty.shape])}
       <span>${esc(nameIn(ty.title, lang))}<small>${esc(sub(roles, ty.shape === "card"))}</small></span>${pickedBadge(roles)}</button>`;
   }).join("");
-  $("#editions").innerHTML = coll.sections.map((sec) => `
+  // a read-only collection can't be added to: an open section with nothing in it is just an empty heading there
+  $("#editions").innerHTML = coll.sections.filter((sec) => !(READONLY && sec.open && !sec.catalogs.length)).map((sec) => `
     <div class="spine-h spine-sec"><h2>${esc(nameIn(sec.title, lang))}</h2>${sec.open ? `<button class="spine-add" type="button" data-sec-new="${esc(sec.id)}" title="${esc(t("own.newCatalog"))}" aria-label="${esc(t("own.newCatalog"))}">+</button>` : ""}</div>
     ${sec.catalogs.map((k) => {
       const roles = rolesOf(k.tokens);
