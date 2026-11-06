@@ -103,14 +103,20 @@ The same for every collection.
     group's, so a design fits any collection); you make one from *Basic* or by duplicating any, rename it, change it with the same
     controls as the design step and delete it (what used it goes back to its default). The collections' designs are there too, read-only,
     with *Duplicate to edit*. A design is shown on tokens of the collection the Taller was opened from, or on samples of its own.
-  - **The collection's default per shape**, over the sheet in Pick (*Design: Coins Steel ▾ · Rings Fine ring ▾*): any of the collection's
+  - **The collection's default per shape**, over the sheet in Pick (*Design: Coins Steel ▾ · Rings High relief ▾*): any of the collection's
     designs or yours, for all its tokens of that shape at once. *Original design* sets them back to the collection's own; tokens with a
     design or changes of their own are asked about first (kept, or given the new one too).
   - **A token's own**, in the design step: another design for it, or changes to its look (colours, frame, size…), marked with a pen
     on the sheet and the strip, and *Back to the default*. Changes there are that token's only.
-- Collections' designs, made for them. Clocktower's: *Edition* (the default: the edition's name in gold on the back), *Fast print* (1.2 mm,
+- Collections' designs, made for them. Clocktower's coins: *Edition* (the default: the edition's name in gold on the back), *Fast print* (1.2 mm,
   the thinnest that holds up), *Pitch-black night*, *Midnight*, *Ivory coin* and *High legibility* (the window layout), all with the frame in the team colour.
-  Draw Steel's: *Steel*, *Parchment* (raised letters on white) and *Legible* for its coins, *Fine ring* and *Bold ring* for its rings; your own collections start with *Basic*.
+  Draw Steel's coins: *Steel*, *Parchment* (raised letters on white) and *Legible*.
+- Rings and cards have designs made for them (`src/shape-designs.ts`), each collection listing the ones that suit it, its default first.
+  Rings: *Colour ring* (the ring in the group colour), *High relief* (the name as large as fits, raised 0.8 mm), *Bold edges* (thick raised
+  lines in the group colour) and *Express* (1.2 mm, two filaments). Cards: *Contrast*, *Colour plate*, *Parchment*, *Gold trim*, *Corners*
+  (a bracket at each corner instead of a whole frame) and *Express*. Draw Steel's rings start on *High relief*; Clocktower's on *Colour ring*,
+  its cards on *Gold trim*; *Basic* (your own collections) on *Colour ring* and *Contrast*.
+- A ring's mark between repeats of its name: a dot, a diamond, a star or none (Front → Text).
 - 12 frame designs, and 7 back designs plus the edition's name (a homebrew's script) or your own SVG, each drawn on your character as you choose.
 - Any of the 10 filament colours for the coin, the frame and the back; the name and icon take the team's (or group's) colour.
 - A big live 3D preview you can turn around, with front and back views; it turns by itself to the part you're editing.

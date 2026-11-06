@@ -14,6 +14,7 @@ import type { Hex, Role, SpecInput, Team, TokenIcon, TokenShape } from "./types.
 import { gameIcon } from "./icons.ts";
 import { DEFAULT_SPEC, FILAMENTS } from "./engine/token-engine.ts";
 import { BUILT_INS } from "./builtins.ts";
+import { ringDesigns, cardDesigns } from "./shape-designs.ts";
 
 /** Which app this page is: Clocktower (/botc, once Midnight Mint), or Tesserae Faber, the generic creator (the rest). */
 export const MODE: "botc" | "own" = /^\/botc(\/|$)/.test(location.pathname) ? "botc" : "own";
@@ -90,16 +91,32 @@ export interface OwnLoader { text?: Names; footer?: Names; ccc?: boolean }
 export interface StyleDef { id: string; name: Names; help?: Names; spec: SpecInput }
 export type CollectionStyles = Partial<Record<TokenShape, StyleDef[]>>;
 /**
- * The one style per shape a collection starts with when it says none: black, the name, icon and
- * frame in the group's colour, the collection's name in gold on the back (what every token looked
- * like before collections had styles). Its id is that look's old template's ("edicion"), so the
- * style a token already had from it is this one.
+ * The coin style a collection starts with when it says none: black, the name, icon and frame in
+ * the group's colour, the collection's name in gold on the back (what every token looked like
+ * before collections had styles). Its id is that look's old template's ("edicion"), so the style a
+ * token already had from it is this one.
  */
 const BASIC: StyleDef = {
   id: "edicion", name: { es: "Básico", en: "Basic" }, help: { es: "Negra, con el color del grupo y el nombre de la colección en oro al reverso.", en: "Black, with the group colour and the collection's name in gold on the back." },
   spec: { style: "classic", frame: "rim", frameWidth: 0.8, back: "edition", depth: 0.4, colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } },
 };
-export const basicStyles = (): Record<TokenShape, StyleDef[]> => Object.fromEntries(SHAPES.map((sh) => [sh, [structuredClone(BASIC)]])) as Record<TokenShape, StyleDef[]>;
+/**
+ * The styles a collection starts with when it says none (Básico), per shape: the coin above; for
+ * rings and cards, the designs made for them (src/shape-designs.ts), that fit any group.
+ */
+export const basicStyles = (): Record<TokenShape, StyleDef[]> => ({
+  coin: [structuredClone(BASIC)],
+  ring: ringDesigns("aro-color", "relieve-alto", "filos", "rapida"),
+  card: cardDesigns("contraste", "placa", "pergamino", "filete", "esquinas", "rapida"),
+});
+/**
+ * A collection kept with the basic coin style for its rings and cards too (as every new one was
+ * made before rings and cards had designs of their own) has today's basic ones for them instead.
+ */
+function upgradeBasicStyles(styles: CollectionStyles | undefined) {
+  const old = JSON.stringify(BASIC);
+  for (const sh of ["ring", "card"] as const) if (styles?.[sh]?.length === 1 && JSON.stringify(styles[sh]![0]) === old) styles[sh] = basicStyles()[sh];
+}
 /** A collection's styles for a shape: its own, else the basic one. */
 export const stylesOf = (c: { styles?: CollectionStyles }, shape: TokenShape): StyleDef[] => (c.styles?.[shape]?.length ? c.styles[shape] : basicStyles()[shape]);
 
@@ -216,6 +233,7 @@ function upgrade(c: Collection & { catalogs?: OwnCatalog[] }): Collection {
     for (const t of c.tokens) t.type ??= c.types[0].id;
   }
   if (!c.sections) { c.sections = [{ id: "s1", title: "Catálogos", open: true, catalogs: c.catalogs ?? [] }]; delete c.catalogs; }
+  upgradeBasicStyles(c.styles);
   return c;
 }
 export function listCollections(): CollectionEntry[] {

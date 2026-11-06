@@ -11,6 +11,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { BUILT_INS } from "../src/builtins.ts";   // its theme and loading screen: one place
 import { FILAMENTS } from "../src/engine/token-engine.ts";
+import { ringDesigns } from "../src/shape-designs.ts";
 const DS = BUILT_INS.find((b) => b.id === "drawsteel");
 
 const root = path.resolve(import.meta.dirname, "..");
@@ -93,11 +94,9 @@ const styles = {
     { id: "legible", name: { es: "Legible", en: "Legible" }, help: { es: "Ventana del color del grupo con el icono y el nombre grande debajo.", en: "A window in the group colour with the icon, and the name large below." },
       spec: { style: "window", textSize: 6, frame: "none", back: "edition", depth: 0.4, colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } } },
   ],
-  ring: [
-    { id: "edicion", name: { es: "Aro fino", en: "Fine ring" }, help: { es: "Negro, con el nombre y una línea fina del color del grupo en cada borde.", en: "Black, with the name and a fine line in the group colour along each edge." }, spec: STEEL },
-    { id: "marcado", name: { es: "Aro marcado", en: "Bold ring" }, help: { es: "Negro, con el nombre en relieve: se lee de lado, junto a la miniatura.", en: "Black, with the name raised: it reads from the side, next to the miniature." },
-      spec: { ...STEEL, frameWidth: 1.0, relief: { text: true, frame: false, icon: false }, reliefHeight: 0.6 } },
-  ],
+  // rings: the designs made for them (src/shape-designs.ts), High relief first (it reads from the
+  // side, next to the miniature); no cards: Draw Steel has none, a copy with some gets Basic's
+  ring: ringDesigns("relieve-alto", "filos", "aro-color", "rapida"),
 };
 const collection = {
   format: "midnight-mint/collection", version: 1,
