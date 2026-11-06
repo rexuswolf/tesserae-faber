@@ -583,6 +583,33 @@ function setLang(lang: string) {
   else if (gateState) gate(gateState());
   if ($<HTMLDialogElement>("#tlangDialog").open) drawLangDialog();
 }
+// Holding a token down on the sheet (a phone has no pointing) turns it over while held, to see its back
+// or its other state; letting go turns it back, and that touch doesn't pick it.
+let peek: { el: HTMLElement; timer: number; shown: boolean } | null = null;
+const PEEK_HINT_KEY = "tesserae-peek-hint";
+function endPeek() {
+  if (!peek) return;
+  clearTimeout(peek.timer); peek.el.classList.remove("peeking");
+  if (!peek.shown) peek = null;
+}
+document.addEventListener("pointerdown", (e) => {
+  if (e.pointerType === "mouse") return;
+  const w = (e.target as Element).closest?.(".tok-w.backed, .tok-w.two") as HTMLElement | null;
+  if (!w || (e.target as Element).closest("[data-turn]")) return;
+  endPeek();
+  peek = { el: w, shown: false, timer: window.setTimeout(() => { if (peek) { peek.shown = true; w.classList.add("peeking"); } }, 350) };
+}, { passive: true });
+for (const ev of ["pointerup", "pointercancel"]) document.addEventListener(ev, endPeek);
+document.addEventListener("pointermove", (e) => { if (peek && !peek.shown && (Math.abs(e.movementX) + Math.abs(e.movementY) > 6)) endPeek(); }, { passive: true });
+// the click that ends a hold isn't a pick
+document.addEventListener("click", (e) => { if (peek?.shown) { e.stopPropagation(); e.preventDefault(); peek = null; } }, true);
+document.addEventListener("contextmenu", (e) => { if ((e.target as Element).closest?.(".tok-w.backed, .tok-w.two")) e.preventDefault(); });
+/** Once, on a touch screen with tokens that have a back on the sheet: how to see it. */
+function peekHint() {
+  if (!matchMedia("(hover: none)").matches || !$(".tok-w.backed, .tok-w.two")) return;
+  try { if (localStorage.getItem(PEEK_HINT_KEY)) return; localStorage.setItem(PEEK_HINT_KEY, "1"); } catch { return; }
+  toast(t("sheet.peekHint"));
+}
 // The ⇄ on a two-state token on the sheet turns it over (on a phone, where nothing hovers); it doesn't pick it.
 document.addEventListener("click", (e) => {
   const b = hit(e, "[data-turn]"); if (!b) return;
@@ -1361,6 +1388,7 @@ function renderSheet() {
       <button class="pick-team" type="button" data-pick-team="${team}">${esc(t(teamOn ? "pick.teamOff" : "pick.team"))}</button></div>` +
       list.map((r) => rowHtml(r, q, hits.get(r.id))).join("");
   }).join("");
+  peekHint();
 }
 
 /** A bin icon: taking a token out. */
@@ -1410,9 +1438,12 @@ function rowHtml(r: Role, q: string, remHits: Set<number> | undefined) {
     // a two-state token looks like any other, with ⇄ on its edge; pointing at the row (or tapping the ⇄)
     // turns it over in place to show its other state
     const two = !isRem && !!r.flip;
+    // a one-sided token whose design prints a back turns over too: pointed at, or held down on a phone
+    const full = specFor(key, false);
+    const backed = !isRem && !two && SHAPE_FEATURES[shapeOf(r)].back && full.back !== "none";
     const face = tokenSvg(state.lib!, r, spec, { text: name });
-    const art = two ? `<span class="tok-turn">${face}${tokenSvg(state.lib!, r, { ...specFor(key, false), diameter: 45 }, { side: "back" })}</span>` : face;
-    return `<span class="tok-w${two ? " two" : ""}"><button class="tok${isCard(r) ? " card" : ""}${loading}" type="button" data-pick="${key}" aria-pressed="${copies > 0}" aria-label="${esc(name)}">${art}<span class="ck" aria-hidden="true">✓</span></button>${two ? `<button class="turn-btn" type="button" data-turn title="${esc(t("sheet.turn"))}" aria-label="${esc(t("sheet.turn"))}">⇄</button>` : ""}${own ? ownPen(key, name) : ""}</span>`;
+    const art = two || backed ? `<span class="tok-turn">${face}${tokenSvg(state.lib!, r, { ...full, diameter: 45 }, { side: "back" })}</span>` : face;
+    return `<span class="tok-w${two ? " two" : backed ? " backed" : ""}"><button class="tok${isCard(r) ? " card" : ""}${loading}" type="button" data-pick="${key}" aria-pressed="${copies > 0}" aria-label="${esc(name)}">${art}<span class="ck" aria-hidden="true">✓</span></button>${two ? `<button class="turn-btn" type="button" data-turn title="${esc(t("sheet.turn"))}" aria-label="${esc(t("sheet.turn"))}">⇄</button>` : ""}${own ? ownPen(key, name) : ""}</span>`;
   };
   const rems = remindersOf(r);
   const other = tokenLang() === "en" ? roleName(r, uiLang() === "en" ? "es" : uiLang()) : r.en;
