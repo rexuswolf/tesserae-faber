@@ -3025,7 +3025,8 @@ function applyGroups() {
     for (const lang of Object.keys(TEAM_PLURAL)) { TEAM_PLURAL[lang][id] = nameIn(g.name, lang); PLATE_LABEL[lang][id] = nameIn(g.name, lang); }
     PLATE_GROUP[id] = id;
     TEAMS[id] = { label: { en: nameIn(g.name, "en"), es: nameIn(g.name, "es") }, colour: g.colour, file: slug(nameIn(g.name, "en")) || id };
-    TEAM_ICONS[id] = g.icon && UI_ICONS[g.icon] ? g.icon : TEAM_ICONS[id] ?? "two-coins";
+    if (g.iconBody) UI_ICONS[`group:${id}`] = { author: "", body: g.iconBody };   // its own icon, from the collection
+    TEAM_ICONS[id] = g.iconBody ? `group:${id}` : g.icon && UI_ICONS[g.icon] ? g.icon : TEAM_ICONS[id] ?? "two-coins";
   }
 }
 

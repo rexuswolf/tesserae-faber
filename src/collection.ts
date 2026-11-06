@@ -33,7 +33,13 @@ export const collectionUrl = (id: string) => `/c/${id}`;
 export type Names = string | Record<string, string>;
 export const SHAPES: TokenShape[] = ["coin", "card", "ring"];
 export interface OwnType { id: string; name: Names; title: Names; shape: TokenShape; icon?: string }
-export interface OwnGroup { id: string; name: Names; colour: Hex; icon?: string }
+export interface OwnGroup { id: string; name: Names; colour: Hex; icon?: string;
+  /** Its own icon, as the paths of a 512-unit game-icons.net icon (for its filter and plate), when not one of the app's. */
+  iconBody?: string }
+/** A group's icon from a file: only path outlines, rebuilt (nothing else of the markup is kept: it's drawn as HTML). */
+const okIconBody = (v: unknown) => typeof v === "string" && v.length < 60000
+  ? [...v.matchAll(/<path\b[^>]*\sd="([-0-9.,a-zA-Z\s]+)"/g)].map((m) => `<path fill="currentColor" d="${m[1]}"/>`).join("") || undefined
+  : undefined;
 export interface OwnToken {
   id: string;
   type: string;
@@ -309,7 +315,7 @@ export async function readCollectionFile(data: unknown, onProgress: (done: numbe
   if (!f || f.format !== COLLECTION_FORMAT || !Array.isArray(f.tokens) || !Array.isArray(f.groups)) throw new Error("not-collection");
   const types: OwnType[] = (f.types ?? []).filter((x) => x?.id).map((x) => ({ id: String(x.id), name: okName(x.name) ? x.name : String(x.id), title: okName(x.title) ? x.title : okName(x.name) ? x.name : String(x.id), shape: SHAPES.includes(x.shape) ? x.shape : "coin", ...(x.icon ? { icon: String(x.icon) } : {}) }));
   if (!types.length) types.push(...starterCollection().types);
-  const groups: OwnGroup[] = f.groups.filter((g) => g?.id).map((g, i) => ({ id: String(g.id), name: okName(g.name) ? g.name : `Grupo ${i + 1}`, colour: /^#[0-9a-f]{6}$/i.test(g.colour) ? g.colour : GROUP_COLOURS[i % GROUP_COLOURS.length], ...(g.icon ? { icon: String(g.icon) } : {}) }));
+  const groups: OwnGroup[] = f.groups.filter((g) => g?.id).map((g, i) => ({ id: String(g.id), name: okName(g.name) ? g.name : `Grupo ${i + 1}`, colour: /^#[0-9a-f]{6}$/i.test(g.colour) ? g.colour : GROUP_COLOURS[i % GROUP_COLOURS.length], ...(g.icon ? { icon: String(g.icon) } : {}), ...(okIconBody(g.iconBody) ? { iconBody: okIconBody(g.iconBody) } : {}) }));
   if (!groups.length) groups.push({ id: "g1", name: "Grupo 1", colour: GROUP_COLOURS[0] });
   const knownGroup = new Set(groups.map((g) => g.id)), knownType = new Set(types.map((x) => x.id));
   let done = 0;

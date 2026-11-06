@@ -1126,3 +1126,7 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 @media (prefers-reduced-motion: reduce) {
   @view-transition { navigation: none; }
 }
+/* "+ Token" in your own collections: the way to make one, so it stands out in the collection's colour
+   (outlined, not filled: the gold "Add to queue" stays the page's main button) */
+#ownNewTok { border: 1.5px solid var(--brass); color: var(--brass); font-weight: 600; padding: 8px 18px; background: color-mix(in srgb, var(--brass) 10%, transparent); }
+#ownNewTok:hover { background: color-mix(in srgb, var(--brass) 18%, transparent); }

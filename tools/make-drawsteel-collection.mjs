@@ -90,10 +90,11 @@ const collection = {
     { id: "rings", name: { en: "Condition rings", es: "Aros de condición" }, title: { en: "Condition rings", es: "Aros de condición" }, shape: "ring", icon: "ring" },
   ],
   groups: [
-    { id: "shared", name: { en: "Shared", es: "Compartidos" }, colour: "#d4a72c" },
-    { id: "director", name: { en: "Director", es: "Director" }, colour: "#8a3d9e" },
-    ...CLASSES.map((k) => ({ id: k.id, name: k.name, colour: k.c })),
-    { id: "conditions", name: { en: "Conditions", es: "Condiciones" }, colour: "#a7adb4" },
+    // each with an icon of its own (its filter on the sheet, its plates): the class's resource, and so on
+    { id: "shared", name: { en: "Shared", es: "Compartidos" }, colour: "#d4a72c", iconBody: GI["spark-spirit"].body },
+    { id: "director", name: { en: "Director", es: "Director" }, colour: "#8a3d9e", iconBody: GI["imp-laugh"].body },
+    ...CLASSES.map((k) => ({ id: k.id, name: k.name, colour: k.c, iconBody: GI[k.res[2]].body })),
+    { id: "conditions", name: { en: "Conditions", es: "Condiciones" }, colour: "#a7adb4", iconBody: GI["bleeding-wound"].body },
   ],
   tokens,
   sections: [
