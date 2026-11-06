@@ -119,14 +119,17 @@ export const openUrl = (id: string, built: { id: string; href?: string }[]) => b
 export const builtInCollections = (): Promise<BuiltInEntry[]> => Promise.resolve(BUILT_INS);
 /** One of them, by id. */
 export const builtIn = (id: string) => BUILT_INS.find((b) => b.id === id);
-/** A built-in collection, read from the app's own file and kept in this browser under its id. */
-export async function openBuiltIn(id: string): Promise<Collection | null> {
-  const entry = (await builtInCollections()).find((x) => x.id === id);
+/** A built-in collection, read from the app's own file each time: it isn't kept, and it can't be changed. */
+export async function readBuiltIn(id: string): Promise<Collection | null> {
+  const entry = builtIn(id);
   if (!entry?.file) return null;
-  const res = await fetch(entry.file);
-  if (!res.ok) return null;
-  const c = await readCollectionFile(await res.json());
-  return storeCollection(c, id) ? c : null;
+  try { const res = await fetch(entry.file); return res.ok ? await readCollectionFile(await res.json()) : null; } catch { return null; }
+}
+/** A copy of a built-in collection, as one of yours to change: its new id. */
+export async function copyBuiltIn(id: string, name: string): Promise<string | null> {
+  const c = await readBuiltIn(id);
+  // yours: every section open, so its tokens (and its catalogs) can be changed
+  return c ? addCollection({ ...c, name, sections: c.sections.map((x) => ({ ...x, open: true })) }) : null;
 }
 /** A collection in the list: enough to show its card without reading it all. */
 export interface CollectionEntry { id: string; name: string; logo?: string; accent?: string; tokens: number; updated: number }
@@ -178,7 +181,7 @@ export function loadCollection(id = OWN_ID): Collection | null {
 }
 /** Keeps a collection, and its card in the list. Returns false when the browser's storage is full. */
 export function storeCollection(c: Collection, id = OWN_ID): boolean {
-  if (!id) return false;
+  if (!id || builtIn(id)) return false;   // the app's own collections are read-only: make a copy to change one
   try { localStorage.setItem(keyOf(id), JSON.stringify(c)); } catch { return false; }
   const theme = typeof c.theme === "object" ? c.theme : THEMES[c.theme ?? "faber"];
   const entry: CollectionEntry = { id, name: nameIn(c.name, "es"), ...(c.brand?.logo ? { logo: c.brand.logo } : {}), accent: theme?.accent ?? "#c9a227", tokens: c.tokens.length, updated: Date.now() };

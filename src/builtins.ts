@@ -4,8 +4,10 @@
  * characters: the library in Firestore).
  */
 import type { BuiltInEntry } from "./collection.ts";
+import { FACTS } from "./builtins-facts.ts";   // counted by tools/make-botc-collection.mjs
 
 const VILLACUERVOS_URL = "https://villacuervos.es";
+const botc = FACTS.botc;
 
 export const BUILT_INS: BuiltInEntry[] = [
   {
@@ -13,11 +15,11 @@ export const BUILT_INS: BuiltInEntry[] = [
     name: "Blood on the Clocktower",
     logo: "/logo-mark.svg",
     accent: "#c9a227",
-    tokens: 191,
+    tokens: botc.tokens,
     preview: "/collections/botc-preview.svg",   // tools/make-crear-art.mjs
     href: "/botc",   // it opens as Midnight Mint, the Clocktower app
     file: "/collections/botc.json",   // the same, as a collection file: to start one of your own from
-    facts: { es: "181 personajes · 215 recordatorios · 13 idiomas", en: "181 characters · 215 reminders · 13 languages" },
+    facts: { es: `${botc.characters} personajes · ${botc.reminders} recordatorios · ${botc.languages} idiomas`, en: `${botc.characters} characters · ${botc.reminders} reminders · ${botc.languages} languages` },
     text: { es: "Todas las ediciones, el Grimorio y tus guiones.", en: "Every edition, the Grimoire and your scripts." },
     ccc: true,   // Community Created Content: its mark in About
     about: {

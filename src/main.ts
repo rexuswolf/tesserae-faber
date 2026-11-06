@@ -20,7 +20,7 @@ import { PAGE, layoutCoins, backX } from "./pdf/layout.ts";
 import { t, uiLang, setUiLang, LANGUAGES } from "./i18n.ts";
 import { TRANSLATIONS, VILLACUERVOS_URL, translationById, translationGroups } from "./translations.ts";
 import { uiIcon, UI_ICONS, TEAM_ICONS } from "./ui-icons.ts";
-import { OWN, OWN_ID, OWN_VIEW, LIST_URL, lastCollection, rememberCollection, collectionUrl, openUrl, listCollections, addCollection, deleteCollection, starterCollection, builtInCollections, openBuiltIn, MODE, loadCollection, storeCollection, collectionRoles, collectionFile, readCollectionFile, readTokenList, GROUP_COLOURS, newId, nameIn, withName, catalogsOf, isLocked, THEMES, THEME_FONTS, okLogo, hasCcc, builtIn, APP_LOGO, APP_LOGO_SMALL, APP_ICON, APP_NAME } from "./collection.ts";
+import { OWN, OWN_ID, OWN_VIEW, LIST_URL, lastCollection, rememberCollection, collectionUrl, openUrl, listCollections, addCollection, deleteCollection, starterCollection, builtInCollections, MODE, loadCollection, storeCollection, collectionRoles, collectionFile, readCollectionFile, readTokenList, readBuiltIn, copyBuiltIn, GROUP_COLOURS, newId, nameIn, withName, catalogsOf, isLocked, THEMES, THEME_FONTS, okLogo, hasCcc, builtIn, APP_LOGO, APP_LOGO_SMALL, APP_ICON, APP_NAME } from "./collection.ts";
 import type { Collection, OwnToken, OwnCatalog, OwnSection, OwnTheme, CollectionEntry } from "./collection.ts";
 import { loadScripts, storeScripts, saveScript, scriptLink, readLink, scriptJson, idKey as scriptKey } from "./scripts.ts";
 import type { HomebrewEntry, NewScript, Script, ScriptJsonEntry } from "./scripts.ts";
@@ -109,6 +109,10 @@ const state: {
 };
 /** The collection this page shows (Tesserae Faber); empty, and unused, in Clocktower. */
 let coll: Collection = (OWN && loadCollection()) || { name: "", types: [], groups: [], tokens: [], sections: [] };
+/** The collection open is one of the app's own (Clocktower at /botc, or one at /c/<id>): read-only, with "Make a copy" instead. */
+const BUILT = OWN ? (OWN_ID ? builtIn(OWN_ID) : undefined) : builtIn("botc");
+const READONLY = OWN && !!BUILT;
+if (BUILT) document.documentElement.dataset.builtin = BUILT.id;
 if (OWN && OWN_ID) { applyOwnTheme(); applyOwnBrand(); }   // before the loading screen shows: it wears the collection's colours and mark too
 
 // After a deploy, a page opened earlier may ask for code files that no longer
@@ -404,8 +408,8 @@ async function boot() {
   try {
     // a collection with an app of its own (Clocktower): there, at its one address
     if (OWN && OWN_ID) { const own = (await builtInCollections()).find((b) => b.id === OWN_ID && b.href); if (own) { location.replace(own.href! + location.hash); return; } }
-    // a collection that comes with the app, opened for the first time: read from its file
-    if (OWN && OWN_ID && !coll.tokens.length) { const c = await openBuiltIn(OWN_ID); if (c) { coll = c; applyOwnTheme(); applyOwnBrand(); } }
+    // a collection that comes with the app: read from its file, every time (it isn't kept here)
+    if (READONLY) { const c = await readBuiltIn(OWN_ID!); if (c) { coll = c; applyOwnTheme(); applyOwnBrand(); } }
     if (OWN && OWN_VIEW === "home") { renderOwnLanding(); return; }   // the front page
     if (OWN && (!OWN_ID || !coll.tokens.length)) { renderOwnHome(); return; }   // the list (or a collection that isn't there)
     if (OWN) rememberCollection(OWN_ID!);
@@ -979,7 +983,7 @@ function rowHtml(r: Role, q: string, remHits: Set<number> | undefined) {
   }).join("");
   return `<div class="row${isCard(r) ? " info" : ""}${rems.length ? "" : " no-rems"}" data-picked="${isPicked(ck)}" data-row="${ck}">
     ${thumb(ck, null)}
-    <div class="who" data-pick="${ck}"><b>${esc(catalogText(r, null))}</b>${other !== catalogText(r, null) ? `<small>${esc(other)}</small>` : ""}${OWN ? (ownHome(r) && (q || catalogOf(state.edition) !== ownHomeCatalog(r.id)) ? `<em>${esc(ownHome(r))}</em>` : "") : q || state.edition === "all" || (state.edition.startsWith("s:") && r.kind !== "homebrew") ? `<em>${esc(editionName(r, lang))}</em>` : ""}${r.loading ? `<small>${esc(t("sheet.iconLoading"))}</small>` : ""}${OWN && !isLocked(coll, r.id) ? `<button class="own-edit" type="button" data-own-edit="${esc(r.id)}">${esc(t("own.edit"))}</button>` : ""}</div>
+    <div class="who" data-pick="${ck}"><b>${esc(catalogText(r, null))}</b>${other !== catalogText(r, null) ? `<small>${esc(other)}</small>` : ""}${OWN ? (ownHome(r) && (q || catalogOf(state.edition) !== ownHomeCatalog(r.id)) ? `<em>${esc(ownHome(r))}</em>` : "") : q || state.edition === "all" || (state.edition.startsWith("s:") && r.kind !== "homebrew") ? `<em>${esc(editionName(r, lang))}</em>` : ""}${r.loading ? `<small>${esc(t("sheet.iconLoading"))}</small>` : ""}${OWN && !READONLY && !isLocked(coll, r.id) ? `<button class="own-edit" type="button" data-own-edit="${esc(r.id)}">${esc(t("own.edit"))}</button>` : ""}</div>
     ${rems.length ? `<div class="rems">${chips}</div>` : ""}
   </div>`;
 }
@@ -2330,6 +2334,11 @@ function wireOwn() {
     const b = hit(e, "[data-coll]"); if (!b) return;
     const what = b.dataset.coll!;
     if (what !== "import") { openCollMenu(false); drawer(false); }
+    if (what === "copy" && BUILT) {
+      const n = $("#ownNote"); n.textContent = t("own.copying");
+      void copyBuiltIn(BUILT.id, t("own.copyName", { name: BUILT.name })).then((id) => { if (id) location.href = collectionUrl(id); else n.textContent = t("own.storageFull"); });
+      return;
+    }
     if (what === "settings") openOwnSettings();
     if (what === "groups") { renderOwnGroups(); $<HTMLDialogElement>("#ownGroupsDlg").showModal(); }
     if (what === "export") saveFile(new Blob([JSON.stringify(collectionFile(coll), null, 2)], { type: "application/json" }), `${nameIn(coll.name, "en").replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase() || "collection"}.json`);
@@ -2625,7 +2634,7 @@ async function collectionsByKind() {
 async function renderSwitchList() {
   const { built, mine } = await collectionsByKind(), lang = uiLang();
   const item = (id: string, name: string, logo?: string, href?: string) => `<a role="menuitem" href="${href ?? collectionUrl(id)}"${(OWN ? id === OWN_ID : id === "botc") ? ' aria-current="true"' : ""}><img src="${esc(logo || APP_LOGO_SMALL)}" alt=""><b>${esc(name)}</b></a>`;
-  const html = `<p class="cm-h">${esc(t("own.homeBuilt"))}</p>${built.map(({ b, kept }) => item(b.id, b.name, kept?.logo ?? b.logo, b.href)).join("")}
+  const html = `<p class="cm-h">${esc(t("own.homeBuilt"))}</p>${built.map(({ b }) => item(b.id, b.name, b.logo, b.href)).join("")}
     <p class="cm-h">${esc(t("own.homeMine"))}</p>${mine.map((c) => item(c.id, c.name, c.logo)).join("") || `<p class="hint cm-empty">${esc(t("own.homeEmpty"))}</p>`}`;
   for (const el of $$(".coll-list")) el.innerHTML = html;
   void lang;
@@ -2662,14 +2671,14 @@ async function renderOwnHome() {
   const { built, mine } = await collectionsByKind(), lang = uiLang();
   const when = (ms: number) => new Intl.DateTimeFormat(lang, { day: "numeric", month: "short" }).format(ms);
   const exp = (id: string) => `<button class="link" type="button" data-oh-export="${esc(id)}">${esc(t("own.export"))}</button>`;
-  $("#ownHomeBuilt").innerHTML = built.map(({ b, kept }) => `<article class="oh-cover" style="--acc:${esc(b.accent ?? "#c9963a")}">
+  $("#ownHomeBuilt").innerHTML = built.map(({ b }) => `<article class="oh-cover" style="--acc:${esc(b.accent ?? "#c9963a")}">
       <a class="oh-cover-link" href="${b.href ?? collectionUrl(b.id)}">
-        <span class="who"><img src="${esc(kept?.logo ?? b.logo ?? APP_LOGO)}" alt=""><span><h3>${esc(b.name)}</h3><p>${esc(nameIn(b.text, lang))}</p></span></span>
+        <span class="who"><img src="${esc(b.logo ?? APP_LOGO)}" alt=""><span><h3>${esc(b.name)}</h3><p>${esc(nameIn(b.text, lang))}</p></span></span>
         ${b.preview ? `<img class="strip" src="${esc(b.preview)}" alt="">` : ""}
         <span class="go"><span class="forge">${esc(t("own.open"))}</span>${esc(nameIn(b.facts, lang) || t("own.homeCount", { n: b.tokens, when: "" }))}</span>
       </a>
       ${b.ccc ? `<img class="oh-ccc" src="/ccc-sleeve.png" alt="Community Created Content" width="172" height="68">` : ""}
-      ${kept && !b.href ? `<span class="oh-actions">${exp(b.id)}<button class="link" type="button" data-oh-reset="${esc(b.id)}">${esc(t("own.homeReset"))}</button></span>` : ""}
+      ${b.file ? `<span class="oh-actions"><button class="link" type="button" data-oh-copy="${esc(b.id)}">${esc(t("own.copy"))}</button></span>` : ""}
     </article>`).join("");
   $("#ownHomeBuiltH").hidden = !built.length;
   $("#ownHomeList").innerHTML = mine.map((c: CollectionEntry) => `<article class="oh-tile" style="--acc:${esc(c.accent ?? "#c9963a")}">
@@ -2691,8 +2700,13 @@ function wireOwnHome() {
     } catch { note("own.importFailed"); }
   };
   $("#ownHome").onclick = (e) => {
-    const ex = hit(e, "[data-oh-export]"), del = hit(e, "[data-oh-delete]"), reset = hit(e, "[data-oh-reset]");
-    if (reset && confirm(t("own.homeResetConfirm"))) { deleteCollection(reset.dataset.ohReset!); renderOwnHome(); return; }
+    const ex = hit(e, "[data-oh-export]"), del = hit(e, "[data-oh-delete]"), cp = hit(e, "[data-oh-copy]");
+    if (cp) {
+      const b = builtIn(cp.dataset.ohCopy!); if (!b) return;
+      cp.textContent = t("own.copying"); (cp as HTMLButtonElement).disabled = true;
+      void copyBuiltIn(b.id, t("own.copyName", { name: b.name })).then((id) => { if (id) location.href = collectionUrl(id); else { note("own.storageFull"); renderOwnHome(); } });
+      return;
+    }
     if (ex) { const c = loadCollection(ex.dataset.ohExport!); if (c) saveFile(new Blob([JSON.stringify(collectionFile(c), null, 2)], { type: "application/json" }), `${nameIn(c.name, "en").replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase() || "collection"}.json`); }
     if (del) {
       const entry = listCollections().find((x) => x.id === del.dataset.ohDelete);

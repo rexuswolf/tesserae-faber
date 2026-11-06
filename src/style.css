@@ -1008,3 +1008,6 @@ html[data-mode=own]:not([data-theme=botc]) .cs-text b { font-weight: 700; letter
 .coll-menu-items b { font-weight: 500; font-size: 14.5px; }
 .coll-menu-items small { grid-column: 2; color: var(--dust); font-size: 12px; }
 .coll-menu-items hr { border: 0; border-top: 1px solid var(--seam); margin: 4px 6px; }
+/* the app's own collections are read-only: "Make a copy" instead of editing */
+html:not([data-builtin]) .built-only { display: none !important; }
+html[data-builtin] [data-coll].own-only, html[data-builtin] hr.own-only, html[data-builtin] .spine-add, html[data-builtin] #ownCatList { display: none !important; }

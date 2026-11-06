@@ -2,7 +2,7 @@
 // importing it at /crear should give the Clocktower app's catalog, the same.
 //   node tools/make-botc-collection.mjs [out.json]
 // Without an argument it writes the app's own copy, public/collections/botc.json, and its entry in
-// (what the app says about it, its card and its About, is code: src/builtins.ts).
+// its numbers in src/builtins-facts.ts (its card and its About are code: src/builtins.ts).
 // Types: characters (coins, "All characters") and info tokens (cards, "Grimoire"); groups: the
 // teams, with their colours and icons; sections: the editions (closed) and scripts (open).
 // Icons go in as SVG, credited, so the file imports without fetching anything.
@@ -12,6 +12,8 @@ import { EDITIONS, TEAMS } from "../src/engine/token-engine.ts";
 import { infoRoles } from "../src/info-tokens.ts";
 import { TRANSLATIONS, VILLACUERVOS_URL } from "../src/translations.ts";
 import { TEAM_ICONS } from "../src/ui-icons.ts";
+import { BUILT_INS } from "../src/builtins.ts";   // what the app says about it (its About, its mark): one place
+const BOTC = BUILT_INS.find((b) => b.id === "botc");
 
 const root = path.resolve(import.meta.dirname, "..");
 const builtIn = !process.argv[2];
@@ -37,7 +39,7 @@ const tokens = [
 const collection = {
   format: "midnight-mint/collection", version: 1,
   name: "Blood on the Clocktower", theme: "botc",
-  ccc: true,   // Community Created Content: its mark in About
+  ccc: BOTC.ccc,   // Community Created Content: its mark in About
   brand: { logo: "/logo-mark.svg" },   // Midnight Mint's clock: the collection keeps its own mark
   // what Clocktower's own app says: on its loading screen (with the Community Created Content mark) and in About
   loader: {
@@ -47,17 +49,7 @@ const collection = {
       en: "A free, community-made tool for printing your own character tokens. Not affiliated with or endorsed by The Pandemonium Institute.",
     },
   },
-  about: {
-    text: {
-      es: "Todas las ediciones de Blood on the Clocktower: personajes con sus recordatorios, las fichas de información del Grimorio y tus guiones del Script Tool.",
-      en: "Every Blood on the Clocktower edition: characters with their reminders, the Grimoire's info tokens and your Script Tool scripts.",
-    },
-    credits: {
-      es: "Blood on the Clocktower, sus personajes y sus reglas son de The Pandemonium Institute; esta colección no es oficial ni está respaldada por ellos. Los nombres y recordatorios traducidos vienen de Villacuervos.",
-      en: "Blood on the Clocktower, its characters and its rules belong to The Pandemonium Institute; this collection is unofficial and not endorsed by them. Translated names and reminders come from Villacuervos.",
-    },
-    links: [{ label: "Blood on the Clocktower", url: "https://bloodontheclocktower.com" }, { label: "Villacuervos", url: VILLACUERVOS_URL }],
-  },
+  about: BOTC.about,
   languages: TRANSLATIONS.map((x) => x.id),
   types: [
     { id: "characters", name: { en: "Characters", es: "Personajes" }, title: { en: "All characters", es: "Todos los personajes" }, shape: "coin", icon: "two-coins" },
@@ -74,3 +66,9 @@ const collection = {
 fs.mkdirSync(path.dirname(out), { recursive: true });
 fs.writeFileSync(out, JSON.stringify(collection));
 console.log(`wrote ${out}: ${tokens.length} tokens, ${(fs.statSync(out).size / 1024).toFixed(0)} KB`);
+if (builtIn) {   // the card's numbers, counted here: src/builtins-facts.ts
+  const facts = { tokens: tokens.length, characters: roles.length, reminders: tokens.reduce((n, t) => n + (t.linked?.length ?? 0), 0), languages: TRANSLATIONS.length };
+  const file = path.join(root, "src/builtins-facts.ts");
+  fs.writeFileSync(file, `// Written by tools/make-botc-collection.mjs: what the built-in collections hold, for their cards.\nexport const FACTS = { botc: ${JSON.stringify(facts).replace(/"(\w+)":/g, "$1: ").replace(/,/g, ", ").replace(/^\{/, "{ ").replace(/\}$/, " }")} };\n`);
+  console.log(`wrote ${file}`);
+}
