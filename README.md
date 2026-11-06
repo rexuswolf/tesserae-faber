@@ -25,8 +25,9 @@
 
 Tokens come in **collections**. Open one, pick its tokens, design them, print them.
 
-- **Ready to use**: collections that come with the app. Today that's ***Blood on the Clocktower***, as
-  [Midnight Mint](#midnight-mint-blood-on-the-clocktower), at `/botc`.
+- **Ready to use**: collections that come with the app, read-only (*Make a copy* gives you one to change):
+  ***Blood on the Clocktower***, as [Midnight Mint](#midnight-mint-blood-on-the-clocktower), at `/botc`, and
+  ***Draw Steel*** (heroic resources, Malice, Victories and conditions), at `/c/drawsteel`.
 - **Your own**: make one from scratch, or import one. You create and edit its tokens (a name, an icon from
   game-icons.net or an SVG, a colour group) and their **linked tokens**, which come and go with them, as a
   character's reminders do.
@@ -169,7 +170,8 @@ The character library lives in Firestore. `admin-data/` (not in git) holds the s
 `node tools/fetch-translations.mjs` adds the Villacuervos translations to `admin-data/roles_game_icons.json`,
 and `node tools/upload-library.mjs` replaces the library with it (or, signed in as the admin,
 upload it from `/botc?admin`). The art the app draws once comes from tools too:
-`node tools/make-botc-collection.mjs` writes the Clocktower collection and the index in `public/collections/`,
+`node tools/make-botc-collection.mjs` writes the Clocktower collection in `public/collections/` (and its numbers,
+`src/builtins-facts.ts`), `node tools/make-drawsteel-collection.mjs` the Draw Steel one with its logo and cover,
 `node tools/make-faber-logo.mjs` the Tesserae Faber logos in `public/`, and `node tools/make-crear-art.mjs` the
 front page's honeycomb and the Clocktower cover's tokens (it needs the test server running).
 
@@ -214,6 +216,9 @@ and keeps its own terms:
 - ***Blood on the Clocktower*** and its character names, editions and rules belong to
   [The Pandemonium Institute](https://bloodontheclocktower.com). Midnight Mint, its collection here, is an unofficial fan tool,
   not affiliated with or endorsed by them. It uses none of the game's original artwork.
+- ***Draw Steel*** and its rules belong to [MCDM Productions](https://www.mcdmproductions.com). <img src="public/collections/powered-by-draw-steel.png" alt="Powered by Draw Steel" height="28" align="right">
+  Tesserae Faber is an independent product published under the DRAW STEEL Creator License and is not affiliated
+  with MCDM Productions, LLC. DRAW STEEL © 2026 MCDM Productions, LLC.
 - **Translations** of character names and reminders come from [Villacuervos](https://villacuervos.es)
   and belong to their translators. Spanish: Roberto (the Rovortox and Bumble3ee versions), Castelgard,
   Chiromyiforme, Pedro and Carlos (Solrax). Asturian: Hugo. Catalan: Ren. Valencian: Carlos. Basque: JUMA.
