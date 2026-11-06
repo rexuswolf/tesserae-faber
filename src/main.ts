@@ -114,7 +114,8 @@ let coll: Collection = (OWN && loadCollection()) || { name: "", types: [], group
 /** The collection open is one of the app's own (Clocktower at /botc, or one at /c/<id>): read-only, with "Make a copy" instead. */
 const BUILT = OWN ? (OWN_ID ? builtIn(OWN_ID) : undefined) : builtIn("botc");
 const READONLY = OWN && !!BUILT;
-if (BUILT) document.documentElement.dataset.builtin = BUILT.id;
+if (BUILT) document.documentElement.dataset.builtin = BUILT.id;   // its menu offers a copy
+if (READONLY) document.documentElement.dataset.readonly = "";   // no editing (Clocktower at /botc keeps its scripts)
 // its name, logo, colours and loading line from the start: the loading screen shows them while its file is read
 if (READONLY && BUILT) coll = { ...coll, name: BUILT.name, ...(BUILT.theme ? { theme: BUILT.theme } : {}), ...(BUILT.logo ? { brand: { logo: BUILT.logo } } : {}), ...(BUILT.loader ? { loader: BUILT.loader } : {}) };
 if (OWN && OWN_ID) { applyOwnTheme(); applyOwnBrand(); }   // before the loading screen shows: it wears the collection's colours and mark too
@@ -2410,7 +2411,7 @@ function applyGroups() {
 /** What depends on the collection itself: its name, its look, and the token language when it has several. */
 function syncOwnChrome() {
   for (const el of $$(".coll-name")) el.textContent = nameIn(coll.brand?.title, uiLang()) || nameIn(coll.name, uiLang());
-  applyOwnTheme(); applyOwnBrand(); void renderSwitchList();
+  applyOwnTheme(); applyOwnBrand();
   $("#tokenLangBtn").hidden = !((coll.languages?.length ?? 0) > 1);
 }
 
@@ -2472,7 +2473,7 @@ function openCatalogDialog(target: NonNullable<typeof catTarget>) {
 let openCollMenu: (on: boolean) => void = () => {};
 function wireCollSwitch() {
   const menu = $("#collMenu"), sw = $("#collSwitch");
-  openCollMenu = (on: boolean) => { menu.hidden = !on; sw.setAttribute("aria-expanded", String(on)); if (on) { $("#ownNote").textContent = ""; void renderSwitchList(); } };
+  openCollMenu = (on: boolean) => { menu.hidden = !on; sw.setAttribute("aria-expanded", String(on)); if (on) $("#ownNote").textContent = ""; };
   sw.onclick = () => openCollMenu(menu.hidden);
   document.addEventListener("click", (e) => { if (!menu.hidden && !hit(e, ".coll-switch")) openCollMenu(false); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !menu.hidden) { openCollMenu(false); sw.focus(); } });
@@ -2480,7 +2481,6 @@ function wireCollSwitch() {
     for (const img of $$<HTMLImageElement>(".coll-logo")) img.src = "/logo-mark.svg";
     for (const el of $$(".coll-name")) el.textContent = "Blood on the Clocktower";
   }
-  void renderSwitchList();
 }
 
 function wireOwn() {
@@ -2849,14 +2849,6 @@ async function collectionsByKind() {
   return { built: built.map((b) => ({ b, kept: kept.find((k) => k.id === b.id) ?? null })), mine: kept.filter((k) => !ids.has(k.id)).sort((a, b) => b.updated - a.updated) };
 }
 /** The top bar menu's (and the phone drawer's) list of collections to go to, the app's own first. */
-async function renderSwitchList() {
-  const { built, mine } = await collectionsByKind(), lang = uiLang();
-  const item = (id: string, name: string, logo?: string, href?: string) => `<a role="menuitem" href="${href ?? collectionUrl(id)}"${(OWN ? id === OWN_ID : id === "botc") ? ' aria-current="true"' : ""}><img src="${esc(logo || APP_LOGO_SMALL)}" alt=""><b>${esc(name)}</b></a>`;
-  const html = `<p class="cm-h">${esc(t("own.homeBuilt"))}</p>${built.map(({ b }) => item(b.id, b.name, b.logo, b.href)).join("")}
-    <p class="cm-h">${esc(t("own.homeMine"))}</p>${mine.map((c) => item(c.id, c.name, c.logo)).join("") || `<p class="hint cm-empty">${esc(t("own.homeEmpty"))}</p>`}`;
-  for (const el of $$(".coll-list")) el.innerHTML = html;
-  void lang;
-}
 /** The creator's own pages (front page, list): the app's name and icon, nothing of a collection's. */
 function showOwnPage(id: string) {
   $("#gate").hidden = true; $("#app").hidden = true;

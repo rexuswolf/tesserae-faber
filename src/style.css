@@ -873,16 +873,6 @@ html[data-mode=own] .own-spine-h { display: none; }   /* the creator's sections 
 .os-brand img { width: 64px; height: 64px; object-fit: contain; border: 1px solid var(--seam); border-radius: 12px; padding: 6px; }
 .os-brand-fields { display: grid; gap: 8px; }
 .os-brand-actions { display: flex; gap: 6px; flex-wrap: wrap; }
-.coll-list { display: grid; }
-.coll-list .cm-h { margin: 6px 10px 2px; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--dust); font-weight: 600; }
-.coll-list a { display: grid; grid-template-columns: 22px 1fr; gap: 8px; align-items: center; padding: 6px 10px; border-radius: 9px; color: inherit; text-decoration: none; }
-.coll-list a:hover { background: rgba(239, 230, 214, .07); }
-.coll-list a[aria-current=true] { background: rgba(239, 230, 214, .07); box-shadow: inset 3px 0 var(--brass); }
-.coll-list img { width: 22px; height: 22px; object-fit: contain; }
-.coll-list b { font-weight: 500; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.coll-list .cm-empty { padding: 2px 10px 4px; font-size: 12px; }
-/* the way back to the list first, the collections under it */
-.coll-menu .coll-back, .coll-menu-items .coll-back { border-bottom: 1px solid var(--seam); margin-bottom: 4px; padding-bottom: 10px !important; border-radius: 9px 9px 0 0 !important; }
 /* Tesserae Faber's wordmark: inscription capitals with a little ochre hexagon between the words */
 .faber-wm { font: 400 26px/1 "Marcellus", serif; letter-spacing: .13em; white-space: nowrap; color: #ece3d0; }
 .faber-wm .ip { display: inline-block; width: .26em; height: .225em; background: #c9963a; clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%); transform: translateY(-.28em); margin: 0 .2em 0 .08em; }
@@ -1033,8 +1023,6 @@ html[data-mode=own]:not([data-theme=botc]) .cs-text b { font-weight: 700; letter
   .own-drawer[open]::details-content { grid-template-rows: 1fr; }
   .coll-fold { min-height: 0; overflow: hidden; }
   .coll-menu-items { display: grid; margin: 6px 0 0; padding: 4px; border-radius: 14px; background: var(--velvet-deep); border: 1px solid var(--seam); }
-  .coll-menu-items .coll-list .cm-h { margin: 8px 10px 4px; }
-  /* one kind of separator: "Your collections" draws none of its own, the list ends with one like the others */
 }
 @media (max-width: 900px) and (prefers-reduced-motion: reduce) {
   .own-drawer::details-content, .own-drawer summary .chev { transition: none; }
@@ -1047,7 +1035,7 @@ html[data-mode=own]:not([data-theme=botc]) .cs-text b { font-weight: 700; letter
 .coll-menu-items hr { border: 0; border-top: 1px solid var(--seam); margin: 4px 6px; }
 /* the app's own collections are read-only: "Make a copy" instead of editing */
 html:not([data-builtin]) .built-only { display: none !important; }
-html[data-builtin] [data-coll].own-only, html[data-builtin] hr.own-only, html[data-builtin] .spine-add, html[data-builtin] #ownCatList, html[data-builtin] #ownNewTok { display: none !important; }
+html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[data-readonly] .spine-add, html[data-readonly] #ownCatList, html[data-readonly] #ownNewTok { display: none !important; }
 /* Moving between the app's pages is instant (no cross-fade: it looked odd); the loading screen only shows
    when loading actually takes a while (with the files kept by the service worker, it seldom does) */
 .gate { animation: gate-in 220ms ease-out 350ms both; }
