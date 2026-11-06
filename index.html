@@ -18,7 +18,7 @@
 <body>
 <div class="app" id="app" hidden>
 
-  <!-- top bar: the three steps (pick, design, print) and the token language -->
+  <!-- top bar: the three steps (pick, design, print) and the language (the interface and the tokens) -->
   <header class="topbar" id="topbar">
     <button class="icon-btn" type="button" id="drawerOpen" aria-controls="spine" aria-expanded="false" data-i18n-attr="aria-label:top.menu">
       <svg viewBox="0 0 18 18" width="18" height="18" aria-hidden="true"><path d="M3 5h12M3 9h12M3 13h12" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
@@ -41,10 +41,10 @@
       </div>
     </div>
     <nav class="flow-steps" id="flowSteps" data-i18n-attr="aria-label:flow.aria"></nav>
-    <button class="tlang-trigger" id="tokenLangBtn" type="button" aria-haspopup="dialog"></button>
+    <button class="tlang-trigger" id="tokenLangBtn" type="button" aria-haspopup="dialog" data-lang-open></button>
   </header>
 
-  <!-- the sidebar: editions (more groups, like scripts, can join them), then language, account and credits.
+  <!-- the sidebar: editions (more groups, like scripts, can join them), then the guide, the admin and the credits.
        On a phone it is a drawer. -->
   <nav class="spine" id="spine" data-i18n-attr="aria-label:spine.aria">
     <div class="spine-scroll">
@@ -75,16 +75,10 @@
       <div id="scripts" class="botc-only"></div>
     </div>
     <footer class="spine-foot">
-    <!-- the guide and the language; about the tool and its credits (with the Community Created Content mark, where it applies) -->
+    <!-- the guide, with the admin beside it (signed in, or ?admin to sign in); under them, about the tool and its
+         credits (with the Community Created Content mark, where it applies). The language is at the top right. -->
     <div class="foot-row">
       <button class="guide-btn" type="button" data-guide aria-haspopup="dialog"><span class="q" aria-hidden="true">?</span><span data-i18n="guide.open"></span></button>
-      <span class="acc-tools">
-      <button class="lang-btn" type="button" id="uiLangBtn" aria-haspopup="dialog"></button>
-      </span>
-    </div>
-    <a href="#" class="about-link" data-about data-i18n="about.link"></a>
-    <!-- the admin (signed in, or ?admin to sign in): a row of its own at the very foot -->
-    <div class="foot-admin">
       <button type="button" class="admin-sign-in" id="adminSignIn" hidden data-i18n="gate.signIn"></button>
       <details class="me" hidden>
         <summary data-i18n-attr="aria-label:me.aria"><img id="avatar" alt="" referrerpolicy="no-referrer"><span data-i18n="me.adminLabel"></span></summary>
@@ -95,6 +89,7 @@
         </div>
       </details>
     </div>
+    <a href="#" class="about-link" data-about data-i18n="about.link"></a>
     </footer>
   </nav>
   <div class="scrim" id="scrim"></div>
@@ -326,6 +321,8 @@
 <main class="own-home own-landing own-only" id="ownLanding" hidden>
   <header class="oh-top">
     <a class="oh-homelink" href="/"><img src="/tesserae-faber.svg" alt="" width="40" height="40"><span class="faber-wm">TESSERAE<span class="ip" aria-hidden="true"></span>FABER</span></a>
+    <!-- the interface language (no tokens here, so only its flag) -->
+    <button class="tlang-trigger oh-lang" type="button" aria-haspopup="dialog" data-lang-open></button>
   </header>
   <section class="ol-hero">
     <div class="ol-text">
@@ -348,6 +345,8 @@
 <main class="own-home own-list own-only" id="ownHome" hidden>
   <header class="oh-top">
     <a class="oh-homelink" href="/"><img src="/tesserae-faber.svg" alt="" width="40" height="40"><span class="faber-wm">TESSERAE<span class="ip" aria-hidden="true"></span>FABER</span></a>
+    <!-- the interface language (no tokens here, so only its flag) -->
+    <button class="tlang-trigger oh-lang" type="button" aria-haspopup="dialog" data-lang-open></button>
   </header>
   <section class="oh-band oh-page-h"><div><h1 data-i18n="own.listTitle"></h1><p class="ol-lead" data-i18n="own.listLead"></p></div></section>
   <section class="oh-band oh-ready" id="ownHomeBuiltH"><div>
@@ -407,33 +406,30 @@
   </div>
 </dialog>
 
-<!-- the interface language, from the flag in the sidebar -->
-<dialog id="uiLang" class="ui-lang" aria-labelledby="uiLangTitle">
-  <form method="dialog" class="close"><button class="pill" data-i18n="admin.close"></button></form>
-  <h2 id="uiLangTitle" data-i18n="lang.title"></h2>
-  <p class="hint" data-i18n="lang.hint"></p>
-  <ul class="ui-lang-list" id="uiLangList"></ul>
-</dialog>
-
 <dialog id="credits" aria-labelledby="creditsTitle">
   <form method="dialog" class="close"><button class="pill" data-i18n="admin.close"></button></form>
   <h2 id="creditsTitle" data-i18n="about.heading"></h2>
   <div class="credits" id="creditsBody"></div>
 </dialog>
 
+<!-- Language, from the flag at the top right: the interface (applied at once) and, in a collection, the
+     tokens' language (applied with "Print in …"), each a tab with its list on the left and a preview on the right -->
 <dialog id="tlangDialog" class="tlang-dialog" aria-labelledby="tlangTitle">
   <div class="tl-head">
-    <form method="dialog" class="close"><button class="pill" data-i18n="admin.close"></button></form>
-    <h2 id="tlangTitle" data-i18n="tlang.title"></h2>
-    <p class="hint" data-i18n="tlang.intro"></p>
+    <h2 id="tlangTitle" data-i18n="lang.title"></h2>
+    <p class="hint" id="tlangIntro"></p>
   </div>
   <div class="tl-split">
-    <div class="tl-list" id="tlangList" role="listbox" data-i18n-attr="aria-label:tlang.title"></div>
+    <div class="tl-side">
+      <div class="tl-tabs" id="tlangTabs" role="tablist"></div>
+      <div class="tl-list" id="tlangList" role="listbox"></div>
+    </div>
     <div class="tl-stage" id="tlangStage" aria-live="polite"></div>
   </div>
   <div class="tl-foot">
     <button class="pill" type="button" id="tlangCancel" data-i18n="tlang.cancel"></button>
     <button class="forge" type="button" id="tlangUse"></button>
+    <button class="forge" type="button" id="tlangClose" data-i18n="admin.close"></button>
   </div>
 </dialog>
 

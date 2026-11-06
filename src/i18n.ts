@@ -1,5 +1,5 @@
-// Interface text in Spanish and English. The language switch in the drawer sets
-// both the interface and the names printed on the tokens.
+// Interface text in Spanish and English. The Language dialog (the flag at the top right) sets the
+// interface, and the tokens follow it unless another token language is picked there.
 //
 // Static text in index.html: data-i18n="key" sets textContent, and
 // data-i18n-attr="placeholder:key aria-label:key" sets attributes.
@@ -70,7 +70,7 @@ const STR: Record<string, Record<string, Entry>> = {
     "ccc.tiny": "Herramienta de la comunidad, no oficial",
     "ccc.short": "Herramienta de la comunidad, no oficial. Sin relación con The Pandemonium Institute. Traducciones de Villacuervos, iconos de game-icons.net.",
     "credits.link": "Créditos",
-    "about.link": "Acerca de",
+    "about.link": "Acerca de esta herramienta",
     "about.heading": "Acerca de",
     "about.title": "Acerca de Midnight Mint",
     "about.what": "Midnight Mint te ayuda a hacer las fichas de Blood on the Clocktower: eliges los personajes, diseñas cómo son y descargas lo que hace falta para imprimirlas en 3D o en papel.",
@@ -93,9 +93,9 @@ const STR: Record<string, Record<string, Entry>> = {
     "credits.code": "Código",
     "credits.repo": "El código, en GitHub",
     "tlang.label": "Fichas en",
-    "tlang.open": ({ name }) => `Fichas en ${name}. Cambiar el idioma de las fichas`,
-    "tlang.title": "Idioma de las fichas",
-    "tlang.intro": "Pasa por la lista y mira cómo quedan tus tokens antes de elegir.",
+    "tlang.same": "Igual que la interfaz",
+    "tlang.sameNow": ({ name }) => `Ahora, ${name}`,
+    "tlang.sameNone": ({ name, ui }) => `Ahora, ${name}: esta colección no está en ${ui}`,
     "tlang.versions": ({ n }) => `${n} versiones`,
     "tlang.use": ({ name }) => `Imprimir en ${name}`,
     "tlang.cancel": "Cancelar",
@@ -306,8 +306,13 @@ const STR: Record<string, Record<string, Entry>> = {
     "view.front": "Frente",
     "view.back": "Reverso",
     "lang.group": "Idioma",
-    "lang.title": "Idioma de la aplicación",
-    "lang.hint": "Los botones y los textos de la aplicación. El idioma de las fichas se elige aparte, arriba a la derecha.",
+    "lang.title": "Idioma",
+    "lang.intro": "El idioma de la app y el de tus fichas.",
+    "lang.note": "Menús, ayuda y textos de la app.",
+    "lang.tabUi": "Interfaz",
+    "lang.tabTokens": "Fichas",
+    "lang.tip": ({ ui, tok }) => `Interfaz: ${ui} · Fichas: ${tok}`,
+    "lang.tipUi": ({ ui }) => `Interfaz: ${ui}`,
     "me.aria": "Cuenta de administración",
     "me.admin": "Biblioteca",
     "me.signOut": "Cerrar sesión",
@@ -756,7 +761,7 @@ const STR: Record<string, Record<string, Entry>> = {
     "ccc.tiny": "Community tool, not official",
     "ccc.short": "A community tool, not official. Not affiliated with The Pandemonium Institute. Translations from Villacuervos, icons from game-icons.net.",
     "credits.link": "Credits",
-    "about.link": "About",
+    "about.link": "About this tool",
     "about.heading": "About",
     "about.title": "About Midnight Mint",
     "about.what": "Midnight Mint helps you make Blood on the Clocktower tokens: pick the characters, design how they look, and download what you need to print them in 3D or on paper.",
@@ -779,9 +784,9 @@ const STR: Record<string, Record<string, Entry>> = {
     "credits.code": "Code",
     "credits.repo": "The source code on GitHub",
     "tlang.label": "Tokens in",
-    "tlang.open": ({ name }) => `Tokens in ${name}. Change the token language`,
-    "tlang.title": "Token language",
-    "tlang.intro": "Move through the list to see how your tokens look before you choose.",
+    "tlang.same": "Same as the interface",
+    "tlang.sameNow": ({ name }) => `Now, ${name}`,
+    "tlang.sameNone": ({ name, ui }) => `Now, ${name}: this collection isn't in ${ui}`,
     "tlang.versions": ({ n }) => `${n} versions`,
     "tlang.use": ({ name }) => `Print in ${name}`,
     "tlang.cancel": "Cancel",
@@ -990,8 +995,13 @@ const STR: Record<string, Record<string, Entry>> = {
     "view.front": "Front",
     "view.back": "Back",
     "lang.group": "Language",
-    "lang.title": "App language",
-    "lang.hint": "The app's buttons and text. The tokens' language is chosen separately, at the top right.",
+    "lang.title": "Language",
+    "lang.intro": "The app's language, and the one your tokens are printed in.",
+    "lang.note": "Menus, help and the app's text.",
+    "lang.tabUi": "Interface",
+    "lang.tabTokens": "Tokens",
+    "lang.tip": ({ ui, tok }) => `Interface: ${ui} · Tokens: ${tok}`,
+    "lang.tipUi": ({ ui }) => `Interface: ${ui}`,
     "me.aria": "Admin account",
     "me.admin": "Library",
     "me.signOut": "Sign out",
@@ -1389,7 +1399,6 @@ let lang = initial;
 
 export const uiLang = () => lang;
 
-/** Translated text for `key`; functions receive `vars`. Falls back to English, then the key. */
 /**
  * Tesserae Faber, the generic creator (everything but /botc, see collection.ts) speaks of tokens, groups and linked tokens
  * where Clocktower speaks of characters, teams and reminders: these replace those texts there.
@@ -1466,8 +1475,13 @@ const OWN_STR: Record<string, Record<string, Entry>> = {
   },
 };
 
-export function t(key: string, vars: Vars = {}): string {
-  const v = (OWN_PAGE ? OWN_STR[lang]?.[key] ?? OWN_STR.en[key] : undefined) ?? STR[lang][key] ?? STR.en[key];
+/** Translated text for `key`; functions receive `vars`. Falls back to English, then the key. */
+export function t(key: string, vars: Vars = {}): string { return tIn(lang, key, vars); }
+
+/** The same text in another interface language: the Language dialog previews a language before it is picked. */
+export function tIn(code: string, key: string, vars: Vars = {}): string {
+  const at = known(code) ? code : "en";
+  const v = (OWN_PAGE ? OWN_STR[at]?.[key] ?? OWN_STR.en[key] : undefined) ?? STR[at][key] ?? STR.en[key];
   if (v === undefined) return key;
   return typeof v === "function" ? v(vars) : v;
 }
