@@ -382,12 +382,31 @@
   </div>
 </div>
 <script>
-  // Shown before the app code has loaded: switch the loading screen to English if that's the saved language.
+  // The loading screen before the app's code has loaded. The markup above is Clocktower's (/botc);
+  // anywhere else it's Tesserae Faber's, plain, or as the collection wore it last time (main.ts
+  // keepGateLook). Then the saved language.
   try {
-    if (localStorage.getItem("midnight-mint-lang") === "en") {
-      document.documentElement.lang = "en";
-      document.getElementById("gateTitle").textContent = "Opening the grimoire…";
-      document.getElementById("gateCcc").textContent = "A free, community-made tool for printing your own character tokens. Not affiliated with or endorsed by The Pandemonium Institute.";
+    var en = localStorage.getItem("midnight-mint-lang") === "en", root = document.documentElement;
+    if (en) root.lang = "en";
+    if (/^\/botc(\/|$)/.test(location.pathname)) {
+      if (en) {
+        document.getElementById("gateTitle").textContent = "Opening the grimoire…";
+        document.getElementById("gateCcc").textContent = "A free, community-made tool for printing your own character tokens. Not affiliated with or endorsed by The Pandemonium Institute.";
+      }
+    } else {
+      root.dataset.mode = "own";
+      var card = document.querySelector(".gate-card"), look = null;
+      try { look = JSON.parse(localStorage.getItem("midnight-mint-gate:" + location.pathname)); } catch (e) { /* none kept */ }
+      card.querySelector(".wordmark").hidden = true;
+      card.querySelector(".gate-logo").src = (look && look.logo) || "/tesserae-faber.svg";
+      document.getElementById("gateTitle").textContent = (look && look.title) || (en ? "Opening…" : "Abriendo…");
+      var ccc = card.querySelector(".ccc");
+      if (look && look.footer) document.getElementById("gateCcc").textContent = look.footer; else ccc.hidden = true;
+      if (look) {
+        root.dataset.theme = look.theme || "";
+        for (var k in look.vars) root.style.setProperty(k, look.vars[k]);
+        var bt = card.querySelector(".brand-title"); bt.textContent = look.name || ""; bt.hidden = !look.name;
+      }
     }
   } catch (e) { /* no storage */ }
 </script>

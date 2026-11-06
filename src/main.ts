@@ -130,7 +130,26 @@ if (BUILT) document.documentElement.dataset.builtin = BUILT.id;   // its menu of
 if (READONLY) document.documentElement.dataset.readonly = "";   // no editing (Clocktower at /botc keeps its scripts)
 // its name, logo, colours and loading line from the start: the loading screen shows them while its file is read
 if (READONLY && BUILT) coll = { ...coll, name: BUILT.name, ...(BUILT.theme ? { theme: BUILT.theme } : {}), ...(BUILT.logo ? { brand: { logo: BUILT.logo } } : {}), ...(BUILT.loader ? { loader: BUILT.loader } : {}) };
-if (OWN && OWN_ID) { applyOwnTheme(); applyOwnBrand(); }   // before the loading screen shows: it wears the collection's colours and mark too
+if (OWN && OWN_ID) { applyOwnTheme(); applyOwnBrand(); keepGateLook(); }   // before the loading screen shows: it wears the collection's colours and mark too
+/**
+ * The loading screen as this collection wears it (colours, logo, name, line), kept for the next
+ * visit: index.html shows it before the app's code has even loaded (it can take a moment, fetched
+ * fresh from the network), instead of a screen that knows nothing of the collection.
+ */
+function keepGateLook() {
+  try {
+    const root = document.documentElement, vars: Record<string, string> = {};
+    for (const k of ["--velvet", "--velvet-mid", "--velvet-deep", "--brass", "--bone", "--dust", "--seam", "--glow", "--display"]) { const v = root.style.getPropertyValue(k); if (v) vars[k] = v; }
+    const logo = coll.brand?.logo && coll.brand.logo.length < 30000 ? coll.brand.logo : APP_LOGO;   // a big uploaded logo isn't worth keeping twice
+    const lang = uiLang();
+    localStorage.setItem(`midnight-mint-gate:${location.pathname}`, JSON.stringify({
+      theme: root.dataset.theme ?? "", vars, logo,
+      name: nameIn(coll.brand?.title, lang) || nameIn(coll.name, lang),
+      title: coll.loader?.text ? nameIn(coll.loader.text, lang) : t("gate.opening"),
+      footer: coll.loader?.footer ? nameIn(coll.loader.footer, lang) : "",
+    }));
+  } catch { /* storage unavailable or full: the next visit shows the plain screen */ }
+}
 
 // After a deploy, a page opened earlier may ask for code files that no longer
 // exist (their names change with each version). Reload once to get the new ones.
