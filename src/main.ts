@@ -1279,7 +1279,9 @@ function rowHtml(r: Role, q: string, remHits: Set<number> | undefined) {
     // once picked, a small stepper adds copies; tapping the token still drops it
     // a homebrew token whose icon is still on its way pulses where the icon will go
     const loading = r.loading ? ` loading" style="--team: ${TEAMS[r.team].colour}` : "";
-    return `<span class="tok-w"><button class="tok${isCard(r) ? " card" : ""}${loading}" type="button" data-pick="${key}" aria-pressed="${copies > 0}" aria-label="${esc(name)}">${tokenSvg(state.lib!, r, spec, { text: name })}<span class="ck" aria-hidden="true">✓</span></button>${own ? ownPen(key, name) : ""}</span>`;
+    // a two-state token shows both its faces: the other state, smaller, peeking from behind the front
+    const back = !isRem && r.flip ? `<span class="tok-back" aria-hidden="true">${tokenSvg(state.lib!, r, { ...catalogSpec(false), diameter: 45 }, { side: "back" })}</span>` : "";
+    return `<span class="tok-w${back ? " two" : ""}">${back}<button class="tok${isCard(r) ? " card" : ""}${loading}" type="button" data-pick="${key}" aria-pressed="${copies > 0}" aria-label="${esc(name)}">${tokenSvg(state.lib!, r, spec, { text: name })}<span class="ck" aria-hidden="true">✓</span></button>${own ? ownPen(key, name) : ""}</span>`;
   };
   const rems = remindersOf(r);
   const other = tokenLang() === "en" ? roleName(r, uiLang() === "en" ? "es" : uiLang()) : r.en;

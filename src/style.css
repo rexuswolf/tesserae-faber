@@ -1130,3 +1130,9 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
    (outlined, not filled: the gold "Add to queue" stays the page's main button) */
 #ownNewTok { border: 1.5px solid var(--brass); color: var(--brass); font-weight: 600; padding: 8px 18px; background: color-mix(in srgb, var(--brass) 10%, transparent); }
 #ownNewTok:hover { background: color-mix(in srgb, var(--brass) 18%, transparent); }
+/* a two-state token on the sheet: its other state peeks out from behind the front, smaller, like a coin turned over beside it */
+.tok-w.two { position: relative; width: 74px; }
+#rows .row:has(> .tok-w.two) { grid-template-columns: 96px minmax(0, 1fr); }   /* room for the other face */
+.tok-w.two .tok-back { position: absolute; width: 56%; aspect-ratio: 1; right: -30%; bottom: -4%; z-index: 0; pointer-events: none; filter: drop-shadow(0 3px 6px rgba(0, 0, 0, .5)); }
+#rows .tok-w.two .tok-back > svg { width: 100%; height: 100%; display: block; }
+.tok-w.two .tok { position: relative; z-index: 1; }
