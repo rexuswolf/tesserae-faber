@@ -919,7 +919,7 @@ html[data-mode=own] .own-spine-h { display: none; }   /* the creator's sections 
 .oh-zone p { margin: 0; color: var(--dust); font-size: 16px; }
 .oh-readyrow { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr); gap: 12px; }
 .oh-covers { display: grid; gap: 12px; }
-.oh-cover { position: relative; border-radius: 18px; border: 1px solid color-mix(in srgb, var(--acc) 45%, transparent); background: radial-gradient(120% 140% at 0% 0%, #4a1a3c 0%, #2a0f20 55%, #170812 100%); color: #efe6d6; }
+.oh-cover { position: relative; border-radius: 18px; border: 1px solid color-mix(in srgb, var(--acc) 45%, transparent); background: var(--cover, radial-gradient(120% 140% at 0% 0%, #4a1a3c 0%, #2a0f20 55%, #170812 100%)); color: #efe6d6; }
 .oh-cover:hover { border-color: var(--acc); }
 .oh-cover-link { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px 28px; align-items: center; padding: 22px 24px; color: inherit; text-decoration: none; }
 .oh-cover .who { display: flex; gap: 16px; align-items: center; }
@@ -1031,7 +1031,7 @@ html[data-mode=own]:not([data-theme=botc]) .cs-text b { font-weight: 700; letter
 .coll-menu-items hr { border: 0; border-top: 1px solid var(--seam); margin: 4px 6px; }
 /* the app's own collections are read-only: "Make a copy" instead of editing */
 html:not([data-builtin]) .built-only { display: none !important; }
-html[data-builtin] [data-coll].own-only, html[data-builtin] hr.own-only, html[data-builtin] .spine-add, html[data-builtin] #ownCatList { display: none !important; }
+html[data-builtin] [data-coll].own-only, html[data-builtin] hr.own-only, html[data-builtin] .spine-add, html[data-builtin] #ownCatList, html[data-builtin] #ownNewTok { display: none !important; }
 /* Moving between the app's pages is instant (no cross-fade: it looked odd); the loading screen only shows
    when loading actually takes a while (with the files kept by the service worker, it seldom does) */
 .gate { animation: gate-in 220ms ease-out 350ms both; }
@@ -1039,3 +1039,7 @@ html[data-builtin] [data-coll].own-only, html[data-builtin] hr.own-only, html[da
 @media (prefers-reduced-motion: reduce) {
   .gate { animation: none; }
 }
+/* a licence's mark (Powered by Draw Steel): black artwork, shown light on the app's dark grounds */
+.oh-cover .oh-mark { width: 132px; bottom: 24px; }
+.invert { filter: invert(1); opacity: .9; }
+.about-mark img { width: 120px; }

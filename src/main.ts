@@ -2145,13 +2145,14 @@ function openCredits() {
   const paras = (n: Parameters<typeof nameIn>[0] | undefined, cls = "") => nameIn(n, lang).split(/\n\s*\n/).filter((x) => x.trim()).map((x) => `<p${cls}>${esc(x.trim())}</p>`).join("");
   const own = a ? `<section class="about own-about"><h3>${esc(cname)}</h3>${paras(a?.text)}${paras(a?.credits, ' class="hint"')}
       ${a?.links?.length ? `<p class="about-links">${a.links.map((l) => link(l.url, nameIn(l.label, lang))).join(" · ")}</p>` : ""}</section>` : "";
+  const mark = built?.mark ? `<div class="about-ccc about-mark"><img src="${esc(built.mark.src)}" alt="${esc(built.mark.alt)}"${built.mark.invert ? ' class="invert"' : ""}><p>${esc(nameIn(built.mark.notice, lang))}</p></div>` : "";
   const ccc = (built ? built.ccc : hasCcc(coll)) ? `<div class="about-ccc"><img src="/ccc-sleeve.png" alt="Community Created Content"><p>${esc(t("ccc.app"))}</p></div>` : "";
   // About: what the app is and how it treats your things, then the credits
-  $("#creditsBody").innerHTML = `${own}${ccc}<h2 class="credits-h">${esc(t("about.title"))}</h2><section class="about"><p>${esc(t(OWN ? "own.aboutApp" : "about.what"))}</p>
+  $("#creditsBody").innerHTML = `${own}${ccc}${mark}<h2 class="credits-h">${esc(t("about.title"))}</h2><section class="about"><p>${esc(t(OWN ? "own.aboutApp" : "about.what"))}</p>
       <p class="hint">${esc(t("about.data"))}</p>
       <p class="about-actions"><button type="button" class="pill" data-guide>${esc(t("guide.open"))}</button></p></section>
     <h2 class="credits-h">${esc(t("credits.title"))}</h2>
-    ${!OWN || (coll.languages?.length ?? 0) > 1 ? `<section><h3>${esc(t("credits.translations"))}</h3>
+    ${!OWN ? `<section><h3>${esc(t("credits.translations"))}</h3>
       <p class="hint">${esc(t("credits.translationsIntro")).replace("Villacuervos", link(VILLACUERVOS_URL, "Villacuervos"))}</p>
       <ul class="credit-grid">${translations}</ul></section>` : ""}
     <section><h3>${esc(t("credits.icons"))}</h3>
@@ -2671,14 +2672,14 @@ async function renderOwnHome() {
   const { built, mine } = await collectionsByKind(), lang = uiLang();
   const when = (ms: number) => new Intl.DateTimeFormat(lang, { day: "numeric", month: "short" }).format(ms);
   const exp = (id: string) => `<button class="link" type="button" data-oh-export="${esc(id)}">${esc(t("own.export"))}</button>`;
-  $("#ownHomeBuilt").innerHTML = built.map(({ b }) => `<article class="oh-cover" style="--acc:${esc(b.accent ?? "#c9963a")}">
+  $("#ownHomeBuilt").innerHTML = built.map(({ b }) => `<article class="oh-cover" style="--acc:${esc(b.accent ?? "#c9963a")}${b.cover ? `;--cover:${esc(b.cover)}` : ""}">
       <a class="oh-cover-link" href="${b.href ?? collectionUrl(b.id)}">
         <span class="who"><img src="${esc(b.logo ?? APP_LOGO)}" alt=""><span><h3>${esc(b.name)}</h3><p>${esc(nameIn(b.text, lang))}</p></span></span>
         ${b.preview ? `<img class="strip" src="${esc(b.preview)}" alt="">` : ""}
         <span class="go"><span class="forge">${esc(t("own.open"))}</span>${esc(nameIn(b.facts, lang) || t("own.homeCount", { n: b.tokens, when: "" }))}</span>
       </a>
       ${b.ccc ? `<img class="oh-ccc" src="/ccc-sleeve.png" alt="Community Created Content" width="172" height="68">` : ""}
-      ${b.file ? `<span class="oh-actions"><button class="link" type="button" data-oh-copy="${esc(b.id)}">${esc(t("own.copy"))}</button></span>` : ""}
+      ${b.mark ? `<img class="oh-ccc oh-mark${b.mark.invert ? " invert" : ""}" src="${esc(b.mark.src)}" alt="${esc(b.mark.alt)}">` : ""}
     </article>`).join("");
   $("#ownHomeBuiltH").hidden = !built.length;
   $("#ownHomeList").innerHTML = mine.map((c: CollectionEntry) => `<article class="oh-tile" style="--acc:${esc(c.accent ?? "#c9963a")}">

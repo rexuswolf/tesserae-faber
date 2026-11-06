@@ -113,7 +113,11 @@ export interface BuiltInEntry { id: string; file?: string; name: string; logo?: 
   /** Where it opens when it has an app of its own (Clocktower: /botc, Midnight Mint), instead of /c/<id>. */
   href?: string;
   /** Its About, and whether it carries the Community Created Content mark. */
-  about?: OwnAbout; ccc?: boolean }
+  about?: OwnAbout; ccc?: boolean;
+  /** A licence's mark it carries, on its cover and in About, with the notice that goes with it ("Powered by Draw Steel"). */
+  mark?: { src: string; alt: string; notice: Names; invert?: boolean };
+  /** Its cover's background (CSS), when not Clocktower's velvet. */
+  cover?: string }
 /** Where a collection opens: its own app's address for one that has it, else /c/<id>. */
 export const openUrl = (id: string, built: { id: string; href?: string }[]) => built.find((b) => b.id === id)?.href ?? collectionUrl(id);
 export const builtInCollections = (): Promise<BuiltInEntry[]> => Promise.resolve(BUILT_INS);

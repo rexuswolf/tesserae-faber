@@ -34,4 +34,32 @@ export const BUILT_INS: BuiltInEntry[] = [
       links: [{ label: "Blood on the Clocktower", url: "https://bloodontheclocktower.com" }, { label: "Villacuervos", url: VILLACUERVOS_URL }],
     },
   },
+  {
+    id: "drawsteel",
+    name: "Draw Steel",
+    logo: "/collections/drawsteel-logo.svg",
+    accent: "#d4a017",
+    tokens: 26,
+    preview: "/collections/drawsteel-preview.svg",   // tools/make-drawsteel-collection.mjs
+    file: "/collections/drawsteel.json",   // tools/make-drawsteel-collection.mjs
+    cover: "radial-gradient(120% 140% at 0% 0%, #3a3f47 0%, #23262b 55%, #141619 100%)",
+    facts: { es: "15 recursos · 11 condiciones · 2 idiomas", en: "15 resources · 11 conditions · 2 languages" },
+    text: { es: "Recursos heroicos, Malicia, Victorias y condiciones.", en: "Heroic resources, Malice, Victories and conditions." },
+    about: {
+      text: {
+        es: "Fichas para jugar a Draw Steel: el recurso heroico de cada clase (y uno genérico), Impulso, Victorias, Recuperaciones, fichas de héroe, la Malicia del Director y las condiciones, con su duración como fichas asociadas.",
+        en: "Tokens to play Draw Steel: each class's heroic resource (and a generic one), Surges, Victories, Recoveries, Hero Tokens, the Director's Malice and the conditions, with their duration as linked tokens.",
+      },
+      credits: {
+        es: "Una colección hecha por fans: los nombres de las mecánicas son de Draw Steel; los iconos, de game-icons.net. No lleva arte de MCDM.",
+        en: "A fan-made collection: the mechanics' names are Draw Steel's; the icons, game-icons.net's. It carries no MCDM art.",
+      },
+      links: [{ label: "Draw Steel Creator License", url: "https://www.mcdmproductions.com/draw-steel-creator-license" }],
+    },
+    // the licence's compatibility mark, and its notice word for word (it must appear where the product is shown)
+    mark: {
+      src: "/collections/powered-by-draw-steel.png", alt: "Powered by Draw Steel", invert: true,
+      notice: "Tesserae Faber is an independent product published under the DRAW STEEL Creator License and is not affiliated with MCDM Productions, LLC. DRAW STEEL © 2026 MCDM Productions, LLC.",
+    },
+  },
 ];
