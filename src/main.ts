@@ -3351,7 +3351,16 @@ const TALLER = OWN_VIEW === "taller";
  * A group of bases in the second step: Basic ("blank"), the collection the Taller was opened from
  * ("from"), another of the app's collections ("other"), the app's other basic designs ("app").
  */
-interface TallerGroup { kind: "blank" | "from" | "other" | "app"; name: string; designs: Partial<Record<TokenShape, StyleDef[]>> }
+interface TallerGroup { kind: "blank" | "from" | "other" | "app"; name: string; designs: Partial<Record<TokenShape, StyleDef[]>>; look?: GroupLook }
+/** How a collection's group of bases looks folded: like its cover on the collections page. */
+interface GroupLook { logo?: string; accent?: string; cover?: string }
+/** A collection's cover look: an app collection's from its entry, one of yours from its brand and theme. */
+function lookOfCollection(id: string | null, c?: Collection | null): GroupLook {
+  const b = id ? builtIn(id) : undefined;
+  if (b) return { logo: b.logo ?? APP_LOGO, accent: b.accent, cover: b.cover };
+  const theme = c && typeof c.theme === "object" ? c.theme : undefined;
+  return { logo: c?.brand?.logo || APP_LOGO_SMALL, accent: theme?.accent };
+}
 /** Where the Taller is: choosing a shape, choosing a base, or changing one of your designs. */
 type TallerView = "shape" | "base" | "edit";
 /**
@@ -3413,11 +3422,11 @@ async function openTaller() {
   // designs, the app's collections', and the app's other basic designs that none of those has
   const basic = basicStyles();
   const groups: TallerGroup[] = [{ kind: "blank", name: APP_NAME, designs: Object.fromEntries(SHAPES.map((sh) => [sh, [{ ...basic[sh][0], name: { es: "Básico", en: "Basic" } }]])) }];
-  if (c?.styles) groups.push({ kind: "from", name: label(c), designs: c.styles });
-  if (id !== "botc") groups.push({ kind: "other", name: "Blood on the Clocktower", designs: BOTC_STYLES });
-  if (id !== "drawsteel") { const ds = await builtInStyles("drawsteel"); if (ds) groups.push({ kind: "other", name: builtIn("drawsteel")!.name, designs: ds }); }
+  if (c?.styles) groups.push({ kind: "from", name: label(c), designs: c.styles, look: lookOfCollection(id, c) });
+  if (id !== "botc") groups.push({ kind: "other", name: "Blood on the Clocktower", designs: BOTC_STYLES, look: lookOfCollection("botc") });
+  if (id !== "drawsteel") { const ds = await builtInStyles("drawsteel"); if (ds) groups.push({ kind: "other", name: builtIn("drawsteel")!.name, designs: ds, look: lookOfCollection("drawsteel") }); }
   const seen = (sh: TokenShape, d: StyleDef) => groups.some((g) => g.kind !== "blank" && g.designs[sh]?.some((x) => JSON.stringify(x.spec) === JSON.stringify(d.spec)));
-  groups.push({ kind: "app", name: APP_NAME, designs: Object.fromEntries(SHAPES.map((sh) => [sh, basic[sh].slice(1).filter((d) => !seen(sh, d))])) });
+  groups.push({ kind: "app", name: APP_NAME, designs: Object.fromEntries(SHAPES.map((sh) => [sh, basic[sh].slice(1).filter((d) => !seen(sh, d))])), look: { logo: APP_LOGO } });
   taller.groups = groups;
   // the tokens to draw on: a few of each shape from the collection, different groups first, one with another state
   const roles = c ? collectionRoles(c, uiLang()) : [];
@@ -3560,7 +3569,10 @@ function renderTallerBases() {
     const head = `${esc(label(g))}${note(g) ? ` <small>${esc(note(g))}</small>` : ""}`, rows = list.map((def) => row(g, i, def)).join("");
     if (g.kind === "blank") return `<p class="tw-gl">${head}</p>${rows}`;
     const open = tallerOpenGroups.has(`${sh}:${i}`) || list.some((def) => `g${i}:${def.id}` === pick.ref);
-    return `<details class="tw-grp" data-tw-group="${sh}:${i}"${open ? " open" : ""}><summary class="tw-gl">${head}<span class="tw-n">${list.length}</span>${CHEVRON}</summary>${rows}</details>`;
+    // folded, it looks like the collection's cover: its colours, logo and name, and its designs on the sample token
+    const lk = g.look ?? {}, minis = list.slice(0, 6).map((def) => designSwatch(tallerBase(sh, `g${i}:${def.id}`)!.spec, role)).join("");
+    const style = `--acc:${esc(lk.accent ?? "#c9963a")}${lk.cover ? `;--cover:${esc(lk.cover)}` : ""}`;
+    return `<details class="tw-grp" data-tw-group="${sh}:${i}"${open ? " open" : ""}><summary class="tw-cover" style="${style}"><img src="${esc(lk.logo ?? APP_LOGO)}" alt=""><span class="tw-cv-t"><b>${esc(g.name)}</b><small>${esc(t("taller.groupCount", { n: list.length }))}${note(g) ? ` · ${esc(note(g))}` : ""}</small></span><span class="tw-cv-minis" aria-hidden="true">${minis}</span>${CHEVRON}</summary><div class="tw-grp-rows">${rows}</div></details>`;
   }).join("");
   const go = esc(t("taller.go", { name: pick.name }));
   $("#tallerWizard").innerHTML = `${tallerSteps(2)}
