@@ -471,6 +471,14 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .group-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; padding: 4px 11px; }
 .group-pill i { width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
 .group-pill[aria-pressed=true] { border-color: var(--c); background: color-mix(in srgb, var(--c) 18%, transparent); color: var(--bone); }
+/* a token's own colour: a menu, the group's first */
+.tok-colour { align-self: flex-start; }
+.tok-colour summary { display: inline-flex; align-items: center; gap: 8px; list-style: none; cursor: pointer; padding: 5px 12px; border: 1px solid var(--seam); background: rgba(23, 8, 18, .5); border-radius: 999px; font-size: 13px; }
+.tok-colour summary::-webkit-details-marker { display: none; }
+.tok-colour summary i { width: 12px; height: 12px; border-radius: 50%; background: var(--c); }
+.tok-colour summary b { font-weight: 400; opacity: .7; }
+.tok-colour-menu { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
+.tok-colour-menu .own-swatches { grid-column: auto; }
 /* Level 1: the token's parts (FRONT · BACK · COIN · MAGNET), underlined */
 .parts { flex: none; display: flex; border-bottom: 1px solid var(--seam); }
 .parts[hidden] { display: none; }

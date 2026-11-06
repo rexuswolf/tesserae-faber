@@ -41,7 +41,9 @@ A collection is laid out like this:
   tokens' shape: coins, cards, or condition rings (a flat ring that slips over a miniature's base, its name
   repeated all the way round; for 25, 32 or 40 mm bases, chosen in the design's Coin section).
 - **Groups**: the colours, and the filters and order of the sheet (Clocktower's teams).
-- **Tokens**: each of one type and one group, with its linked tokens. Names can come in several languages.
+- **Tokens**: each of one type and one group, with its linked tokens. Names can come in several languages. A token can
+  have a colour of its own (`colour`, in its panel: *Colour*), worn instead of its group's wherever its design says the group's colour
+  (its linked tokens and other state too): Draw Steel's conditions each have one, coin and ring alike.
 - **Sections**: the sidebar's headings, each **closed** (it comes with the collection, like Clocktower's
   editions) or **open** (yours to add **catalogs** to, from scratch or from a list such as a Script Tool script).
 - **Designs**: the looks it comes with, per shape (a name and a design, `styles` in its file): the first of a

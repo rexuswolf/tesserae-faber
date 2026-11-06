@@ -1403,7 +1403,7 @@ function rowHtml(r: Role, q: string, remHits: Set<number> | undefined) {
     const name = catalogText(r, reminder);
     // once picked, a small stepper adds copies; tapping the token still drops it
     // a homebrew token whose icon is still on its way pulses where the icon will go
-    const loading = r.loading ? ` loading" style="--team: ${TEAMS[r.team].colour}` : "";
+    const loading = r.loading ? ` loading" style="--team: ${r.colour ?? TEAMS[r.team].colour}` : "";
     // a two-state token shows both its faces: the other state, smaller, peeking from behind the front
     // a two-state token looks like any other, with ⇄ on its edge; pointing at the row (or tapping the ⇄)
     // turns it over in place to show its other state
@@ -1421,7 +1421,7 @@ function rowHtml(r: Role, q: string, remHits: Set<number> | undefined) {
   const groups = new Map<string, number[]>();
   rems.forEach((_, i) => { const w = catalogText(r, i); groups.set(w, [...(groups.get(w) || []), i]); });
   const remSpec = { ...catalogSpec(true), diameter: reminderSpec(DEFAULT_SPEC).diameter, back: "none" };
-  const loadingTok = r.loading ? ` loading" style="--team: ${TEAMS[r.team].colour}` : "";
+  const loadingTok = r.loading ? ` loading" style="--team: ${r.colour ?? TEAMS[r.team].colour}` : "";
   const chips = [...groups].map(([w, idx]) => {
     const keys = idx.map((i) => remKey(r, i)), on = keys.filter(isPicked).length, own = keys.find(hasOwn);
     const count = keys.length > 1 ? `<small>×${keys.length}${on && on < keys.length ? ` · ${on}/${keys.length}` : ""}</small>` : "";
@@ -3667,6 +3667,7 @@ function renderTokenPanel() {
   $("#tpDone").textContent = t(c ? "create.create" : "panel.done");
   renderPanelShape(tk, shape);
   renderPanelToken();
+  renderTokenColour(tk);
   const sig = [tk.id, shape, tokenLang(), uiLang()].join("|");
   if (sig === panelFor) return;
   panelFor = sig;
@@ -3710,6 +3711,17 @@ function renderPanelToken() {
     + (linked.length ? `<div class="tp-linked">${linked.map(({ w, i }) => fig(tokenSvg(state.lib!, role, specFor(remKey(role, i), true), { text: w }), w, "r")).join("")}</div>` : "");
   const own = designOverridden(key);
   $("#tpDesign").textContent = t(own ? "panel.designOwn" : "panel.design", { name: d.name, shape: t(`type.${shape}.many`).toLowerCase() });
+}
+/**
+ * The token's own colour, over its group's (what "the group's colour" is in its design): a menu with
+ * the group's first, then the colours a group can have.
+ */
+function renderTokenColour(tk: OwnToken) {
+  const group = coll.groups.find((g) => g.id === tk.group)?.colour ?? GROUP_COLOURS[0], now = tk.colour ?? group;
+  const name = (hex: string) => { const c = COLOUR_CHOICES.find((x) => x.hex === hex.toLowerCase()); return c ? t(`metal.${c.id}`) : hex; };
+  $("#ownTokColour summary").innerHTML = `<i style="--c: ${now}"></i><span>${esc(tk.colour ? name(tk.colour) : t("own.colourGroup"))}</span><b aria-hidden="true">▾</b>`;
+  $("#ownTokColour .tok-colour-menu").innerHTML = `<button class="pill group-pill" type="button" data-tcolour="" aria-pressed="${!tk.colour}" style="--c: ${group}"><i></i>${esc(t("own.colourGroup"))}</button>`
+    + `<span class="own-swatches">${GROUP_COLOURS.map((c) => `<button type="button" style="background:${c}" data-tcolour="${c}" aria-pressed="${c === tk.colour}" aria-label="${esc(name(c))}" title="${esc(name(c))}"></button>`).join("")}</span>`;
 }
 /** The groups as their colours, the token's pressed, and a new one. */
 function renderGroupPills(tk: OwnToken) {
@@ -3776,13 +3788,20 @@ function wireOwnToken() {
   $("#ownTokGroups").onclick = (e) => {
     const tk = editingOwn(); if (!tk) return;
     const g = hit(e, "[data-group]");
-    if (g) { tk.group = g.dataset.group!; renderGroupPills(tk); ownEdited(); return; }
+    if (g) { tk.group = g.dataset.group!; renderGroupPills(tk); renderTokenColour(tk); ownEdited(); return; }
     if (hit(e, "[data-group-new]")) {
       const used = new Set(coll.groups.map((x) => x.colour)), id = newId("g");
       coll.groups.push({ id, name: t("own.groupName", { n: coll.groups.length + 1 }), colour: GROUP_COLOURS.find((c) => !used.has(c)) ?? GROUP_COLOURS[0] });
       tk.group = id;
       collectionChanged(); renderGroupPills(tk);
     }
+  };
+  // its own colour, or its group's
+  $("#ownTokColour").onclick = (e) => {
+    const tk = editingOwn(), b = hit(e, "[data-tcolour]"); if (!tk || !b) return;
+    if (b.dataset.tcolour) tk.colour = b.dataset.tcolour; else delete tk.colour;
+    $<HTMLDetailsElement>("#ownTokColour").open = false;
+    renderTokenColour(tk); ownEdited();
   };
   $("#ownTokCats").onchange = (e) => {
     const tk = editingOwn(), id = input(e).value, k = catalogsOf(coll).find((x) => x.k.id === id)?.k; if (!tk || !k) return;

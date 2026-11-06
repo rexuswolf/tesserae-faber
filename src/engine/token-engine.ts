@@ -174,9 +174,9 @@ export async function loadLibrary(roles: Role[], { sealSvg = null, assetBase = "
 /** The name printed for a role in a translation ("en", "es", "ca", "es-castelgard"…; see translations.ts). */
 export const roleName = (role: Role, lang: string): string => role.names?.[lang] || (role as unknown as Partial<Record<string, string>>)[lang] || role.en;
 
-/** Resolves "team" colour references. */
+/** Resolves "team" colour references: the token's own colour, else its team's (its group's). */
 export function partColours(role: Role, spec: SpecInput): PartColours {
-  const team = TEAMS[role.team].colour;
+  const team = role.colour ?? TEAMS[role.team].colour;
   const c = { ...DEFAULT_SPEC.colours, ...spec.colours };
   const pick = (v: ColourRef): Hex => (v === "team" ? team : v);
   // A back that is a face is a second front, in its colours (the back colour is for back designs).

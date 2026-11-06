@@ -63,6 +63,8 @@ export interface OwnToken {
   flip?: OwnFlip;
   /** It came with the collection and can't be changed (like Clocktower's info tokens). */
   fixed?: boolean;
+  /** Its own colour, over its group's: what "the group's colour" is in its design (its linked tokens' and other state's too). */
+  colour?: Hex;
 }
 /** A two-state token's other state: a name (in several languages, like the token's) and an icon (like the token's). */
 export interface OwnFlip { name: Names; icon: TokenIcon | null }
@@ -309,6 +311,7 @@ export function tokenRole(c: Collection, t: OwnToken, lang = "es"): Role {
   return {
     id: t.id, en: nameIn(names, "en"), es: nameIn(names, "es"), names: Object.fromEntries([...langs].map((l) => [l, nameIn(names, l)])), fem: t.fem ?? {},
     team: t.group as Team,   // a group of the collection, registered as a team (main.ts, applyGroups)
+    ...(t.colour ? { colour: t.colour } : {}),
     edition: "own", editionName: nameIn(home?.name ?? c.name, lang),
     reminders: Object.fromEntries([...langs].map((l) => [l, t.linked.map((n) => nameIn(n, l))])),
     body: t.icon?.body ?? "", d: [], g: t.icon?.g ?? "",
@@ -430,6 +433,7 @@ export async function readCollectionFile(data: unknown, onProgress: (done: numbe
       name: t.name, ...(t.fem && typeof t.fem === "object" ? { fem: t.fem } : {}), ...(t.fixed ? { fixed: true } : {}), icon,
       linked: (t.linked ?? []).map((l) => (typeof l === "string" ? l : l?.name)).filter(okName),
       ...(flip ? { flip } : {}),
+      ...(isHex(t.colour) ? { colour: t.colour } : {}),
     });
     if (++done % 20 === 0 || done === f.tokens.length) onProgress(done, f.tokens.length);
   }

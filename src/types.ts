@@ -40,6 +40,8 @@ export interface Role {
   /** Feminine names, by translation id, where a translation has one. */
   fem?: Record<string, string>;
   team: Team;
+  /** Its own colour, for "team" in its design, over its team's (a collection's token can have one). */
+  colour?: Hex;
   /** An edition id ("tb", "grimoire"…), or for a homebrew character its script's view ("s:<id>"). */
   edition: string;
   /** Reminder words by translation id. */

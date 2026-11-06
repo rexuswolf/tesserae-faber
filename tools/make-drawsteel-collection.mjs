@@ -51,20 +51,25 @@ const TWO_STATE = [
   ["triggered", { en: "Triggered Action", es: "Reacción" }, "lightning-trio", { en: "Triggered Action Used", es: "Reacción usada" }, "lightning-dissipation"],
 ];
 const DURATIONS = [{ name: { en: "EoT", es: "Fin de turno" } }, { name: { en: "Save ends", es: "Salvación termina" } }];
+// Each condition and state has a colour of its own (the token's, over its group's), its coin and its
+// ring alike: filaments the printer has (src/collection.ts GROUP_COLOURS), as near as they go to what
+// it is. There are fewer filaments than conditions, so a few share: Winded Bleeding's red (both
+// wounds), Taunted gold (beside Dazed's yellow), Prone Grabbed's bronze (the ground).
+const C = { red: "#b3191e", yellow: "#d4a72c", gold: "#c9a227", purple: "#8a3d9e", bronze: "#9a6a3a", silver: "#a7adb4", blue: "#2f86e0", green: "#3f9651", bone: "#ece9e2" };
 const CONDITIONS = [
-  ["bleeding", { en: "Bleeding", es: "Sangrando" }, "bleeding-wound"],
-  ["dazed", { en: "Dazed", es: "Aturdido" }, "knocked-out-stars"],
-  ["frightened", { en: "Frightened", es: "Asustado" }, "terror"],
-  ["grabbed", { en: "Grabbed", es: "Agarrado" }, "grab"],
-  ["prone", { en: "Prone", es: "Derribado" }, "falling"],
-  ["restrained", { en: "Restrained", es: "Inmovilizado" }, "manacles"],
-  ["slowed", { en: "Slowed", es: "Ralentizado" }, "snail"],
-  ["taunted", { en: "Taunted", es: "Provocado" }, "shouting"],
-  ["weakened", { en: "Weakened", es: "Debilitado" }, "broken-bone"],
+  ["bleeding", { en: "Bleeding", es: "Sangrando" }, "bleeding-wound", C.red],
+  ["dazed", { en: "Dazed", es: "Aturdido" }, "knocked-out-stars", C.yellow],
+  ["frightened", { en: "Frightened", es: "Asustado" }, "terror", C.purple],
+  ["grabbed", { en: "Grabbed", es: "Agarrado" }, "grab", C.bronze],
+  ["prone", { en: "Prone", es: "Derribado" }, "falling", C.bronze],
+  ["restrained", { en: "Restrained", es: "Inmovilizado" }, "manacles", C.silver],
+  ["slowed", { en: "Slowed", es: "Ralentizado" }, "snail", C.blue],
+  ["taunted", { en: "Taunted", es: "Provocado" }, "shouting", C.gold],
+  ["weakened", { en: "Weakened", es: "Debilitado" }, "broken-bone", C.green],
 ];
 const STATES = [
-  ["winded", { en: "Winded", es: "Malherido" }, "half-heart"],
-  ["dying", { en: "Dying", es: "Moribundo" }, "dead-head"],
+  ["winded", { en: "Winded", es: "Malherido" }, "half-heart", C.red],
+  ["dying", { en: "Dying", es: "Moribundo" }, "dead-head", C.bone],
 ];
 
 const tok = (id, type, group, name, ic, linked = []) => ({ id, type, group, name, ...icon(ic), linked });
@@ -73,10 +78,10 @@ const tokens = [
   tok("malice", "resources", "director", { en: "Malice", es: "Malicia" }, "imp-laugh"),
   ...TWO_STATE.map(([id, name, ic, other, otherIcon]) => ({ ...tok(id, "resources", "shared", name, ic), flip: { name: other, ...icon(otherIcon) } })),
   ...CLASSES.map((k) => tok(k.res[0], "resources", k.id, k.res[1], k.res[2])),
-  ...CONDITIONS.map(([id, name, ic]) => tok(id, "conditions", "conditions", name, ic, DURATIONS)),
-  ...STATES.map(([id, name, ic]) => tok(id, "conditions", "conditions", name, ic)),
-  // the rings carry only their name, all the way round: no icon
-  ...[...CONDITIONS, ...STATES].map(([id, name]) => ({ id: `ring-${id}`, type: "rings", group: "conditions", name, linked: [] })),
+  ...CONDITIONS.map(([id, name, ic, colour]) => ({ ...tok(id, "conditions", "conditions", name, ic, DURATIONS), colour })),
+  ...STATES.map(([id, name, ic, colour]) => ({ ...tok(id, "conditions", "conditions", name, ic), colour })),
+  // the rings carry only their name, all the way round: no icon; each in its condition's colour
+  ...[...CONDITIONS, ...STATES].map(([id, name, , colour]) => ({ id: `ring-${id}`, type: "rings", group: "conditions", name, linked: [], colour })),
 ];
 const ids = (list) => list.map((x) => x[0]);
 
