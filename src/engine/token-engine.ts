@@ -135,12 +135,12 @@ export function reminderSpec(spec: TokenSpec): TokenSpec {
     // designs give their reminders the classic layout.
     style: spec.style === "solo" || spec.style === "double" ? "classic" : spec.style,
     diameter: spec.reminderDiameter ?? 32,
-    textSize: 3,
+    textSize: 4,
     // the icon in the same proportion and place as on its character's token
-    iconScale: 1,
-    iconOffsetY: 0,
+    iconScale: 0.85,
+    iconOffsetY: 1.5,
     margin: 1.5,
-    maxArc: 240,
+    maxArc: 200,
     frameWidth: Math.min(spec.frameWidth ?? 0.8, 0.6),
     // Same back as the character tokens: the designed backs scale with the coin.
     // A reminder is a token of its own: its character's other state isn't on its back.
