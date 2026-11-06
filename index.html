@@ -118,7 +118,6 @@
       <!-- the collection's default design for each shape it has, and the way to the Taller -->
       <div class="design-bar-wrap">
         <div class="design-bar" id="designBar"></div>
-        <div class="menu style-menu" id="defaultMenu" role="menu" hidden></div>
       </div>
       <div class="script-actions" id="scriptActions" hidden>
         <button class="pill" type="button" id="scriptShare"></button>
@@ -173,13 +172,19 @@
         </div>
       </div>
       <div class="ws-style" id="styleRow">
-        <span class="ws-style-l" data-i18n="design.label"></span>
-        <button class="style-chip" type="button" id="styleChip" aria-haspopup="menu" aria-expanded="false" aria-controls="styleMenu"></button>
-        <small id="styleCount"></small>
+        <div class="ds-row">
+          <span class="ds-tok" id="styleTok" aria-hidden="true"></span>
+          <span class="ds-txt"><span class="ws-style-l" data-i18n="design.label"></span><b id="styleName"></b><small id="styleCount"></small></span>
+          <button class="pill ds-change" type="button" id="styleChange" aria-haspopup="dialog" aria-controls="designDlg" data-i18n="design.change"></button>
+        </div>
+        <!-- the token's own changes over its design: kept as a design of yours, or dropped -->
+        <div class="ds-tweak" id="styleTweak" hidden>
+          <button class="pill" type="button" id="styleSave" data-i18n="design.saveAs"></button>
+          <button class="pill" type="button" id="styleDrop" data-i18n="design.dropTweaks"></button>
+        </div>
         <button class="own-mark" type="button" id="styleBack" hidden></button>
         <a class="ws-taller" id="designTaller" href="/taller"><span data-i18n="design.editInTaller"></span> <span aria-hidden="true">›</span></a>
         <p class="hint" id="designFlash" aria-live="polite" hidden></p>
-        <div class="menu style-menu" id="styleMenu" role="menu" hidden></div>
       </div>
     </div>
     <!-- the token's parts: a coin's FRONT · BACK · COIN · MAGNET, a ring's FRONT · RING, a card's FRONT · CARD -->
@@ -539,6 +544,28 @@
     <button class="pill" type="button" id="tpMore" data-i18n="create.more"></button>
     <button class="forge" type="button" id="tpDone"></button>
   </footer>
+</dialog>
+
+<!-- choosing a design: a token's (step 2), or a shape's default for the collection (Pick). Each drawn
+     large on the token it's for; the collection's and yours in two tabs. A bottom sheet on a phone. -->
+<dialog id="designDlg" class="design-dlg" aria-labelledby="dzTitle">
+  <header class="dz-head">
+    <h2 id="dzTitle"></h2>
+    <form method="dialog"><button class="dz-x" data-i18n-attr="aria-label:admin.close">×</button></form>
+  </header>
+  <div class="dz-tabs" id="dzTabs" role="tablist"></div>
+  <input class="text dz-search" type="search" id="dzSearch" autocomplete="off" data-i18n-attr="placeholder:dsheet.search aria-label:dsheet.search" hidden>
+  <div class="dz-body"><div class="dz-cards" id="dzCards" role="tabpanel"></div></div>
+  <footer class="dz-foot"><span id="dzFor"></span><a id="dzTaller" href="/taller" data-to-taller><span data-i18n="design.toTaller"></span> <span aria-hidden="true">›</span></a></footer>
+</dialog>
+
+<!-- a name asked for (a design of yours made from a token's look) -->
+<dialog id="nameDlg" class="own-dialog ask-dialog">
+  <form method="dialog" id="nameForm">
+    <p id="nameText"></p>
+    <label class="field"><span data-i18n="dsheet.name"></span><input class="text" id="nameInput" autocomplete="off" required></label>
+    <div class="dialog-actions"><button class="pill" type="button" id="nameCancel" data-i18n="script.cancel"></button><button class="forge" value="ok" id="nameOk"></button></div>
+  </form>
 </dialog>
 
 <!-- a question with its answers (keeping tokens' own designs, deleting a design) -->

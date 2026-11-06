@@ -1803,37 +1803,153 @@ function designSwatch(spec: TokenSpec, role = state.sel!.role) {
 
 /**
  * The token's design: the one it uses (its shape's default, a linked token's character's, or one
- * chosen for it), drawn on it; whether it's the default; with its own changes, the way back to the
- * default; and the way to the Taller, where the design itself is changed.
+ * chosen for it), drawn on it, with where it comes from; "Change" opens the designs to choose from.
+ * With changes of its own over it, the token is "customised": they can be kept as a design of
+ * yours, or dropped. A design chosen for it has the way back to the default; and the way to the
+ * Taller, where the design itself is changed.
  */
 function renderDesignRow(key: string, shape: TokenShape) {
-  const d = designFor(key, shape), def = designOf(shape, inheritedRef(key, shape))!, own = designOverridden(key);
-  $("#styleChip").innerHTML = `${designSwatch(d.spec)}<b>${esc(d.name)}</b>${CHEVRON}`;
-  $("#styleChip").setAttribute("aria-label", `${t("design.label")}: ${d.name}`);
-  $("#styleCount").textContent = d.ref === def.ref ? t("design.isDefault") : t("design.default", { name: def.name });
+  const d = designFor(key, shape), def = designOf(shape, inheritedRef(key, shape))!, tweaked = ownChanged(key);
+  const { role, reminder } = state.sel!;
+  $("#styleTok").innerHTML = tokenSvg(state.lib!, role, specFor(key, reminder != null), { text: textFor(key, role, reminder) });
+  $("#styleName").innerHTML = esc(d.name) + (tweaked ? ` · ${esc(t("design.custom"))} <span aria-hidden="true">✎</span>` : "");
+  $("#styleCount").textContent = d.ref === def.ref ? t("design.isDefault") : d.mine ? t("design.yours") : t("design.fromSrc", { name: collLabel() });
+  $("#styleChange").setAttribute("aria-label", `${t("design.change")}: ${t("design.label")} ${d.name}`);
+  $("#styleTweak").hidden = !tweaked;
   const back = $<HTMLButtonElement>("#styleBack");
-  back.hidden = !own;
-  back.innerHTML = `<span aria-hidden="true">✎</span> ${esc(t(d.ref === def.ref ? "design.tweaked" : "design.chosen"))} · <u>${esc(t("design.back"))}</u>`;
+  back.hidden = d.ref === def.ref;
+  back.innerHTML = `<span aria-hidden="true">✎</span> ${esc(t("design.chosen"))} · <u>${esc(t("design.back"))}</u>`;
   $<HTMLAnchorElement>("#designTaller").href = tallerUrl(location.pathname, { shape, d: d.ref });
   $("#designFlash").hidden = !state.flash;
   $("#designFlash").textContent = state.flash;
-  if (!$("#styleMenu").hidden) renderDesignMenu();
+  if (dz.open && dz.mode === "token") renderDesignSheet();
 }
-/** The designs a token can use, each drawn on it: its default first, then the collection's and yours. */
-function renderDesignMenu() {
-  const { key, role } = state.sel!, shape = shapeOf(role), cur = refOf(key, shape), own = state.overrides.get(key)?.style;
-  const def = designOf(shape, inheritedRef(key, shape))!, chosen = !!own && !!designOf(shape, own);
-  const item = (d: DesignEntry, pick: string, checked: boolean, note = "") => `<button type="button" role="menuitemradio" aria-checked="${checked}" data-design-pick="${esc(pick)}"${d.help ? ` title="${esc(d.help)}"` : ""}>${designSwatch(d.spec)}<span>${esc(d.name)}</span>${note ? `<small>${esc(note)}</small>` : ""}</button>`;
-  const mine = myDesigns[shape].map(myEntry);
-  $("#styleMenu").innerHTML = item(def, "", !chosen, t("design.defaultItem"))
-    + `<p class="style-menu-head">${esc(t("design.fromColl", { name: collLabel() }))}</p>${startingStyles(shape).map((x) => collEntry(shape, x)).map((d) => item(d, d.ref, chosen && d.ref === cur)).join("")}`
-    + `<p class="style-menu-head">${esc(t("design.mine"))}</p>${mine.map((d) => item(d, d.ref, chosen && d.ref === cur)).join("") || `<p class="style-menu-none">${esc(t("design.mineNone"))}</p>`}`
-    + `<hr><a role="menuitem" href="${esc(tallerUrl(location.pathname, { shape, d: cur }))}" data-to-taller>${esc(t("design.toTaller"))} ›</a>`;
+
+// ------------------------------------------------------------ choosing a design (the sheet)
+//
+// One sheet for a token's design (step 2) and for a shape's default in the collection (Pick):
+// each design drawn large on the token it's for (in Pick, the shape's first token), with a line on
+// it; the collection's and yours in two tabs, yours searchable when there are many. The token's
+// default (in Pick, the collection's original) comes first, marked; the one in use is ringed.
+// Choosing one is the same as it always was (setTokenDesign, setDefaults); the sheet just closes.
+
+const dz = { open: false, mode: "token" as "token" | "default", shape: "coin" as TokenShape, tab: "coll" as "coll" | "mine", q: "", opener: null as HTMLElement | null };
+/** A design's look as a token would print with it: its text and icon (and, given, its own changes over it). */
+function specWith(base: TokenSpec, key: string, isReminder: boolean): TokenSpec {
+  const spec = { ...DEFAULT_SPEC, ...base, colours: { ...DEFAULT_SPEC.colours, ...base.colours }, lang: tokenLang(), icon: ownIcon(roleIdOf(key)) };
+  return isReminder ? reminderSpec(spec) : spec;
 }
-function openStyleMenu(on: boolean) {
-  $("#styleMenu").hidden = !on;
-  $("#styleChip").setAttribute("aria-expanded", String(on));
-  if (on) { renderDesignMenu(); $<HTMLElement>("#styleMenu [aria-checked=true]")?.focus(); }
+/** The designs the sheet offers, in its two tabs: each with what choosing it sets ("": a token's default), whether it's the first (marked) and whether it's in use. */
+function sheetDesigns() {
+  const sh = dz.shape, coll = startingStyles(sh).map((x) => collEntry(sh, x)), mine = myDesigns[sh].map(myEntry);
+  let first: string, cur: string;
+  if (dz.mode === "token") {
+    const key = state.sel!.key, own = state.overrides.get(key)?.style;
+    first = inheritedRef(key, sh); cur = own && designOf(sh, own) ? own : first;
+  } else { first = originalRef(sh); cur = defaultRef(sh); }
+  const lead = (list: DesignEntry[]) => [...list.filter((d) => d.ref === first), ...list.filter((d) => d.ref !== first)];
+  const item = (d: DesignEntry) => ({ d, pick: dz.mode === "token" && d.ref === first ? "" : d.ref, first: d.ref === first, on: d.ref === cur });
+  return { coll: lead(coll).map(item), mine: lead(mine).map(item), cur };
+}
+function openDesignSheet(mode: "token" | "default", shape: TokenShape, opener: HTMLElement) {
+  Object.assign(dz, { open: true, mode, shape, opener, q: "" });
+  dz.tab = sheetDesigns().cur.startsWith("u:") ? "mine" : "coll";
+  $<HTMLInputElement>("#dzSearch").value = "";
+  renderDesignSheet();
+  const dlg = $<HTMLDialogElement>("#designDlg");
+  if (!dlg.open) dlg.showModal();
+  ($<HTMLElement>("#dzCards [aria-pressed=true]") ?? $<HTMLElement>("#dzTabs [aria-selected=true]"))?.focus();
+}
+function renderDesignSheet() {
+  const sh = dz.shape, { coll, mine, cur } = sheetDesigns(), tokenMode = dz.mode === "token";
+  const role = tokenMode ? state.sel!.role : sampleRole(sh), key = tokenMode ? state.sel!.key : charKey(role), reminder = tokenMode ? state.sel!.reminder : null;
+  const look = tokenMode ? state.overrides.get(key)?.look : undefined, text = textFor(key, role, reminder);
+  $("#dzTitle").textContent = t(tokenMode ? "dsheet.title" : `dsheet.title.${sh}`);
+  $("#dzTabs").innerHTML = (["coll", "mine"] as const).map((tab) => `<button type="button" role="tab" data-dz-tab="${tab}" aria-selected="${dz.tab === tab}" tabindex="${dz.tab === tab ? 0 : -1}">${esc(t(`dsheet.${tab}`, { n: (tab === "coll" ? coll : mine).length }))}</button>`).join("");
+  const search = $<HTMLInputElement>("#dzSearch");
+  search.hidden = dz.tab !== "mine" || mine.length <= 6;
+  const q = search.hidden ? "" : dz.q.trim().toLocaleLowerCase();
+  const list = (dz.tab === "coll" ? coll : mine).filter((x) => !q || x.d.name.toLocaleLowerCase().includes(q));
+  const help = (d: DesignEntry) => {
+    if (!d.mine) return d.help ?? "";
+    const m = myDesigns[sh].find((x) => `u:${x.id}` === d.ref);
+    return m?.from ? t("dsheet.from", { name: m.from.name }) : t("dsheet.yours");
+  };
+  const tag = t(tokenMode ? "design.defaultItem" : "bar.originalTag");
+  $("#dzCards").innerHTML = list.map(({ d, pick, first, on }) => `<button class="dz-card" type="button" data-dz-pick="${esc(pick)}" aria-pressed="${on}">`
+    + `<span class="dz-tok">${tokenSvg(state.lib!, role, specWith(applyLook(d.spec, look), key, reminder != null), { text })}${first ? `<i class="dz-badge">${esc(tag)}</i>` : ""}</span>`
+    + `<b>${esc(d.name)}</b>${help(d) ? `<small>${esc(help(d))}</small>` : ""}</button>`).join("")
+    || `<p class="dz-empty">${esc(t(q ? "dsheet.noMatch" : "design.mineNone"))}</p>`;
+  $("#dzFor").textContent = tokenMode ? text : t("dsheet.sample", { name: text });
+  $<HTMLAnchorElement>("#dzTaller").href = tallerUrl(location.pathname, { shape: sh, d: cur });
+}
+function wireDesignSheet() {
+  const dlg = $<HTMLDialogElement>("#designDlg");
+  dlg.addEventListener("close", () => {
+    dz.open = false;
+    const back = dz.opener?.isConnected ? dz.opener : dz.mode === "default" ? document.querySelector<HTMLElement>(`[data-default-shape="${dz.shape}"]`) : null;
+    back?.focus();
+  });
+  // a click on the backdrop (outside the dialog's box) closes it
+  dlg.addEventListener("click", (e) => {
+    if (e.target !== dlg) return;
+    const r = dlg.getBoundingClientRect(), { clientX: x, clientY: y } = e;
+    if (x < r.left || x > r.right || y < r.top || y > r.bottom) dlg.close();
+  });
+  const toTab = (tab: "coll" | "mine") => { dz.tab = tab; renderDesignSheet(); $<HTMLElement>("#dzTabs [aria-selected=true]")?.focus(); };
+  $("#dzTabs").onclick = (e) => { const b = hit(e, "[data-dz-tab]"); if (b) toTab(b.dataset.dzTab as "coll" | "mine"); };
+  $("#dzTabs").onkeydown = (e) => { if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); toTab(dz.tab === "coll" ? "mine" : "coll"); } };
+  $("#dzSearch").oninput = (e) => { dz.q = (e.target as HTMLInputElement).value; renderDesignSheet(); };
+  $("#dzTaller").onclick = rememberReturn;
+  $("#dzCards").onclick = (e) => {
+    const b = hit(e, "[data-dz-pick]"); if (!b) return;
+    const ref = b.dataset.dzPick!, { mode, shape } = dz;
+    dlg.close();
+    if (mode === "token") setTokenDesign(state.sel!.key, ref);
+    else void setDefaults({ [shape]: ref }).then(() => document.querySelector<HTMLElement>(`[data-default-shape="${shape}"]`)?.focus());   // the bar is drawn again
+  };
+  // arrows move over the cards as they're laid out: along a row, and up and down its columns
+  $("#dzCards").onkeydown = (e) => {
+    const cards = $$("#dzCards .dz-card"), i = cards.indexOf(document.activeElement as HTMLElement);
+    const steps: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1, Home: -i, End: cards.length - 1 - i };
+    const cols = Math.max(1, cards.filter((c) => c.offsetTop === cards[0].offsetTop).length);
+    steps.ArrowUp = -cols; steps.ArrowDown = cols;
+    if (i < 0 || !(e.key in steps)) return;
+    e.preventDefault();
+    cards[Math.max(0, Math.min(cards.length - 1, i + steps[e.key]))]?.focus();
+  };
+}
+
+/** A name asked for in a dialog of the app's (given one to start from): the name, or null when cancelled. */
+function askName(text: string, value: string, ok: string): Promise<string | null> {
+  const dlg = $<HTMLDialogElement>("#nameDlg"), input = $<HTMLInputElement>("#nameInput");
+  $("#nameText").textContent = text;
+  $("#nameOk").textContent = ok;
+  input.value = value;
+  dlg.returnValue = "";
+  dlg.showModal();
+  input.select();
+  return new Promise((done) => {
+    $("#nameCancel").onclick = () => dlg.close();
+    dlg.onclose = () => done(dlg.returnValue === "ok" && input.value.trim() ? input.value.trim() : null);
+  });
+}
+/**
+ * A customised token's look kept as a design of yours: its design's with its changes, exactly, so it
+ * prints the same. The token then uses it, with no changes of its own.
+ */
+async function saveLookAsDesign(key: string) {
+  const shape = shapeOf(tokenRole(key)), d = designFor(key, shape);
+  const name = await askName(t("design.saveAsk"), uniqueDesignName(shape, t("design.saveName", { name: d.name })), t("design.saveOk"));
+  if (!name) return;
+  const { preset: _p, fromPreset: _f, ...spec } = structuredClone(lookOf(key));
+  const origin = d.mine ? myDesigns[shape].find((x) => `u:${x.id}` === d.ref)?.from : { name: d.name, spec: structuredClone(d.spec) };
+  const mine: MyDesign = { id: newId("d"), name: uniqueDesignName(shape, name), spec: spec as TokenSpec, ...(origin ? { from: origin } : {}) };
+  myDesigns[shape].push(mine); storeMyDesigns();
+  const own: TokenOverride = { ...state.overrides.get(key) };
+  delete own.look; own.style = `u:${mine.id}`;
+  state.flash = t("design.saved", { name: mine.name });
+  setOwn(key, own);
 }
 /** A token's design: kept on the token unless it's the one it has by default (none: back to that). Its own changes stay, as far as the new design hasn't them. */
 function setTokenDesign(key: string, ref: string) {
@@ -2451,19 +2567,18 @@ function wire() {
     view3d("setXray", on);
     if (on) { view3d("setView", "side"); syncView("side"); }
   };
-  // the token's design: its menu (the default, the collection's, yours), and the way back to the default
-  $("#styleChip").onclick = () => openStyleMenu($("#styleMenu").hidden);
-  $("#styleMenu").onclick = (e) => {
-    const pick = hit(e, "[data-design-pick]");
-    if (hit(e, "[data-to-taller]")) { rememberReturn(); return; }
-    if (pick) { openStyleMenu(false); setTokenDesign(state.sel!.key, pick.dataset.designPick!); }
+  // the token's design: the sheet to choose it (the default, the collection's, yours); its own changes
+  // kept as a design of yours or dropped; and the way back to the default
+  $("#styleChange").onclick = () => openDesignSheet("token", shapeOf(state.sel!.role), $("#styleChange"));
+  wireDesignSheet();
+  $("#styleSave").onclick = () => void saveLookAsDesign(state.sel!.key);
+  $("#styleDrop").onclick = () => {
+    const key = state.sel!.key, own: TokenOverride = { ...state.overrides.get(key) };
+    delete own.look;
+    setOwn(key, own);
+    state.flash = t("design.dropDone", { name: designFor(key).name });
+    renderWorkshop();
   };
-  $("#styleMenu").onkeydown = (e) => {
-    const items = $$("#styleMenu button, #styleMenu a"), i = items.indexOf(document.activeElement as HTMLElement);
-    if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); items[(i + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length]?.focus(); }
-    else if (e.key === "Escape") { openStyleMenu(false); $("#styleChip").focus(); }
-  };
-  document.addEventListener("click", (e) => { if (!$("#styleMenu").hidden && !hit(e, "#styleRow")) openStyleMenu(false); });
   $("#styleBack").onclick = () => {
     const key = state.sel!.key, own: TokenOverride = { ...state.overrides.get(key) };
     delete own.look; delete own.style;
@@ -3152,32 +3267,11 @@ function renderDesignBar() {
   $("#designBar").innerHTML = `<span class="db-l">${esc(t("bar.label"))}</span>`
     + shapes.map((sh) => {
       const d = designOf(sh, defaultRef(sh))!;
-      return `<button class="db-chip" type="button" data-default-shape="${sh}" aria-haspopup="menu" aria-expanded="${openDefault === sh}" aria-label="${esc(t("bar.chipAria", { shape: t(`type.${sh}.many`), name: d.name }))}">${designSwatch(d.spec, sampleRole(sh))}<span><small>${esc(t(`type.${sh}.many`))}</small><b>${esc(d.name)}</b></span>${CHEVRON}</button>`;
+      return `<button class="db-chip" type="button" data-default-shape="${sh}" aria-haspopup="dialog" aria-label="${esc(t("bar.chipAria", { shape: t(`type.${sh}.many`), name: d.name }))}">${designSwatch(d.spec, sampleRole(sh))}<span><small>${esc(t(`type.${sh}.many`))}</small><b>${esc(d.name)}</b></span>${CHEVRON}</button>`;
     }).join("")
     + (changed.length ? `<button class="link db-original" type="button" data-default-original>${esc(t("bar.original"))}</button>` : "")
     + `<a class="db-taller" href="${esc(tallerUrl())}" data-to-taller>${esc(t("bar.taller"))} <span aria-hidden="true">›</span></a>`;
-  if (openDefault) renderDefaultMenu(openDefault);
-}
-let openDefault: TokenShape | null = null;
-function openDefaultMenu(shape: TokenShape | null) {
-  openDefault = shape;
-  const menu = $("#defaultMenu");
-  menu.hidden = !shape;
-  for (const b of $$("[data-default-shape]")) b.setAttribute("aria-expanded", String(b.dataset.defaultShape === shape));
-  if (!shape) return;
-  renderDefaultMenu(shape);
-  const chip = $(`[data-default-shape="${shape}"]`), bar = $("#designBar");
-  menu.style.left = `${Math.max(0, Math.min(chip.offsetLeft, bar.clientWidth - menu.offsetWidth))}px`;
-  $<HTMLElement>("#defaultMenu [aria-checked=true]")?.focus();
-}
-/** A shape's designs to choose the default from, drawn on one of its tokens: the collection's (its own first is the original), then yours. */
-function renderDefaultMenu(shape: TokenShape) {
-  const cur = defaultRef(shape), orig = originalRef(shape), role = sampleRole(shape);
-  const item = (d: DesignEntry) => `<button type="button" role="menuitemradio" aria-checked="${d.ref === cur}" data-default-pick="${esc(d.ref)}"${d.help ? ` title="${esc(d.help)}"` : ""}>${designSwatch(d.spec, role)}<span>${esc(d.name)}</span>${d.ref === orig ? `<small>${esc(t("bar.originalTag"))}</small>` : ""}</button>`;
-  const mine = myDesigns[shape].map(myEntry);
-  $("#defaultMenu").innerHTML = `<p class="style-menu-head">${esc(t("design.fromColl", { name: collLabel() }))}</p>${startingStyles(shape).map((d) => item(collEntry(shape, d))).join("")}`
-    + `<p class="style-menu-head">${esc(t("design.mine"))}</p>${mine.map(item).join("") || `<p class="style-menu-none">${esc(t("design.mineNone"))}</p>`}`
-    + `<hr><a role="menuitem" href="${esc(tallerUrl(location.pathname, { shape, d: cur }))}" data-to-taller>${esc(t("design.toTaller"))} ›</a>`;
+  if (dz.open && dz.mode === "default") renderDesignSheet();
 }
 /**
  * New defaults for some shapes (the original: none kept). Tokens of those shapes with a design of
@@ -3204,23 +3298,10 @@ async function setDefaults(next: Partial<Record<TokenShape, string>>) {
 function wireDesignBar() {
   $("#designBar").onclick = (e) => {
     const chip = hit(e, "[data-default-shape]");
-    if (chip) { const sh = chip.dataset.defaultShape as TokenShape; openDefaultMenu(openDefault === sh ? null : sh); return; }
-    if (hit(e, "[data-default-original]")) { openDefaultMenu(null); void setDefaults(Object.fromEntries(shapesHere().filter((sh) => !barShapes || barShapes.includes(sh)).map((sh) => [sh, originalRef(sh)]))); return; }
+    if (chip) { openDesignSheet("default", chip.dataset.defaultShape as TokenShape, chip); return; }
+    if (hit(e, "[data-default-original]")) { void setDefaults(Object.fromEntries(shapesHere().filter((sh) => !barShapes || barShapes.includes(sh)).map((sh) => [sh, originalRef(sh)]))); return; }
     if (hit(e, "[data-to-taller]")) rememberReturn();
   };
-  $("#defaultMenu").onclick = (e) => {
-    const b = hit(e, "[data-default-pick]"), sh = openDefault;
-    if (hit(e, "[data-to-taller]")) { rememberReturn(); return; }
-    if (!b || !sh) return;
-    openDefaultMenu(null);
-    void setDefaults({ [sh]: b.dataset.defaultPick! });
-  };
-  $("#defaultMenu").onkeydown = (e) => {
-    const items = $$("#defaultMenu button, #defaultMenu a"), i = items.indexOf(document.activeElement as HTMLElement);
-    if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); items[(i + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length]?.focus(); }
-    else if (e.key === "Escape") { const sh = openDefault; openDefaultMenu(null); if (sh) $(`[data-default-shape="${sh}"]`).focus(); }
-  };
-  document.addEventListener("click", (e) => { if (openDefault && !hit(e, ".design-bar-wrap")) openDefaultMenu(null); });
 }
 
 /** A question with its answers as buttons (a dialog of the app's, not the browser's): the answer's id, or null when closed. */
