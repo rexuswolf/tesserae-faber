@@ -1011,3 +1011,13 @@ html[data-mode=own]:not([data-theme=botc]) .cs-text b { font-weight: 700; letter
 /* the app's own collections are read-only: "Make a copy" instead of editing */
 html:not([data-builtin]) .built-only { display: none !important; }
 html[data-builtin] [data-coll].own-only, html[data-builtin] hr.own-only, html[data-builtin] .spine-add, html[data-builtin] #ownCatList { display: none !important; }
+/* Moving between the app's pages: a quick cross-fade instead of a blank flash (View Transitions), and the
+   loading screen only when loading actually takes a while (with the files kept by the service worker, it seldom does) */
+@view-transition { navigation: auto; }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: 160ms; }
+.gate { animation: gate-in 220ms ease-out 350ms both; }
+@keyframes gate-in { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  @view-transition { navigation: none; }
+  .gate { animation: none; }
+}

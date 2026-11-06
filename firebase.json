@@ -25,6 +25,15 @@
               "value": "no-cache"
             }
           ]
+        },
+        {
+          "source": "{/sw.js,/registerSW.js,/manifest.webmanifest,/workbox-*.js}",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache"
+            }
+          ]
         }
       ],
       "target": "app",
