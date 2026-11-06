@@ -18,7 +18,7 @@ import { colourIssues, LIGHT_DEPTH } from "./colour-checks.ts";
 import { iconFromSvg, gameIcon, gameIconPreview, searchGameIcons, scriptEntryIcon, iconForScript, placeGameIcon, tracedBefore } from "./icons.ts";
 import { plateFeatures } from "./bambu/estimate.ts";
 import { PAGE, layoutCoins, backX } from "./pdf/layout.ts";
-import { t, uiLang, setUiLang, LANGUAGES } from "./i18n.ts";
+import { t, tIn, uiLang, setUiLang, LANGUAGES } from "./i18n.ts";
 import { TRANSLATIONS, VILLACUERVOS_URL } from "./translations.ts";
 import { uiIcon, UI_ICONS, TEAM_ICONS, SHAPE_ICONS } from "./ui-icons.ts";
 import { OWN, OWN_ID, OWN_VIEW, LIST_URL, lastCollection, rememberCollection, collectionUrl, openUrl, listCollections, addCollection, deleteCollection, starterCollection, builtInCollections, MODE, loadCollection, storeCollection, collectionRoles, collectionFile, readCollectionFile, readTokenList, SHAPES, readBuiltIn, copyBuiltIn, GROUP_COLOURS, newId, nameIn, withName, catalogsOf, isLocked, THEMES, THEME_FONTS, okLogo, hasCcc, builtIn, APP_LOGO, APP_LOGO_SMALL, APP_ICON, APP_NAME } from "./collection.ts";
@@ -248,35 +248,27 @@ const filamentName = (slot: number) => t(`filament.${FILAMENT_SLOTS[slot].name}`
 const CHEVRON = '<svg class="chev" viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const CHECK = '<svg class="check" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 8.5 6.5 12 13 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
-/** Language menus (sidebar and gate): the current flag, opening a list of every language. */
+/** The gate's language menu: the current flag, opening a list of every language. */
 function renderLangMenus() {
-  const cur = LANGUAGES.find((l) => l.code === uiLang()) ?? LANGUAGES[0];
+  const cur = uiLanguage();
   for (const menu of $$("[data-lang-menu]")) {
     menu.innerHTML = `<summary aria-label="${esc(t("lang.group"))}: ${esc(cur.name)}" title="${esc(t("lang.group"))}">
       <img src="${cur.flag}" alt="" width="22" height="22"><span>${cur.code.toUpperCase()}</span>${CHEVRON}</summary>
       <ul class="lang-list" aria-label="${esc(t("lang.group"))}">${LANGUAGES.map((l) => `<li><button type="button" data-lang="${l.code}" lang="${l.code}" aria-current="${l.code === cur.code}">
         <img src="${l.flag}" alt="" width="22" height="22"><span>${esc(l.name)}</span>${l.code === cur.code ? CHECK : ""}</button></li>`).join("")}</ul>`;
   }
-  // the sidebar's flag: a button that opens the languages in a dialog
-  const btn = $("#uiLangBtn");
-  if (btn) {
-    btn.innerHTML = `<img src="${cur.flag}" alt="" width="26" height="26">`;
-    btn.setAttribute("aria-label", `${t("lang.group")}: ${cur.name}`); btn.title = `${t("lang.group")}: ${cur.name}`;
-    $("#uiLangList").innerHTML = LANGUAGES.map((l) => `<li><button type="button" data-ui-lang="${l.code}" lang="${l.code}" aria-current="${l.code === cur.code}">
-      <img src="${l.flag}" alt="" width="28" height="28"><span>${esc(l.name)}</span>${l.code === cur.code ? CHECK : ""}</button></li>`).join("");
-  }
 }
+const uiLanguage = (code = uiLang()) => LANGUAGES.find((l) => l.code === code) ?? LANGUAGES[0];
 function setLang(lang: string) {
   setUiLang(lang);
   renderLangMenus();
-  renderTokenLang();
+  renderLangButtons();
   if (state.lib) { buildChoices(); renderAll(); renderQueue(); renderDesigns(); if ($<HTMLDialogElement>("#scriptInvite").open) renderInvite(); }
+  else if (OWN && !$("#ownHome").hidden) void renderOwnHome();   // the collections page draws its covers in the language
   else if (gateState) gate(gateState());
+  if ($<HTMLDialogElement>("#tlangDialog").open) drawLangDialog();
 }
 document.addEventListener("click", (e) => {
-  if (hit(e, "#uiLangBtn")) { drawer(false); $<HTMLDialogElement>("#uiLang").showModal(); $("#uiLangList [aria-current=true]")?.focus(); return; }
-  const ui = hit(e, "[data-ui-lang]");
-  if (ui) { $<HTMLDialogElement>("#uiLang").close(); setLang(ui.dataset.uiLang!); $("#uiLangBtn").focus(); return; }
   const pick = hit(e, "[data-lang-menu] [data-lang]");
   if (pick) { pick.closest("details")!.open = false; setLang(pick.dataset.lang!); return; }
   // Clicking anywhere else closes an open language menu.
@@ -286,18 +278,32 @@ document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
   for (const m of $$<HTMLDetailsElement>("[data-lang-menu][open]")) { m.open = false; m.querySelector("summary")!.focus(); }
 });
-setLang(uiLang());
 
 // ------------------------------------------------------------ token language
 
-// The language printed on the tokens, apart from the interface language. Until one is
-// picked it follows the interface (Spanish → Rovortox's translation, English → English).
-function tokenLang(): string {
-  let saved: string | null = null;
-  try { saved = localStorage.getItem(TOKEN_LANG_KEY); } catch { /* no storage */ }
-  const ok = langOptions();
-  return ok.some((x) => x.id === saved) ? saved as string : ok.some((x) => x.id === uiLang()) ? uiLang() : ok[0].id;
+// The language printed on the tokens, apart from the interface language. Saved as "same" (follow the
+// interface) or a translation's id; nothing saved is "same", which prints what the app always did for
+// someone who never chose (Spanish → Rovortox's translation, English → English). A choice saved
+// before "same" existed is a translation's id, so it stays as it was.
+const SAME = "same";
+function tokenLangChoice(): string {
+  try { return localStorage.getItem(TOKEN_LANG_KEY) || SAME; } catch { return SAME; }
 }
+/**
+ * "Same as the interface" in this collection: its first language in the interface's (Clocktower's
+ * Spanish is Rovortox's, the first of its versions), or the collection's first when it has none.
+ */
+function sameAsInterface(): Translation {
+  const ok = langOptions();
+  return ok.find((x) => x.lang === uiLang()) ?? ok[0];
+}
+/** The token language in use: the one chosen when this collection has it, else "same as the interface". */
+function tokenLang(): string {
+  const choice = tokenLangChoice();
+  return choice !== SAME && langOptions().some((x) => x.id === choice) ? choice : sameAsInterface().id;
+}
+/** What a choice in the dialog ("same" or an id) prints in. */
+const resolveLang = (choice: string) => (choice === SAME ? sameAsInterface() : langById(choice));
 /**
  * The languages the tokens can be printed in. Clocktower: every translation (Villacuervos's). A
  * collection of Tesserae Faber: only the ones its names come in; their translators only when it's
@@ -310,6 +316,11 @@ function langOptions(): Translation[] {
     .map((x) => (hasCcc(coll) ? x : { id: x.id, lang: x.lang, name: x.name, flag: x.flag }));
   return out.length ? out : [TRANSLATIONS[0]];
 }
+/**
+ * Whether this page has a token language to choose: Clocktower, and a collection whose names come in
+ * more than one. The front page and the collections page have no tokens, so only the interface.
+ */
+const hasTokenLangs = () => !OWN || (OWN_VIEW === "collection" && (coll.languages?.length ?? 0) > 1);
 function langById(id: string | null) { const ok = langOptions(); return ok.find((x) => x.id === id) ?? ok[0]; }
 function langGroups() {
   const out: { name: string; flag: string; items: Translation[] }[] = [];
@@ -320,45 +331,95 @@ function langGroups() {
 function isGrouped(x: Translation) { return langGroups().find((g) => g.name === x.name)!.items.length > 1; }
 function tlName(x: Translation) { return x.version ? `${x.name} · ${x.version}` : x.name; }
 function tlCredit(x: Translation) { return x.pack ? (x.by ? t("tlang.by", { by: x.by }) : t("tlang.community")) : t(OWN ? "tlang.collection" : "tlang.official"); }
-
-/** The header button: the flag and name of the language the tokens are printed in. */
-function renderTokenLang() {
-  const cur = langById(tokenLang());
-  const btn = $("#tokenLangBtn");
-  btn.innerHTML = `<img src="${cur.flag}" alt="" width="30" height="30"><span><small>${esc(t("tlang.label"))}</small><b>${esc(tlName(cur))}</b></span>${CHEVRON}`;
-  btn.setAttribute("aria-label", t("tlang.open", { name: tlName(cur) }));
+/** What "Same as the interface" prints in now ("Now, English: this collection isn't in Español" when it can't follow). */
+function sameNote() {
+  const x = sameAsInterface();
+  return x.lang === uiLang() ? t("tlang.sameNow", { name: tlName(x) }) : t("tlang.sameNone", { name: tlName(x), ui: uiLanguage().name });
 }
-function setTokenLang(id: string) {
-  try { localStorage.setItem(TOKEN_LANG_KEY, id); } catch { /* no storage */ }
-  renderTokenLang();
+
+/**
+ * The language button at the top right (and on the front and collections pages): the tokens' flag,
+ * with the interface's as a small badge when the two differ, and "Tokens in English" beside it on a
+ * wide screen. Where there are no tokens to print, only the interface's flag.
+ */
+function renderLangButtons() {
+  const ui = uiLanguage(), tokens = hasTokenLangs(), cur = langById(tokenLang());
+  const badge = tokens && cur.lang !== ui.code;
+  const tip = tokens ? t("lang.tip", { ui: ui.name, tok: tlName(cur) }) : t("lang.tipUi", { ui: ui.name });
+  for (const btn of $$("[data-lang-open]")) {
+    btn.classList.toggle("only-ui", !tokens);
+    btn.innerHTML = `<span class="lb-flags"><img src="${tokens ? cur.flag : ui.flag}" alt="">${badge ? `<img class="lb-badge" src="${ui.flag}" alt="">` : ""}</span>`
+      + (tokens ? `<span class="lb-text"><small>${esc(t("tlang.label"))}</small><b>${esc(tlName(cur))}</b></span>` : "");
+    btn.title = tip; btn.setAttribute("aria-label", tip);
+  }
+}
+function setTokenLang(choice: string) {
+  try { localStorage.setItem(TOKEN_LANG_KEY, choice); } catch { /* no storage */ }
+  renderLangButtons();
   if (state.lib) { renderAll(); renderQueue(); if ($<HTMLDialogElement>("#scriptInvite").open) renderInvite(); }
 }
 
-// The dialog: languages on the left (one with several versions folds open), and on the
-// right the selected character, its reminders and a few of the characters on screen,
-// drawn in the set's style in whichever language is picked or pointed at.
-const tl = { pick: null as string | null, open: new Set<string>() };
-function openTokenLang() {
-  tl.pick = tokenLang();
-  tl.open = new Set([langById(tl.pick).name]);
-  drawTokenLang();
+// The Language dialog, two tabs. Interface: a pick applies at once (the whole app and this dialog redraw
+// in it); the right side shows a little of the app in the language pointed at. Tokens: languages on the
+// left (one with several versions folds open), and on the right the selected character, its reminders
+// and a few of the characters on screen, drawn in the set's style in whichever language is picked or
+// pointed at; applied with "Print in …". The tab last used opens again, the interface the first time.
+// Where there are no tokens, only the interface, without tabs.
+const tl = { pick: SAME, open: new Set<string>(), tab: "ui" as "ui" | "tok" };
+function openLangDialog() {
+  drawer(false);
+  tl.pick = tokenLangChoice();
+  tl.open = new Set(tl.pick === SAME ? [] : [langById(tl.pick).name]);
+  if (!hasTokenLangs()) tl.tab = "ui";
+  drawLangDialog();
   $<HTMLDialogElement>("#tlangDialog").showModal();
   const sel = $("#tlangList [aria-selected=true]");
   sel?.scrollIntoView({ block: "nearest" }); sel?.focus();
 }
-function drawTokenLang() {
+function drawLangDialog() {
+  const tokens = hasTokenLangs(), ui = uiLanguage(), onTok = tokens && tl.tab === "tok";
+  $("#tlangIntro").textContent = t(tokens ? "lang.intro" : "lang.note");
+  const tabs = $("#tlangTabs");
+  tabs.hidden = !tokens;
+  tabs.innerHTML = tokens ? ([["ui", ui.flag, t("lang.tabUi")], ["tok", resolveLang(tl.pick).flag, t("lang.tabTokens")]] as const)
+    .map(([id, flag, label]) => `<button type="button" role="tab" data-tab="${id}" aria-selected="${tl.tab === id}"><img src="${flag}" alt="">${esc(label)}</button>`).join("") : "";
+  $("#tlangList").setAttribute("aria-label", t(onTok ? "lang.tabTokens" : "lang.tabUi"));
+  if (onTok) drawTokenList(); else drawUiList();
+  for (const [id, show] of [["#tlangCancel", onTok], ["#tlangUse", onTok], ["#tlangClose", !onTok]] as const) $(id).hidden = !show;
+  if (onTok) $("#tlangUse").textContent = t("tlang.use", { name: tlName(resolveLang(tl.pick)) });
+}
+function drawUiList() {
+  $("#tlangList").innerHTML = LANGUAGES.map((l) => `<button class="tl-item" type="button" role="option" aria-selected="${l.code === uiLang()}" data-ui="${l.code}" lang="${l.code}">
+    <img src="${l.flag}" alt=""><b>${esc(l.name)}</b>${l.code === uiLang() ? '<i class="dot"></i>' : ""}</button>`).join("");
+  drawUiStage(uiLang());
+}
+/** A little of the app (the steps, a sidebar entry, a title, the sidebar's foot) in an interface language. */
+function drawUiStage(code: string) {
+  const l = uiLanguage(code), s = (key: string) => esc(tIn(l.code, key));
+  const title = OWN && OWN_VIEW !== "collection" ? s("own.homeTitle") : s("library.all");
+  $("#tlangStage").innerHTML = `<img class="flag-bg" src="${l.flag}" alt="">
+    <div class="ui-mini" lang="${l.code}" aria-hidden="true">
+      <div class="um-steps"><b><i>1</i>${s("flow.step1")}</b><span><i>2</i>${s("flow.step2")}</span><span><i>3</i>${s("flow.step3")}</span></div>
+      <div class="um-body"><div class="um-side"><span class="on">${s("library.all")}</span><small>${s("spine.editions")}</small><span class="um-foot">${s("guide.open")}<br>${s("about.link")}</span></div>
+        <div class="um-main">${title}</div></div>
+    </div>
+    <div class="tl-card"><img src="${l.flag}" alt=""><span><b lang="${l.code}">${esc(l.name)}</b><small lang="${l.code}">${s("lang.note")}</small></span></div>`;
+}
+function drawTokenList() {
   const item = (x: Translation, label: string | undefined, sub: string) => `<button class="tl-item" type="button" role="option" aria-selected="${x.id === tl.pick}" data-id="${x.id}">
     ${isGrouped(x) ? "" : `<img src="${x.flag}" alt="">`}<b>${esc(label)}</b><small>${esc(sub)}</small>${x.id === tl.pick ? '<i class="dot"></i>' : ""}</button>`;
-  $("#tlangList").innerHTML = langGroups().map((g) => {
-    if (g.items.length === 1) return item(g.items[0], g.name, tlCredit(g.items[0]));
-    const open = tl.open.has(g.name), here = g.items.find((x) => x.id === tl.pick);
-    return `<div class="tl-group" data-current="${!!here}">
+  const same = sameAsInterface();
+  $("#tlangList").innerHTML = `<button class="tl-item tl-same" type="button" role="option" aria-selected="${tl.pick === SAME}" data-id="${SAME}">
+      <span class="tl-both"><img src="${uiLanguage().flag}" alt=""><img src="${same.flag}" alt=""></span><b>${esc(t("tlang.same"))}</b><small>${esc(sameNote())}</small>${tl.pick === SAME ? '<i class="dot"></i>' : ""}</button>`
+    + langGroups().map((g) => {
+      if (g.items.length === 1) return item(g.items[0], g.name, tlCredit(g.items[0]));
+      const open = tl.open.has(g.name), here = g.items.find((x) => x.id === tl.pick);
+      return `<div class="tl-group" data-current="${!!here}">
       <button class="tl-item" type="button" aria-expanded="${open}" data-group="${esc(g.name)}"><img src="${g.flag}" alt="">
         <b>${esc(g.name)}</b><small>${esc(t("tlang.versions", { n: g.items.length }))}${here ? ` · ${esc(here.version)}` : ""}</small>${CHEVRON}</button>
       ${open ? `<div class="tl-versions" role="group" aria-label="${esc(g.name)}">${g.items.map((x) => item(x, x.version, tlCredit(x))).join("")}</div>` : ""}</div>`;
-  }).join("");
-  drawTokenLangStage(tl.pick!);
-  $("#tlangUse").textContent = t("tlang.use", { name: tlName(langById(tl.pick)) });
+    }).join("");
+  drawTokenLangStage(resolveLang(tl.pick).id);
 }
 function drawTokenLangStage(id: string) {
   if (!state.lib || !state.sel) return;
@@ -377,30 +438,41 @@ function drawTokenLangStage(id: string) {
     <div class="tl-card"><img src="${x.flag}" alt=""><span><b>${esc(tlName(x))}</b>
       <small>${esc(tlCredit(x))}${x.pack ? ` · <a href="${VILLACUERVOS_URL}" target="_blank" rel="noopener">Villacuervos</a>` : ""}${x.fem ? ` · ${esc(t("credits.feminine"))}` : ""}</small></span></div>`;
 }
-$("#tokenLangBtn").onclick = openTokenLang;
-$("#tlangList").onclick = (e) => {
-  const g = hit(e, "[data-group]"), b = hit(e, "[data-id]");
-  if (g) { const n = g.dataset.group!; tl.open.has(n) ? tl.open.delete(n) : tl.open.add(n); drawTokenLang(); $(`#tlangList [data-group="${CSS.escape(n)}"]`).focus(); return; }
-  if (b) { tl.pick = b.dataset.id!; drawTokenLang(); $(`#tlangList [data-id="${CSS.escape(tl.pick)}"]`).focus(); }
+/** The stage for a list item: an interface language, a token language, or a group (its version in use, or its first). */
+function previewItem(el: HTMLElement) {
+  if (el.dataset.ui) return drawUiStage(el.dataset.ui);
+  if (el.dataset.id) return drawTokenLangStage(resolveLang(el.dataset.id).id);
+  const grp = langGroups().find((x) => x.name === el.dataset.group);
+  if (grp) drawTokenLangStage((grp.items.find((x) => x.id === tl.pick) ?? grp.items[0]).id);
+}
+const previewCurrent = () => (tl.tab === "tok" && hasTokenLangs() ? drawTokenLangStage(resolveLang(tl.pick).id) : drawUiStage(uiLang()));
+document.addEventListener("click", (e) => { if (hit(e, "[data-lang-open]")) openLangDialog(); });
+$("#tlangTabs").onclick = (e) => {
+  const tab = hit(e, "[data-tab]"); if (!tab) return;
+  tl.tab = tab.dataset.tab as "ui" | "tok"; drawLangDialog();
+  $(`#tlangTabs [data-tab="${tl.tab}"]`).focus();
 };
-// Pointing at a language previews it without choosing; a language group previews its first version.
-$("#tlangList").addEventListener("pointerover", (e) => {
-  const b = hit(e, "[data-id]"), g = hit(e, "[data-group]");
-  if (b) drawTokenLangStage(b.dataset.id!);
-  else if (g) { const grp = langGroups().find((x) => x.name === g.dataset.group)!; drawTokenLangStage((grp.items.find((x) => x.id === tl.pick) ?? grp.items[0]).id); }
-});
-$("#tlangList").addEventListener("pointerleave", () => drawTokenLangStage(tl.pick!));
+$("#tlangList").onclick = (e) => {
+  const u = hit(e, "[data-ui]"), g = hit(e, "[data-group]"), b = hit(e, "[data-id]");
+  if (u) { setLang(u.dataset.ui!); $(`#tlangList [data-ui="${CSS.escape(uiLang())}"]`).focus(); return; }
+  if (g) { const n = g.dataset.group!; tl.open.has(n) ? tl.open.delete(n) : tl.open.add(n); drawLangDialog(); $(`#tlangList [data-group="${CSS.escape(n)}"]`).focus(); return; }
+  if (b) { tl.pick = b.dataset.id!; drawLangDialog(); $(`#tlangList [data-id="${CSS.escape(tl.pick)}"]`).focus(); }
+};
+// Pointing at a language previews it without choosing.
+$("#tlangList").addEventListener("pointerover", (e) => { const el = hit(e, ".tl-item"); if (el) previewItem(el); });
+$("#tlangList").addEventListener("pointerleave", previewCurrent);
 $("#tlangList").addEventListener("keydown", (e) => {
   if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) return;
   e.preventDefault();
   const items = $$("#tlangList .tl-item"), i = items.indexOf(document.activeElement as HTMLElement);
   const next = e.key === "Home" ? 0 : e.key === "End" ? items.length - 1 : Math.max(0, Math.min(items.length - 1, i + (e.key === "ArrowDown" ? 1 : -1)));
   items[next].focus();
-  if (items[next].dataset.id) drawTokenLangStage(items[next].dataset.id);
+  previewItem(items[next]);
 });
-$("#tlangCancel").onclick = () => $<HTMLDialogElement>("#tlangDialog").close();
-$("#tlangUse").onclick = () => { $<HTMLDialogElement>("#tlangDialog").close(); if (tl.pick !== tokenLang()) setTokenLang(tl.pick!); };
+$("#tlangCancel").onclick = $("#tlangClose").onclick = () => $<HTMLDialogElement>("#tlangDialog").close();
+$("#tlangUse").onclick = () => { $<HTMLDialogElement>("#tlangDialog").close(); if (tl.pick !== tokenLangChoice()) setTokenLang(tl.pick); };
 $("#tlangDialog").addEventListener("click", (e) => { if (e.target === e.currentTarget) (e.currentTarget as HTMLDialogElement).close(); });   // backdrop
+setLang(uiLang());
 /** A click outside a dialog's box (on its backdrop) closes it; one on its own margin, inside, doesn't. */
 function closeOnBackdrop(dlg: HTMLDialogElement) {
   dlg.addEventListener("click", (e) => {
@@ -410,7 +482,6 @@ function closeOnBackdrop(dlg: HTMLDialogElement) {
   });
 }
 closeOnBackdrop($<HTMLDialogElement>("#credits"));
-closeOnBackdrop($<HTMLDialogElement>("#uiLang"));
 
 // ------------------------------------------------------------ gate
 
@@ -2408,11 +2479,11 @@ function applyGroups() {
   }
 }
 
-/** What depends on the collection itself: its name, its look, and the token language when it has several. */
+/** What depends on the collection itself: its name, its look, and the language button (its token languages). */
 function syncOwnChrome() {
   for (const el of $$(".coll-name")) el.textContent = nameIn(coll.brand?.title, uiLang()) || nameIn(coll.name, uiLang());
   applyOwnTheme(); applyOwnBrand();
-  $("#tokenLangBtn").hidden = !((coll.languages?.length ?? 0) > 1);
+  renderLangButtons();
 }
 
 /** After any change to the collection: keep it, redraw, and drop picks and designs of tokens that are gone. */

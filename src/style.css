@@ -107,7 +107,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .flow-step[aria-current=step] i { background: var(--brass); border-color: var(--brass); color: var(--velvet-deep); }
 .flow-step.done i { border-color: var(--brass); color: var(--brass); }
 .topbar .tlang-trigger { flex: none; padding: 4px 14px 4px 4px; }
-.topbar .tlang-trigger img { width: 28px; height: 28px; }
+.topbar .tlang-trigger .lb-flags { width: 28px; height: 28px; }
 .topbar .tlang-trigger b { font-size: 14px; }
 .scrim { display: none; position: fixed; inset: 0; z-index: 29; background: rgba(10, 3, 8, .66); }
 /* An edition or script in the sidebar: its name and count; the current one gets a gold bar. */
@@ -171,15 +171,20 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .chips .pill[aria-pressed=true]:not([data-team=all]) { background: color-mix(in srgb, var(--c) 22%, transparent); color: var(--bone); border-color: var(--c); }
 .chips .pill[aria-pressed=true]:not([data-team=all]) small { color: var(--bone); }
 .chips .pill[data-team=all][aria-pressed=true] small { color: var(--velvet-deep); }
-/* Token language: a setting for the whole sheet, so it sits beside the lead, apart from the filters. */
-.tlang-trigger { display: inline-flex; align-items: center; gap: 10px; padding: 6px 16px 6px 6px; border: 1px solid var(--seam); border-radius: 999px; background: rgba(239, 230, 214, .05); cursor: pointer; text-align: left; transition: border-color .15s, background .15s; }
+/* The language button, top right: the tokens' flag, the interface's as a badge on its corner when they
+   differ, and "Tokens in English" beside them. Only the flag where there are no tokens (and on a phone). */
+.tlang-trigger { display: inline-flex; align-items: center; gap: 10px; padding: 6px 16px 6px 6px; border: 1px solid var(--seam); border-radius: 999px; background: rgba(239, 230, 214, .05); color: inherit; font: inherit; cursor: pointer; text-align: left; transition: border-color .15s, background .15s; }
 .tlang-trigger:hover { border-color: var(--brass); background: rgba(239, 230, 214, .09); }
-.tlang-trigger img { border-radius: 50%; box-shadow: 0 0 0 2px rgba(239, 230, 214, .15); }
-.tlang-trigger span { display: grid; line-height: 1.15; }
+.tlang-trigger.only-ui { padding: 4px; }
+.lb-flags { position: relative; flex: none; display: block; width: 30px; height: 30px; }
+.lb-flags img { display: block; width: 100%; height: 100%; border-radius: 50%; box-shadow: 0 0 0 2px rgba(239, 230, 214, .15); }
+.lb-flags .lb-badge { position: absolute; right: -4px; bottom: -4px; width: 15px; height: 15px; box-shadow: 0 0 0 2px var(--velvet); }
+.lb-text { display: grid; line-height: 1.15; }
 .tlang-trigger small { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--dust); }
 .tlang-trigger b { font-weight: 600; font-size: 15px; }
+.oh-top .oh-lang { margin-left: auto; }
 
-/* Token language dialog: the list on the left, your tokens redrawn on the right. */
+/* Language dialog: the tabs and a list on the left, a preview on the right (your tokens redrawn, or a bit of the app). */
 .tlang-dialog { width: min(900px, calc(100% - 32px)); padding: 0; border-radius: 20px; box-shadow: 0 30px 80px rgba(0, 0, 0, .6); }
 .tlang-dialog::backdrop { backdrop-filter: blur(3px); }
 .tlang-dialog[open] { animation: tl-rise .22s ease-out; }
@@ -187,8 +192,32 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .tl-head { padding: 22px 26px 14px; border-bottom: 1px solid var(--seam); }
 .tl-head h2 { margin: 0; }
 .tl-head .hint { margin: 6px 0 0; }
-.tl-split { display: grid; grid-template-columns: 300px minmax(0, 1fr); min-height: 440px; }
-.tl-list { overflow-y: auto; max-height: min(60vh, 520px); padding: 10px 10px 14px 16px; border-right: 1px solid var(--seam); }
+.tl-split { display: grid; grid-template-columns: 320px minmax(0, 1fr); height: min(64vh, 560px); }
+.tl-side { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--seam); }
+.tl-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin: 14px 14px 4px 16px; padding: 4px; border-radius: 999px; background: rgba(239, 230, 214, .06); }
+.tl-tabs[hidden] { display: none; }
+.tl-tabs button { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 7px 8px; border: 0; border-radius: 999px; background: none; color: var(--dust); font: inherit; font-size: 14px; cursor: pointer; }
+.tl-tabs button:hover { color: var(--bone); }
+.tl-tabs button[aria-selected=true] { background: var(--bone); color: var(--velvet-deep); font-weight: 600; }
+.tl-tabs img { width: 20px; height: 20px; border-radius: 50%; }
+.tl-list { flex: 1; min-height: 0; overflow-y: auto; padding: 10px 10px 14px 16px; }
+.tl-item .tl-both { grid-row: span 2; position: relative; width: 34px; height: 34px; }
+.tl-item .tl-both img { position: absolute; left: 0; top: 0; width: 24px; height: 24px; }
+.tl-item .tl-both img + img { left: auto; top: auto; right: 0; bottom: 0; }
+.tl-item.tl-same small { white-space: normal; }   /* what it falls back to, and why, said in full */
+/* the Interface tab's preview: the steps, the sidebar and a title, in the language pointed at */
+.ui-mini { position: relative; width: min(380px, 100%); border: 1px solid var(--seam); border-radius: 14px; overflow: hidden; background: rgba(23, 8, 18, .7); }
+.um-steps { display: flex; justify-content: center; gap: 6px; padding: 10px; border-bottom: 1px solid var(--seam); font-size: 13px; color: var(--dust); }
+.um-steps > * { display: flex; align-items: center; gap: 6px; padding: 3px 10px 3px 4px; border-radius: 999px; }
+.um-steps b { background: rgba(239, 230, 214, .1); color: var(--bone); font-weight: 600; }
+.um-steps i { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 11px; border: 1px solid var(--seam); }
+.um-steps b i { background: var(--brass); border-color: var(--brass); color: var(--velvet-deep); }
+.um-body { display: grid; grid-template-columns: 130px minmax(0, 1fr); min-height: 150px; }
+.um-side { display: flex; flex-direction: column; gap: 6px; padding: 10px; border-right: 1px solid var(--seam); font-size: 12.5px; }
+.um-side .on { background: rgba(239, 230, 214, .08); border-radius: 6px; padding: 4px 6px; }
+.um-side small { color: var(--dust); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; padding: 0 6px; }
+.um-foot { margin-top: auto; color: var(--dust); font-size: 11.5px; padding: 0 6px; }
+.um-main { padding: 12px 14px; font: 400 21px/1.15 var(--display); }
 .tl-item { width: 100%; display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 1px 12px; align-items: center; padding: 8px 10px; border: 1px solid transparent; border-radius: 12px; background: none; color: inherit; font: inherit; cursor: pointer; text-align: left; }
 .tl-item:hover { background: rgba(239, 230, 214, .05); }
 .tl-item[aria-selected=true] { border-color: var(--brass); background: rgba(201, 162, 39, .1); }
@@ -220,13 +249,18 @@ button, input, select, textarea { font: inherit; color: inherit; }
 @media (prefers-reduced-motion: reduce) { .tlang-dialog[open], .tl-hero svg { animation: none; } }
 @media (max-width: 720px) {
   .tlang-dialog { width: 100%; max-width: 100%; max-height: 94vh; margin: auto 0 0; border-radius: 20px 20px 0 0; }
+  /* a bottom sheet: the preview on top, the list takes what is left, the buttons always in view */
+  .tlang-dialog[open] { display: flex; flex-direction: column; }
+  .tl-head, .tl-stage, .tl-foot { flex: none; }
   .tl-head { padding: 18px 18px 12px; }
-  .tl-split { grid-template-columns: 1fr; min-height: 0; }
+  .tl-split { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; height: auto; }
   .tl-stage { order: -1; padding: 14px; gap: 10px; }
-  .tl-hero svg { width: 120px; height: 120px; }
+  .tl-hero svg { width: 110px; height: 110px; }
   .tl-strip svg { width: 48px; height: 48px; }
   .tl-strip span { width: 66px; }
-  .tl-list { border-right: 0; border-top: 1px solid var(--seam); max-height: 36vh; }
+  .tl-side { flex: 1 1 auto; min-height: 0; border-right: 0; border-top: 1px solid var(--seam); }
+  .tl-list { min-height: 130px; }
+  .um-body { min-height: 110px; }
   .tl-foot { padding: 12px 18px 16px; }
 }
 #rows { padding: 4px 34px 40px; }
@@ -320,27 +354,14 @@ button, input, select, textarea { font: inherit; color: inherit; }
 /* Language and account: app-wide, so they live with the app's chrome, not the token panel. */
 /* sidebar foot: the CCC seal (opens the credits) beside the language and account, one short line under */
 .spine-foot { border-top: 1px solid var(--seam); padding: 12px 14px 14px; display: grid; gap: 8px; }
-.account { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.acc-tools { display: flex; align-items: center; gap: 8px; }
 .ccc-link { display: block; flex: 0 1 auto; min-width: 0; border-radius: 999px; }
 .ccc-link img { display: block; width: 86px; max-width: 100%; height: auto; opacity: .9; }
 .ccc-link:hover img { opacity: 1; }
 /* the guide's button, centred; "About" under the sleeve and the language */
-/* Footer pieces share the sidebar's width: the guide stretches beside the flag, the banner and
-   "About" fill it too. In the narrow desktop sidebar the flag takes a line of its own. */
+/* Footer pieces share the sidebar's width: the guide stretches beside the admin (when there is one),
+   "About this tool" fills the line under them. */
 .foot-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .foot-row .guide-btn { flex: 1; justify-content: center; }
-/* the app's language: the flag, a button that opens a dialog */
-.lang-btn { flex: none; display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 1px solid var(--seam); border-radius: 50%; background: none; cursor: pointer; }
-.lang-btn:hover { border-color: var(--brass); }
-.lang-btn img { width: 26px; height: 26px; border-radius: 50%; display: block; }
-#uiLang { width: min(460px, calc(100% - 32px)); }
-.ui-lang-list { list-style: none; margin: 14px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
-.ui-lang-list button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 12px; border: 1px solid var(--seam); border-radius: 12px; background: rgba(239, 230, 214, .04); cursor: pointer; font-size: 15px; text-align: left; }
-.ui-lang-list button:hover, .ui-lang-list button:focus-visible { border-color: var(--brass); outline: none; }
-.ui-lang-list button[aria-current=true] { border-color: var(--brass); background: rgba(201, 162, 39, .1); }
-.ui-lang-list img { width: 28px; height: 28px; border-radius: 50%; flex: none; }
-.ui-lang-list .check { margin-left: auto; color: var(--brass); }
 .ccc-banner { display: block; width: 100%; min-width: 0; }
 .ccc-banner img { display: block; width: 100%; height: auto; opacity: .9; }
 .ccc-banner:hover img { opacity: 1; }
@@ -349,7 +370,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .guide-btn .q { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: var(--brass); color: var(--velvet-deep); font-weight: 700; font-size: 12.5px; }
 .about-link { text-align: center; font-size: 12.5px; color: var(--dust); text-decoration: underline; text-underline-offset: 2px; }
 .about-link:hover { color: var(--bone); }
-.spine .me .menu { top: auto; bottom: 42px; right: auto; left: 0; }
+.spine .me .menu { top: auto; bottom: 38px; right: -6px; left: auto; min-width: 0; width: 176px; }
 /* Language menu: the current circle flag; opens a list of every language. */
 .lang-menu { position: relative; flex: none; }
 .lang-menu summary { list-style: none; display: inline-flex; align-items: center; gap: 7px; padding: 4px 10px 4px 4px; border: 1px solid var(--seam); border-radius: 999px; cursor: pointer; font-size: 12.5px; letter-spacing: .05em; color: var(--bone); user-select: none; }
@@ -646,7 +667,6 @@ dialog .import { margin-top: 10px; }
 /* ---------------------------------------------------------------- narrow screens */
 @media (max-width: 1180px) {
   :root { --spine-w: 180px; }
-  .foot-row { flex-wrap: wrap; justify-content: center; }
   .app[data-step="2"] { grid-template-columns: 360px minmax(0, 1fr); }
   .sections { padding-inline: 6px; gap: 0; }
   .sections button { padding-inline: 5px; font-size: 12.5px; }
@@ -670,7 +690,7 @@ dialog .import { margin-top: 10px; }
   .flow-step { padding: 5px 9px 5px 5px; gap: 6px; }
   .flow-step b { font-size: 13px; }
   .topbar .tlang-trigger { padding: 3px; }
-  .topbar .tlang-trigger span, .topbar .tlang-trigger .chev { display: none; }
+  .topbar .tlang-trigger .lb-text { display: none; }
   /* The sidebar becomes a drawer, whole, opened from the top bar. */
   .spine { position: fixed; top: 0; bottom: 0; left: 0; z-index: 30; width: min(300px, 84vw); transform: translateX(-102%); transition: transform .25s ease; box-shadow: 20px 0 40px rgba(0, 0, 0, .45); }
   .app[data-step="1"] .spine { display: flex; }
@@ -967,12 +987,13 @@ html[data-mode=own] .own-spine-h { display: none; }   /* the creator's sections 
   .oh-cover .oh-ccc { position: static; display: block; margin: -6px 24px 18px auto; width: 104px; }
   .oh-tile { flex-wrap: wrap; }
 }
-/* the sidebar's foot: the admin on a row of its own, under About */
-.foot-admin { display: flex; justify-content: center; }
-.foot-admin:not(:has(:not([hidden]))) { display: none; }
-.foot-admin .me summary { display: flex; align-items: center; gap: 8px; color: var(--dust); font-size: 13px; padding: 2px 10px 2px 2px; border: 1px solid var(--seam); border-radius: 999px; }
-.foot-admin .me img { width: 26px; height: 26px; }
-.spine .foot-admin .me .menu { bottom: 38px; left: 50%; translate: -50% 0; }
+/* the sidebar's foot: the admin's pill beside How it works */
+.foot-row .me summary { display: flex; align-items: center; gap: 8px; color: var(--dust); font-size: 13px; padding: 2px 10px 2px 2px; border: 1px solid var(--seam); border-radius: 999px; }
+.foot-row .me img { width: 26px; height: 26px; }
+/* the desktop sidebar is too narrow for both pills on one line: there the admin is its avatar alone
+   (its menu says who), and the sign-in button wraps under How it works when it doesn't fit */
+.foot-row { flex-wrap: wrap; justify-content: center; }
+@media (min-width: 901px) { .foot-row .me summary { padding: 2px; } .foot-row .me summary > span { display: none; } }
 /* About: the Community Created Content mark, for Clocktower and collections that carry it */
 .about-ccc { display: grid; grid-template-columns: 120px 1fr; gap: 14px; align-items: center; margin: 14px 0 4px; }
 .about-ccc img { width: 120px; height: auto; display: block; }
