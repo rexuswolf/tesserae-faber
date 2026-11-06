@@ -86,22 +86,22 @@ const tokens = [
 const ids = (list) => list.map((x) => x[0]);
 
 // The styles it comes with (src/collection.ts StyleDef), per shape; "team" is the token's group colour.
-// The first is what its tokens looked like before collections had styles, under that look's old id
-// ("edicion"), so whoever printed them gets the same.
+// Its own: Steel, what its tokens looked like before collections had styles, under that look's old id
+// ("edicion"), so whoever printed them gets the same. The functional ones are the app's
+// (src/shape-designs.ts APP_DESIGNS), offered in every collection: its Parchment is the app's now,
+// under the same id ("c:pergamino" kept before is the app's, the same). Its old Legible isn't the
+// app's High legibility (it has the edition's back): kept, hidden, only so whoever chose it prints
+// the same.
 const STEEL = { style: "classic", frame: "rim", frameWidth: 0.8, back: "edition", depth: 0.4, colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } };
 const styles = {
   coin: [
     { id: "edicion", name: { es: "Acero", en: "Steel" }, help: { es: "Negra, con el nombre, el icono y el borde del color del grupo, y el catálogo en oro al reverso.", en: "Black, with the name, icon and rim in the group colour, and the catalog in gold on the back." }, spec: STEEL },
-    // raised letters: on white the group colour reads by its edge too, even a pale one
-    { id: "pergamino", name: { es: "Pergamino", en: "Parchment" }, help: { es: "Blanca, con las letras en relieve del color del grupo y el catálogo en negro al reverso.", en: "White, with raised letters in the group colour and the catalog in black on the back." },
-      spec: { style: "classic", frame: "rim", frameWidth: 1.0, back: "edition", depth: 0.4, relief: { text: true, frame: false, icon: false }, reliefHeight: 0.6, colours: { base: FILAMENTS.white, front: "team", frame: "team", back: FILAMENTS.black } } },
-    // the window: the icon on the group colour, the name large below, for the far end of the table
     { id: "legible", name: { es: "Legible", en: "Legible" }, help: { es: "Ventana del color del grupo con el icono y el nombre grande debajo.", en: "A window in the group colour with the icon, and the name large below." },
-      spec: { style: "window", textSize: 6, frame: "none", back: "edition", depth: 0.4, colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } } },
+      spec: { style: "window", textSize: 6, frame: "none", back: "edition", depth: 0.4, colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } }, hidden: true },
   ],
-  // rings: the designs made for them (src/shape-designs.ts), High relief first (it reads from the
-  // side, next to the miniature); no cards: Draw Steel has none, a copy with some gets Basic's
-  ring: ringDesigns("relieve-alto", "filos", "aro-color", "rapida"),
+  // rings: the app's High relief its default (it reads from the side, next to the miniature), the
+  // rest the app's; no cards: Draw Steel has none, a copy with some gets Basic's
+  ring: ringDesigns("relieve-alto"),
 };
 const collection = {
   format: "midnight-mint/collection", version: 1,

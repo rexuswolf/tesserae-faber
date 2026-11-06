@@ -14,7 +14,7 @@ import type { Hex, Role, SpecInput, Team, TokenIcon, TokenShape } from "./types.
 import { gameIcon } from "./icons.ts";
 import { DEFAULT_SPEC, FILAMENTS } from "./engine/token-engine.ts";
 import { BUILT_INS } from "./builtins.ts";
-import { ringDesigns, cardDesigns } from "./shape-designs.ts";
+import { ringDesigns, cardDesigns, APP_DESIGNS, appTwin } from "./shape-designs.ts";
 
 /** Which app this page is: Clocktower (/botc, once Midnight Mint), or Tesserae Faber, the generic creator (the rest). */
 export const MODE: "botc" | "own" = /^\/botc(\/|$)/.test(location.pathname) ? "botc" : "own";
@@ -90,7 +90,9 @@ export interface OwnLoader { text?: Names; footer?: Names; ccc?: boolean }
  * one's), and a line about it. A collection's styles are where its tokens' styles start from: the
  * first of a shape is the one its tokens use, the rest can be added, and a style can be set back to one.
  */
-export interface StyleDef { id: string; name: Names; help?: Names; spec: SpecInput }
+export interface StyleDef { id: string; name: Names; help?: Names; spec: SpecInput;
+  /** Kept only so what chose it before prints the same ("c:<id>"): not offered (Draw Steel's old Legible). */
+  hidden?: boolean }
 export type CollectionStyles = Partial<Record<TokenShape, StyleDef[]>>;
 /**
  * The coin style a collection starts with when it says none: black, the name, icon and frame in
@@ -104,12 +106,14 @@ const BASIC: StyleDef = {
 };
 /**
  * The styles a collection starts with when it says none (Básico), per shape: the coin above; for
- * rings and cards, the designs made for them (src/shape-designs.ts), that fit any group.
+ * rings and cards, the app's that fit any group (src/shape-designs.ts), as its default. The rest
+ * of the app's designs are offered in every collection anyway (appDesigns); a "c:<id>" kept when
+ * Básico listed them all is the app's of that id, the same.
  */
 export const basicStyles = (): Record<TokenShape, StyleDef[]> => ({
   coin: [structuredClone(BASIC)],
-  ring: ringDesigns("aro-color", "relieve-alto", "filos", "rapida"),
-  card: cardDesigns("contraste", "placa", "pergamino", "filete", "esquinas", "rapida"),
+  ring: ringDesigns("aro-color"),
+  card: cardDesigns("contraste"),
 });
 /**
  * A collection kept with the basic coin style for its rings and cards too (as every new one was
@@ -119,8 +123,24 @@ function upgradeBasicStyles(styles: CollectionStyles | undefined) {
   const old = JSON.stringify(BASIC);
   for (const sh of ["ring", "card"] as const) if (styles?.[sh]?.length === 1 && JSON.stringify(styles[sh]![0]) === old) styles[sh] = basicStyles()[sh];
 }
-/** A collection's styles for a shape: its own, else the basic one. */
+/**
+ * A collection's styles for a shape: its own, else the basic one. The first is its default. Every
+ * one of them is what "c:<id>" means in it, hidden ones and the app's it lists too; an id it hasn't
+ * is the app's (appDesigns).
+ */
 export const stylesOf = (c: { styles?: CollectionStyles }, shape: TokenShape): StyleDef[] => (c.styles?.[shape]?.length ? c.styles[shape] : basicStyles()[shape]);
+/** The ones it offers as its own: not hidden, and not one of the app's (those are offered as the app's). */
+export const ownStylesOf = (c: { styles?: CollectionStyles }, shape: TokenShape): StyleDef[] => stylesOf(c, shape).filter((d) => !d.hidden && !appTwin(shape, d));
+/**
+ * The app's designs (Tesserae Faber's), offered in every collection after its own: "a:<id>".
+ * Functional looks (Fast print, High legibility, the rings' and cards'…) that were collections' once.
+ */
+export const appDesigns = (shape: TokenShape): StyleDef[] => APP_DESIGNS[shape];
+/** Every style "c:<id>" can be in a collection: its own (stylesOf), then the app's under an id it hasn't. */
+export const knownStylesOf = (c: { styles?: CollectionStyles }, shape: TokenShape): StyleDef[] => {
+  const own = stylesOf(c, shape);
+  return [...own, ...APP_DESIGNS[shape].filter((a) => !own.some((d) => d.id === a.id))];
+};
 
 export interface Collection {
   name: Names;
@@ -390,7 +410,7 @@ function readStyles(v: unknown): CollectionStyles | undefined {
     if (!Array.isArray(list)) continue;
     const defs = list.flatMap((x): StyleDef[] => {
       const spec = x && typeof x === "object" && x.id && okName(x.name) ? readSpec(x.spec) : null;
-      return spec ? [{ id: String(x.id), name: x.name, ...(okName(x.help) ? { help: x.help } : {}), spec }] : [];
+      return spec ? [{ id: String(x.id), name: x.name, ...(okName(x.help) ? { help: x.help } : {}), spec, ...(x.hidden === true ? { hidden: true } : {}) }] : [];
     }).filter((x, i, all) => all.findIndex((y) => y.id === x.id) === i);
     if (defs.length) out[sh] = defs;
   }

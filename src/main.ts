@@ -22,7 +22,8 @@ import { t, tIn, uiLang, setUiLang, LANGUAGES } from "./i18n.ts";
 import { TRANSLATIONS, VILLACUERVOS_URL } from "./translations.ts";
 import { uiIcon, UI_ICONS, TEAM_ICONS, SHAPE_ICONS } from "./ui-icons.ts";
 import { BOTC_STYLES } from "./botc-styles.ts";
-import { OWN, OWN_ID, OWN_VIEW, LIST_URL, tallerUrl, builtInStyles, basicStyles, lastCollection, rememberCollection, collectionUrl, openUrl, listCollections, addCollection, deleteCollection, starterCollection, builtInCollections, MODE, loadCollection, storeCollection, collectionRoles, collectionFile, readCollectionFile, readTokenList, SHAPES, tokenRole as ownRole, readBuiltIn, copyBuiltIn, GROUP_COLOURS, newId, nameIn, withName, catalogsOf, isLocked, THEMES, THEME_FONTS, okLogo, hasCcc, builtIn, APP_LOGO, APP_LOGO_SMALL, APP_ICON, APP_NAME, stylesOf } from "./collection.ts";
+import { OWN, OWN_ID, OWN_VIEW, LIST_URL, tallerUrl, builtInStyles, basicStyles, lastCollection, rememberCollection, collectionUrl, openUrl, listCollections, addCollection, deleteCollection, starterCollection, builtInCollections, MODE, loadCollection, storeCollection, collectionRoles, collectionFile, readCollectionFile, readTokenList, SHAPES, tokenRole as ownRole, readBuiltIn, copyBuiltIn, GROUP_COLOURS, newId, nameIn, withName, catalogsOf, isLocked, THEMES, THEME_FONTS, okLogo, hasCcc, builtIn, APP_LOGO, APP_LOGO_SMALL, APP_ICON, APP_NAME, stylesOf, ownStylesOf, appDesigns, knownStylesOf } from "./collection.ts";
+import { appTwin } from "./shape-designs.ts";
 import type { StyleDef, CollectionStyles, Collection, OwnToken, OwnCatalog, OwnSection, OwnTheme, CollectionEntry } from "./collection.ts";
 import { loadScripts, storeScripts, saveScript, scriptLink, readLink, scriptJson, idKey as scriptKey } from "./scripts.ts";
 import type { HomebrewEntry, NewScript, Script, ScriptJsonEntry } from "./scripts.ts";
@@ -218,16 +219,20 @@ let gateState: (() => GateConfig) | null = null;
 
 /**
  * The designs the collection comes with, per shape (its styles, in its file): read-only, the first
- * of a shape the one its tokens use unless you choose another. Clocktower's are its own (the
- * designs once offered to every collection as templates); a collection's come in its file, else Basic.
+ * of a shape the one its tokens use unless you choose another. Clocktower's are its own; a
+ * collection's come in its file, else Basic. What "c:<id>" means (hidden ones too); the ones it
+ * offers as its own are collDesigns, the app's (appDesigns) are offered after them in every one.
  */
 const startingStyles = (shape: TokenShape): StyleDef[] => (OWN ? stylesOf(coll, shape) : BOTC_STYLES[shape]);
+const collDesigns = (shape: TokenShape): StyleDef[] => ownStylesOf({ styles: OWN ? coll.styles : BOTC_STYLES }, shape);
+/** Every style "c:<id>" can be here: the collection's, then the app's under the ids it hasn't (the ones that were collections' once). */
+const knownStyles = (shape: TokenShape): StyleDef[] => knownStylesOf({ styles: OWN ? coll.styles : BOTC_STYLES }, shape);
 /**
  * One of them by id. The templates every collection was offered before were Clocktower's styles,
- * under the same ids: a style named after one the collection doesn't have keeps that one's name.
+ * under the same ids (now its own and the app's): a style named after one keeps that one's name.
  */
 const startingStyle = (shape: TokenShape, id: string | undefined): StyleDef | undefined =>
-  id == null ? undefined : startingStyles(shape).find((d) => d.id === id) ?? BOTC_STYLES[shape].find((d) => d.id === id);
+  id == null ? undefined : knownStyles(shape).find((d) => d.id === id) ?? BOTC_STYLES[shape].find((d) => d.id === id);
 const defName = (d: StyleDef) => nameIn(d.name, uiLang());
 /** Comparing an old spec with a collection's style leaves these alone: the magnet is chosen in its own tab, a ring's base is the miniatures'. */
 const STYLE_KEEPS = new Set(["lang", "customSvg", "magnet", "magnetSize", "ringBase"]);
@@ -369,7 +374,12 @@ function lookFrom(style: TokenSpec, spec: TokenSpec): LookChanges {
 // the whole collection (in Pick: DEFAULTS_KEY). A token uses its shape's default (a linked token,
 // its character's design), or a design chosen for it; and it may have changes of its own over it,
 // field by field. Those two are its overrides (OVERRIDES2_KEY, with its own text, icon…). A design
-// is referred to as "c:<id>" (the collection's) or "u:<id>" (yours).
+// is referred to as "c:<id>" (the collection's), "a:<id>" (the app's, offered in every collection)
+// or "u:<id>" (yours). A "c:<id>" kept before the functional designs became the app's still means
+// what it did: the collection's style of that id when it has it (a hidden one too: Draw Steel's old
+// Legible), else the app's of that id (they kept their ids: Fast print, Parchment, the rings'…).
+// One that is the app's (an id the collection hasn't, or a style of its that's the app's, appTwin)
+// reads as "a:<id>": refOf, defaultRef and the rest give that, so the menus mark it.
 
 /** A design as the menus and the editor see it, whichever kind it is. */
 interface DesignEntry { ref: string; name: string; spec: TokenSpec; mine: boolean; help?: string }
@@ -385,26 +395,29 @@ function collEntry(shape: TokenShape, d: StyleDef, ref = `c:${d.id}`): DesignEnt
   return { ref, name: defName(d), spec, mine: false, ...(d.help ? { help: nameIn(d.help, uiLang()) } : {}) };
 }
 const myEntry = (d: MyDesign): DesignEntry => ({ ref: `u:${d.id}`, name: d.name, spec: d.spec, mine: true });
-/** A design by its reference; none when it's gone (one of yours deleted). */
+/** A design by its reference; none when it's gone (one of yours deleted). Its ref is how it reads now ("c:" the app's: "a:"). */
 function designOf(shape: TokenShape, ref: string | undefined): DesignEntry | undefined {
   if (ref?.startsWith("u:")) { const d = myDesigns[shape].find((x) => x.id === ref.slice(2)); return d && myEntry(d); }
-  if (ref?.startsWith("c:")) { const d = startingStyles(shape).find((x) => x.id === ref.slice(2)); return d && collEntry(shape, d); }
+  if (ref?.startsWith("a:")) { const d = appDesigns(shape).find((x) => x.id === ref.slice(2)); return d && collEntry(shape, d, ref); }
+  if (ref?.startsWith("c:")) {
+    const id = ref.slice(2), d = startingStyles(shape).find((x) => x.id === id);
+    return d && !appTwin(shape, d) ? collEntry(shape, d) : designOf(shape, `a:${id}`);
+  }
   return undefined;
 }
 /** The collection's own default for a shape: its first design ("Original design"). */
-const originalRef = (shape: TokenShape) => `c:${startingStyles(shape)[0].id}`;
+const originalRef = (shape: TokenShape) => designOf(shape, `c:${startingStyles(shape)[0].id}`)!.ref;
 /** The collection's default for a shape: the one chosen for it, while it's there, else its own first. */
-const defaultRef = (shape: TokenShape) => (designOf(shape, defaults[shape]) ? defaults[shape]! : originalRef(shape));
+const defaultRef = (shape: TokenShape) => designOf(shape, defaults[shape])?.ref ?? originalRef(shape);
 /** The design a token has by default: its shape's default; a linked token's, its character's. */
 function inheritedRef(key: string, shape: TokenShape) {
   const char = key.startsWith("r:") ? state.overrides.get(`c:${roleIdOf(key)}`)?.style : undefined;
-  return designOf(shape, char) ? char! : defaultRef(shape);
+  return designOf(shape, char)?.ref ?? defaultRef(shape);
 }
 /** The design a token uses: one chosen for it, else the one it has by default. */
 function refOf(key: string, shape = shapeOf(tokenRole(key))): string {
   if (TALLER) return taller.ref;
-  const own = state.overrides.get(key)?.style;
-  return designOf(shape, own) ? own! : inheritedRef(key, shape);
+  return designOf(shape, state.overrides.get(key)?.style)?.ref ?? inheritedRef(key, shape);
 }
 const designFor = (key: string, shape = shapeOf(tokenRole(key))) => designOf(shape, refOf(key, shape))!;
 /** A token's look: its design's, with its own changes. */
@@ -507,7 +520,7 @@ const collLabel = () => (OWN ? nameIn(coll.brand?.title, uiLang()) || nameIn(col
 function fromStyles(styles: Record<TokenShape, Style[]>, overrides: Map<string, TokenOverride>) {
   const looks = [...overrides.values()].flatMap((v) => (v.look ? [v.look] : []));
   const refs = Object.fromEntries(SHAPES.map((sh) => [sh, new Map(styles[sh].map((st) => [st.id, adoptStyle(sh, st, looks)]))])) as Record<TokenShape, Map<string, string>>;
-  for (const sh of SHAPES) { const first = refs[sh].get(styles[sh][0].id)!; if (first !== originalRef(sh)) defaults[sh] = first; }
+  for (const sh of SHAPES) { const first = refs[sh].get(styles[sh][0].id)!; if (designOf(sh, first)?.ref !== originalRef(sh)) defaults[sh] = first; }
   for (const [k, v] of overrides) {
     const own = { ...v }, role = roleById(roleIdOf(k));
     if (own.style != null) {
@@ -520,7 +533,7 @@ function fromStyles(styles: Record<TokenShape, Style[]>, overrides: Map<string, 
   // a design chosen that the token has by default anyway isn't one of its own (characters first: their linked tokens take theirs)
   for (const k of [...state.overrides.keys()].sort((a, b) => Number(a.startsWith("r:")) - Number(b.startsWith("r:")))) {
     const own = state.overrides.get(k)!, role = roleById(roleIdOf(k));
-    if (own.style && (!role || own.style === inheritedRef(k, shapeOf(role)))) delete own.style;
+    if (own.style && (!role || designOf(shapeOf(role), own.style)?.ref === inheritedRef(k, shapeOf(role)))) delete own.style;
     if (!Object.keys(own).length) state.overrides.delete(k);
   }
 }
@@ -532,7 +545,7 @@ function fromStyles(styles: Record<TokenShape, Style[]>, overrides: Map<string, 
  */
 function adoptStyle(shape: TokenShape, st: Style, looks: LookChanges[]): string {
   if (!st.name) {
-    const list = startingStyles(shape), same = (x: StyleDef) => printsAs(shape, st.spec, defSpec(x), looks);
+    const list = knownStyles(shape), same = (x: StyleDef) => printsAs(shape, st.spec, defSpec(x), looks);
     const d = list.find((x) => x.id === st.tpl && same(x)) ?? list.find(same);
     if (d) return `c:${d.id}`;
   }
@@ -573,12 +586,12 @@ async function tidyMyDesigns() {
   const theirs = new Map<string, Record<TokenShape, StyleDef[]>>();
   for (const p of prefixes) {
     const id = p.match(/^midnight-mint-own-(.+)-$/)?.[1];
-    if (p === "midnight-mint-") { theirs.set(p, BOTC_STYLES); continue; }
+    if (p === "midnight-mint-") { theirs.set(p, Object.fromEntries(SHAPES.map((sh) => [sh, knownStylesOf({ styles: BOTC_STYLES }, sh)])) as Record<TokenShape, StyleDef[]>); continue; }
     if (!id) continue;
     let styles: CollectionStyles | undefined;
     if (builtIn(id)) { styles = await builtInStyles(id); if (!styles) { known = false; continue; } }
     else { const c = loadCollection(id); if (!c) continue; styles = c.styles; }
-    theirs.set(p, Object.fromEntries(SHAPES.map((sh) => [sh, stylesOf({ styles }, sh)])) as Record<TokenShape, StyleDef[]>);
+    theirs.set(p, Object.fromEntries(SHAPES.map((sh) => [sh, knownStylesOf({ styles }, sh)])) as Record<TokenShape, StyleDef[]>);
   }
   const shapeOfMine = (ref: string | undefined) => (ref?.startsWith("u:") ? SHAPES.find((sh) => mine[sh].some((d) => d.id === ref.slice(2))) : undefined);
   const specOfMine = (sh: TokenShape, ref: string) => mine[sh].find((d) => d.id === ref.slice(2))!.spec;
@@ -621,7 +634,7 @@ async function tidyMyDesigns() {
     for (const r of Object.values(loadJSON<Record<string, string>>(`${p}design-defaults`, {}))) used.add(r);
     for (const o of Object.values(loadJSON<Record<string, TokenOverride>>(`${p}design-tokens`, {}))) if (o?.style) used.add(o.style);
   }
-  const all = [BOTC_STYLES, basicStyles(), ...theirs.values()];
+  const all = [BOTC_STYLES, basicStyles(), Object.fromEntries(SHAPES.map((sh) => [sh, appDesigns(sh)])) as Record<TokenShape, StyleDef[]>, ...theirs.values()];
   let gone = false;
   for (const sh of SHAPES) {
     const keep = mine[sh].filter((d) => used.has(`u:${d.id}`) || !all.some((s) => s[sh].some((x) => printsAs(sh, d.spec, defSpec(x), []))));
@@ -1737,7 +1750,7 @@ function differsFrom(d: StyleDef, spec: TokenSpec, shape: TokenShape) {
  * matches; the templates of old (Clocktower's styles) too, for one made from one.
  */
 function startedFrom(spec: TokenSpec, shape: TokenShape) {
-  const list = [...startingStyles(shape), ...BOTC_STYLES[shape]], id = spec.preset ?? spec.fromPreset;
+  const list = [...knownStyles(shape), ...BOTC_STYLES[shape]], id = spec.preset ?? spec.fromPreset;
   const def = list.find((d) => d.id === id) ?? list.find((d) => !differsFrom(d, spec, shape));
   return { def, modified: !!def && differsFrom(def, spec, shape) };
 }
@@ -1808,7 +1821,7 @@ function renderDesignRow(key: string, shape: TokenShape) {
   const { role, reminder } = state.sel!;
   $("#styleTok").innerHTML = tokenSvg(state.lib!, role, specFor(key, reminder != null), { text: textFor(key, role, reminder) });
   $("#styleName").innerHTML = esc(d.name) + (tweaked ? ` · ${esc(t("design.custom"))} <span aria-hidden="true">✎</span>` : "");
-  $("#styleCount").textContent = d.ref === def.ref ? t("design.isDefault") : d.mine ? t("design.yours") : t("design.fromSrc", { name: collLabel() });
+  $("#styleCount").textContent = d.ref === def.ref ? t("design.isDefault") : d.mine ? t("design.yours") : t("design.fromSrc", { name: d.ref.startsWith("a:") ? APP_NAME : collLabel() });
   $("#styleChange").setAttribute("aria-label", `${t("design.change")}: ${t("design.label")} ${d.name}`);
   $("#styleTweak").hidden = !tweaked;
   const back = $<HTMLButtonElement>("#styleBack");
@@ -1824,7 +1837,8 @@ function renderDesignRow(key: string, shape: TokenShape) {
 //
 // One sheet for a token's design (step 2) and for a shape's default in the collection (Pick):
 // each design drawn large on the token it's for (in Pick, the shape's first token), with a line on
-// it; the collection's and yours in two tabs, yours searchable when there are many. The token's
+// it; the collection's and yours in two tabs, yours searchable when there are many. The
+// collection's tab has its own first, then the app's (Tesserae Faber's), under their names. The token's
 // default (in Pick, the collection's original) comes first, marked; the one in use is ringed.
 // Choosing one is the same as it always was (setTokenDesign, setDefaults); the sheet just closes.
 
@@ -1834,17 +1848,23 @@ function specWith(base: TokenSpec, key: string, isReminder: boolean): TokenSpec 
   const spec = { ...DEFAULT_SPEC, ...base, colours: { ...DEFAULT_SPEC.colours, ...base.colours }, lang: tokenLang(), icon: ownIcon(roleIdOf(key)) };
   return isReminder ? reminderSpec(spec) : spec;
 }
-/** The designs the sheet offers, in its two tabs: each with what choosing it sets ("": a token's default), whether it's the first (marked) and whether it's in use. */
+/**
+ * The designs the sheet offers, in its two tabs (the collection's: its own, then the app's): each
+ * with what choosing it sets ("": a token's default), whether it's the first (marked) and whether
+ * it's in use. A hidden style of the collection's in use (or the default) is shown with its own.
+ */
 function sheetDesigns() {
-  const sh = dz.shape, coll = startingStyles(sh).map((x) => collEntry(sh, x)), mine = myDesigns[sh].map(myEntry);
+  const sh = dz.shape, mine = myDesigns[sh].map(myEntry), app = appDesigns(sh).map((x) => collEntry(sh, x, `a:${x.id}`));
   let first: string, cur: string;
   if (dz.mode === "token") {
-    const key = state.sel!.key, own = state.overrides.get(key)?.style;
-    first = inheritedRef(key, sh); cur = own && designOf(sh, own) ? own : first;
+    const key = state.sel!.key;
+    first = inheritedRef(key, sh); cur = refOf(key, sh);
   } else { first = originalRef(sh); cur = defaultRef(sh); }
+  const own = collDesigns(sh).map((x) => collEntry(sh, x));
+  for (const r of new Set([first, cur])) if (r.startsWith("c:") && !own.some((d) => d.ref === r)) own.push(designOf(sh, r)!);
   const lead = (list: DesignEntry[]) => [...list.filter((d) => d.ref === first), ...list.filter((d) => d.ref !== first)];
   const item = (d: DesignEntry) => ({ d, pick: dz.mode === "token" && d.ref === first ? "" : d.ref, first: d.ref === first, on: d.ref === cur });
-  return { coll: lead(coll).map(item), mine: lead(mine).map(item), cur };
+  return { own: lead(own).map(item), app: lead(app).map(item), coll: [...lead(own), ...lead(app)].map(item), mine: lead(mine).map(item), cur };
 }
 function openDesignSheet(mode: "token" | "default", shape: TokenShape, opener: HTMLElement) {
   Object.assign(dz, { open: true, mode, shape, opener, q: "" });
@@ -1856,7 +1876,7 @@ function openDesignSheet(mode: "token" | "default", shape: TokenShape, opener: H
   ($<HTMLElement>("#dzCards [aria-pressed=true]") ?? $<HTMLElement>("#dzTabs [aria-selected=true]"))?.focus();
 }
 function renderDesignSheet() {
-  const sh = dz.shape, { coll, mine, cur } = sheetDesigns(), tokenMode = dz.mode === "token";
+  const sh = dz.shape, { own, app, coll, mine, cur } = sheetDesigns(), tokenMode = dz.mode === "token";
   const role = tokenMode ? state.sel!.role : sampleRole(sh), key = tokenMode ? state.sel!.key : charKey(role), reminder = tokenMode ? state.sel!.reminder : null;
   const look = tokenMode ? state.overrides.get(key)?.look : undefined, text = textFor(key, role, reminder);
   $("#dzTitle").textContent = t(tokenMode ? "dsheet.title" : `dsheet.title.${sh}`);
@@ -1865,15 +1885,21 @@ function renderDesignSheet() {
   search.hidden = dz.tab !== "mine" || mine.length <= 6;
   const q = search.hidden ? "" : dz.q.trim().toLocaleLowerCase();
   const list = (dz.tab === "coll" ? coll : mine).filter((x) => !q || x.d.name.toLocaleLowerCase().includes(q));
+  type Item = (typeof list)[number];
   const help = (d: DesignEntry) => {
     if (!d.mine) return d.help ?? "";
     const m = myDesigns[sh].find((x) => `u:${x.id}` === d.ref);
     return m?.from ? t("dsheet.from", { name: m.from.name }) : t("dsheet.yours");
   };
   const tag = t(tokenMode ? "design.defaultItem" : "bar.originalTag");
-  $("#dzCards").innerHTML = list.map(({ d, pick, first, on }) => `<button class="dz-card" type="button" data-dz-pick="${esc(pick)}" aria-pressed="${on}">`
+  const card = ({ d, pick, first, on }: Item) => `<button class="dz-card" type="button" data-dz-pick="${esc(pick)}" aria-pressed="${on}">`
     + `<span class="dz-tok">${tokenSvg(state.lib!, role, specWith(applyLook(d.spec, look), key, reminder != null), { text })}${first ? `<i class="dz-badge">${esc(tag)}</i>` : ""}</span>`
-    + `<b>${esc(d.name)}</b>${help(d) ? `<small>${esc(help(d))}</small>` : ""}</button>`).join("")
+    + `<b>${esc(d.name)}</b>${help(d) ? `<small>${esc(help(d))}</small>` : ""}</button>`;
+  // the collection's tab: its own under its name (when it has any), then the app's under Tesserae Faber
+  const head = (name: string) => `<h3 class="dz-sec">${esc(name)}</h3>`;
+  $("#dzCards").innerHTML = (dz.tab === "coll"
+    ? (own.length ? head(collLabel()) + own.map(card).join("") : "") + head(APP_NAME) + app.map(card).join("")
+    : list.map(card).join(""))
     || `<p class="dz-empty">${esc(t(q ? "dsheet.noMatch" : "design.mineNone"))}</p>`;
   $("#dzFor").textContent = tokenMode ? text : t("dsheet.sample", { name: text });
   $<HTMLAnchorElement>("#dzTaller").href = tallerUrl(location.pathname, { shape: sh, d: cur });
@@ -3340,7 +3366,8 @@ function takeReturn(): { step: number; sel: string | null } | null {
 // The Taller (/taller) is where your designs are made and changed, outside the steps, for every
 // shape the app has. Entering it starts a new design in two steps: 1. its shape (or one of yours to
 // carry on with), 2. the design it starts from, its base: Basic (the app's own, blank), then the
-// collection it was opened from, then the app's collections' (Clocktower, Draw Steel). Starting
+// collection it was opened from, then the app's collections' (Clocktower, Draw Steel), each with its
+// own designs only, then the app's (Tesserae Faber's, offered in every collection). Starting
 // makes a copy of the base, yours, and opens it in the editor: its look changed with the design
 // step's controls (the workshop column), straight on the design, which every token using it shows.
 // A collection's designs are never changed here: they're only bases. A design is drawn on sample
@@ -3349,7 +3376,8 @@ function takeReturn(): { step: number; sel: string | null } | null {
 const TALLER = OWN_VIEW === "taller";
 /**
  * A group of bases in the second step: Basic ("blank"), the collection the Taller was opened from
- * ("from"), another of the app's collections ("other"), the app's other basic designs ("app").
+ * ("from"), another of the app's collections ("other"), each with its own designs; the app's
+ * designs, Tesserae Faber's ("app").
  */
 interface TallerGroup { kind: "blank" | "from" | "other" | "app"; name: string; designs: Partial<Record<TokenShape, StyleDef[]>>; look?: GroupLook }
 /** How a collection's group of bases looks folded: like its cover on the collections page. */
@@ -3419,14 +3447,13 @@ async function openTaller() {
   if (c && id) { coll = c; taller.from = { path, id, name: label(c) }; applyGroups(); }
   applyOwnTheme();   // the collection's colours (Clocktower's velvet), else Tesserae Faber's
   // the bases: Basic first (each shape's first basic design, named Basic), then the collection's own
-  // designs, the app's collections', and the app's other basic designs that none of those has
-  const basic = basicStyles();
+  // designs, the app's collections' own, and the app's designs (but the one Basic already is)
+  const basic = basicStyles(), own = (styles: CollectionStyles | undefined) => Object.fromEntries(SHAPES.map((sh) => [sh, styles?.[sh]?.length ? ownStylesOf({ styles }, sh) : []]));
   const groups: TallerGroup[] = [{ kind: "blank", name: APP_NAME, designs: Object.fromEntries(SHAPES.map((sh) => [sh, [{ ...basic[sh][0], name: { es: "Básico", en: "Basic" } }]])) }];
-  if (c?.styles) groups.push({ kind: "from", name: label(c), designs: c.styles, look: lookOfCollection(id, c) });
-  if (id !== "botc") groups.push({ kind: "other", name: "Blood on the Clocktower", designs: BOTC_STYLES, look: lookOfCollection("botc") });
-  if (id !== "drawsteel") { const ds = await builtInStyles("drawsteel"); if (ds) groups.push({ kind: "other", name: builtIn("drawsteel")!.name, designs: ds, look: lookOfCollection("drawsteel") }); }
-  const seen = (sh: TokenShape, d: StyleDef) => groups.some((g) => g.kind !== "blank" && g.designs[sh]?.some((x) => JSON.stringify(x.spec) === JSON.stringify(d.spec)));
-  groups.push({ kind: "app", name: APP_NAME, designs: Object.fromEntries(SHAPES.map((sh) => [sh, basic[sh].slice(1).filter((d) => !seen(sh, d))])), look: { logo: APP_LOGO } });
+  if (c?.styles) groups.push({ kind: "from", name: label(c), designs: own(c.styles), look: lookOfCollection(id, c) });
+  if (id !== "botc") groups.push({ kind: "other", name: "Blood on the Clocktower", designs: own(BOTC_STYLES), look: lookOfCollection("botc") });
+  if (id !== "drawsteel") { const ds = await builtInStyles("drawsteel"); if (ds) groups.push({ kind: "other", name: builtIn("drawsteel")!.name, designs: own(ds), look: lookOfCollection("drawsteel") }); }
+  groups.push({ kind: "app", name: APP_NAME, designs: Object.fromEntries(SHAPES.map((sh) => [sh, appDesigns(sh).filter((d) => d.id !== basic[sh][0].id)])), look: { logo: APP_LOGO } });
   taller.groups = groups;
   // the tokens to draw on: a few of each shape from the collection, different groups first, one with another state
   const roles = c ? collectionRoles(c, uiLang()) : [];
@@ -3450,7 +3477,7 @@ async function openTaller() {
 }
 /**
  * The Taller's step from its address: "d=u:<id>" one of your designs, in the editor; "shape" (with
- * "d=c:<id>", a collection's design as the design step names it, or "d=g<n>:<id>", a base) the
+ * "d=c:<id>", a collection's design as the design step names it, "d=a:<id>", one of the app's, or "d=g<n>:<id>", a base) the
  * second step, on that base; else the first.
  */
 function readTallerAddress() {
@@ -3469,6 +3496,11 @@ function readTallerAddress() {
     const order = taller.groups.map((g, i) => ({ g, i })).sort((a, b) => rank(a.g) - rank(b.g));
     const hit = order.find(({ g }) => g.designs[shape]?.some((x) => x.id === d.slice(2)));
     if (hit) pick = `g${hit.i}:${d.slice(2)}`;
+  }
+  if (d.startsWith("a:")) {
+    // the app's: in its group, or Basic when it's the one Basic is
+    const i = taller.groups.findIndex((g) => (g.kind === "app" || g.kind === "blank") && g.designs[shape]?.some((x) => x.id === d.slice(2)));
+    if (i >= 0) pick = `g${i}:${d.slice(2)}`;
   }
   Object.assign(taller, { view: "base", shape, pick: pick || firstBase(shape) });
 }
@@ -3560,8 +3592,8 @@ function renderTallerBases() {
     const d = tallerBase(sh, `g${i}:${def.id}`)!, on = d.ref === pick.ref;
     return `<button class="tw-opt" type="button" role="radio" aria-checked="${on}" data-tw-pick="${esc(d.ref)}">${designSwatch(d.spec, role)}<span class="tw-ot"><b>${esc(d.name)}${g.kind === "blank" ? ` <span class="tw-tag">${esc(t("taller.blankTag"))}</span>` : ""}</b>${d.help ? `<small>${esc(d.help)}</small>` : ""}</span><span class="rad" aria-hidden="true"></span>${on ? more(d.spec) : ""}</button>`;
   };
-  const label = (g: TallerGroup) => (g.kind === "blank" ? t("taller.blankGroup") : g.kind === "app" ? t("taller.appGroup", { name: g.name }) : t("taller.of", { name: g.name }));
-  const note = (g: TallerGroup) => (g.kind === "blank" ? t("taller.blankNote") : g.kind === "from" ? t("taller.fromNote") : "");
+  const label = (g: TallerGroup) => (g.kind === "blank" ? t("taller.blankGroup") : g.kind === "app" ? g.name : t("taller.of", { name: g.name }));
+  const note = (g: TallerGroup) => (g.kind === "blank" ? t("taller.blankNote") : g.kind === "from" ? t("taller.fromNote") : g.kind === "app" ? t("taller.appNote") : "");
   // the starting base in the open; each collection's designs folded (open where the chosen base is)
   const opts = taller.groups.map((g, i) => {
     const list = g.designs[sh];

@@ -1389,6 +1389,8 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 .dz-badge { position: absolute; top: -4px; right: -10px; padding: 0 7px; border-radius: 999px; background: var(--brass); color: var(--velvet-deep); font: 600 10.5px/17px var(--ui); font-style: normal; white-space: nowrap; }
 .dz-card b { font-weight: 600; font-size: 13.5px; line-height: 1.2; text-align: center; overflow-wrap: anywhere; }
 .dz-card small { color: var(--dust); font-size: 11.5px; line-height: 1.3; text-align: center; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.dz-sec { grid-column: 1 / -1; margin: 6px 2px 0; color: var(--dust); font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+.dz-sec:not(:first-child) { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--seam); }
 .dz-empty { grid-column: 1 / -1; margin: 20px 0; color: var(--dust); font-size: 13.5px; text-align: center; }
 .dz-foot { flex: none; display: flex; justify-content: space-between; align-items: center; gap: 4px 16px; flex-wrap: wrap; padding: 11px 22px; border-top: 1px solid var(--seam); color: var(--dust); font-size: 13px; }
 .dz-foot a { color: var(--brass); text-decoration: none; }
