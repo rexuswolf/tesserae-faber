@@ -468,6 +468,11 @@ function setLang(lang: string) {
   else if (gateState) gate(gateState());
   if ($<HTMLDialogElement>("#tlangDialog").open) drawLangDialog();
 }
+// The ⇄ on a two-state token on the sheet turns it over (on a phone, where nothing hovers); it doesn't pick it.
+document.addEventListener("click", (e) => {
+  const b = hit(e, "[data-turn]"); if (!b) return;
+  e.stopPropagation(); b.closest(".tok-w")?.classList.toggle("turned");
+}, true);
 document.addEventListener("click", (e) => {
   const pick = hit(e, "[data-lang-menu] [data-lang]");
   if (pick) { pick.closest("details")!.open = false; setLang(pick.dataset.lang!); return; }
@@ -1280,8 +1285,12 @@ function rowHtml(r: Role, q: string, remHits: Set<number> | undefined) {
     // a homebrew token whose icon is still on its way pulses where the icon will go
     const loading = r.loading ? ` loading" style="--team: ${TEAMS[r.team].colour}` : "";
     // a two-state token shows both its faces: the other state, smaller, peeking from behind the front
-    const back = !isRem && r.flip ? `<span class="tok-back" aria-hidden="true">${tokenSvg(state.lib!, r, { ...catalogSpec(false), diameter: 45 }, { side: "back" })}</span>` : "";
-    return `<span class="tok-w${back ? " two" : ""}">${back}<button class="tok${isCard(r) ? " card" : ""}${loading}" type="button" data-pick="${key}" aria-pressed="${copies > 0}" aria-label="${esc(name)}">${tokenSvg(state.lib!, r, spec, { text: name })}<span class="ck" aria-hidden="true">✓</span></button>${own ? ownPen(key, name) : ""}</span>`;
+    // a two-state token looks like any other, with ⇄ on its edge; pointing at the row (or tapping the ⇄)
+    // turns it over in place to show its other state
+    const two = !isRem && !!r.flip;
+    const face = tokenSvg(state.lib!, r, spec, { text: name });
+    const art = two ? `<span class="tok-turn">${face}${tokenSvg(state.lib!, r, { ...catalogSpec(false), diameter: 45 }, { side: "back" })}</span>` : face;
+    return `<span class="tok-w${two ? " two" : ""}"><button class="tok${isCard(r) ? " card" : ""}${loading}" type="button" data-pick="${key}" aria-pressed="${copies > 0}" aria-label="${esc(name)}">${art}<span class="ck" aria-hidden="true">✓</span></button>${two ? `<button class="turn-btn" type="button" data-turn title="${esc(t("sheet.turn"))}" aria-label="${esc(t("sheet.turn"))}">⇄</button>` : ""}${own ? ownPen(key, name) : ""}</span>`;
   };
   const rems = remindersOf(r);
   const other = tokenLang() === "en" ? roleName(r, uiLang() === "en" ? "es" : uiLang()) : r.en;
@@ -1301,7 +1310,7 @@ function rowHtml(r: Role, q: string, remHits: Set<number> | undefined) {
   }).join("");
   return `<div class="row${isCard(r) ? " info" : ""}${rems.length ? "" : " no-rems"}" data-picked="${isPicked(ck)}" data-row="${ck}">
     ${thumb(ck, null)}
-    <div class="who" data-pick="${ck}"><b>${esc(catalogText(r, null))}</b>${other !== catalogText(r, null) ? `<small>${esc(other)}</small>` : ""}${flip ? `<small class="flip-name" title="${esc(t("sheet.flip"))}">⇄ ${esc(roleName(flip, tokenLang()))}</small>` : ""}${OWN ? (ownHome(r) && (q || catalogOf(state.edition) !== ownHomeCatalog(r.id)) ? `<em>${esc(ownHome(r))}</em>` : "") : q || state.edition === "all" || (state.edition.startsWith("s:") && r.kind !== "homebrew") ? `<em>${esc(editionName(r, lang))}</em>` : ""}${r.loading ? `<small>${esc(t("sheet.iconLoading"))}</small>` : ""}${OWN && !READONLY && !isLocked(coll, r.id) ? `<button class="own-edit" type="button" data-own-edit="${esc(r.id)}">${esc(t("own.edit"))}</button>` : ""}</div>
+    <div class="who" data-pick="${ck}"><b>${esc(catalogText(r, null))}${flip ? `<span class="flip-sep" title="${esc(t("sheet.flip"))}"> ⇄ </span>${esc(roleName(flip, tokenLang()))}` : ""}</b>${other !== catalogText(r, null) ? `<small>${esc(other)}</small>` : ""}${OWN ? (ownHome(r) && (q || catalogOf(state.edition) !== ownHomeCatalog(r.id)) ? `<em>${esc(ownHome(r))}</em>` : "") : q || state.edition === "all" || (state.edition.startsWith("s:") && r.kind !== "homebrew") ? `<em>${esc(editionName(r, lang))}</em>` : ""}${r.loading ? `<small>${esc(t("sheet.iconLoading"))}</small>` : ""}${OWN && !READONLY && !isLocked(coll, r.id) ? `<button class="own-edit" type="button" data-own-edit="${esc(r.id)}">${esc(t("own.edit"))}</button>` : ""}</div>
     ${rems.length ? `<div class="rems">${chips}</div>` : ""}
   </div>`;
 }
