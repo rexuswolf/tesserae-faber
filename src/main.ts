@@ -571,7 +571,12 @@ function setLang(lang: string) {
   setUiLang(lang);
   renderLangMenus();
   renderLangButtons();
-  if (state.lib) { buildChoices(); renderAll(); renderQueue(); if ($<HTMLDialogElement>("#scriptInvite").open) renderInvite(); }
+  if ($("#app").dataset.step === "taller") {   // the Taller has no sheet or spine: its own page, redrawn in the language
+    if (!taller.from) $("#tallerBack b").textContent = t("own.homeTitle");
+    document.title = `${t("taller.title")} · ${APP_NAME}`;
+    buildChoices(); renderTaller();
+  }
+  else if (state.lib) { buildChoices(); renderAll(); renderQueue(); if ($<HTMLDialogElement>("#scriptInvite").open) renderInvite(); }
   else if (OWN && !$("#ownHome").hidden) void renderOwnHome();   // the collections page draws its covers in the language
   else if (gateState) gate(gateState());
   if ($<HTMLDialogElement>("#tlangDialog").open) drawLangDialog();
