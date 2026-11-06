@@ -218,13 +218,11 @@
       <div class="ws-warn" id="colourWarn" hidden></div>
       <div class="back-modes" id="backModes" hidden></div>
       <div class="face-tabs" id="faceTabs" role="tablist" data-i18n-attr="aria-label:ws.faceTabs" hidden></div>
-      <!-- the templates: a new style starts from one, and a style can be set back to one -->
-      <section class="ws-panel" id="presetsPanel" data-panel="presets">
-        <p class="tpl-head"><b id="tplTitle"></b> <button class="link" type="button" id="tplCancel" data-i18n="script.cancel"></button></p>
-        <div class="presets" id="presetsBox">
-          <div class="preset-list" id="presets"></div>
-          <p class="hint" id="presetHelp"></p>
-        </div>
+      <!-- the collection's styles: the token's style can be set back to one -->
+      <section class="ws-panel coll-styles" data-panel="reset">
+        <p class="reset-head"><b id="resetTitle"></b> <button class="link" type="button" id="resetCancel" data-i18n="script.cancel"></button></p>
+        <div class="coll-style-list" id="resetList"></div>
+        <p class="hint" data-i18n="style.resetHelp"></p>
       </section>
       <!-- a face (the front, or a back of its own): its layout, name, icon and frame, each part flush or raised -->
       <section class="ws-panel" data-panel="layout" role="tabpanel" hidden>

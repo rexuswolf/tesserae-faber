@@ -150,7 +150,7 @@ export interface TokenSpec {
   reminderDiameter?: number;
   /** A linked token's (a reminder's, see reminderSpec): its own token, without its character's other state. */
   linked?: boolean;
-  /** The template (PRESETS) the set's design is, or a token's own design started from. */
+  /** The collection's style (StyleDef) a style is, or started from: what it resets to. */
   preset?: string;
   fromPreset?: string;
   /** Older window designs (normalizeSpec turns them into relief). */
@@ -269,7 +269,7 @@ export type LookChanges = { [K in Exclude<keyof TokenSpec, "colours">]?: TokenSp
 /**
  * A named look for one shape (a TokenSpec without content: no name, icon or other state). Each
  * token uses one of its shape's styles; the first is the one a token uses unless it says otherwise.
- * `tpl` is the template it's named after while it has no name of its own.
+ * `tpl` is the collection's style (StyleDef) it's named after while it has no name of its own.
  */
 export interface Style { id: string; name?: string; tpl?: string; spec: TokenSpec }
 

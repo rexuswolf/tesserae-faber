@@ -21,8 +21,9 @@ import { PAGE, layoutCoins, backX } from "./pdf/layout.ts";
 import { t, tIn, uiLang, setUiLang, LANGUAGES } from "./i18n.ts";
 import { TRANSLATIONS, VILLACUERVOS_URL } from "./translations.ts";
 import { uiIcon, UI_ICONS, TEAM_ICONS, SHAPE_ICONS } from "./ui-icons.ts";
-import { OWN, OWN_ID, OWN_VIEW, LIST_URL, lastCollection, rememberCollection, collectionUrl, openUrl, listCollections, addCollection, deleteCollection, starterCollection, builtInCollections, MODE, loadCollection, storeCollection, collectionRoles, collectionFile, readCollectionFile, readTokenList, SHAPES, tokenRole as ownRole, readBuiltIn, copyBuiltIn, GROUP_COLOURS, newId, nameIn, withName, catalogsOf, isLocked, THEMES, THEME_FONTS, okLogo, hasCcc, builtIn, APP_LOGO, APP_LOGO_SMALL, APP_ICON, APP_NAME } from "./collection.ts";
-import type { Collection, OwnToken, OwnCatalog, OwnSection, OwnTheme, CollectionEntry } from "./collection.ts";
+import { BOTC_STYLES } from "./botc-styles.ts";
+import { OWN, OWN_ID, OWN_VIEW, LIST_URL, lastCollection, rememberCollection, collectionUrl, openUrl, listCollections, addCollection, deleteCollection, starterCollection, builtInCollections, MODE, loadCollection, storeCollection, collectionRoles, collectionFile, readCollectionFile, readTokenList, SHAPES, tokenRole as ownRole, readBuiltIn, copyBuiltIn, GROUP_COLOURS, newId, nameIn, withName, catalogsOf, isLocked, THEMES, THEME_FONTS, okLogo, hasCcc, builtIn, APP_LOGO, APP_LOGO_SMALL, APP_ICON, APP_NAME, stylesOf } from "./collection.ts";
+import type { StyleDef, Collection, OwnToken, OwnCatalog, OwnSection, OwnTheme, CollectionEntry } from "./collection.ts";
 import { loadScripts, storeScripts, saveScript, scriptLink, readLink, scriptJson, idKey as scriptKey } from "./scripts.ts";
 import type { HomebrewEntry, NewScript, Script, ScriptJsonEntry } from "./scripts.ts";
 import type { Translation } from "./translations.ts";
@@ -45,7 +46,7 @@ const hit = (e: Event, sel: string) => (e.target as Element).closest<HTMLElement
 const input = (e: Event) => e.target as HTMLInputElement;
 const esc = (s: unknown) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" } as Record<string, string>)[c]);
 const fold = (s: string) => String(s).toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
-/** A spec seen as fields by name: the templates and the reset buttons set them one by one. */
+/** A spec seen as fields by name: a collection's style and the reset buttons set them one by one. */
 type Fields = Record<string, unknown>;
 
 /** The sliders: each field's decimals and unit. */
@@ -108,8 +109,8 @@ interface Creating { draft: OwnToken; shape: TokenShape; cats: string[]; back: n
 const state: {
   user: User | null; lib: Library | null;
   edition: string; team: string; sel: Selection | null;
-  /** The templates are open, in place of the tabs: to start a new style from one, or to set the style back to one. */
-  templates: "new" | "reset" | null;
+  /** The collection's styles are open, in place of the tabs, to set the token's style back to one. */
+  resetting: boolean;
   /** The open part of each type, and the open tab of each face. */
   part: Record<TokenShape, Part>; faceTab: Record<Side, FaceTab>;
   /** A part asked to be raised while the other face has raised parts: the question is shown. */
@@ -130,7 +131,7 @@ const state: {
   user: null, lib: null,
   edition: "all", team: "all",   // the sheet opens on every character
   sel: null,              // { key, role, reminder: index | null }
-  templates: null,
+  resetting: false,
   part: { coin: "front", ring: "front", card: "front" }, faceTab: { front: "text", back: "layout" },
   reliefAsk: null, view: "angle",
   styles: { coin: [], ring: [], card: [] }, overrides: new Map(),   // read by loadStyles once the tokens are known
@@ -217,36 +218,27 @@ const COLOUR_CHOICES = ["Black", "White", "Gold", "Silver", "Bronze", "Blue", "R
   .map((name) => ({ id: name.toLowerCase(), hex: FILAMENT_SLOTS.find((f) => f.name === name)!.hex }));
 let gateState: (() => GateConfig) | null = null;
 
-/** A template: the spec it sets (anything left out takes DEFAULT_SPEC's), and the types it's offered for. */
-interface Preset { id: string; spec: Partial<TokenSpec>; shapes: TokenShape[] }
-/** Premade designs. Applying one replaces a style's look (or starts a new style), all but its
- *  magnet, which is a choice of its own. Every design keeps the frame in the team colour, like
- *  the name, so a token's side reads the same whatever the design. */
-const ALL_SHAPES: TokenShape[] = ["coin", "ring", "card"];
-const PRESETS: Preset[] = [
-  // The default: the edition's name (a homebrew's script) in gold on the back; gold on a dark
-  // coin needs two layers (0.4 mm) to cover it.
-  { id: "edicion", spec: { style: "classic", frame: "rim", frameWidth: 0.8, back: "edition", depth: 0.4,
-    colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } }, shapes: ALL_SHAPES },
-  // The thinnest token that holds up: one layer of colour on 1 mm of black (opaque, stiff at
-  // 45 mm), no back. 1.2 mm is also the thickness slider's floor.
-  { id: "rapida", spec: { style: "classic", height: 1.2, frame: "rim", frameWidth: 0.8, back: "none", depth: 0.2,
-    colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } }, shapes: ALL_SHAPES },
-  // Night and Midnight are their frame and back designs: on a ring or a card (a line, no back) they'd be Edition.
-  { id: "noche", spec: { style: "classic", frame: "fases", frameWidth: 0.8, back: "eclipse", depth: 0.4,
-    colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } }, shapes: ["coin"] },
-  // The gold midnight clock on the back is light on a dark coin: 0.4 mm covers it.
-  { id: "medianoche", spec: { style: "classic", frame: "firmamento", frameWidth: 0.8, back: "medianoche", depth: 0.4,
-    colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } }, shapes: ["coin"] },
-  // Ivory and Legible are a white body: a ring or a card takes that too.
-  { id: "marfil", spec: { style: "classic", frame: "rim", frameWidth: 1.0, back: "guilloche", depth: 0.4,
-    colours: { base: FILAMENTS.white, front: "team", frame: "team", back: FILAMENTS.bronze } }, shapes: ALL_SHAPES },
-  { id: "legible", spec: { style: "window", textSize: 6, frame: "none", back: "none", depth: 0.4,
-    colours: { base: FILAMENTS.white, front: "team", frame: "team", back: FILAMENTS.gold } }, shapes: ALL_SHAPES },
-];
-/** Applying a design leaves these alone: the magnet is chosen in its own tab, a ring's base is the miniatures'. */
-const PRESET_KEEPS = new Set(["lang", "customSvg", "magnet", "magnetSize", "ringBase"]);
-const presetSpec = (p: Preset): TokenSpec => ({ ...structuredClone(DEFAULT_SPEC), ...structuredClone(p.spec) });
+/**
+ * The styles the collection comes with, per shape: where a token's style starts from, what can be
+ * added to the style menu, and what a style can be set back to. Clocktower's are its own (the
+ * designs once offered to every collection as templates); a collection's come in its file, else
+ * the basic one.
+ */
+const startingStyles = (shape: TokenShape): StyleDef[] => (OWN ? stylesOf(coll, shape) : BOTC_STYLES[shape]);
+/**
+ * One of them by id. The templates every collection was offered before were Clocktower's styles,
+ * under the same ids: a style named after one the collection doesn't have keeps that one's name.
+ */
+const startingStyle = (shape: TokenShape, id: string | undefined): StyleDef | undefined =>
+  id == null ? undefined : startingStyles(shape).find((d) => d.id === id) ?? BOTC_STYLES[shape].find((d) => d.id === id);
+const defName = (d: StyleDef) => nameIn(d.name, uiLang());
+/** Setting a style to one of the collection's leaves these alone: the magnet is chosen in its own tab, a ring's base is the miniatures'. */
+const STYLE_KEEPS = new Set(["lang", "customSvg", "magnet", "magnetSize", "ringBase"]);
+/** A collection's style as a whole spec (what it leaves out, the default's), named after it. */
+const defSpec = (d: StyleDef): TokenSpec => {
+  const spec = structuredClone(d.spec);
+  return { ...structuredClone(DEFAULT_SPEC), ...spec, colours: { ...DEFAULT_SPEC.colours, ...spec.colours }, preset: d.id } as TokenSpec;
+};
 
 /**
  * The set's design per type, as kept before styles. The coin's is the one the set had before designs
@@ -254,11 +246,8 @@ const presetSpec = (p: Preset): TokenSpec => ({ ...structuredClone(DEFAULT_SPEC)
  * shape prints it), kept at once so they stay as they were whatever the coin's becomes.
  */
 function legacySpecs(): Record<TokenShape, TokenSpec> {
-  // Default: "Edición" (black coin, team colour, thin team rim, the edition's name in gold on the back), the first of PRESETS.
-  const coin = upgradeSpec(loadJSON<TokenSpec | null>(STYLE_KEY, null)) || {
-    ...structuredClone(DEFAULT_SPEC), preset: "edicion", style: "classic", frame: "rim", frameWidth: 0.8, back: "edition", depth: 0.4,
-    colours: { ...DEFAULT_SPEC.colours, base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold },
-  } as TokenSpec;
+  // without one kept, the collection's first coin style (what the set's design was by default: Edition)
+  const coin = upgradeSpec(loadJSON<TokenSpec | null>(STYLE_KEY, null)) || defSpec(startingStyles("coin")[0]);
   const specs = { coin } as Record<TokenShape, TokenSpec>;
   for (const shape of ["ring", "card"] as const) {
     const kept = upgradeSpec(loadJSON<TokenSpec | null>(STYLE_KEYS[shape], null));
@@ -342,8 +331,11 @@ function lookFrom(style: TokenSpec, spec: TokenSpec): LookChanges {
   return look;
 }
 
-/** A style's name: its own, else its template's, else "My style". */
-const styleName = (st: Style, shape: TokenShape) => st.name || (st.tpl ? shapeText(`preset.${st.tpl}`, shape) : t("style.mine"));
+/** A style's name: its own, else that of the collection's style it is, else "My style". */
+const styleName = (st: Style, shape: TokenShape) => {
+  const d = st.name ? undefined : startingStyle(shape, st.tpl);
+  return st.name || (d ? defName(d) : t("style.mine"));
+};
 /** A token's style, by its own link (a linked token: else its character's), else its shape's first. */
 function styleOf(key: string, shape = shapeOf(tokenRole(key))): Style {
   const list = state.styles[shape], id = state.overrides.get(key)?.style ?? (key.startsWith("r:") ? state.overrides.get(`c:${roleIdOf(key)}`)?.style : undefined);
@@ -365,9 +357,10 @@ function storeOverrides() { storeJSON(TOKENS_KEY, Object.fromEntries(state.overr
 
 /**
  * The styles and each token's own, once the tokens are known (a token's shape is its character's).
- * The first time (nothing kept under the styles' keys yet) they're made from what was kept before,
- * printing exactly as it did: each type's set design becomes its shape's first style (named after
- * the template it is, else "My style"), every token using it; a token's own design becomes its own
+ * The first time (nothing kept under the styles' keys yet), each shape starts with the collection's
+ * first style; or, when something was kept before styles, they're made from it, printing exactly as
+ * it did: each type's set design becomes its shape's first style (named after the collection's style
+ * it is, else "My style"), every token using it; a token's own design becomes its own
  * changes over that style (its text, feminine name and icon stay its content); each saved design
  * becomes a style of its type, under its name. The old keys are left as they were.
  */
@@ -379,10 +372,19 @@ function loadStyles() {
     state.overrides = new Map(Object.entries(loadJSON<Record<string, TokenOverride>>(TOKENS_KEY, {})).filter(([, v]) => v).map(([k, v]) => [k, place(v)]));
     return;
   }
+  // a first visit: each shape's first style of the collection's
+  let before = false;
+  try { before = [...Object.values(STYLE_KEYS), OVERRIDES_KEY, DESIGNS_KEY].some((k) => localStorage.getItem(k) != null); } catch { /* storage unavailable */ }
+  if (!before) {
+    for (const sh of SHAPES) { const d = startingStyles(sh)[0]; state.styles[sh] = [{ id: `${sh}-1`, tpl: d.id, spec: defSpec(d) }]; }
+    state.overrides = new Map();
+    storeStyles(); storeOverrides();
+    return;
+  }
   const specs = legacySpecs();
   for (const sh of SHAPES) {
-    const { preset, modified } = templateOf(specs[sh], sh);
-    state.styles[sh] = [{ id: `${sh}-1`, ...(preset && !modified ? { tpl: preset.id } : {}), spec: specs[sh] }];
+    const { def, modified } = startedFrom(specs[sh], sh);
+    state.styles[sh] = [{ id: `${sh}-1`, ...(def && !modified ? { tpl: def.id } : {}), spec: specs[sh] }];
   }
   state.overrides = new Map();
   for (const [k, v] of Object.entries(loadJSON<Record<string, TokenOverride>>(OVERRIDES_KEY, {}))) {
@@ -1356,9 +1358,9 @@ function openPart(): Part {
 }
 /** Which face the controls edit: the back's when BACK is open, else the front's. */
 const editSide = (): Side => (openPart() === "back" ? "back" : "front");
-/** The open panel: the templates, a face's tab, the back's choices, the body or the magnet. */
+/** The open panel: the collection's styles, a face's tab, the back's choices, the body or the magnet. */
 function openPanel(): string {
-  if (state.templates) return "presets";
+  if (state.resetting) return "reset";
   const part = openPart(), shape = editShape();
   if (part === "front" || (part === "back" && editLook().backMode === "own")) {
     const side = part === "back" ? "back" : "front", tabs = faceTabsOf(shape);
@@ -1404,11 +1406,9 @@ function ownStart(s: TokenSpec): BackFace {
 }
 const hasOwnLook = (b: BackFace | undefined) => FACE_FIELDS.some((k) => b?.[k] != null);
 
-/** Whether a template's look (preset) is one a type has, by id. */
-const presetsFor = (shape: TokenShape) => PRESETS.filter((p) => p.shapes.includes(shape));
 /**
- * What of a design a shape shows, to tell whether it's a template's: a coin, everything a
- * template sets; a card or a ring, its colours, its frame as none or a line, its thickness and
+ * What of a design a shape shows, to tell whether it's one of the collection's styles: a coin,
+ * everything a style sets; a card or a ring, its colours, its frame as none or a line, its thickness and
  * colour depth (and a ring its letters and relief).
  */
 function shapeLook(shape: TokenShape, spec: SpecInput) {
@@ -1417,36 +1417,39 @@ function shapeLook(shape: TokenShape, spec: SpecInput) {
   const look = { base: c.base, front: c.front, frame: line ? c.frame : null, frameWidth: line ? f("frameWidth") : null, height: f("height"), depth: f("depth") };
   return shape === "ring" ? { ...look, textSize: f("textSize"), spacing: f("spacing"), relief: reliefOf(spec) } : look;
 }
-/** Whether a spec differs from a template in anything the template sets for the shape (the magnet is a choice of its own). */
-function differsFrom(p: Preset, spec: TokenSpec, shape: TokenShape) {
-  if (shape !== "coin") return JSON.stringify(shapeLook(shape, presetSpec(p))) !== JSON.stringify(shapeLook(shape, spec));
+/** Whether a spec differs from a collection's style in anything the style sets for the shape (the magnet is a choice of its own). */
+function differsFrom(d: StyleDef, spec: TokenSpec, shape: TokenShape) {
+  const { preset: _id, ...whole } = defSpec(d);
+  if (shape !== "coin") return JSON.stringify(shapeLook(shape, whole)) !== JSON.stringify(shapeLook(shape, spec));
   const colours = (c: unknown) => ({ ...DEFAULT_SPEC.colours, ...(c as Partial<SpecColours>) });
-  return Object.entries(presetSpec(p)).some(([k, v]) => !PRESET_KEEPS.has(k)
+  return Object.entries(whole).some(([k, v]) => !STYLE_KEEPS.has(k)
     && JSON.stringify(k === "colours" ? colours(v) : v) !== JSON.stringify(k === "colours" ? colours(spec.colours) : spec[k as keyof TokenSpec] ?? DEFAULT_SPEC[k as keyof TokenSpec]));
 }
-/** The template a spec started from (one its type has), or for one saved before this was kept, the template it matches. */
-function templateOf(spec: TokenSpec, shape: TokenShape) {
-  const list = presetsFor(shape), id = spec.preset ?? spec.fromPreset;
-  const preset = list.find((p) => p.id === id) ?? list.find((p) => !differsFrom(p, spec, shape));
-  return { preset, modified: !!preset && differsFrom(preset, spec, shape) };
+/**
+ * The collection's style a spec started from (by the id it keeps), or for one kept before that was,
+ * the one it matches; the templates of old (Clocktower's styles) too, for a style made from one.
+ */
+function startedFrom(spec: TokenSpec, shape: TokenShape) {
+  const list = [...startingStyles(shape), ...BOTC_STYLES[shape]], id = spec.preset ?? spec.fromPreset;
+  const def = list.find((d) => d.id === id) ?? list.find((d) => !differsFrom(d, spec, shape));
+  return { def, modified: !!def && differsFrom(def, spec, shape) };
 }
-/** Before a change: a spec that matches a template but never named it keeps which one, or it'd be lost. */
-function rememberTemplate(spec: TokenSpec, shape: TokenShape) {
+/** Before a change: a spec that matches a collection's style but never named it keeps which one, or it'd be lost. */
+function rememberStart(spec: TokenSpec, shape: TokenShape) {
   if (spec.preset || spec.fromPreset) return;
-  const { preset } = templateOf(spec, shape);
-  if (preset) spec.fromPreset = preset.id;
+  const { def } = startedFrom(spec, shape);
+  if (def) spec.fromPreset = def.id;
 }
-/** A template's design, applied over a spec: all but what it leaves alone (PRESET_KEEPS). */
-function applyPreset(s: TokenSpec, p: Preset) {
-  const next = presetSpec(p);
-  for (const k of Object.keys(next)) if (!PRESET_KEEPS.has(k)) (s as unknown as Fields)[k] = structuredClone((next as unknown as Fields)[k]);
-  s.preset = p.id;
+/** A collection's style, applied over a spec: all but what it leaves alone (STYLE_KEEPS); the spec keeps its id, to reset to. */
+function applyStyleDef(s: TokenSpec, d: StyleDef) {
+  const next = defSpec(d);
+  for (const k of Object.keys(next)) if (!STYLE_KEEPS.has(k)) (s as unknown as Fields)[k] = structuredClone((next as unknown as Fields)[k]);
 }
 /** What each tab shows in the 3D view: a face straight on, the body at an angle, the magnet from behind. */
 const PART_VIEW: Record<Part, ViewKind> = { front: "top", back: "back", body: "angle", magnet: "back" };
-/** Opens the templates (to start a style, or to set this one back) or a tab (a part, and inside a face one of its tabs). */
-function showTab({ templates = null, part, face }: { templates?: "new" | "reset" | null; part?: Part; face?: FaceTab } = {}) {
-  state.templates = templates;
+/** Opens the collection's styles (to set the token's style back to one) or a tab (a part, and inside a face one of its tabs). */
+function showTab({ resetting = false, part, face }: { resetting?: boolean; part?: Part; face?: FaceTab } = {}) {
+  state.resetting = resetting;
   if (part) { if (part !== openPart()) state.lastChange = null; state.part[editShape()] = part; }
   if (face) state.faceTab[editSide()] = face;
   state.reliefAsk = null;
@@ -1454,7 +1457,7 @@ function showTab({ templates = null, part, face }: { templates?: "new" | "reset"
 }
 /** Turns the 3D view to what the open tab changes. */
 function viewTab() {
-  const v = state.templates ? "angle" : PART_VIEW[openPart()];
+  const v = state.resetting ? "angle" : PART_VIEW[openPart()];
   view3d("setView", v); syncView(v);
 }
 
@@ -1483,11 +1486,11 @@ function renderWorkshop() {
     renderStyleRow(key, shape, style);
     renderContent();
     const look = editLook();
-    $("#lookHead").hidden = !!state.templates;
+    $("#lookHead").hidden = state.resetting;
     $("#lookTitle").textContent = t(openPart() === "back" ? "look.titleBack" : "look.title");
     $("#lookSub").textContent = state.scope === "token" ? t("look.subToken") : t("look.subStyle", { name: styleName(style, shape) });
     renderScopeNote(shape, style);
-    renderPresets(role, look);
+    renderResetStyles(role, look);
     renderTabs(role, look);
     syncControls(role, look, token);
     renderColourWarn(role, spec, key);
@@ -1532,11 +1535,17 @@ function renderStyleRow(key: string, shape: TokenShape, style: Style) {
   back.innerHTML = `<span aria-hidden="true">✎</span> ${esc(t("style.own"))} · <u>${esc(t("style.back"))}</u>`;
   if (!$("#styleMenu").hidden) renderStyleMenu();
 }
-/** The styles of the token's shape (each with how many tokens use it), then what can be done with them. */
+/** The collection's styles of a shape not yet among yours (none of yours is named after it): one click adds one. */
+const stylesToAdd = (shape: TokenShape) => startingStyles(shape).filter((d) => !state.styles[shape].some((st) => st.tpl === d.id));
+/**
+ * The styles of the token's shape (each with how many tokens use it), the collection's that aren't
+ * yet, then what can be done with them.
+ */
 function renderStyleMenu() {
-  const { key, role } = state.sel!, shape = shapeOf(role), cur = styleOf(key, shape), list = state.styles[shape];
+  const { key, role } = state.sel!, shape = shapeOf(role), cur = styleOf(key, shape), list = state.styles[shape], more = stylesToAdd(shape);
   const item = (act: string, label: string, cls = "") => `<button type="button" role="menuitem" data-style-act="${act}"${cls ? ` class="${cls}"` : ""}>${esc(label)}</button>`;
   $("#styleMenu").innerHTML = list.map((st) => `<button type="button" role="menuitemradio" aria-checked="${st === cur}" data-style-pick="${esc(st.id)}">${styleSwatch(st)}<span>${esc(styleName(st, shape))}</span><small>${esc(t("style.count", { n: styleUsers(shape, st.id) }))}</small></button>`).join("")
+    + (more.length ? `<p class="style-menu-head">${esc(t("style.fromColl"))}</p>${more.map((d) => `<button type="button" role="menuitem" data-style-add="${esc(d.id)}"${d.help ? ` title="${esc(nameIn(d.help, uiLang()))}"` : ""}>${styleSwatch({ id: d.id, spec: defSpec(d) })}<span>${esc(defName(d))}</span><small>${esc(t("style.add"))}</small></button>`).join("")}` : "")
     + `<hr>${item("new", t("style.new"))}${item("save", t("style.save"))}${item("reset", t("style.reset", { name: styleName(cur, shape) }))}${item("rename", t("style.rename"))}${list.length > 1 ? item("delete", t("style.delete", { name: styleName(cur, shape) }), "danger") : ""}`;
 }
 function openStyleMenu(on: boolean) {
@@ -1553,11 +1562,19 @@ function setTokenStyle(key: string, id: string) {
   state.lastChange = null; state.scope = "style";   // changes go to the style it has now
   setOwn(key, own);
 }
-/** What the style menu does: another style for this token, a new one, this token's look as one, the style renamed or deleted. */
+/**
+ * What the style menu does: a new style (a copy of this one), this token's look as one, the style
+ * set back to one of the collection's, renamed or deleted.
+ */
 function styleAction(act: string) {
   const { key, role } = state.sel!, shape = shapeOf(role), cur = styleOf(key, shape), name = styleName(cur, shape);
   openStyleMenu(false);
-  if (act === "new" || act === "reset") { showTab({ templates: act }); viewTab(); renderWorkshop(); return; }
+  if (act === "reset") { showTab({ resetting: true }); viewTab(); renderWorkshop(); return; }
+  if (act === "new") {
+    // a style of its own from the start (named, not after the collection's), the look the same
+    addStyle(shape, { id: newId("s"), name: uniqueStyleName(shape, t("style.copyOf", { name })), spec: structuredClone(cur.spec) });
+    return;
+  }
   if (act === "save") {
     const { lang: _lang, icon: _icon, ...spec } = structuredClone(lookOf(key));
     const st: Style = { id: newId("s"), name: uniqueStyleName(shape, t("style.ofToken", { name: textFor(key, role, state.sel!.reminder) })), spec: spec as TokenSpec };
@@ -1590,17 +1607,19 @@ function uniqueStyleName(shape: TokenShape, base: string) {
   for (let i = 2; taken.has(name); i++) name = `${base} ${i}`;
   return name;
 }
-/** A new style from a template, taking the current style's magnet and ring base; the token uses it. */
-function newStyleFrom(p: Preset) {
-  const { key, role } = state.sel!, shape = shapeOf(role), spec = structuredClone(styleOf(key, shape).spec);
-  applyPreset(spec, p);
-  delete spec.fromPreset;
-  const base = shapeText(`preset.${p.id}`, shape), name = uniqueStyleName(shape, base);
-  const st: Style = { id: newId("s"), tpl: p.id, ...(name !== base ? { name } : {}), spec };
+/** A new style of the shape, which the token now uses; the line under the style says so. */
+function addStyle(shape: TokenShape, st: Style) {
   state.styles[shape].push(st); storeStyles();
-  showTab();
   state.flash = t("style.created", { name: styleName(st, shape) });
-  setTokenStyle(key, st.id);
+  setTokenStyle(state.sel!.key, st.id);
+}
+/** One of the collection's styles added to yours, taking the current style's magnet and ring base; the token uses it. */
+function addCollectionStyle(d: StyleDef) {
+  const { key, role } = state.sel!, shape = shapeOf(role), spec = structuredClone(styleOf(key, shape).spec);
+  applyStyleDef(spec, d);
+  delete spec.fromPreset;
+  const base = defName(d), name = uniqueStyleName(shape, base);
+  addStyle(shape, { id: newId("s"), tpl: d.id, ...(name !== base ? { name } : {}), spec });
 }
 
 /** Your collection's token (or the one being made) that this editor changes the content of: not one of a built-in or closed collection. */
@@ -1615,7 +1634,7 @@ const ownTokenOf = (id: string): OwnToken | undefined => (state.creating?.draft.
  */
 let contentFor = "";
 function renderContent(force = false) {
-  const { key, role, reminder } = state.sel!, shape = shapeOf(role), part = state.templates ? null : openPart();
+  const { key, role, reminder } = state.sel!, shape = shapeOf(role), part = state.resetting ? null : openPart();
   const tk = ownEditable(role) && reminder == null ? ownTokenOf(role.id)! : null;
   const front = part === "front", back = part === "back" && reminder == null && (tk ? SHAPE_FEATURES[shape].flip : !!selFlip(role));
   const box = $("#contentBlock");
@@ -1676,7 +1695,7 @@ function renderOwnFlip(tk: OwnToken) {
  */
 function renderScopeNote(shape: TokenShape, style: Style) {
   const box = $("#scopeNote"), lc = state.lastChange?.key === state.sel!.key ? state.lastChange : null;
-  box.hidden = (!lc && !state.flash) || !!state.templates;
+  box.hidden = (!lc && !state.flash) || state.resetting;
   if (box.hidden) return;
   if (!lc) { box.innerHTML = `<p>${esc(state.flash)}</p>`; return; }
   const n = styleUsers(shape, style.id), what = `<b>${esc(shapeText(lc.label, shape))}</b>`;
@@ -1687,12 +1706,12 @@ function renderScopeNote(shape: TokenShape, style: Style) {
 /** The parts' tabs, and inside them the back's choices and a face's tabs. */
 function renderTabs(role: Role, spec: TokenSpec) {
   const shape = shapeOf(role), part = openPart(), panel = openPanel();
-  $("#parts").hidden = !!state.templates;
+  $("#parts").hidden = state.resetting;
   $("#parts").innerHTML = partsOf(shape).map((p) => `<button type="button" role="tab" data-part="${p}" aria-selected="${p === part}">${esc(p === "body" ? t(`part.body.${shape}`) : t(`part.${p}`))}</button>`).join("");
-  const faceOpen = !state.templates && (part === "front" || (part === "back" && spec.backMode === "own"));
+  const faceOpen = !state.resetting && (part === "front" || (part === "back" && spec.backMode === "own"));
   $("#faceTabs").hidden = !faceOpen;
   if (faceOpen) $("#faceTabs").innerHTML = faceTabsOf(shape).map((f) => `<button type="button" role="tab" data-face="${f}" aria-selected="${f === panel}">${esc(t(`face.${f}`))}</button>`).join("");
-  renderBackModes(role, spec, !state.templates && part === "back");
+  renderBackModes(role, spec, !state.resetting && part === "back");
   $$(".ws-panel").forEach((p) => { p.hidden = p.dataset.panel !== panel; });
 }
 
@@ -1789,7 +1808,7 @@ function deepenAll() {
   for (const x of selectionColourIssues().filter((x) => x.light.length)) {
     const own = state.overrides.get(x.k), shape = shapeOf(tokenRole(x.k));
     if (own?.look?.depth != null) own.look.depth = LIGHT_DEPTH;
-    else { const st = styleOf(x.k, shape); rememberTemplate(st.spec, shape); st.spec.depth = LIGHT_DEPTH; }
+    else { const st = styleOf(x.k, shape); rememberStart(st.spec, shape); st.spec.depth = LIGHT_DEPTH; }
   }
   storeStyles(); storeOverrides();
   if (state.sel) renderWorkshop();
@@ -1836,17 +1855,16 @@ function renderBackTiles(role: Role, spec: TokenSpec) {
 }
 
 /**
- * The templates of the token's shape, each drawn on it (a ring on its own base, which a template
- * keeps): to start a new style from, or to set its style back to.
+ * The collection's styles of the token's shape, each drawn on it (a ring on its own base, which a
+ * style keeps), to set its style back to.
  */
-function renderPresets(role: Role, look: TokenSpec) {
-  if (!state.templates) return;
+function renderResetStyles(role: Role, look: TokenSpec) {
+  if (!state.resetting) return;
   const shape = shapeOf(role), st = styleOf(state.sel!.key, shape);
-  $("#tplTitle").textContent = state.templates === "new" ? t("style.newTitle") : t("style.resetTitle", { name: styleName(st, shape) });
-  const chosen = state.templates === "reset" ? templateOf(st.spec, shape).preset : undefined;
-  $("#presets").innerHTML = presetsFor(shape).map((p) =>
-    `<button class="preset" type="button" data-preset="${p.id}" aria-pressed="${p === chosen}" title="${esc(shapeText(`preset.${p.id}.help`, shape))}">${tokenSvg(state.lib!, role, { ...presetSpec(p), diameter: 45, ringBase: look.ringBase, lang: tokenLang(), icon: ownIcon(role.id) }, { text: textFor(charKey(role), role, null) })}<span>${esc(shapeText(`preset.${p.id}`, shape))}</span></button>`).join("");
-  $("#presetHelp").textContent = t(state.templates === "new" ? "style.newHelp" : "style.resetHelp");
+  $("#resetTitle").textContent = t("style.resetTitle", { name: styleName(st, shape) });
+  const chosen = startedFrom(st.spec, shape).def;
+  $("#resetList").innerHTML = startingStyles(shape).map((d) =>
+    `<button class="coll-style" type="button" data-coll-style="${esc(d.id)}" aria-pressed="${d === chosen}"${d.help ? ` title="${esc(nameIn(d.help, uiLang()))}"` : ""}>${tokenSvg(state.lib!, role, { ...defSpec(d), diameter: 45, ringBase: look.ringBase, lang: tokenLang(), icon: ownIcon(role.id) }, { text: textFor(charKey(role), role, null) })}<span>${esc(defName(d))}</span></button>`).join("");
 }
 
 /** The selected token's other state, if it has one (a reminder, a token of its own, never does). */
@@ -2003,13 +2021,13 @@ function fieldValue(spec: SpecInput, key: string) {
 }
 /**
  * What a field resets to: a field the token changed on its own, its style's value; else the
- * template the style started from ("Edition" when none), and the button's title says which.
+ * collection's style it started from (the collection's first when none), and the button's title says which.
  */
 function resetBase(field: string): { spec: TokenSpec; title: string; own: boolean } {
   const { key, role } = state.sel!, shape = shapeOf(role), st = styleOf(key, shape);
   if (lookFields(state.overrides.get(key)?.look).includes(field)) return { spec: st.spec, own: true, title: t("reset.toStyle", { name: styleName(st, shape) }) };
-  const p = presetsFor(shape).find((x) => x.id === (st.spec.preset ?? st.spec.fromPreset ?? st.tpl)) ?? PRESETS[0];
-  return { spec: presetSpec(p), own: false, title: t("reset.toPreset", { name: shapeText(`preset.${p.id}`, shape) }) };
+  const d = startingStyle(shape, st.spec.preset ?? st.spec.fromPreset ?? st.tpl) ?? startingStyles(shape)[0];
+  return { spec: defSpec(d), own: false, title: t("reset.toPreset", { name: defName(d) }) };
 }
 function resetField(field: string) {
   const { spec: base, own } = resetBase(field), key = state.sel!.key;
@@ -2048,9 +2066,9 @@ function changeLook(label: string, mutate: (s: TokenSpec) => void) {
     state.lastChange = { label, key, to: "token", styleId: style.id, before: run?.before ?? structuredClone(style.spec), fields: [...new Set([...(run?.fields ?? []), ...fields])] };
   } else {
     const snapshot = run?.before ?? structuredClone(style.spec);
-    rememberTemplate(style.spec, shape);
+    rememberStart(style.spec, shape);
     for (const f of fields) setField(style.spec, f, fieldOf(next, f));
-    if (next.preset !== before.preset) style.spec.preset = next.preset;   // a template applied to the style: it's the one it resets to now
+    if (next.preset !== before.preset) style.spec.preset = next.preset;   // set back to one of the collection's styles: it's the one it resets to now
     // this token shows the change: what it had of its own there goes
     if (own.look) { let look = own.look; for (const f of fields) look = withoutLookField(look, f); if (lookFields(look).length) own.look = look; else delete own.look; }
     state.lastChange = { label, key, to: "style", styleId: style.id, before: snapshot, fields: [...new Set([...(run?.fields ?? []), ...fields])] };
@@ -2290,7 +2308,7 @@ function wire() {
   $$(".turn .pill[data-view]").forEach((b) => b.onclick = () => {
     const v = b.dataset.view as ViewKind;
     view3d("setView", v); syncView(v);
-    if (state.sel && editShape() === "coin" && !state.templates && (v === "top" || v === "back")) {
+    if (state.sel && editShape() === "coin" && !state.resetting && (v === "top" || v === "back")) {
       const part = openPart(), want = v === "back" ? "back" : "front";
       if ((part === "front" || part === "back") && part !== want) { showTab({ part: want }); renderWorkshop(); }
     }
@@ -2304,8 +2322,9 @@ function wire() {
   // the style: its menu, and the way back to it
   $("#styleChip").onclick = () => openStyleMenu($("#styleMenu").hidden);
   $("#styleMenu").onclick = (e) => {
-    const pick = hit(e, "[data-style-pick]"), act = hit(e, "[data-style-act]");
+    const pick = hit(e, "[data-style-pick]"), act = hit(e, "[data-style-act]"), add = hit(e, "[data-style-add]");
     if (pick) { openStyleMenu(false); setTokenStyle(state.sel!.key, pick.dataset.stylePick!); }
+    else if (add) { const d = stylesToAdd(editShape()).find((x) => x.id === add.dataset.styleAdd); openStyleMenu(false); if (d) addCollectionStyle(d); }
     else if (act) styleAction(act.dataset.styleAct!);
   };
   $("#styleMenu").onkeydown = (e) => {
@@ -2329,7 +2348,7 @@ function wire() {
   $("#parts").onclick = (e) => { const b = hit(e, "[data-part]"); if (!b) return; showTab({ part: b.dataset.part as Part }); viewTab(); renderWorkshop(); };
   $("#faceTabs").onclick = (e) => { const b = hit(e, "[data-face]"); if (!b) return; showTab({ face: b.dataset.face as FaceTab }); renderWorkshop(); };
   $("#backModes").onclick = (e) => { const b = hit(e, "[data-back-mode]"); if (b) setBackMode(b.dataset.backMode as BackMode); };
-  $("#tplCancel").onclick = () => { showTab(); viewTab(); renderWorkshop(); };
+  $("#resetCancel").onclick = () => { showTab(); viewTab(); renderWorkshop(); };
   // A face's choices and sliders go to the face being edited (the front, or a back of its own); the rest to the token.
   const FACE_KEYS = new Set<string>(FACE_FIELDS);
   const change = (key: string, mutate: (s: TokenSpec) => void) => (FACE_KEYS.has(key) ? changeFace(editSide(), `look.${key}`, mutate) : changeLook(`look.${key}`, mutate));
@@ -2379,13 +2398,12 @@ function wire() {
     hint.className = "hint"; hint.textContent = t("upload.using", { file: f.name });
     view3d("setView", "back"); syncView("back");
   };
-  // a template: a new style from it, or the style set back to it (a change like any other: the note says where it went)
-  $("#presets").onclick = (e) => {
-    const b = hit(e, "[data-preset]"); if (!b) return;
-    const p = PRESETS.find((x) => x.id === b.dataset.preset)!;
-    if (state.templates === "new") { newStyleFrom(p); viewTab(); return; }
+  // the style set back to one of the collection's (a change like any other: the note says where it went)
+  $("#resetList").onclick = (e) => {
+    const b = hit(e, "[data-coll-style]"); if (!b) return;
+    const d = startingStyles(editShape()).find((x) => x.id === b.dataset.collStyle); if (!d) return;
     showTab(); viewTab();
-    changeLook("look.template", (s) => applyPreset(s, p));
+    changeLook("look.whole", (s) => applyStyleDef(s, d));
   };
   // what the token says: its printed text, its feminine name and its icon (Clocktower's, a closed collection's)
   $("#printed").oninput = (e) => {
@@ -3283,7 +3301,7 @@ function startCreate(like?: { shape: TokenShape; type: string; group: string; st
   if (like?.style) state.overrides.set(charKey(draft as unknown as Role), { style: like.style });
   state.lib!.roles = ownRoles();
   selectToken(`c:${draft.id}`);
-  state.templates = null; state.part[shape] = "front";
+  state.resetting = false; state.part[shape] = "front";
   goStep(2);
   renderQueue();
   setTimeout(() => $("#ownTokName").focus(), 60);   // once the editor has drawn

@@ -10,8 +10,9 @@
 // Each token is a character to the rest of the app (team = group, reminders = linked tokens),
 // so designing and printing are Clocktower's own. A whole collection goes in and out as one
 // JSON file ("midnight-mint/collection", see CollectionFile). Kept in this browser.
-import type { Hex, Role, Team, TokenIcon, TokenShape } from "./types.ts";
+import type { Hex, Role, SpecInput, Team, TokenIcon, TokenShape } from "./types.ts";
 import { gameIcon } from "./icons.ts";
+import { DEFAULT_SPEC, FILAMENTS } from "./engine/token-engine.ts";
 import { BUILT_INS } from "./builtins.ts";
 
 /** Which app this page is: Clocktower (/botc, once Midnight Mint), or Tesserae Faber, the generic creator (the rest). */
@@ -75,6 +76,27 @@ export const APP_LOGO = "/tesserae-faber.svg", APP_LOGO_SMALL = "/tesserae-faber
 export const APP_NAME = "Tesserae Faber";
 /** Its loading screen: the line it shows, and whether it carries the Community Created Content mark. */
 export interface OwnLoader { text?: Names; footer?: Names; ccc?: boolean }
+/**
+ * A style a collection comes with: a named look for one shape (any field left out is the default
+ * one's), and a line about it. A collection's styles are where its tokens' styles start from: the
+ * first of a shape is the one its tokens use, the rest can be added, and a style can be set back to one.
+ */
+export interface StyleDef { id: string; name: Names; help?: Names; spec: SpecInput }
+export type CollectionStyles = Partial<Record<TokenShape, StyleDef[]>>;
+/**
+ * The one style per shape a collection starts with when it says none: black, the name, icon and
+ * frame in the group's colour, the collection's name in gold on the back (what every token looked
+ * like before collections had styles). Its id is that look's old template's ("edicion"), so the
+ * style a token already had from it is this one.
+ */
+const BASIC: StyleDef = {
+  id: "edicion", name: { es: "Básico", en: "Basic" }, help: { es: "Negra, con el color del grupo y el nombre de la colección en oro al reverso.", en: "Black, with the group colour and the collection's name in gold on the back." },
+  spec: { style: "classic", frame: "rim", frameWidth: 0.8, back: "edition", depth: 0.4, colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } },
+};
+export const basicStyles = (): Record<TokenShape, StyleDef[]> => Object.fromEntries(SHAPES.map((sh) => [sh, [structuredClone(BASIC)]])) as Record<TokenShape, StyleDef[]>;
+/** A collection's styles for a shape: its own, else the basic one. */
+export const stylesOf = (c: { styles?: CollectionStyles }, shape: TokenShape): StyleDef[] => (c.styles?.[shape]?.length ? c.styles[shape] : basicStyles()[shape]);
+
 export interface Collection {
   name: Names;
   /** "botc" (Clocktower's velvet and brass), a ready theme's id (THEMES), or colours of its own. */
@@ -90,6 +112,8 @@ export interface Collection {
   groups: OwnGroup[];
   tokens: OwnToken[];
   sections: OwnSection[];
+  /** The styles it comes with, per shape (StyleDef); without them, the basic one. */
+  styles?: CollectionStyles;
 }
 
 export const COLLECTION_FORMAT = "midnight-mint/collection";
@@ -170,6 +194,7 @@ export const starterCollection = (): Collection => ({
   // one token to start from: the app always has something to show and design
   tokens: [{ id: "t1", type: "fichas", group: "g1", name: "Mi primera ficha", icon: null, linked: [] }],
   sections: [{ id: "s1", title: "Catálogos", open: true, catalogs: [{ id: "k1", name: "Mi primer catálogo", tokens: ["t1"] }] }],
+  styles: basicStyles(),
 });
 
 /** A collection kept before types and sections: its catalogs become one open section. */
@@ -292,7 +317,7 @@ const fileIcon = (icon: TokenIcon | null): FileIcon => ({
   // an icon kept as SVG still says where it's from, for the credits
   ...(icon?.author && !isGameIcon(icon.id) ? { iconCredit: { name: icon.name, author: icon.author } } : {}),
 });
-/** The collection as a file: game-icons.net icons by name, the rest as SVG. */
+/** The collection as a file (its styles as they are): game-icons.net icons by name, the rest as SVG. */
 export function collectionFile(c: Collection): CollectionFile {
   return {
     format: COLLECTION_FORMAT, version: 1, ...c,
@@ -303,6 +328,40 @@ export function collectionFile(c: Collection): CollectionFile {
       ...(flip ? { flip: { name: flip.name, ...fileIcon(flip.icon) } } : {}),
     })),
   };
+}
+
+/**
+ * A style's look from a file: only the fields a token's spec has, each of the kind the default's is
+ * (a colour a hex or "team"); anything else is dropped, so a file can't hand the engine nonsense.
+ */
+function readSpec(v: unknown): SpecInput | null {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return null;
+  const out: Record<string, unknown> = {}, d = DEFAULT_SPEC as unknown as Record<string, unknown>;
+  for (const [k, x] of Object.entries(v)) {
+    if (k === "colours") {
+      if (!x || typeof x !== "object") continue;
+      const c = Object.fromEntries(Object.entries(x).filter(([ck, cv]) => ck in DEFAULT_SPEC.colours && (cv === "team" || isHex(cv))));
+      if (Object.keys(c).length) out.colours = c;
+    } else if (k === "backFace" || k === "relief") { if (x && typeof x === "object" && !Array.isArray(x)) out[k] = x; }
+    else if (k === "customSvg") { if (typeof x === "string" && x.length < 300000) out[k] = x; }
+    else if (k in d && k !== "lang" && typeof x === typeof d[k]) out[k] = x;
+  }
+  return out as SpecInput;
+}
+/** A collection's styles from a file: per shape, each with an id, a name and a look; none, nothing. */
+function readStyles(v: unknown): CollectionStyles | undefined {
+  if (!v || typeof v !== "object") return undefined;
+  const out: CollectionStyles = {};
+  for (const sh of SHAPES) {
+    const list = (v as Record<string, unknown>)[sh];
+    if (!Array.isArray(list)) continue;
+    const defs = list.flatMap((x): StyleDef[] => {
+      const spec = x && typeof x === "object" && x.id && okName(x.name) ? readSpec(x.spec) : null;
+      return spec ? [{ id: String(x.id), name: x.name, ...(okName(x.help) ? { help: x.help } : {}), spec }] : [];
+    }).filter((x, i, all) => all.findIndex((y) => y.id === x.id) === i);
+    if (defs.length) out[sh] = defs;
+  }
+  return Object.keys(out).length ? out : undefined;
 }
 
 const okName = (n: unknown): n is Names => typeof n === "string" || (!!n && typeof n === "object" && Object.values(n).every((v) => typeof v === "string"));
@@ -350,6 +409,7 @@ export async function readCollectionFile(data: unknown, onProgress: (done: numbe
     catalogs: (s.catalogs ?? []).filter((k) => k?.id).map((k) => ({ id: String(k.id), name: okName(k.name) ? k.name : "Catálogo", tokens: (k.tokens ?? []).map(String).filter((id) => ids.has(id)) })),
   }));
   if (!sections.some((s) => s.open)) sections.push({ id: "mine", title: "Catálogos", open: true, catalogs: [] });
+  const styles = readStyles(f.styles);
   return {
     name: okName(f.name) ? f.name : "Mi colección",
     ...(f.ccc || f.loader?.ccc ? { ccc: true } : {}),
@@ -362,6 +422,7 @@ export async function readCollectionFile(data: unknown, onProgress: (done: numbe
     ...(f.loader && typeof f.loader === "object" ? { loader: { ...(okName(f.loader.text) ? { text: f.loader.text } : {}), ...(okName(f.loader.footer) ? { footer: f.loader.footer } : {}), ...(f.loader.ccc ? { ccc: true } : {}) } } : {}),
     ...(Array.isArray(f.languages) ? { languages: f.languages.map(String) } : {}),
     types, groups, tokens, sections,
+    ...(styles ? { styles } : {}),
   };
 }
 

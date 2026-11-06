@@ -13,6 +13,7 @@ import { infoRoles } from "../src/info-tokens.ts";
 import { TRANSLATIONS, VILLACUERVOS_URL } from "../src/translations.ts";
 import { TEAM_ICONS } from "../src/ui-icons.ts";
 import { BUILT_INS } from "../src/builtins.ts";   // what the app says about it (its About, its mark): one place
+import { BOTC_STYLES } from "../src/botc-styles.ts";   // its styles: the Clocktower app's own
 const BOTC = BUILT_INS.find((b) => b.id === "botc");
 
 const root = path.resolve(import.meta.dirname, "..");
@@ -62,6 +63,7 @@ const collection = {
       catalogs: EDITION_ORDER.map((e) => ({ id: e, name: EDITIONS[e].name, tokens: roles.filter((r) => r.edition === e).map((r) => r.id) })) },
     { id: "scripts", title: { en: "Scripts", es: "Guiones" }, open: true, catalogs: [] },
   ],
+  styles: BOTC_STYLES,
 };
 fs.mkdirSync(path.dirname(out), { recursive: true });
 fs.writeFileSync(out, JSON.stringify(collection));

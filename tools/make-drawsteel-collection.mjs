@@ -10,6 +10,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { BUILT_INS } from "../src/builtins.ts";   // its theme and loading screen: one place
+import { FILAMENTS } from "../src/engine/token-engine.ts";
 const DS = BUILT_INS.find((b) => b.id === "drawsteel");
 
 const root = path.resolve(import.meta.dirname, "..");
@@ -77,6 +78,27 @@ const tokens = [
   ...[...CONDITIONS, ...STATES].map(([id, name]) => ({ id: `ring-${id}`, type: "rings", group: "conditions", name, linked: [] })),
 ];
 const ids = (list) => list.map((x) => x[0]);
+
+// The styles it comes with (src/collection.ts StyleDef), per shape; "team" is the token's group colour.
+// The first is what its tokens looked like before collections had styles, under that look's old id
+// ("edicion"), so whoever printed them gets the same.
+const STEEL = { style: "classic", frame: "rim", frameWidth: 0.8, back: "edition", depth: 0.4, colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } };
+const styles = {
+  coin: [
+    { id: "edicion", name: { es: "Acero", en: "Steel" }, help: { es: "Negra, con el nombre, el icono y el borde del color del grupo, y el catálogo en oro al reverso.", en: "Black, with the name, icon and rim in the group colour, and the catalog in gold on the back." }, spec: STEEL },
+    // raised letters: on white the group colour reads by its edge too, even a pale one
+    { id: "pergamino", name: { es: "Pergamino", en: "Parchment" }, help: { es: "Blanca, con las letras en relieve del color del grupo y el catálogo en negro al reverso.", en: "White, with raised letters in the group colour and the catalog in black on the back." },
+      spec: { style: "classic", frame: "rim", frameWidth: 1.0, back: "edition", depth: 0.4, relief: { text: true, frame: false, icon: false }, reliefHeight: 0.6, colours: { base: FILAMENTS.white, front: "team", frame: "team", back: FILAMENTS.black } } },
+    // the window: the icon on the group colour, the name large below, for the far end of the table
+    { id: "legible", name: { es: "Legible", en: "Legible" }, help: { es: "Ventana del color del grupo con el icono y el nombre grande debajo.", en: "A window in the group colour with the icon, and the name large below." },
+      spec: { style: "window", textSize: 6, frame: "none", back: "edition", depth: 0.4, colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } } },
+  ],
+  ring: [
+    { id: "edicion", name: { es: "Aro fino", en: "Fine ring" }, help: { es: "Negro, con el nombre y una línea fina del color del grupo en cada borde.", en: "Black, with the name and a fine line in the group colour along each edge." }, spec: STEEL },
+    { id: "marcado", name: { es: "Aro marcado", en: "Bold ring" }, help: { es: "Negro, con el nombre en relieve: se lee de lado, junto a la miniatura.", en: "Black, with the name raised: it reads from the side, next to the miniature." },
+      spec: { ...STEEL, frameWidth: 1.0, relief: { text: true, frame: false, icon: false }, reliefHeight: 0.6 } },
+  ],
+};
 const collection = {
   format: "midnight-mint/collection", version: 1,
   name: "Draw Steel",
@@ -107,6 +129,7 @@ const collection = {
     ] },
     { id: "encounters", title: { en: "Encounters", es: "Encuentros" }, open: true, catalogs: [] },
   ],
+  styles,
 };
 const out = path.join(root, "public/collections/drawsteel.json");
 fs.writeFileSync(out, JSON.stringify(collection));

@@ -445,6 +445,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .style-menu button small { margin-left: auto; flex: none; color: var(--dust); font-size: 12px; }
 .style-menu button.danger { color: var(--warn); }
 .style-menu hr { border: 0; border-top: 1px solid var(--seam); margin: 4px; }
+.style-menu-head { margin: 6px 8px 2px; padding-top: 6px; border-top: 1px solid var(--seam); color: var(--dust); font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; }
 /* A block's heading in the column: what the token says (its own), how it looks (its style's) */
 .ws-bh { margin: 0 0 10px; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 11.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--dust); }
 .ws-bh small { font-size: 12px; font-weight: 400; letter-spacing: 0; text-transform: none; text-align: right; }
@@ -463,8 +464,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .scope-box[hidden] { display: none; }
 .scope-box p { margin: 0; }
 .scope-box .seg2 button { font-size: 12.5px; }
-.tpl-head { margin: 0; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-.tpl-head b { font: 400 17px/1.2 var(--display); }
+.reset-head { margin: 0; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.reset-head b { font: 400 17px/1.2 var(--display); }
 /* Level 1: the token's parts (FRONT · BACK · COIN · MAGNET), underlined */
 .parts { flex: none; display: flex; border-bottom: 1px solid var(--seam); }
 .parts[hidden] { display: none; }
@@ -832,17 +833,17 @@ dialog .import { margin-top: 10px; }
 .credit-icons summary { cursor: pointer; padding: 4px 0; }
 .credit-icons p { margin: 2px 0 8px; font-size: 12.5px; color: var(--dust); line-height: 1.6; }
 
-/* premade designs */
-.presets { display: grid; gap: 8px; }
-.preset-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; }
+/* the collection's styles, to set a style back to */
+.coll-styles { display: grid; gap: 8px; }
+.coll-style-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; }
 .saved-zone { display: grid; gap: 8px; justify-items: start; padding-top: 12px; border-top: 1px solid var(--seam); }
 .saved-zone .list { justify-self: stretch; }
 .saved-zone .hint { margin: 0; }
 .zone-title { margin: 0; font-family: var(--display); font-weight: 400; font-size: 18px; }
 .zone-title small { font-family: var(--ui); font-size: 12.5px; color: var(--dust); }
-.preset { border: 1px solid var(--seam); background: rgba(23, 8, 18, .5); border-radius: 12px; padding: 8px 6px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; font-size: 12.5px; line-height: 1.2; }
-.preset svg { width: 52px; height: 52px; }
-.preset[aria-pressed=true] { border-color: var(--brass); background: rgba(201, 162, 39, .1); }
+.coll-style { border: 1px solid var(--seam); background: rgba(23, 8, 18, .5); border-radius: 12px; padding: 8px 6px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; font-size: 12.5px; line-height: 1.2; }
+.coll-style svg { width: 52px; height: 52px; }
+.coll-style[aria-pressed=true] { border-color: var(--brass); background: rgba(201, 162, 39, .1); }
 @media (max-width: 900px) { .spine .brand img { width: 30px; height: 30px; } }
 /* the phone's top bar has no room for "?": the guide opens from the sidebar's footer there */
 

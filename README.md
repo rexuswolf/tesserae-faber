@@ -43,6 +43,8 @@ A collection is laid out like this:
 - **Tokens**: each of one type and one group, with its linked tokens. Names can come in several languages.
 - **Sections**: the sidebar's headings, each **closed** (it comes with the collection, like Clocktower's
   editions) or **open** (yours to add **catalogs** to, from scratch or from a list such as a Script Tool script).
+- **Styles**: the looks it comes with, per shape (a name and a design): its tokens start with the first, and
+  the rest are a click away in the style menu. Without them, a collection has one basic style per shape.
 
 Each collection also has its own look: its name and logo, its colours (a ready theme or your own), what its
 loading screen says, and what its *About* says, with its credits and links. Blood on the Clocktower content can
@@ -55,7 +57,7 @@ A whole collection goes in and out as one JSON file (`"format": "midnight-mint/c
 
 <p align="center"><img src="docs/banner.png" alt="Midnight Mint" width="560"></p>
 
-![The design step: the templates on the left, a big 3D token, and your tokens in a strip beneath it](docs/screenshots/app.png)
+![The design step: the token's editor on the left, a big 3D token, and your tokens in a strip beneath it](docs/screenshots/app.png)
 
 <p align="center"><img src="public/ccc-sleeve.png" alt="Community Created Content" width="172"></p>
 
@@ -94,13 +96,14 @@ The same for every collection.
   turned round at the top, so it reads right way up from both sides of the table.
 - Relief, part by part: the name, the frame and the icon each flush with the coin or raised (0.4 to 1.2 mm).
   Flush, nobody can feel which token it is and it prints face-down; with anything raised it prints face-up.
-- Templates to start from: *Edition* (the default: the edition's name in gold on the back; in your own collections, the collection's), *Fast print* (1.2 mm,
+- Styles that come with each collection, made for it. Clocktower's: *Edition* (the default: the edition's name in gold on the back), *Fast print* (1.2 mm,
   the thinnest that holds up), *Pitch-black night*, *Midnight*, *Ivory coin* and *High legibility* (the window layout), all with the frame in the team colour.
-  A new style starts from one, and a style can be reset to one. A magnet (glued into a pocket, or hidden inside with a pause) is a choice of its own and stays when you switch templates.
+  Draw Steel's: *Steel*, *Parchment* (raised letters on white) and *Legible* for its coins, *Fine ring* and *Bold ring* for its rings; your own collections start with *Basic*.
+  The style menu adds the collection's styles you don't have yet, and a style can be reset to one. A magnet (glued into a pocket, or hidden inside with a pause) is a choice of its own and stays when you reset a style.
 - 12 frame designs, and 7 back designs plus the edition's name (a homebrew's script) or your own SVG, each drawn on your character as you choose.
 - Any of the 10 filament colours for the coin, the frame and the back; the name and icon take the team's (or group's) colour.
 - A big live 3D preview you can turn around, with front and back views; it turns by itself to the part you're editing.
-- Styles: named looks (*Edition*, *Ivory*, your own) for each shape, each token using one. Changing the look changes the token's style, every token using it, and says how many, with *Only this token* to keep the change to that one. A pen marks the tokens with changes of their own and takes you straight back to them; *Back to the style* takes them away. A token's look can be saved as a new style.
+- Styles: named looks (*Edition*, *Ivory*, your own) for each shape, each token using one. Changing the look changes the token's style, every token using it, and says how many, with *Only this token* to keep the change to that one. A pen marks the tokens with changes of their own and takes you straight back to them; *Back to the style* takes them away. *New style* makes a copy of the token's style to change, and a token's look can be saved as a new style.
 - One editor for changing a token and, in your own collections, for making one: its shape, its style, what it says (name, icon, group, catalogs, linked tokens, its other state) and how it looks, with *Create* and *Create and another*.
 
 | Frames | Backs |
