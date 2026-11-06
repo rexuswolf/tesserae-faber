@@ -1016,7 +1016,7 @@ async function boot() {
     if (OWN && OWN_ID) { const own = (await builtInCollections()).find((b) => b.id === OWN_ID && b.href); if (own) { location.replace(own.href! + location.hash); return; } }
     // a collection that comes with the app: read from its file, every time (it isn't kept here)
     if (READONLY) { const c = await readBuiltIn(OWN_ID!); if (c) { coll = c; applyOwnTheme(); applyOwnBrand(); } }
-    await tidyMyDesigns();   // once: your designs that are a collection's own, that one again
+    await tidyMyDesigns().catch((err) => console.error("tidyMyDesigns", err));   // once: your designs that are a collection's own, that one again (never in the way of opening)
     if (TALLER) { await openTaller(); return; }   // the Taller: designs, for every collection
     if (OWN && OWN_VIEW === "home") { renderOwnLanding(); return; }   // the front page
     if (OWN && (!OWN_ID || !coll.tokens.length)) { renderOwnHome(); return; }   // the list (or a collection that isn't there)
