@@ -28,6 +28,7 @@
       <button type="button" id="collSwitch" aria-haspopup="menu" aria-expanded="false" aria-controls="collMenu"><img class="coll-logo" src="/tesserae-faber-small.svg" alt="" width="34" height="34"><span class="cs-text"><b class="coll-name"></b><small>Tesserae Faber</small></span><span class="chev" aria-hidden="true">▾</span></button>
       <div class="coll-menu" id="collMenu" role="menu" hidden>
         <a class="coll-back" role="menuitem" href="/colecciones"><span aria-hidden="true">‹</span><b data-i18n="own.homeTitle"></b><small data-i18n="own.menuBack"></small></a>
+        <a role="menuitem" href="/taller" data-coll-taller><span aria-hidden="true">✦</span><b data-i18n="taller.title"></b><small data-i18n="taller.menu"></small></a>
         <hr class="built-only">
         <button class="built-only" role="menuitem" type="button" data-coll="copy"><span aria-hidden="true">⧉</span><b data-i18n="own.copy"></b><small data-i18n="own.menuCopy"></small></button>
         <hr class="own-only">
@@ -40,6 +41,9 @@
         <p class="hint warn" id="ownNote" aria-live="polite"></p>
       </div>
     </div>
+    <!-- the Taller: back to the collection it was opened from, and its name -->
+    <a class="taller-back" id="tallerBack" href="/colecciones"><span aria-hidden="true">‹</span><span><small data-i18n="taller.back"></small><b></b></span></a>
+    <p class="taller-title"><span aria-hidden="true">✦</span> <b data-i18n="taller.title"></b></p>
     <nav class="flow-steps" id="flowSteps" data-i18n-attr="aria-label:flow.aria"></nav>
     <button class="tlang-trigger" id="tokenLangBtn" type="button" aria-haspopup="dialog" data-lang-open></button>
   </header>
@@ -53,6 +57,7 @@
         <summary><img class="coll-logo" src="/tesserae-faber-small.svg" alt="" width="34" height="34"><span class="cs-text"><b class="coll-name"></b><small data-i18n="own.switchColl"></small></span><span class="chev" aria-hidden="true">▾</span></summary>
         <div class="coll-fold"><div class="coll-menu-items">
         <a class="coll-back" role="menuitem" href="/colecciones"><span aria-hidden="true">‹</span><b data-i18n="own.homeTitle"></b><small data-i18n="own.menuBack"></small></a>
+        <a role="menuitem" href="/taller" data-coll-taller><span aria-hidden="true">✦</span><b data-i18n="taller.title"></b><small data-i18n="taller.menu"></small></a>
         <hr class="built-only">
         <button class="built-only" role="menuitem" type="button" data-coll="copy"><span aria-hidden="true">⧉</span><b data-i18n="own.copy"></b><small data-i18n="own.menuCopy"></small></button>
         <hr class="own-only">
@@ -110,6 +115,11 @@
           <div class="menu" id="addMenu" role="menu" aria-labelledby="addBtn" hidden></div>
         </div>
       </div>
+      <!-- the collection's default design for each shape it has, and the way to the Taller -->
+      <div class="design-bar-wrap">
+        <div class="design-bar" id="designBar"></div>
+        <div class="menu style-menu" id="defaultMenu" role="menu" hidden></div>
+      </div>
       <div class="script-actions" id="scriptActions" hidden>
         <button class="pill" type="button" id="scriptShare"></button>
         <button class="pill" type="button" id="scriptJson" data-i18n="script.json"></button>
@@ -135,95 +145,51 @@
     <div id="rows"></div>
   </main>
 
-  <!-- workshop: one editor for making and changing a token. On top its shape and the style it uses;
-       then its parts (a coin's FRONT · BACK · COIN · MAGNET). FRONT and BACK say first what the token
-       says (its own) and then how it looks (its style's, or its own changes). -->
+  <!-- workshop: how one token looks. On top, what it says (a line) and its design (the collection's default, or one
+       chosen for it); then its parts (a coin's FRONT · BACK · COIN · MAGNET), whose changes are this token's only.
+       In the Taller the same controls change one of your designs. -->
   <aside class="workshop" id="workshop">
-    <div class="ws-head">
-      <div class="ws-shape" id="shapeRow"></div>
+    <div class="ws-head taller-only" id="tallerHead"></div>
+    <p class="hint taller-only" id="tallerReadOnly" hidden></p>
+    <div class="ws-head design-only">
+      <div class="ws-says" id="saysLine"></div>
+      <!-- a token of Clocktower's or of a closed collection, or a linked token: its printed text, feminine name and icon -->
+      <div class="token-only" id="contentClosed" hidden>
+        <label class="field"><span data-i18n="ws.printedText"></span><input class="text" type="text" id="printed" autocomplete="off"></label>
+        <label class="check" id="femRow" hidden><input type="checkbox" id="fem"> <span id="femLabel"></span></label>
+        <div class="field icon-field" id="iconField">
+          <span data-i18n="icon.label"></span>
+          <div class="icon-actions">
+            <button class="pill" type="button" id="iconSearchOpen" data-i18n="icon.search"></button>
+            <button class="pill" type="button" id="iconUpload" data-i18n="icon.upload"></button>
+            <button class="link" type="button" id="iconReset" data-i18n="icon.reset" hidden></button>
+          </div>
+          <input type="file" id="iconFile" accept=".svg,image/svg+xml" hidden>
+          <p class="hint" id="iconHint"></p>
+          <div class="icon-search" id="iconSearch" hidden>
+            <input class="text" type="search" id="iconQuery" autocomplete="off" data-i18n-attr="placeholder:icon.placeholder">
+            <div class="icon-results" id="iconResults"></div>
+          </div>
+        </div>
+      </div>
       <div class="ws-style" id="styleRow">
-        <span class="ws-style-l" data-i18n="style.label"></span>
+        <span class="ws-style-l" data-i18n="design.label"></span>
         <button class="style-chip" type="button" id="styleChip" aria-haspopup="menu" aria-expanded="false" aria-controls="styleMenu"></button>
         <small id="styleCount"></small>
         <button class="own-mark" type="button" id="styleBack" hidden></button>
+        <a class="ws-taller" id="designTaller" href="/taller"><span data-i18n="design.editInTaller"></span> <span aria-hidden="true">›</span></a>
+        <p class="hint" id="designFlash" aria-live="polite" hidden></p>
         <div class="menu style-menu" id="styleMenu" role="menu" hidden></div>
       </div>
     </div>
     <!-- the token's parts: a coin's FRONT · BACK · COIN · MAGNET, a ring's FRONT · RING, a card's FRONT · CARD -->
-    <div class="parts" id="parts" role="tablist" data-i18n-attr="aria-label:ws.sections" hidden></div>
+    <div class="parts" id="parts" role="tablist" data-i18n-attr="aria-label:ws.sections"></div>
     <div class="ws-body" id="styleFields">
-      <!-- what the token says: always its own, whatever its style -->
-      <section class="ws-content" id="contentBlock" hidden>
-        <h3 class="ws-bh"><span id="contentTitle"></span> <small data-i18n="content.only"></small></h3>
-        <!-- a token of your collection: its name, icon, group, catalogs and linked tokens -->
-        <div class="own-fields" id="contentOwn" hidden>
-          <label class="field"><span data-i18n="own.name"></span><input class="text" id="ownTokName" autocomplete="off" data-i18n-attr="placeholder:own.namePlaceholder"></label>
-          <div class="field" id="ownTokIconRow"><span data-i18n="own.icon"></span>
-            <div class="own-icon-bar">
-              <input class="text" type="search" id="ownTokIq" autocomplete="off" data-i18n-attr="placeholder:icon.placeholder">
-              <label class="pill file"><span data-i18n="icon.upload"></span><input type="file" id="ownTokSvg" accept=".svg,image/svg+xml" hidden></label>
-              <button class="pill" type="button" id="ownTokNoIcon" data-i18n="own.noIcon"></button>
-            </div>
-            <div class="icon-results" id="ownTokHits"></div>
-          </div>
-          <div class="field"><span data-i18n="own.group"></span><div class="group-pills" id="ownTokGroups"></div></div>
-          <div class="field" id="ownTokCatsRow"><span data-i18n="own.inCatalogs"></span><div class="own-cats" id="ownTokCats"></div></div>
-          <div class="field"><span data-i18n="own.linked"></span><p class="hint" data-i18n="own.linkedHelp"></p>
-            <div class="own-linked" id="ownTokLinked"></div>
-            <button class="link" type="button" id="ownTokAddLinked" data-i18n="own.addLinked"></button>
-          </div>
-          <p><button class="pill danger" type="button" id="ownTokDelete" data-i18n="own.deleteToken"></button></p>
-        </div>
-        <!-- a token of Clocktower's or of a closed collection, or a linked token: its printed text, feminine name and icon -->
-        <div class="token-only" id="contentClosed" hidden>
-          <label class="field"><span data-i18n="ws.printedText"></span><input class="text" type="text" id="printed" autocomplete="off"></label>
-          <label class="check" id="femRow" hidden><input type="checkbox" id="fem"> <span id="femLabel"></span></label>
-          <div class="field icon-field" id="iconField">
-            <span data-i18n="icon.label"></span>
-            <div class="icon-actions">
-              <button class="pill" type="button" id="iconSearchOpen" data-i18n="icon.search"></button>
-              <button class="pill" type="button" id="iconUpload" data-i18n="icon.upload"></button>
-              <button class="link" type="button" id="iconReset" data-i18n="icon.reset" hidden></button>
-            </div>
-            <input type="file" id="iconFile" accept=".svg,image/svg+xml" hidden>
-            <p class="hint" id="iconHint"></p>
-            <div class="icon-search" id="iconSearch" hidden>
-              <input class="text" type="search" id="iconQuery" autocomplete="off" data-i18n-attr="placeholder:icon.placeholder">
-              <div class="icon-results" id="iconResults"></div>
-            </div>
-          </div>
-        </div>
-        <!-- the other state, on the back (a coin's): added, named, given an icon, taken away -->
-        <div class="own-fields" id="contentFlip" hidden>
-          <p class="hint" data-i18n="own.flipHelp"></p>
-          <button class="pill" type="button" id="ownTokFlipAdd" data-i18n="own.flipAdd"></button>
-          <div class="own-flip" id="ownTokFlipBox" hidden>
-            <label class="field"><span data-i18n="own.flipName"></span><input class="text" id="ownTokFlipName" autocomplete="off"></label>
-            <div class="field"><span data-i18n="own.flipIcon"></span>
-              <div class="own-icon-bar">
-                <input class="text" type="search" id="ownTokFlipIq" autocomplete="off" data-i18n-attr="placeholder:icon.placeholder">
-                <label class="pill file"><span data-i18n="icon.upload"></span><input type="file" id="ownTokFlipSvg" accept=".svg,image/svg+xml" hidden></label>
-                <button class="pill" type="button" id="ownTokFlipNoIcon" data-i18n="own.noIcon"></button>
-              </div>
-              <div class="icon-results" id="ownTokFlipHits"></div>
-            </div>
-            <button class="link" type="button" id="ownTokFlipRemove" data-i18n="own.flipRemove"></button>
-          </div>
-        </div>
-        <p class="hint" id="contentNote" hidden></p>
-      </section>
-      <!-- how it looks: from its style -->
+      <!-- how it looks: its design's, with this token's changes (in the Taller: the design's) -->
       <h3 class="ws-bh" id="lookHead"><span id="lookTitle"></span> <small id="lookSub"></small></h3>
-      <div class="scope-box" id="scopeNote" aria-live="polite" hidden></div>
       <div class="ws-warn" id="colourWarn" hidden></div>
       <div class="back-modes" id="backModes" hidden></div>
       <div class="face-tabs" id="faceTabs" role="tablist" data-i18n-attr="aria-label:ws.faceTabs" hidden></div>
-      <!-- the collection's styles: the token's style can be set back to one -->
-      <section class="ws-panel coll-styles" data-panel="reset">
-        <p class="reset-head"><b id="resetTitle"></b> <button class="link" type="button" id="resetCancel" data-i18n="script.cancel"></button></p>
-        <div class="coll-style-list" id="resetList"></div>
-        <p class="hint" data-i18n="style.resetHelp"></p>
-      </section>
       <!-- a face (the front, or a back of its own): its layout, name, icon and frame, each part flush or raised -->
       <section class="ws-panel" data-panel="layout" role="tabpanel" hidden>
         <div class="choices layout-tiles" data-choice="style"></div>
@@ -315,6 +281,16 @@
     <div class="ds-grid" id="designGrid"></div>
   </section>
 
+  <!-- the Taller (/taller): designs for every shape, yours and the collections' -->
+  <main class="taller-main" id="tallerMain">
+    <header class="tm-head">
+      <p class="lead" id="tallerLead"></p>
+      <div class="tm-shapes" id="tallerShapes" role="tablist" data-i18n-attr="aria-label:taller.shapes"></div>
+    </header>
+    <section class="tm-preview" id="tallerPreview" aria-live="polite"></section>
+    <div class="tm-list" id="tallerList"></div>
+  </main>
+
   <!-- step 3: how to print -->
   <section class="print-page" id="printPage">
     <div class="pp-in">
@@ -337,7 +313,6 @@
     </button>
     <p class="hint" id="queueSummary"></p>
     <button class="flow-back" type="button" id="flowBack"></button>
-    <button class="pill" type="button" id="flowMore" data-i18n="create.more" hidden></button>
     <button class="forge" type="button" id="flowNext"></button>
   </footer>
   <!-- your selection: characters with their copies and reminders -->
@@ -498,6 +473,70 @@
   <p class="hint warn" id="scriptDialogWarn" data-i18n="script.customWarn" aria-live="polite" hidden></p>
   <p class="hint" id="scriptDialogNote" aria-live="polite"></p>
   <div class="dialog-actions"><button class="pill" type="button" id="scriptDialogCancel" data-i18n="script.cancel"></button><button class="forge" type="button" id="scriptDialogSave" data-i18n="script.add"></button></div>
+</dialog>
+
+<!-- the generic creator: a token's content, made or changed (from the sheet, or the design step's "Edit content"),
+     beside the token as it prints -->
+<dialog id="tokenPanel" class="token-panel" aria-labelledby="tpTitle">
+  <header class="tp-head"><h2 id="tpTitle"></h2><button class="icon-btn" type="button" id="tpClose" data-i18n-attr="aria-label:admin.close">×</button></header>
+  <div class="tp-body">
+    <div class="tp-side">
+      <div class="tp-pic" id="tpPic"></div>
+      <p class="hint" id="tpDesign"></p>
+    </div>
+    <div class="tp-fields">
+      <div id="tpShape"></div>
+      <!-- its name, icon, group, catalogs and linked tokens -->
+      <div class="own-fields" id="contentOwn">
+        <label class="field"><span data-i18n="own.name"></span><input class="text" id="ownTokName" autocomplete="off" data-i18n-attr="placeholder:own.namePlaceholder"></label>
+        <div class="field" id="ownTokIconRow"><span data-i18n="own.icon"></span>
+          <div class="own-icon-bar">
+            <input class="text" type="search" id="ownTokIq" autocomplete="off" data-i18n-attr="placeholder:icon.placeholder">
+            <label class="pill file"><span data-i18n="icon.upload"></span><input type="file" id="ownTokSvg" accept=".svg,image/svg+xml" hidden></label>
+            <button class="pill" type="button" id="ownTokNoIcon" data-i18n="own.noIcon"></button>
+          </div>
+          <div class="icon-results" id="ownTokHits"></div>
+        </div>
+        <div class="field"><span data-i18n="own.group"></span><div class="group-pills" id="ownTokGroups"></div></div>
+        <div class="field" id="ownTokCatsRow"><span data-i18n="own.inCatalogs"></span><div class="own-cats" id="ownTokCats"></div></div>
+        <div class="field"><span data-i18n="own.linked"></span><p class="hint" data-i18n="own.linkedHelp"></p>
+          <div class="own-linked" id="ownTokLinked"></div>
+          <button class="link" type="button" id="ownTokAddLinked" data-i18n="own.addLinked"></button>
+        </div>
+      </div>
+      <!-- the other state, on the back (a coin's): added, named, given an icon, taken away -->
+      <section class="own-fields tp-flip" id="contentFlip">
+        <h3 data-i18n="content.flip"></h3>
+        <p class="hint" data-i18n="own.flipHelp"></p>
+        <button class="pill" type="button" id="ownTokFlipAdd" data-i18n="own.flipAdd"></button>
+        <div class="own-flip" id="ownTokFlipBox" hidden>
+          <label class="field"><span data-i18n="own.flipName"></span><input class="text" id="ownTokFlipName" autocomplete="off"></label>
+          <div class="field"><span data-i18n="own.flipIcon"></span>
+            <div class="own-icon-bar">
+              <input class="text" type="search" id="ownTokFlipIq" autocomplete="off" data-i18n-attr="placeholder:icon.placeholder">
+              <label class="pill file"><span data-i18n="icon.upload"></span><input type="file" id="ownTokFlipSvg" accept=".svg,image/svg+xml" hidden></label>
+              <button class="pill" type="button" id="ownTokFlipNoIcon" data-i18n="own.noIcon"></button>
+            </div>
+            <div class="icon-results" id="ownTokFlipHits"></div>
+          </div>
+          <button class="link" type="button" id="ownTokFlipRemove" data-i18n="own.flipRemove"></button>
+        </div>
+      </section>
+    </div>
+  </div>
+  <footer class="tp-foot">
+    <button class="pill danger" type="button" id="ownTokDelete" data-i18n="own.deleteToken"></button>
+    <p class="hint" id="tpFlash" aria-live="polite"></p>
+    <button class="pill" type="button" id="tpCancel" data-i18n="script.cancel"></button>
+    <button class="pill" type="button" id="tpMore" data-i18n="create.more"></button>
+    <button class="forge" type="button" id="tpDone"></button>
+  </footer>
+</dialog>
+
+<!-- a question with its answers (keeping tokens' own designs, deleting a design) -->
+<dialog id="askDlg" class="own-dialog ask-dialog">
+  <p id="askText"></p>
+  <div class="dialog-actions" id="askActions"></div>
 </dialog>
 
 <!-- the generic creator: the colour groups (Clocktower's teams) -->

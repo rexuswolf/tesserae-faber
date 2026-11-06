@@ -261,22 +261,31 @@ export interface Token {
 // ---------------------------------------------------------------- the print queue and plates
 
 /**
- * A token's look as changed from its style's, field by field ("colours" colour by colour). A null
- * field is one its style has and the token doesn't: it takes the default (DEFAULT_SPEC's).
+ * A token's look as changed from its design's, field by field ("colours" colour by colour). A null
+ * field is one its design has and the token doesn't: it takes the default (DEFAULT_SPEC's).
  */
 export type LookChanges = { [K in Exclude<keyof TokenSpec, "colours">]?: TokenSpec[K] | null } & { colours?: Partial<SpecColours> };
 
 /**
- * A named look for one shape (a TokenSpec without content: no name, icon or other state). Each
- * token uses one of its shape's styles; the first is the one a token uses unless it says otherwise.
- * `tpl` is the collection's style (StyleDef) it's named after while it has no name of its own.
+ * One of your designs, made in the Taller: a named look for one shape (a TokenSpec without
+ * content: no name, icon or other state), kept once for every collection. Colours that are a
+ * group's say "team", so it fits any collection. `from` is the design it was made from (a
+ * collection's, as it was then), which its fields can be set back to.
+ */
+export interface MyDesign { id: string; name: string; spec: TokenSpec; from?: { name: string; spec: TokenSpec } }
+
+/**
+ * A collection's style as kept before designs were yours (49eeec0): each collection had its own,
+ * the first of a shape the one its tokens used. `tpl` is the collection's style (StyleDef) it's
+ * named after while it has no name of its own. Read once, to make your designs and the defaults.
  */
 export interface Style { id: string; name?: string; tpl?: string; spec: TokenSpec }
 
 /**
- * What a token has of its own. Content: its printed text, feminine name and icon. Its style (by
- * id, else its shape's first, or a linked token's character's) and its own changes to that style's
- * look. `spec` is how older versions kept a token's whole design: read once, it becomes `look`.
+ * What a token has of its own. Content: its printed text, feminine name and icon. Its design, when
+ * not the one it has by default (a reference: "c:<id>" one of the collection's, "u:<id>" one of
+ * yours), and its own changes to that design's look. `spec` is how older versions kept a token's
+ * whole design: read once, it becomes `look`.
  */
 export interface TokenOverride {
   text?: string | null;

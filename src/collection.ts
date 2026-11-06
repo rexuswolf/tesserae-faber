@@ -18,11 +18,17 @@ import { BUILT_INS } from "./builtins.ts";
 /** Which app this page is: Clocktower (/botc, once Midnight Mint), or Tesserae Faber, the generic creator (the rest). */
 export const MODE: "botc" | "own" = /^\/botc(\/|$)/.test(location.pathname) ? "botc" : "own";
 export const OWN = MODE === "own";
-/** Which page of the creator this is: its front page (/), the collections (/colecciones) or one collection (/c/<id>). */
-export const OWN_VIEW: "home" | "list" | "collection" = /^\/c\/[\w-]+/.test(location.pathname) ? "collection" : /^\/colecciones\/?$/.test(location.pathname) ? "list" : "home";
+/**
+ * Which page of the creator this is: its front page (/), the collections (/colecciones), one
+ * collection (/c/<id>), or the Taller (/taller), where the designs are made for every collection.
+ */
+export const OWN_VIEW: "home" | "list" | "collection" | "taller" = /^\/c\/[\w-]+/.test(location.pathname) ? "collection" : /^\/colecciones\/?$/.test(location.pathname) ? "list" : /^\/taller\/?$/.test(location.pathname) ? "taller" : "home";
 /** The collection this page shows (/c/<id>); none on the front page or the list. */
 export const OWN_ID: string | null = location.pathname.match(/^\/c\/([\w-]+)/)?.[1] ?? null;
 export const LIST_URL = "/colecciones";
+/** The Taller: your designs and the collections', by shape. It says where it was opened from (?from=/c/<id>, /botc), to go back there. */
+export const TALLER_URL = "/taller";
+export const tallerUrl = (from = location.pathname, extra: Record<string, string> = {}) => `${TALLER_URL}?${new URLSearchParams({ from, ...extra })}`;
 /** The last collection opened, for the front page's "carry on" link. */
 const LAST_KEY = "midnight-mint-own-last";
 export const lastCollection = () => { try { return localStorage.getItem(LAST_KEY); } catch { return null; } };
@@ -166,6 +172,12 @@ export async function readBuiltIn(id: string): Promise<Collection | null> {
   const entry = builtIn(id);
   if (!entry?.file) return null;
   try { const res = await fetch(entry.file); return res.ok ? await readCollectionFile(await res.json()) : null; } catch { return null; }
+}
+/** Only the styles a built-in collection comes with (for the Taller), without reading its tokens. */
+export async function builtInStyles(id: string): Promise<CollectionStyles | undefined> {
+  const entry = builtIn(id);
+  if (!entry?.file) return undefined;
+  try { const res = await fetch(entry.file); return res.ok ? readStyles((await res.json())?.styles) : undefined; } catch { return undefined; }
 }
 /** A copy of a built-in collection, as one of yours to change: its new id. */
 export async function copyBuiltIn(id: string, name: string): Promise<string | null> {
