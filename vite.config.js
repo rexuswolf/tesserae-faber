@@ -9,6 +9,7 @@ export const threeBySource = { find: /^three$/, replacement: "three/src/Three.js
 // works offline. A new version takes over on its own (autoUpdate) the next time a page opens.
 const pwa = VitePWA({
   registerType: "autoUpdate",
+  injectRegister: false,   // registered in src/main.ts, which also says when a new version has arrived
   manifest: {
     name: "Tesserae Faber",
     short_name: "Tesserae Faber",

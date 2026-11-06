@@ -18,7 +18,7 @@ import { iconFromSvg, gameIcon, gameIconPreview, searchGameIcons, scriptEntryIco
 import { plateFeatures } from "./bambu/estimate.ts";
 import { PAGE, layoutCoins, backX } from "./pdf/layout.ts";
 import { t, uiLang, setUiLang, LANGUAGES } from "./i18n.ts";
-import { TRANSLATIONS, VILLACUERVOS_URL, translationById, translationGroups } from "./translations.ts";
+import { TRANSLATIONS, VILLACUERVOS_URL } from "./translations.ts";
 import { uiIcon, UI_ICONS, TEAM_ICONS } from "./ui-icons.ts";
 import { OWN, OWN_ID, OWN_VIEW, LIST_URL, lastCollection, rememberCollection, collectionUrl, openUrl, listCollections, addCollection, deleteCollection, starterCollection, builtInCollections, MODE, loadCollection, storeCollection, collectionRoles, collectionFile, readCollectionFile, readTokenList, readBuiltIn, copyBuiltIn, GROUP_COLOURS, newId, nameIn, withName, catalogsOf, isLocked, THEMES, THEME_FONTS, okLogo, hasCcc, builtIn, APP_LOGO, APP_LOGO_SMALL, APP_ICON, APP_NAME } from "./collection.ts";
 import type { Collection, OwnToken, OwnCatalog, OwnSection, OwnTheme, CollectionEntry } from "./collection.ts";
@@ -117,6 +117,22 @@ if (OWN && OWN_ID) { applyOwnTheme(); applyOwnBrand(); }   // before the loading
 
 // After a deploy, a page opened earlier may ask for code files that no longer
 // exist (their names change with each version). Reload once to get the new ones.
+//
+// The service worker (vite.config.js) keeps the app's files. When a new version takes over, a page that
+// holds nothing of yours mid-way (the front page, the list of collections) reloads into it at once; a
+// collection, where you may be designing, offers to reload instead.
+if ("serviceWorker" in navigator && import.meta.env.PROD) {
+  const hadOne = !!navigator.serviceWorker.controller;   // the first install brings nothing new
+  void navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => {});
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!hadOne) return;
+    if (OWN && OWN_VIEW !== "collection") { location.reload(); return; }
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "update-note"; b.textContent = t("app.updated");
+    b.onclick = () => location.reload();
+    document.body.append(b);
+  });
+}
 window.addEventListener("vite:preloadError", (e) => {
   if (sessionStorage.getItem("mm-reloaded")) return;   // don't loop if it really is broken
   e.preventDefault();
@@ -189,7 +205,7 @@ const remKey = (role: Role, i: number) => `r:${role.id}:${i}`;
 /** Characters by team, then alphabetically by the name the token shows. */
 // The token language is a translation id ("es-bumble3ee"); collation needs its language ("es").
 const collators = new Map<string, Intl.Collator>();
-const collator = (lang = translationById(tokenLang()).lang) => collators.get(lang) ?? collators.set(lang, new Intl.Collator(lang, { sensitivity: "base" })).get(lang)!;
+const collator = (lang = langById(tokenLang()).lang) => collators.get(lang) ?? collators.set(lang, new Intl.Collator(lang, { sensitivity: "base" })).get(lang)!;
 const byName = (a: Role, b: Role) => collator().compare(textFor(charKey(a), a, null), textFor(charKey(b), b, null));
 const byTeamName = (a: Role, b: Role) => TEAM_ORDER.indexOf(a.team) - TEAM_ORDER.indexOf(b.team) || byName(a, b);
 /** Token keys in sheet order: team, name, the character before its reminders. */
@@ -274,16 +290,35 @@ setLang(uiLang());
 function tokenLang(): string {
   let saved: string | null = null;
   try { saved = localStorage.getItem(TOKEN_LANG_KEY); } catch { /* no storage */ }
-  return TRANSLATIONS.some((x) => x.id === saved) ? saved as string : uiLang() === "en" ? "en" : "es";
+  const ok = langOptions();
+  return ok.some((x) => x.id === saved) ? saved as string : ok.some((x) => x.id === uiLang()) ? uiLang() : ok[0].id;
+}
+/**
+ * The languages the tokens can be printed in. Clocktower: every translation (Villacuervos's). A
+ * collection of Tesserae Faber: only the ones its names come in; their translators only when it's
+ * Clocktower content (a copy of it), where those translations came from.
+ */
+function langOptions(): Translation[] {
+  if (!OWN) return TRANSLATIONS;
+  const langs = coll.languages?.length ? coll.languages : ["es", "en"];
+  const out = langs.map((id) => TRANSLATIONS.find((x) => x.id === id) ?? TRANSLATIONS.find((x) => x.lang === id) ?? { id, lang: id, name: id.toUpperCase(), flag: "/flags/en.svg" })
+    .map((x) => (hasCcc(coll) ? x : { id: x.id, lang: x.lang, name: x.name, flag: x.flag }));
+  return out.length ? out : [TRANSLATIONS[0]];
+}
+function langById(id: string | null) { const ok = langOptions(); return ok.find((x) => x.id === id) ?? ok[0]; }
+function langGroups() {
+  const out: { name: string; flag: string; items: Translation[] }[] = [];
+  for (const x of langOptions()) { let g = out.find((l) => l.name === x.name); if (!g) out.push(g = { name: x.name, flag: x.flag, items: [] }); g.items.push(x); }
+  return out;
 }
 /** The menu label for a translation: "Español · Rovortox" when its language has several. */
-function isGrouped(x: Translation) { return translationGroups().find((g) => g.name === x.name)!.items.length > 1; }
+function isGrouped(x: Translation) { return langGroups().find((g) => g.name === x.name)!.items.length > 1; }
 function tlName(x: Translation) { return x.version ? `${x.name} · ${x.version}` : x.name; }
-function tlCredit(x: Translation) { return x.pack ? (x.by ? t("tlang.by", { by: x.by }) : t("tlang.community")) : t("tlang.official"); }
+function tlCredit(x: Translation) { return x.pack ? (x.by ? t("tlang.by", { by: x.by }) : t("tlang.community")) : t(OWN ? "tlang.collection" : "tlang.official"); }
 
 /** The header button: the flag and name of the language the tokens are printed in. */
 function renderTokenLang() {
-  const cur = translationById(tokenLang());
+  const cur = langById(tokenLang());
   const btn = $("#tokenLangBtn");
   btn.innerHTML = `<img src="${cur.flag}" alt="" width="30" height="30"><span><small>${esc(t("tlang.label"))}</small><b>${esc(tlName(cur))}</b></span>${CHEVRON}`;
   btn.setAttribute("aria-label", t("tlang.open", { name: tlName(cur) }));
@@ -300,7 +335,7 @@ function setTokenLang(id: string) {
 const tl = { pick: null as string | null, open: new Set<string>() };
 function openTokenLang() {
   tl.pick = tokenLang();
-  tl.open = new Set([translationById(tl.pick).name]);
+  tl.open = new Set([langById(tl.pick).name]);
   drawTokenLang();
   $<HTMLDialogElement>("#tlangDialog").showModal();
   const sel = $("#tlangList [aria-selected=true]");
@@ -309,7 +344,7 @@ function openTokenLang() {
 function drawTokenLang() {
   const item = (x: Translation, label: string | undefined, sub: string) => `<button class="tl-item" type="button" role="option" aria-selected="${x.id === tl.pick}" data-id="${x.id}">
     ${isGrouped(x) ? "" : `<img src="${x.flag}" alt="">`}<b>${esc(label)}</b><small>${esc(sub)}</small>${x.id === tl.pick ? '<i class="dot"></i>' : ""}</button>`;
-  $("#tlangList").innerHTML = translationGroups().map((g) => {
+  $("#tlangList").innerHTML = langGroups().map((g) => {
     if (g.items.length === 1) return item(g.items[0], g.name, tlCredit(g.items[0]));
     const open = tl.open.has(g.name), here = g.items.find((x) => x.id === tl.pick);
     return `<div class="tl-group" data-current="${!!here}">
@@ -318,11 +353,11 @@ function drawTokenLang() {
       ${open ? `<div class="tl-versions" role="group" aria-label="${esc(g.name)}">${g.items.map((x) => item(x, x.version, tlCredit(x))).join("")}</div>` : ""}</div>`;
   }).join("");
   drawTokenLangStage(tl.pick!);
-  $("#tlangUse").textContent = t("tlang.use", { name: tlName(translationById(tl.pick)) });
+  $("#tlangUse").textContent = t("tlang.use", { name: tlName(langById(tl.pick)) });
 }
 function drawTokenLangStage(id: string) {
   if (!state.lib || !state.sel) return;
-  const x = translationById(id), hero = state.sel!.role;
+  const x = langById(id), hero = state.sel!.role;
   const pic = (role: Role, reminder: number | null = null) => {
     const key = reminder == null ? charKey(role) : remKey(role, reminder);
     const spec = { ...specFor(key, reminder != null), lang: id };
@@ -347,7 +382,7 @@ $("#tlangList").onclick = (e) => {
 $("#tlangList").addEventListener("pointerover", (e) => {
   const b = hit(e, "[data-id]"), g = hit(e, "[data-group]");
   if (b) drawTokenLangStage(b.dataset.id!);
-  else if (g) { const grp = translationGroups().find((x) => x.name === g.dataset.group)!; drawTokenLangStage((grp.items.find((x) => x.id === tl.pick) ?? grp.items[0]).id); }
+  else if (g) { const grp = langGroups().find((x) => x.name === g.dataset.group)!; drawTokenLangStage((grp.items.find((x) => x.id === tl.pick) ?? grp.items[0]).id); }
 });
 $("#tlangList").addEventListener("pointerleave", () => drawTokenLangStage(tl.pick!));
 $("#tlangList").addEventListener("keydown", (e) => {

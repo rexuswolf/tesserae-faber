@@ -65,11 +65,18 @@ const STRIP = ["Fortune Teller", "Imp", "Empath", "Poisoner", "Undertaker"];
 const s = 120, step = 96;
 const strip = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${s + step * (STRIP.length - 1) + 20} ${s + 24}" role="img" aria-label="Fichas de Blood on the Clocktower">${defs}${STRIP.map((en, j) => place(botc(en), 10 + j * step, 6, s, "cell", j)).join("")}</svg>`;
 
+// Draw Steel's cover strip: some of its resources and a condition, in their groups' colours
+const DS = [["Impulso", "lorc/power-lightning", "#d4a017"], ["Ira", "delapouite/enrage", "#c0392b"], ["Malicia", "lorc/imp-laugh", "#7b2d8e"], ["Victoria", "lorc/laurel-crown", "#d4a017"], ["Sangrando", "lorc/bleeding-wound", "#b8bcc2"]];
+const dsTokens = [];
+for (const [name, path, colour] of DS) dsTokens.push(await own(name, path, colour));
+const dsStrip = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${s + step * (DS.length - 1) + 20} ${s + 24}" role="img" aria-label="Fichas de Draw Steel">${defs}${dsTokens.map((svg, j) => place(svg, 10 + j * step, 6, s, "cell", j)).join("")}</svg>`;
+document.querySelector("#strip").insertAdjacentHTML("afterend", `<div>${dsStrip}</div>`);
+
 document.querySelector("#hero").innerHTML = hero;
 document.querySelector("#strip").innerHTML = strip;
 const link = (id, text) => { document.querySelector(id).href = URL.createObjectURL(new Blob([text], { type: "image/svg+xml" })); };
 link("#dlHero", hero); link("#dlStrip", strip);
-window.__art = { hero, strip };
+window.__art = { hero, strip, dsStrip };
 document.body.dataset.done = "1";
 </script>
 </body>

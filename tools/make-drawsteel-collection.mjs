@@ -98,13 +98,5 @@ console.log(`wrote ${out}: ${tokens.length} tokens`);
 const swords = GI["crossed-swords"].body.replace(/\s(fill)="[^"]*"/g, "");
 fs.writeFileSync(path.join(root, "public/collections/drawsteel-logo.svg"), `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><title>Draw Steel</title>
 <circle cx="50" cy="50" r="46" fill="#202328" stroke="#d4a017" stroke-width="5"/><g transform="translate(22 22) scale(${56 / 512})" fill="#e8e6e1">${swords}</g></svg>\n`);
-// the cover's strip: a few of its tokens, overlapping (icons only: an <img> can't load the token font)
-const strip = ["heroic", "wrath", "malice", "victory", "bleeding"].map((id) => tokens.find((t) => t.id === id));
-const colour = (t) => collection.groups.find((g) => g.id === t.group).colour;
-const coins = strip.map((t, i) => {
-  const body = GI[t.iconCredit.name].body.replace(/\s(fill)="[^"]*"/g, "");
-  const x = 46 + i * 74;
-  return `<g transform="translate(${x} 46)"><circle r="42" fill="#16181b" stroke="${colour(t)}" stroke-width="4"/><circle r="36" fill="none" stroke="${colour(t)}" stroke-opacity=".35"/><g transform="translate(-24 -24) scale(${48 / 512})" fill="${colour(t)}">${body}</g></g>`;
-}).join("");
-fs.writeFileSync(path.join(root, "public/collections/drawsteel-preview.svg"), `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 388 92" width="388" height="92">${coins}</svg>\n`);
-console.log("wrote drawsteel-logo.svg, drawsteel-preview.svg");
+// the cover's strip, with the tokens' names: tools/make-crear-art.mjs (drawn by the app's engine)
+console.log("wrote drawsteel-logo.svg");

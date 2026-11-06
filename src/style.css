@@ -1043,3 +1043,5 @@ html[data-builtin] [data-coll].own-only, html[data-builtin] hr.own-only, html[da
 .oh-cover .oh-mark { width: 132px; bottom: 24px; }
 .invert { filter: invert(1); opacity: .9; }
 .about-mark img { width: 120px; }
+/* a new version has arrived (main.ts): a quiet button to reload into it */
+.update-note { position: fixed; left: 50%; bottom: 84px; translate: -50% 0; z-index: 60; font: inherit; font-size: 14px; color: #170812; background: var(--brass); border: 0; border-radius: 999px; padding: 9px 18px; box-shadow: 0 10px 28px rgba(0,0,0,.45); cursor: pointer; }
