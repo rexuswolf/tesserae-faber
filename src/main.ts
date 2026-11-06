@@ -1,7 +1,7 @@
 import { handingOver } from "./handoff.ts";   // first: a browser arriving from midnight-mint.web.app brings its keepings
 import {
   loadLibrary, buildToken, geometryVolume, magnetLayout, MAGNET_SIZES, tokenSvg, roleName, saveFile, reminderSpec, layoutName, nameLetterHeight, SMALL_LETTERS_MM,
-  TEAMS, EDITIONS, FRAME_STYLES, BACK_STYLES, TOKEN_STYLES, FILAMENTS, DEFAULT_SPEC, CARD, isCard, ringSize, ringBand, RING_BASES,
+  TEAMS, EDITIONS, FRAME_STYLES, BACK_STYLES, TOKEN_STYLES, FILAMENTS, DEFAULT_SPEC, CARD, isCard, ringSize, ringBand, RING_BASES, RING_SEPARATORS,
   SHAPE_FEATURES, shapeOf, shapeSpec, flipFace, FACE_FIELDS, backFaceOf, partColours,
   normalizeSpec, reliefOf, hasRelief,
 } from "./engine/token-engine.ts";
@@ -209,6 +209,8 @@ function loadViewer() {
   }).catch((err) => console.error("3D preview failed to load", err));
 }
 
+/** The mark each ring separator pill shows before its name. */
+const SEPARATOR_MARKS: Record<string, string> = { dot: "• ", diamond: "◆ ", star: "★ ", none: "" };
 /** Filament colours offered for the coin, frame and back (all of them print on the A1). */
 const COLOUR_CHOICES = ["Black", "White", "Gold", "Silver", "Bronze", "Blue", "Red", "Purple", "Yellow", "Green"]
   .map((name) => ({ id: name.toLowerCase(), hex: FILAMENT_SLOTS.find((f) => f.name === name)!.hex }));
@@ -1527,8 +1529,10 @@ const hasOwnLook = (b: BackFace | undefined) => FACE_FIELDS.some((k) => b?.[k] !
 function shapeLook(shape: TokenShape, spec: SpecInput) {
   const f = <K extends keyof TokenSpec>(k: K) => spec[k] ?? DEFAULT_SPEC[k], c = { ...DEFAULT_SPEC.colours, ...spec.colours };
   const line = f("frame") !== "none";
-  const look = { base: c.base, front: c.front, frame: line ? c.frame : null, frameWidth: line ? f("frameWidth") : null, height: f("height"), depth: f("depth") };
-  return shape === "ring" ? { ...look, textSize: f("textSize"), spacing: f("spacing"), relief: reliefOf(spec) } : look;
+  const look = { base: c.base, front: c.front, frame: line ? c.frame : null, frameWidth: line ? f("frameWidth") : null, height: f("height"), depth: f("depth"),
+    // a card's frame only at its corners; a ring's mark between repeats other than the dot (only when set: older looks compare as they did)
+    ...(shape === "card" && f("frame") === "corners" ? { corners: true } : {}) };
+  return shape === "ring" ? { ...look, textSize: f("textSize"), spacing: f("spacing"), relief: reliefOf(spec), ...(f("separator") !== "dot" ? { separator: f("separator") } : {}) } : look;
 }
 /** Whether a spec differs from a collection's style in anything the style sets for the shape (the magnet is a choice of its own). */
 function differsFrom(d: StyleDef, spec: TokenSpec, shape: TokenShape) {
@@ -1803,13 +1807,15 @@ function renderStyleTiles(face: { role: Role; text: string }, spec: TokenSpec) {
 }
 
 /** The frame designs, each drawn on the token in the face's current colours. A card or a ring
- *  (whose shape has frames only as a line) gets two tiles, without and with, drawn on itself. */
+ *  (whose shape has frames only as a line) gets two tiles, without and with, drawn on itself; a
+ *  card a third, only its corners. */
 function renderFrameTiles(face: { role: Role; text: string }, spec: TokenSpec) {
   const s = { ...spec, diameter: 45, back: "none", backMode: "design" as const }, shape = shapeOf(face.role), { role, text } = face;
   if (SHAPE_FEATURES[shape].frame === "line") {
     // "with" keeps whatever design the spec has, so choosing it changes nothing else
-    const line = s.frame === "none" ? "rim" : s.frame;
-    $("[data-choice=frame]").innerHTML = [["none", t("frame.none")], [line, t(`frame.line.${shape}`)]].map(([v, label]) =>
+    const line = s.frame === "none" || s.frame === "corners" ? "rim" : s.frame;
+    const tiles = [["none", t("frame.none")], [line, t(`frame.line.${shape}`)], ...(SHAPE_FEATURES[shape].corners ? [["corners", t("frame.corners")]] : [])];
+    $("[data-choice=frame]").innerHTML = tiles.map(([v, label]) =>
       `<button class="back-tile frame-tile" type="button" data-v="${v}" aria-pressed="${s.frame === v}">${tokenSvg(state.lib!, role, { ...s, frame: v }, { text })}<span>${esc(label)}</span></button>`).join("");
     return;
   }
@@ -1935,6 +1941,7 @@ function syncControls(role: Role, spec: TokenSpec, token: Token) {
   // Body: its colour, size (a coin's diameter, a ring's base, a card's fixed), thickness and colour depth
   $("#diameterRow").hidden = !f.diameter;
   $("#ringBaseRow").hidden = !f.ringBase;
+  $("#separatorRow").hidden = !f.separator;
   $("#cardSizeHint").hidden = shape !== "card";
   const rs = ringSize(s);
   $("#ringBaseHint").textContent = t("ring.baseHelp", { inner: dec1(2 * rs.inner), outer: dec1(2 * rs.outer) });
@@ -1955,7 +1962,7 @@ function syncControls(role: Role, spec: TokenSpec, token: Token) {
   // pressed: the face's choices in a face's tabs, the token's elsewhere; the magnet as it prints
   for (const b of $$("[data-choice] button")) {
     const key = b.parentElement!.dataset.choice as keyof TokenSpec, from = key === "style" || key === "frame" ? face : s;
-    const v = key === "magnet" && faceBack && s.magnet === "pocket" ? "hidden" : from[key];
+    const v = key === "magnet" && faceBack && s.magnet === "pocket" ? "hidden" : from[key] ?? DEFAULT_SPEC[key];
     b.setAttribute("aria-pressed", String(v === b.dataset.v));
   }
   $("[data-choice=magnet] [data-v=pocket]").hidden = faceBack;
@@ -2098,6 +2105,8 @@ function buildChoices() {
   // Layouts are drawn as coin tiles by renderStyleTiles().
   make("magnet", [{ id: "none" }, { id: "pocket" }, { id: "hidden" }]);
   $("[data-choice=magnetSize]").innerHTML = MAGNET_SIZES.map((v) => `<button class="pill" type="button" data-v="${v}">${v.replace("x", " × ")} mm</button>`).join("");
+  // a ring's mark between repeats: each drawn as itself, with its name
+  $("[data-choice=separator]").innerHTML = RING_SEPARATORS.map((id) => `<button class="pill" type="button" data-v="${id}">${SEPARATOR_MARKS[id]}${esc(t(`separator.${id}`))}</button>`).join("");
   $("[data-choice=ringBase]").innerHTML = RING_BASES.map((v) => `<button class="pill" type="button" data-v="${v}">${v} mm</button>`).join("");
   // Frames are drawn as coin tiles by renderFrameTiles().
   // Backs are drawn as coin tiles by renderBackTiles().
@@ -2282,7 +2291,7 @@ function wire() {
   // A face's choices and sliders go to the face being edited (the front, or a back of its own); the rest to the token.
   const FACE_KEYS = new Set<string>(FACE_FIELDS);
   const change = (key: string, mutate: (s: TokenSpec) => void) => (FACE_KEYS.has(key) ? changeFace(editSide(), mutate) : changeLook(mutate));
-  for (const key of ["style", "frame", "back", "magnet", "magnetSize", "ringBase"]) {
+  for (const key of ["style", "frame", "back", "magnet", "magnetSize", "ringBase", "separator"]) {
     $(`[data-choice=${key}]`).onclick = (e) => {
       const b = hit(e, "button"); if (!b) return;
       if (key === "back" && b.dataset.v === "custom" && !editLook().customSvg) { $("#upload").click(); return; }

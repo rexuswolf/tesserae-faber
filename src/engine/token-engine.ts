@@ -19,7 +19,7 @@ import { Font } from "three/addons/loaders/FontLoader.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import type {
   Role, Team, Hex, ColourRef, TokenSpec, SpecInput, TokenStyle, Relief, ReliefPart, Library, Glyph,
-  PartColours, TokenParts, Token, MagnetLayout, TokenIcon, TokenShape, FaceField, BackFace,
+  PartColours, TokenParts, Token, MagnetLayout, TokenIcon, TokenShape, FaceField, BackFace, RingSeparator,
 } from "../types.ts";
 
 export { THREE };
@@ -120,6 +120,7 @@ export const DEFAULT_SPEC: TokenSpec = {
   backMode: "design",     // the back is the design above, or a face (see BackMode)
   customSvg: null,
   ringBase: "25",
+  separator: "dot",
   colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold },
 };
 
@@ -1234,12 +1235,42 @@ export function cardLayout(lib: Library, text: string | null | undefined, spec: 
   return { em: fit.em, cap, lines: fit.lines.map((l, i) => ({ text: l, y: total / 2 - cap - i * pitch })) };
 }
 
-function cardFrameShape(spec: TokenSpec) {
+/** How far each arm of a corner bracket ("corners") runs along the card's edge (mm). */
+const CARD_CORNER_ARM = 11;
+/** A card's frame width, as it prints. */
+const cardFrameWidth = (spec: TokenSpec) => Math.min(Math.max(spec.frameWidth, 0.4), 2);
+/**
+ * A card's frame as filled shapes: a line inside the edge ("rim", or any design: a card's frame is a
+ * line), or "corners", only its corners: an L along each corner of that line, the frame's width,
+ * with a dot inside it, like old playing cards. None for "none".
+ */
+function cardFrameShapes(spec: TokenSpec): THREE.Shape[] | null {
   if (spec.frame === "none") return null;
-  const fw = Math.min(Math.max(spec.frameWidth, 0.4), 2), i = CARD_FRAME_INSET;
+  const fw = cardFrameWidth(spec), i = CARD_FRAME_INSET;
+  if (spec.frame === "corners") return cardCorners(fw);
   const outer = roundedRect(CARD.w - 2 * i, CARD.h - 2 * i, CARD.r - i);
   outer.holes.push(roundedRect(CARD.w - 2 * (i + fw), CARD.h - 2 * (i + fw), Math.max(0.5, CARD.r - i - fw)));
-  return outer;
+  return [outer];
+}
+function cardCorners(fw: number): THREE.Shape[] {
+  const i = CARD_FRAME_INSET, X = CARD.w / 2 - i, Y = CARD.h / 2 - i, ro = CARD.r - i, ri = Math.max(0.5, ro - fw), L = CARD_CORNER_ARM;
+  const dot = 0.9, at = fw + 1.4 + dot;   // the dot's centre, in from the line's corner: 1.4 mm of card between them
+  const out: THREE.Shape[] = [];
+  for (const [sx, sy] of [[1, 1], [-1, 1], [-1, -1], [1, -1]]) {
+    // the edge's arc runs from the side along x to the side along y: clockwise where the signs agree
+    const cw = sx * sy > 0, aY = sy > 0 ? Math.PI / 2 : -Math.PI / 2, aX = sx > 0 ? 0 : Math.PI;
+    const s = new THREE.Shape();
+    s.moveTo(sx * (X - L), sy * Y);
+    s.lineTo(sx * (X - ro), sy * Y);
+    s.absarc(sx * (X - ro), sy * (Y - ro), ro, aY, aX, cw);
+    s.lineTo(sx * X, sy * (Y - L));
+    s.lineTo(sx * (X - fw), sy * (Y - L));
+    s.absarc(sx * (X - fw - ri), sy * (Y - fw - ri), ri, aX, aY, !cw);
+    s.lineTo(sx * (X - L), sy * (Y - fw));
+    s.closePath();
+    out.push(s, disc(dot, sx * (X - at), sy * (Y - at)));
+  }
+  return out;
 }
 
 function buildCard(lib: Library, role: Role, input: SpecInput | undefined, text?: string | null): Token {
@@ -1251,9 +1282,9 @@ function buildCard(lib: Library, role: Role, input: SpecInput | undefined, text?
     const shapes = lib.font.generateShapes(line.text, L.em), box = boundsOf(shapes);
     return extrude(shapes, d, T(-(box.min.x + box.max.x) / 2, line.y, H - d), 4);
   });
-  const frame = cardFrameShape(spec);
+  const frame = cardFrameShapes(spec);
   return {
-    parts: { base: extrude([roundedRect(CARD.w, CARD.h, CARD.r)], H, T(0, 0, 0), 16), front: merge(letters), frame: frame ? extrude([frame], d, T(0, 0, H - d), 16) : null, back: null },
+    parts: { base: extrude([roundedRect(CARD.w, CARD.h, CARD.r)], H, T(0, 0, 0), 16), front: merge(letters), frame: frame ? extrude(frame, d, T(0, 0, H - d), 16) : null, back: null },
     colours: { ...partColours(role, spec), hole: "#0b090c" },
     name: { letterHeight: L.cap, scale: 1, total: null, lines: L.lines.length },
     spec, magnet: null, depthClamped: null, card: true, foot: { w: CARD.w, h: CARD.h },
@@ -1271,8 +1302,9 @@ function cardSvg(lib: Library, role: Role, input: SpecInput | undefined, side: "
       const shapes = lib.font.generateShapes(line.text, L.em), box = boundsOf(shapes);
       body += `<path fill="${c.front}" fill-rule="evenodd" d="${shapesToPath(shapes, -(box.min.x + box.max.x) / 2, line.y)}"/>`;
     }
-    const fw = Math.min(Math.max(spec.frameWidth, 0.4), 2), i = CARD_FRAME_INSET + fw / 2;
-    if (spec.frame !== "none") body += `<rect x="${-w / 2 + i}" y="${-h / 2 + i}" width="${w - 2 * i}" height="${h - 2 * i}" rx="${Math.max(0.5, r - i)}" fill="none" stroke="${c.frame}" stroke-width="${fw}"/>`;
+    const fw = cardFrameWidth(spec), i = CARD_FRAME_INSET + fw / 2;
+    if (spec.frame === "corners") body += `<path fill="${c.frame}" d="${shapesToPath(cardCorners(fw), 0, 0, 16)}"/>`;
+    else if (spec.frame !== "none") body += `<rect x="${-w / 2 + i}" y="${-h / 2 + i}" width="${w - 2 * i}" height="${h - 2 * i}" rx="${Math.max(0.5, r - i)}" fill="none" stroke="${c.frame}" stroke-width="${fw}"/>`;
   }
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${-w / 2 - 0.5} ${-h / 2 - 0.5} ${w + 1} ${h + 1}" role="img" aria-label="${esc(label)}"><rect x="${-w / 2}" y="${-h / 2}" width="${w}" height="${h}" rx="${r}" fill="${c.base}"/>${body}</svg>`;
 }
@@ -1291,6 +1323,8 @@ export const RING_BASES = ["25", "32", "40"];
  *  between the letters and the lines or edges (mm): wider than the nozzle, so it prints. */
 const RING_PLAY = 0.6, RING_WIDTH = 6, RING_TEXT_GAP = 0.7;
 export const isRing = (role: Role | null | undefined) => role?.kind === "ring";
+/** What can go between repeats of a ring's name: the dot (the default), a diamond, a star, or nothing (the gap stays). */
+export const RING_SEPARATORS: RingSeparator[] = ["dot", "diamond", "star", "none"];
 
 /** A ring's radii (mm) for the base its design is for: the hole, and the outer edge. */
 export function ringSize(spec: { ringBase?: string }) {
@@ -1344,7 +1378,27 @@ export function ringLayout(lib: Library, text: string | null | undefined, spec: 
     });
     dots.push(centre - 180 / n);
   }
-  return { inner, outer, mid, line, letters, dots, em, cap, n, base: mid - cap / 2, dot: Math.max(0.5, cap * 0.2), letterHeight: cap, scale: cap / want };
+  const sep: RingSeparator = RING_SEPARATORS.includes(spec.separator) ? spec.separator : "dot";
+  return { inner, outer, mid, line, letters, dots, sep, em, cap, n, base: mid - cap / 2, dot: Math.max(0.5, cap * 0.2), letterHeight: cap, scale: cap / want };
+}
+
+/**
+ * The marks between repeats other than the dot, as filled shapes, each where its dot would be and
+ * about its size, kept within the letters' height: a diamond long across the band and narrow
+ * round the ring, or a five-pointed star with a point outwards.
+ */
+function ringMarks(L: ReturnType<typeof ringLayout>): THREE.Shape[] {
+  const half = L.cap / 2;
+  return L.dots.map((deg) => {
+    const a = THREE.MathUtils.degToRad(deg), c = pt(L.mid, a);
+    const at = (r: number, t: number) => c.clone().add(pt(r, t));
+    if (L.sep === "diamond") {
+      const along = Math.min(L.dot * 2.2, half), across = L.dot * 1.3;
+      return polygon([at(along, a), at(across, a + Math.PI / 2), at(along, a + Math.PI), at(across, a - Math.PI / 2)]);
+    }
+    const R = Math.min(L.dot * 1.9, half), r = R * 0.5;
+    return polygon(Array.from({ length: 10 }, (_, k) => at(k % 2 ? r : R, a + (k * Math.PI) / 5)));
+  });
 }
 
 /** The lines along the ring's edges, as filled shapes: drawn like its body, so their edges are the body's. */
@@ -1358,7 +1412,8 @@ function buildRing(lib: Library, role: Role, input: SpecInput | undefined, text?
     const g = glyph(lib, ch), r = THREE.MathUtils.degToRad(a);
     return extrude(g.shapes, inlayHeight(spec, "text"), chain(T(L.base * Math.cos(r), L.base * Math.sin(r), top), RZ(r - Math.PI / 2), S(L.em, L.em, 1), T(-g.center, 0, 0)), 4);
   });
-  const dots = extrude(L.dots.map((a) => disc(L.dot, ...ptXY(L.mid, THREE.MathUtils.degToRad(a)))), inlayHeight(spec, "text"), T(0, 0, top), 8);
+  const dots = L.sep === "dot" ? extrude(L.dots.map((a) => disc(L.dot, ...ptXY(L.mid, THREE.MathUtils.degToRad(a)))), inlayHeight(spec, "text"), T(0, 0, top), 8)
+    : L.sep === "none" ? null : extrude(ringMarks(L), inlayHeight(spec, "text"), T(0, 0, top), 1);
   const front = merge([...letters, dots]);
   const frame = L.line ? extrude(ringLines(L), inlayHeight(spec, "frame"), T(0, 0, top), 64) : null;
   const R = reliefOf(spec), r = reliefTop(spec), above = (g: THREE.BufferGeometry | null) => (g && r ? geometryVolume(g) * r / (spec.depth + r) : 0);
@@ -1382,7 +1437,8 @@ function ringSvg(lib: Library, role: Role, input: SpecInput | undefined, side: "
       const r = (a * Math.PI) / 180;
       body += letterSvg(lib, ch, L.base * Math.cos(r), -L.base * Math.sin(r), 90 - a, L.em, c.front);
     }
-    for (const a of L.dots) body += `<circle cx="${(L.mid * Math.cos((a * Math.PI) / 180)).toFixed(2)}" cy="${(-L.mid * Math.sin((a * Math.PI) / 180)).toFixed(2)}" r="${L.dot.toFixed(2)}" fill="${c.front}"/>`;
+    if (L.sep === "diamond" || L.sep === "star") body += `<path fill="${c.front}" d="${shapesToPath(ringMarks(L), 0, 0)}"/>`;
+    else if (L.sep === "dot") for (const a of L.dots) body += `<circle cx="${(L.mid * Math.cos((a * Math.PI) / 180)).toFixed(2)}" cy="${(-L.mid * Math.sin((a * Math.PI) / 180)).toFixed(2)}" r="${L.dot.toFixed(2)}" fill="${c.front}"/>`;
     if (L.line) body += `<path fill="${c.frame}" fill-rule="evenodd" d="${shapesToPath(ringLines(L), 0, 0, 48)}"/>`;
   }
   // the ring itself first, in the coin colour (print-pdf.ts reads its colour from it)
@@ -1422,17 +1478,21 @@ export interface ShapeFeatures {
   ringBase: boolean;
   /** A token of this shape can have two states, its back being the other (see flipFace). */
   flip: boolean;
+  /** A mark of its choice between repeats of its name (RING_SEPARATORS). */
+  separator: boolean;
+  /** Its frame can be only its corners ("corners", a card's). */
+  corners: boolean;
 }
 export const SHAPE_FEATURES: Record<TokenShape, ShapeFeatures> = {
   // A coin has everything the workshop offers (some layouts leave a control out: see main.ts).
-  coin: { layout: true, icon: true, textSize: true, spacing: true, maxArc: true, frame: "designs", relief: ["text", "frame", "icon"], back: true, magnet: true, diameter: true, ringBase: false, flip: true },
+  coin: { layout: true, icon: true, textSize: true, spacing: true, maxArc: true, frame: "designs", relief: ["text", "frame", "icon"], back: true, magnet: true, diameter: true, ringBase: false, flip: true, separator: false, corners: false },
   // A card (85 × 55 mm, Clocktower's Grimoire): the phrase as large as fits, the frame a line
   // inside the edge, both flush (cardSpec); no icon, back or magnet.
-  card: { layout: false, icon: false, textSize: false, spacing: false, maxArc: false, frame: "line", relief: [], back: false, magnet: false, diameter: false, ringBase: false, flip: false },
+  card: { layout: false, icon: false, textSize: false, spacing: false, maxArc: false, frame: "line", relief: [], back: false, magnet: false, diameter: false, ringBase: false, flip: false, separator: false, corners: true },
   // A condition ring: the name round and round at the height asked for (as far as its band
   // allows, ringBand), a fine line along each edge, either raised (ringSpec); no icon, back or
   // magnet, and sized by its base.
-  ring: { layout: false, icon: false, textSize: true, spacing: true, maxArc: false, frame: "line", relief: ["text", "frame"], back: false, magnet: false, diameter: false, ringBase: true, flip: false },
+  ring: { layout: false, icon: false, textSize: true, spacing: true, maxArc: false, frame: "line", relief: ["text", "frame"], back: false, magnet: false, diameter: false, ringBase: true, flip: false, separator: true, corners: false },
 };
 export const shapeOf = (role: Role | null | undefined): TokenShape => (isCard(role) ? "card" : isRing(role) ? "ring" : "coin");
 

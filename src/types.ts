@@ -111,6 +111,9 @@ export interface SpecColours {
   back: ColourRef;
 }
 
+/** The mark between repeats of a condition ring's name. */
+export type RingSeparator = "dot" | "diamond" | "star" | "none";
+
 /** How a token is designed (DEFAULT_SPEC has every field). Lengths are in mm. */
 export interface TokenSpec {
   style: TokenStyle;
@@ -146,6 +149,8 @@ export interface TokenSpec {
   icon?: TokenIcon;
   /** A condition ring's miniature base (mm): "25", "32" or "40" (see ringSize). */
   ringBase: string;
+  /** A condition ring's mark between repeats of its name (RING_SEPARATORS): a dot, a diamond, a star or nothing. */
+  separator: RingSeparator;
   /** A reminder's coin size, when the character style sets one. */
   reminderDiameter?: number;
   /** A linked token's (a reminder's, see reminderSpec): its own token, without its character's other state. */
