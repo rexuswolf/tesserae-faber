@@ -260,12 +260,31 @@ export interface Token {
 
 // ---------------------------------------------------------------- the print queue and plates
 
-/** What a token's design is, apart from the set's: its own text, design, feminine name or icon. */
+/**
+ * A token's look as changed from its style's, field by field ("colours" colour by colour). A null
+ * field is one its style has and the token doesn't: it takes the default (DEFAULT_SPEC's).
+ */
+export type LookChanges = { [K in Exclude<keyof TokenSpec, "colours">]?: TokenSpec[K] | null } & { colours?: Partial<SpecColours> };
+
+/**
+ * A named look for one shape (a TokenSpec without content: no name, icon or other state). Each
+ * token uses one of its shape's styles; the first is the one a token uses unless it says otherwise.
+ * `tpl` is the template it's named after while it has no name of its own.
+ */
+export interface Style { id: string; name?: string; tpl?: string; spec: TokenSpec }
+
+/**
+ * What a token has of its own. Content: its printed text, feminine name and icon. Its style (by
+ * id, else its shape's first, or a linked token's character's) and its own changes to that style's
+ * look. `spec` is how older versions kept a token's whole design: read once, it becomes `look`.
+ */
 export interface TokenOverride {
   text?: string | null;
-  spec?: TokenSpec;
   fem?: boolean;
   icon?: TokenIcon;
+  style?: string;
+  look?: LookChanges;
+  spec?: TokenSpec;
 }
 
 /** One copy of a picked token, as the sheet would draw it now. */

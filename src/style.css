@@ -416,23 +416,55 @@ button, input, select, textarea { font: inherit; color: inherit; }
   border: 1px solid color-mix(in srgb, var(--warn) 40%, transparent); border-radius: 10px; background: color-mix(in srgb, var(--warn) 8%, transparent); }
 .ws-warn p { margin: 0; }
 .ws-warn .pill { display: block; margin-top: 7px; font-size: 13px; }
-.ws-head { flex: none; padding: 12px 16px 10px; border-bottom: 1px solid var(--seam); }
-.scope { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; padding: 3px; border-radius: 999px; background: rgba(239, 230, 214, .06); }
-.scope button { border: 0; background: none; border-radius: 999px; padding: 6px 8px; font-size: 13.5px; color: var(--dust); cursor: pointer; }
-.scope button[aria-pressed=true] { background: var(--bone); color: var(--velvet-deep); font-weight: 600; }
-.scope-note { margin: 7px 2px 0; font-size: 12.5px; line-height: 1.35; color: var(--dust); }
-.scope-note .link { font-size: 12.5px; color: var(--bone); }
-/* The type being edited: the shapes in the queue, a token of each with how many */
-.ws-types { display: flex; gap: 6px; margin-top: 10px; }
-.ws-types[hidden] { display: none; }
-.ws-types button { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 5px 6px; border: 1px solid var(--seam); border-radius: 12px; background: none; color: var(--bone); font: inherit; font-size: 13px; cursor: pointer; }
-.ws-types button:hover { background: rgba(239, 230, 214, .05); }
-.ws-types button[aria-pressed=true] { border-color: var(--brass); background: rgba(201, 162, 39, .1); }
-.ws-types button svg { width: 26px; height: 26px; flex: none; }
-.ws-types button span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ws-types small { color: var(--dust); font-size: 12px; }
-.ws-type-fixed { margin: 0; display: flex; align-items: center; gap: 9px; font-size: 12.5px; color: var(--dust); }
-.ws-type-fixed svg { width: 26px; height: 26px; flex: none; }
+.ws-head { flex: none; padding: 10px 14px; border-bottom: 1px solid var(--seam); display: grid; gap: 8px; }
+/* The token's shape: said (it comes from its type), or for a token being made, three cards drawn with it */
+.ws-shape-fixed { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--dust); }
+.ws-shape-fixed .gi { width: 18px; height: 18px; flex: none; }
+.ws-shape-fixed select { margin-left: auto; width: auto; padding: 3px 8px; font-size: 12.5px; }
+.shape-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.shape-cards button { display: grid; justify-items: center; gap: 2px; padding: 6px 4px; border: 1px solid var(--seam); border-radius: 12px; background: none; color: var(--bone); font: inherit; font-size: 12.5px; cursor: pointer; }
+.shape-cards button:hover { background: rgba(239, 230, 214, .05); }
+.shape-cards button[aria-checked=true] { border-color: var(--brass); background: rgba(201, 162, 39, .1); }
+.shape-cards svg { width: 44px; height: 44px; }
+/* The style the token uses: a chip opening the styles of its shape, how many tokens use it, and its own changes */
+.ws-style { position: relative; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; }
+.ws-style-l { color: var(--dust); }
+.style-chip { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; min-width: 0; padding: 3px 10px 3px 4px; border: 1px solid var(--seam); border-radius: 999px; background: none; color: var(--bone); font: inherit; cursor: pointer; }
+.style-chip:hover, .style-chip[aria-expanded=true] { border-color: var(--brass); }
+.style-chip b { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.style-sw svg { width: 22px; height: 22px; display: block; }
+.ws-style > small { color: var(--dust); font-size: 12.5px; }
+.own-mark { margin-left: auto; border: 0; background: none; padding: 2px 0; color: var(--brass); font: inherit; font-size: 12.5px; cursor: pointer; }
+.own-mark:hover u { text-decoration-thickness: 2px; }
+.style-menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: 12; width: min(340px, 100%); padding: 6px; display: grid; gap: 1px; background: var(--velvet-deep); border: 1px solid var(--seam); border-radius: 14px; box-shadow: 0 14px 34px rgba(0, 0, 0, .55); }
+.style-menu[hidden] { display: none; }
+.style-menu button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 8px; border: 0; border-radius: 8px; background: none; color: var(--bone); font: inherit; font-size: 13.5px; text-align: left; cursor: pointer; }
+.style-menu button:hover, .style-menu button:focus-visible { background: rgba(239, 230, 214, .07); }
+.style-menu button[aria-checked=true] { background: rgba(201, 162, 39, .12); }
+.style-menu button span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.style-menu button small { margin-left: auto; flex: none; color: var(--dust); font-size: 12px; }
+.style-menu button.danger { color: var(--warn); }
+.style-menu hr { border: 0; border-top: 1px solid var(--seam); margin: 4px; }
+/* A block's heading in the column: what the token says (its own), how it looks (its style's) */
+.ws-bh { margin: 0 0 10px; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 11.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--dust); }
+.ws-bh small { font-size: 12px; font-weight: 400; letter-spacing: 0; text-transform: none; text-align: right; }
+.ws-bh[hidden] { display: none; }
+.ws-content { display: grid; gap: 10px; margin: 0 0 18px; padding-bottom: 16px; border-bottom: 1px solid var(--seam); }
+.ws-content[hidden], .ws-content [hidden] { display: none; }
+.ws-content .ws-bh { margin: 0; }
+.ws-content > div { display: grid; gap: 10px; }
+.ws-content p { margin: 0; }
+.group-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.group-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; padding: 4px 11px; }
+.group-pill i { width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
+.group-pill[aria-pressed=true] { border-color: var(--c); background: color-mix(in srgb, var(--c) 18%, transparent); color: var(--bone); }
+/* Where the last change went, with the way to move it */
+.scope-box { margin: 0 0 12px; padding: 9px 11px; display: grid; gap: 7px; justify-items: start; border: 1px solid rgba(201, 162, 39, .45); border-radius: 12px; background: rgba(201, 162, 39, .07); font-size: 13px; line-height: 1.4; }
+.scope-box[hidden] { display: none; }
+.scope-box p { margin: 0; }
+.scope-box .seg2 button { font-size: 12.5px; }
+.tpl-head { margin: 0; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.tpl-head b { font: 400 17px/1.2 var(--display); }
 /* Level 1: the token's parts (FRONT · BACK · COIN · MAGNET), underlined */
 .parts { flex: none; display: flex; border-bottom: 1px solid var(--seam); }
 .parts[hidden] { display: none; }
@@ -440,14 +472,14 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .parts button:hover { color: var(--bone); }
 .parts button[aria-selected=true] { color: var(--bone); border-bottom-color: var(--brass); }
 /* Level 2: a face's Layout · Text · Icon · Frame, as pills */
-.face-tabs { flex: none; display: flex; gap: 2px; padding: 7px 10px; border-bottom: 1px solid var(--seam); overflow-x: auto; scrollbar-width: none; }
+.face-tabs { flex: none; display: flex; gap: 2px; margin: 0 0 12px; padding: 0 0 8px; border-bottom: 1px solid var(--seam); overflow-x: auto; scrollbar-width: none; }
 .face-tabs::-webkit-scrollbar { display: none; }
 .face-tabs[hidden] { display: none; }
 .face-tabs button { flex: none; border: 0; background: none; border-radius: 999px; padding: 5px 12px; font: inherit; font-size: 13px; color: var(--dust); cursor: pointer; }
 .face-tabs button:hover { color: var(--bone); }
 .face-tabs button[aria-selected=true] { background: var(--bone); color: var(--velvet-deep); font-weight: 600; }
 /* BACK's three choices, each a card with the back it gives */
-.back-modes { flex: none; border-bottom: 1px solid var(--seam); padding: 10px 12px; display: grid; gap: 8px; }
+.back-modes { flex: none; margin: 0 0 14px; display: grid; gap: 8px; }
 .back-modes[hidden] { display: none; }
 .back-mode-list { display: grid; gap: 6px; }
 .back-mode-list button { display: flex; align-items: center; gap: 10px; text-align: left; padding: 6px 10px; border: 1px solid var(--seam); border-radius: 12px; background: none; color: var(--bone); font: inherit; cursor: pointer; }
@@ -459,15 +491,6 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .flip-note { margin: 0; font-size: 12.5px; line-height: 1.4; color: var(--dust); }
 .back-design, .back-match { display: flex; flex-direction: column; gap: 12px; }
 .back-design[hidden], .back-match[hidden] { display: none; }
-/* the template: a line of its own over the sections */
-.tpl-row { flex: none; width: 100%; display: flex; align-items: center; gap: 7px; padding: 8px 16px; border: 0; border-bottom: 1px solid var(--seam); background: rgba(239, 230, 214, .04); color: inherit; font: inherit; text-align: left; cursor: pointer; }
-.tpl-row:hover { background: rgba(239, 230, 214, .08); }
-.tpl-row[aria-expanded=true] { background: rgba(201, 162, 39, .13); }
-.tpl-row span { flex: none; font-size: 12.5px; color: var(--dust); }
-.tpl-row b { min-width: 0; font: 400 16px/1.2 var(--display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tpl-row small { flex: none; font-size: 12px; color: var(--brass); }
-.tpl-row em { flex: none; margin-left: auto; font-style: normal; font-size: 12.5px; color: var(--bone); border: 1px solid rgba(239, 230, 214, .3); border-radius: 999px; padding: 3px 11px; }
-.tpl-row:hover em { background: var(--bone); color: var(--velvet-deep); border-color: var(--bone); }
 .ws-body { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 16px 18px; }
 .ws-panel { display: flex; flex-direction: column; gap: 12px; }
 .ws-panel[hidden] { display: none; }
@@ -694,7 +717,6 @@ dialog .import { margin-top: 10px; }
 @media (max-width: 1180px) {
   :root { --spine-w: 180px; }
   .app[data-step="2"] { grid-template-columns: 360px minmax(0, 1fr); }
-  .face-tabs { padding-inline: 6px; }
   #rows .row { grid-template-columns: 64px minmax(0, 1fr); }
   #rows .row > .tok-w svg { width: 60px; height: 60px; }
 }
@@ -732,6 +754,10 @@ dialog .import { margin-top: 10px; }
   .flow-back { padding: 8px 6px; }
   .flow-back .fb-l { display: none; }
   .queuebar .forge, #queueCount { white-space: nowrap; }
+  /* making a token, the bar holds Cancel, Create and another, and Create: the selection steps aside */
+  .app[data-creating] .qb-toggle { display: none; }
+  .app[data-creating] .flow-back { margin-left: auto; }
+  .app[data-creating] .queuebar .forge { margin-left: 0; }
   /* step 3's download label is long: the selection keeps only its count */
   .app[data-step="3"] .qb-toggle .stack { display: none; }
   .app[data-step="3"] .qb-toggle { padding-left: 14px; }
@@ -868,30 +894,22 @@ html[data-mode=own]:not([data-theme=botc]) h1, html[data-mode=own]:not([data-the
 .who .own-edit { margin-top: 4px; justify-self: start; border: 1px solid var(--seam); background: none; border-radius: 999px; padding: 1px 10px; font-size: 12.5px; color: var(--dust); cursor: pointer; }
 .who .own-edit:hover { color: var(--bone); border-color: var(--dust); }
 .own-dialog { width: min(640px, calc(100% - 32px)); }
-.own-tok-grid { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 16px; align-items: start; }
-.own-pv svg { width: 120px; height: 120px; display: block; }
-.own-pv-links { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
-.own-pv-links svg { width: 36px; height: 36px; }
 .own-fields { display: grid; gap: 10px; }
 .own-icon-bar { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .own-icon-bar .text { flex: 1; min-width: 160px; }
 #ownTokHits, #ownTokFlipHits { max-height: 170px; overflow-y: auto; margin-top: 6px; }
-/* a two-state token: its other state beside the front, and the fields for it */
-.own-pv-flip { display: flex; align-items: center; gap: 4px; margin-top: 6px; color: var(--dust); font-size: 12px; }
-.own-pv-flip svg { width: 56px; height: 56px; }
+/* a two-state token's other state: its fields */
 .own-flip { display: grid; gap: 10px; margin-top: 6px; padding-left: 12px; border-left: 2px solid var(--seam); }
-/* the workshop's Back section, for a two-state token: its back, and what it is */
+/* linked tokens: a word each, and the way to take one out */
 .own-linked { display: grid; gap: 6px; margin: 6px 0; }
 .own-link { display: flex; gap: 6px; align-items: center; }
 .own-cats { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 4px; }
-.own-dialog .dialog-actions .sp { flex: 1; }
 .own-groups { display: grid; gap: 10px; margin: 8px 0 12px; }
 .own-group { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 10px; align-items: center; padding-bottom: 10px; border-bottom: 1px solid var(--seam); }
 .own-group small { color: var(--dust); }
 .own-swatches { display: flex; gap: 5px; flex-wrap: wrap; grid-column: 1 / -1; }
 .own-swatches button { width: 24px; height: 24px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; padding: 0; }
 .own-swatches button[aria-pressed=true] { border-color: var(--bone); }
-@media (max-width: 560px) { .own-tok-grid { grid-template-columns: 1fr; } .own-pv { justify-self: center; } }
 html[data-mode=own]:not([data-theme=botc]) .sheet, html[data-mode=own]:not([data-theme=botc]) .design-stage { background: radial-gradient(90% 60% at 30% 0%, var(--glow, #1d2a2c) 0%, var(--velvet-deep) 70%); }
 html[data-mode=own]:not([data-theme=botc]) .stage { background: radial-gradient(70% 70% at 50% 45%, var(--glow, #22302f), var(--velvet) 75%); }
 html[data-mode=own]:not([data-theme=botc]) .gate { background: radial-gradient(120% 90% at 50% 38%, var(--glow, #1f2b2c) 0%, var(--velvet) 45%, var(--velvet-deep) 100%); }

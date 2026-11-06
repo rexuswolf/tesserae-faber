@@ -96,11 +96,12 @@ The same for every collection.
   Flush, nobody can feel which token it is and it prints face-down; with anything raised it prints face-up.
 - Templates to start from: *Edition* (the default: the edition's name in gold on the back; in your own collections, the collection's), *Fast print* (1.2 mm,
   the thinnest that holds up), *Pitch-black night*, *Midnight*, *Ivory coin* and *High legibility* (the window layout), all with the frame in the team colour.
-  A line over the controls says which one you started from and whether you've modified it. A magnet (glued into a pocket, or hidden inside with a pause) is a choice of its own and stays when you switch templates.
+  A new style starts from one, and a style can be reset to one. A magnet (glued into a pocket, or hidden inside with a pause) is a choice of its own and stays when you switch templates.
 - 12 frame designs, and 7 back designs plus the edition's name (a homebrew's script) or your own SVG, each drawn on your character as you choose.
 - Any of the 10 filament colours for the coin, the frame and the back; the name and icon take the team's (or group's) colour.
 - A big live 3D preview you can turn around, with front and back views; it turns by itself to the part you're editing.
-- Style the whole set at once, or switch to *This token only* to give one token its own text, icon or look. A pen marks those tokens and takes you straight back to them. Save designs in your browser.
+- Styles: named looks (*Edition*, *Ivory*, your own) for each shape, each token using one. Changing the look changes the token's style, every token using it, and says how many, with *Only this token* to keep the change to that one. A pen marks the tokens with changes of their own and takes you straight back to them; *Back to the style* takes them away. A token's look can be saved as a new style.
+- One editor for changing a token and, in your own collections, for making one: its shape, its style, what it says (name, icon, group, catalogs, linked tokens, its other state) and how it looks, with *Create* and *Create and another*.
 
 | Frames | Backs |
 |---|---|

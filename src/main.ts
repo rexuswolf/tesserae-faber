@@ -21,7 +21,7 @@ import { PAGE, layoutCoins, backX } from "./pdf/layout.ts";
 import { t, tIn, uiLang, setUiLang, LANGUAGES } from "./i18n.ts";
 import { TRANSLATIONS, VILLACUERVOS_URL } from "./translations.ts";
 import { uiIcon, UI_ICONS, TEAM_ICONS, SHAPE_ICONS } from "./ui-icons.ts";
-import { OWN, OWN_ID, OWN_VIEW, LIST_URL, lastCollection, rememberCollection, collectionUrl, openUrl, listCollections, addCollection, deleteCollection, starterCollection, builtInCollections, MODE, loadCollection, storeCollection, collectionRoles, collectionFile, readCollectionFile, readTokenList, SHAPES, readBuiltIn, copyBuiltIn, GROUP_COLOURS, newId, nameIn, withName, catalogsOf, isLocked, THEMES, THEME_FONTS, okLogo, hasCcc, builtIn, APP_LOGO, APP_LOGO_SMALL, APP_ICON, APP_NAME } from "./collection.ts";
+import { OWN, OWN_ID, OWN_VIEW, LIST_URL, lastCollection, rememberCollection, collectionUrl, openUrl, listCollections, addCollection, deleteCollection, starterCollection, builtInCollections, MODE, loadCollection, storeCollection, collectionRoles, collectionFile, readCollectionFile, readTokenList, SHAPES, tokenRole as ownRole, readBuiltIn, copyBuiltIn, GROUP_COLOURS, newId, nameIn, withName, catalogsOf, isLocked, THEMES, THEME_FONTS, okLogo, hasCcc, builtIn, APP_LOGO, APP_LOGO_SMALL, APP_ICON, APP_NAME } from "./collection.ts";
 import type { Collection, OwnToken, OwnCatalog, OwnSection, OwnTheme, CollectionEntry } from "./collection.ts";
 import { loadScripts, storeScripts, saveScript, scriptLink, readLink, scriptJson, idKey as scriptKey } from "./scripts.ts";
 import type { HomebrewEntry, NewScript, Script, ScriptJsonEntry } from "./scripts.ts";
@@ -33,7 +33,7 @@ import type { Viewer, ViewKind } from "./engine/viewer.ts";
 import type { User } from "firebase/auth";
 import type {
   BackFace, BackMode, ColourRef, Hex, Library, MagnetLayout, PartName, PlanToken, PlateItem, PlatePlan, QueueEntry, ReliefPart, Role, SpecColours,
-  SpecInput, Team, Token, TokenIcon, TokenOverride, TokenShape, TokenSpec, TokenStyle, Volumes,
+  LookChanges, SpecInput, Style, Team, Token, TokenIcon, TokenOverride, TokenShape, TokenSpec, TokenStyle, Volumes,
 } from "./types.ts";
 
 /** The first element matching `s`: the app's own markup, so it's there. */
@@ -60,8 +60,12 @@ const QUEUE_KEY = "midnight-mint-queue";   // the old print queue, read once to 
 // Tesserae Faber keeps each collection's own queue, style and designs, apart from Clocktower's.
 const KEYS = OWN ? `midnight-mint-own-${OWN_ID ?? "none"}-` : "midnight-mint-";   // each collection its own
 const PICK_KEY = `${KEYS}picks`;
+// Each shape's styles, and what each token has of its own (its text, icon, style and own changes).
+const STYLES_KEY = `${KEYS}styles`;
+const TOKENS_KEY = `${KEYS}tokens`;
+// Before styles: the set's design per type (the coin's under the key the single design had), each
+// token's own whole design, and the designs saved in this browser. Read once, to make the styles.
 const STYLE_KEY = `${KEYS}style`;
-// The set's design, one per type (shape): the coin's keeps the key the single design had.
 const STYLE_KEYS: Record<TokenShape, string> = { coin: STYLE_KEY, ring: `${KEYS}style-ring`, card: `${KEYS}style-card` };
 const OVERRIDES_KEY = `${KEYS}overrides`;
 const DESIGNS_KEY = `${KEYS}designs`;
@@ -83,43 +87,57 @@ const PLATE_LABEL: Record<string, Record<string, string>> = {
 
 /** The token the workshop shows: its key, its character and, for a reminder, which one. */
 interface Selection { key: string; role: Role; reminder: number | null }
-/** A design saved in this browser (one per character), listed with its type's (older ones: their character's shape). */
+/** A design saved in this browser before styles (one per character): it became a style of its type. */
 interface Design { id: string; roleId: string; text: string | null; fem: boolean; spec: TokenSpec; title: string; updatedAt: number; shape?: TokenShape }
 /** The workshop's tabs: level 1, the token's parts ("body" is the coin, ring or card itself); level 2, a face's. */
 type Part = "front" | "back" | "body" | "magnet";
 type FaceTab = "layout" | "text" | "icon" | "frame";
 type Side = "front" | "back";
 
+/** Where a look change went (the style, or the token only), kept so "Only this token" right after can move it. */
+interface LastChange {
+  /** What changed, as the note names it ("the frame"), and on which token. */
+  label: string; key: string;
+  to: "style" | "token"; styleId: string;
+  /** The style's look before the change (to restore when it moves to the token), and the fields it changed. */
+  before: TokenSpec; fields: string[];
+}
+/** A token being made (own collections): a draft of it, the shape chosen, its catalogs, and the step it was started from. */
+interface Creating { draft: OwnToken; shape: TokenShape; cats: string[]; back: number }
+
 const state: {
   user: User | null; lib: Library | null;
-  edition: string; team: string; sel: Selection | null; tab: string;
-  /** The templates are open (under their line), in place of the tabs. */
-  templates: boolean;
+  edition: string; team: string; sel: Selection | null;
+  /** The templates are open, in place of the tabs: to start a new style from one, or to set the style back to one. */
+  templates: "new" | "reset" | null;
   /** The open part of each type, and the open tab of each face. */
   part: Record<TokenShape, Part>; faceTab: Record<Side, FaceTab>;
   /** A part asked to be raised while the other face has raised parts: the question is shown. */
   reliefAsk: { side: Side; part: ReliefPart } | null;
   /** The 3D view's side ("back" shows the strip's coins from behind too). */
   view: string;
-  /** The type a template was just applied to, which offers it to the queue's other types. */
-  applied: TokenShape | null;
-  specs: Record<TokenShape, TokenSpec>; overrides: Map<string, TokenOverride>; step: number; pick: Map<string, number>; designs: Design[];
+  /** Each shape's styles (the first is the one a token uses unless it says otherwise), and each token's own. */
+  styles: Record<TokenShape, Style[]>; overrides: Map<string, TokenOverride>;
+  /** Where a look change goes: the token's style (every token using it) or this token only. */
+  scope: "style" | "token"; lastChange: LastChange | null;
+  /** A line under the style for a moment: what just happened to it ("New style Ivory"). */
+  flash: string;
+  creating: Creating | null;
+  step: number; pick: Map<string, number>;
   /** The characters the sheet shows, and the token the workshop built. */
   shown?: Role[]; token?: Token;
 } = {
   user: null, lib: null,
   edition: "all", team: "all",   // the sheet opens on every character
   sel: null,              // { key, role, reminder: index | null }
-  tab: "set",   // what the controls edit: "set" or "token"
-  templates: true,
+  templates: null,
   part: { coin: "front", ring: "front", card: "front" }, faceTab: { front: "text", back: "layout" },
-  reliefAsk: null, view: "angle", applied: null,
-  specs: loadSpecs(),
-  // key -> { text?, spec?, icon? }; game-icons placed before they sat with the library's are moved there
-  overrides: new Map(Object.entries(loadJSON<Record<string, TokenOverride>>(OVERRIDES_KEY, {})).map(([k, v]): [string, TokenOverride] => [k, v && { ...v, ...(v.icon ? { icon: placeGameIcon(v.icon) } : {}), ...(v.spec ? { spec: upgradeSpec(v.spec) } : {}) }])),
+  reliefAsk: null, view: "angle",
+  styles: { coin: [], ring: [], card: [] }, overrides: new Map(),   // read by loadStyles once the tokens are known
+  scope: "style", lastChange: null, flash: "",
+  creating: null,
   step: 1,
   pick: new Map(),         // token key ("c:imp", "r:imp:0") -> copies
-  designs: [],
 };
 /** The collection this page shows (Tesserae Faber); empty, and unused, in Clocktower. */
 let coll: Collection = (OWN && loadCollection()) || { name: "", types: [], groups: [], tokens: [], sections: [] };
@@ -201,7 +219,7 @@ let gateState: (() => GateConfig) | null = null;
 
 /** A template: the spec it sets (anything left out takes DEFAULT_SPEC's), and the types it's offered for. */
 interface Preset { id: string; spec: Partial<TokenSpec>; shapes: TokenShape[] }
-/** Premade designs. Applying one replaces the style being edited (set or token), all but its
+/** Premade designs. Applying one replaces a style's look (or starts a new style), all but its
  *  magnet, which is a choice of its own. Every design keeps the frame in the team colour, like
  *  the name, so a token's side reads the same whatever the design. */
 const ALL_SHAPES: TokenShape[] = ["coin", "ring", "card"];
@@ -231,11 +249,11 @@ const PRESET_KEEPS = new Set(["lang", "customSvg", "magnet", "magnetSize", "ring
 const presetSpec = (p: Preset): TokenSpec => ({ ...structuredClone(DEFAULT_SPEC), ...structuredClone(p.spec) });
 
 /**
- * The set's design per type. The coin's is the one the set had before designs were kept per type;
- * a ring's and a card's start as a copy of it (what they printed from, as their shape prints it),
- * kept at once so they stay as they were whatever the coin's becomes.
+ * The set's design per type, as kept before styles. The coin's is the one the set had before designs
+ * were kept per type; a ring's and a card's start as a copy of it (what they printed from, as their
+ * shape prints it), kept at once so they stay as they were whatever the coin's becomes.
  */
-function loadSpecs(): Record<TokenShape, TokenSpec> {
+function legacySpecs(): Record<TokenShape, TokenSpec> {
   // Default: "Edición" (black coin, team colour, thin team rim, the edition's name in gold on the back), the first of PRESETS.
   const coin = upgradeSpec(loadJSON<TokenSpec | null>(STYLE_KEY, null)) || {
     ...structuredClone(DEFAULT_SPEC), preset: "edicion", style: "classic", frame: "rim", frameWidth: 0.8, back: "edition", depth: 0.4,
@@ -254,6 +272,135 @@ function storeJSON(key: string, value: unknown) { try { localStorage.setItem(key
 /** A saved design as the app now has it: an old window's "relief" finish becomes its icon raised. */
 function upgradeSpec<T extends TokenSpec | null | undefined>(spec: T): T {   // a declaration: the state above uses it before this line runs
   return (spec && typeof spec === "object" ? normalizeSpec(spec) : spec) as T;
+}
+
+// ------------------------------------------------------------ styles
+//
+// A style is a named look for one shape (Edition, Ivory…): everything a token's spec says but its
+// content (its name, icon, other state, linked tokens, printed text). Each token uses one of its
+// shape's styles, the first unless it says otherwise (a linked token: its character's), and may
+// change some of its look on its own: those changes are kept field by field over its style, so
+// whatever else the style becomes still reaches it.
+
+/** Spec fields that aren't the look: the language and icon are the token's; the rest only notes. */
+const NOT_LOOK = new Set(["lang", "icon", "preset", "fromPreset", "windowFinish", "windowDepth", "colours"]);
+/** A spec with every field, to compare two of them field by field. */
+const filled = (s: SpecInput): TokenSpec => ({ ...DEFAULT_SPEC, ...s, colours: { ...DEFAULT_SPEC.colours, ...s.colours } }) as TokenSpec;
+/** The same value, whatever order its keys were written in. */
+function sameValue(a: unknown, b: unknown): boolean {
+  const norm = (v: unknown): unknown => (v && typeof v === "object" && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).filter(([, x]) => x !== undefined).sort(([x], [y]) => x.localeCompare(y)).map(([k, x]) => [k, norm(x)])) : v);
+  return JSON.stringify(norm(a)) === JSON.stringify(norm(b));
+}
+/** The look fields where two specs differ: "frame", "backFace", "colours.front"… */
+function lookDiff(a: SpecInput, b: SpecInput): string[] {
+  const fa = filled(a) as unknown as Fields, fb = filled(b) as unknown as Fields, out: string[] = [];
+  for (const k of new Set([...Object.keys(fa), ...Object.keys(fb)])) if (!NOT_LOOK.has(k) && !sameValue(fa[k], fb[k])) out.push(k);
+  const ca = fa.colours as Fields, cb = fb.colours as Fields;
+  for (const k of new Set([...Object.keys(ca), ...Object.keys(cb)])) if (ca[k] !== cb[k]) out.push(`colours.${k}`);
+  return out;
+}
+/** A look field of a spec ("frame", "colours.base"). */
+const fieldOf = (s: SpecInput, f: string): unknown => (f.startsWith("colours.") ? (s.colours as Fields | undefined)?.[f.slice(8)] : (s as Fields)[f]);
+/** Sets a look field on a spec; nothing (or null, but for the uploaded back) takes it out, so the default holds. */
+function setField(s: TokenSpec, f: string, v: unknown) {
+  if (f.startsWith("colours.")) { s.colours = { ...s.colours, [f.slice(8)]: v as ColourRef }; return; }
+  if (v === undefined || (v === null && f !== "customSvg")) delete (s as unknown as Fields)[f];
+  else (s as unknown as Fields)[f] = structuredClone(v);
+}
+/** A token's changes with one more field (null: the token hasn't the field its style has). */
+function withLookField(look: LookChanges, f: string, v: unknown): LookChanges {
+  if (f.startsWith("colours.")) return { ...look, colours: { ...look.colours, [f.slice(8)]: v as ColourRef } };
+  return { ...look, [f]: v === undefined ? null : structuredClone(v) };
+}
+/** A token's changes without a field. */
+function withoutLookField(look: LookChanges, f: string): LookChanges {
+  const next = structuredClone(look);
+  if (f.startsWith("colours.")) { if (next.colours) { delete next.colours[f.slice(8) as keyof SpecColours]; if (!Object.keys(next.colours).length) delete next.colours; } }
+  else delete (next as Fields)[f];
+  return next;
+}
+/** The fields a token's changes set. */
+const lookFields = (look: LookChanges | undefined) => !look ? [] : [...Object.keys(look).filter((k) => k !== "colours"), ...Object.keys(look.colours ?? {}).map((c) => `colours.${c}`)];
+/** A style's look with a token's changes over it. */
+function applyLook(spec: TokenSpec, look: LookChanges | undefined): TokenSpec {
+  if (!look) return spec;
+  const s = structuredClone(spec);
+  for (const f of lookFields(look)) setField(s, f, fieldOf(look as SpecInput, f));
+  return s;
+}
+/** A token's changes as they differ from its style: those the style has anyway go. */
+function prunedLook(spec: TokenSpec, look: LookChanges): LookChanges | undefined {
+  const mine = filled(applyLook(spec, look)), theirs = filled(spec);
+  let next = look;
+  for (const f of lookFields(look)) if (sameValue(fieldOf(mine, f), fieldOf(theirs, f))) next = withoutLookField(next, f);
+  return lookFields(next).length ? next : undefined;
+}
+/** A whole spec as changes over a style: what a token's own design was before styles. */
+function lookFrom(style: TokenSpec, spec: TokenSpec): LookChanges {
+  let look: LookChanges = {};
+  for (const f of lookDiff(style, spec)) look = withLookField(look, f, fieldOf(spec, f));
+  return look;
+}
+
+/** A style's name: its own, else its template's, else "My style". */
+const styleName = (st: Style, shape: TokenShape) => st.name || (st.tpl ? shapeText(`preset.${st.tpl}`, shape) : t("style.mine"));
+/** A token's style, by its own link (a linked token: else its character's), else its shape's first. */
+function styleOf(key: string, shape = shapeOf(tokenRole(key))): Style {
+  const list = state.styles[shape], id = state.overrides.get(key)?.style ?? (key.startsWith("r:") ? state.overrides.get(`c:${roleIdOf(key)}`)?.style : undefined);
+  return list.find((x) => x.id === id) ?? list[0];
+}
+/** A token's look: its style's, with its own changes. */
+const lookOf = (key: string): TokenSpec => applyLook(styleOf(key).spec, state.overrides.get(key)?.look);
+/** The token has changes of its own to its style's look. */
+const ownChanged = (key: string) => !!state.overrides.get(key)?.look;
+/** Every token of a shape (characters and their linked tokens), the one being made apart. */
+function tokensOf(shape: TokenShape): string[] {
+  return state.lib!.roles.filter((r) => shapeOf(r) === shape && r.id !== state.creating?.draft.id)
+    .flatMap((r) => [charKey(r), ...remindersOf(r).map((_, i) => remKey(r, i))]);
+}
+/** How many of the collection's tokens use a style. */
+const styleUsers = (shape: TokenShape, id: string) => tokensOf(shape).filter((k) => styleOf(k, shape).id === id).length;
+function storeStyles() { storeJSON(STYLES_KEY, state.styles); }
+function storeOverrides() { storeJSON(TOKENS_KEY, Object.fromEntries(state.overrides)); }
+
+/**
+ * The styles and each token's own, once the tokens are known (a token's shape is its character's).
+ * The first time (nothing kept under the styles' keys yet) they're made from what was kept before,
+ * printing exactly as it did: each type's set design becomes its shape's first style (named after
+ * the template it is, else "My style"), every token using it; a token's own design becomes its own
+ * changes over that style (its text, feminine name and icon stay its content); each saved design
+ * becomes a style of its type, under its name. The old keys are left as they were.
+ */
+function loadStyles() {
+  const place = (v: TokenOverride): TokenOverride => ({ ...v, ...(v.icon ? { icon: placeGameIcon(v.icon) } : {}) });
+  const kept = loadJSON<Record<TokenShape, Style[]> | null>(STYLES_KEY, null);
+  if (kept && SHAPES.every((sh) => Array.isArray(kept[sh]) && kept[sh].length)) {
+    state.styles = Object.fromEntries(SHAPES.map((sh) => [sh, kept[sh].map((x) => ({ ...x, spec: upgradeSpec(x.spec) }))])) as Record<TokenShape, Style[]>;
+    state.overrides = new Map(Object.entries(loadJSON<Record<string, TokenOverride>>(TOKENS_KEY, {})).filter(([, v]) => v).map(([k, v]) => [k, place(v)]));
+    return;
+  }
+  const specs = legacySpecs();
+  for (const sh of SHAPES) {
+    const { preset, modified } = templateOf(specs[sh], sh);
+    state.styles[sh] = [{ id: `${sh}-1`, ...(preset && !modified ? { tpl: preset.id } : {}), spec: specs[sh] }];
+  }
+  state.overrides = new Map();
+  for (const [k, v] of Object.entries(loadJSON<Record<string, TokenOverride>>(OVERRIDES_KEY, {}))) {
+    if (!v) continue;
+    const { spec, ...own } = place(v);
+    if (spec) {
+      const role = roleById(roleIdOf(k)), base = state.styles[role ? shapeOf(role) : "coin"][0].spec, whole = upgradeSpec(spec);
+      const look = lookFrom(base, whole);
+      if (lookFields(look).length) own.look = look;
+    }
+    if (Object.keys(own).length) state.overrides.set(k, own);
+  }
+  for (const d of loadJSON<Design[]>(DESIGNS_KEY, []).filter((d) => d && d.roleId && d.spec)) {
+    const role = roleById(d.roleId), shape = d.shape ?? (role ? shapeOf(role) : "coin");
+    const { lang: _lang, ...spec } = upgradeSpec(d.spec);
+    state.styles[shape].push({ id: newId("s"), name: d.title, spec: spec as TokenSpec });
+  }
+  storeStyles(); storeOverrides();
 }
 
 // ------------------------------------------------------------ tokens: keys, text, style
@@ -276,15 +423,15 @@ const charName = (role: Role, key = charKey(role), lang = tokenLang()) =>
 /** A character's own icon (on its token; its reminders share it), or undefined. */
 const ownIcon = (roleId: string) => state.overrides.get(`c:${roleId}`)?.icon;
 const roleIdOf = (key: string) => key.split(":")[1];
-/** The design a token uses: its own, or its type's set design; reminders get the reminder layout. */
+/** The design a token uses: its style's look with its own changes; reminders get the reminder layout. */
 function specFor(key: string, isReminder: boolean): TokenSpec {
-  const base = state.overrides.get(key)?.spec ?? state.specs[shapeOf(tokenRole(key))];
+  const base = lookOf(key);
   const spec = { ...DEFAULT_SPEC, ...base, colours: { ...DEFAULT_SPEC.colours, ...base.colours }, lang: tokenLang(), icon: ownIcon(roleIdOf(key)) };
   return isReminder ? reminderSpec(spec) : spec;
 }
 /**
  * A token as the catalog has it, for step 1 (Pick): the default design with the character's
- * own name and icon. The set's design and a token's own changes show in the queue and step 2.
+ * own name and icon. Its style and own changes show in the queue and step 2.
  */
 const catalogSpec = (isReminder: boolean): TokenSpec => (isReminder ? reminderSpec({ ...DEFAULT_SPEC, lang: tokenLang() }) : { ...DEFAULT_SPEC, lang: tokenLang() });
 const catalogText = (role: Role, reminder: number | null) => (reminder != null ? remindersOf(role)[reminder] : roleName(role, tokenLang()));
@@ -316,7 +463,7 @@ function setLang(lang: string) {
   setUiLang(lang);
   renderLangMenus();
   renderLangButtons();
-  if (state.lib) { buildChoices(); renderAll(); renderQueue(); renderDesigns(); if ($<HTMLDialogElement>("#scriptInvite").open) renderInvite(); }
+  if (state.lib) { buildChoices(); renderAll(); renderQueue(); if ($<HTMLDialogElement>("#scriptInvite").open) renderInvite(); }
   else if (OWN && !$("#ownHome").hidden) void renderOwnHome();   // the collections page draws its covers in the language
   else if (gateState) gate(gateState());
   if ($<HTMLDialogElement>("#tlangDialog").open) drawLangDialog();
@@ -415,7 +562,7 @@ function setTokenLang(choice: string) {
 // The Language dialog, two tabs. Interface: a pick applies at once (the whole app and this dialog redraw
 // in it); the right side shows a little of the app in the language pointed at. Tokens: languages on the
 // left (one with several versions folds open), and on the right the selected character, its reminders
-// and a few of the characters on screen, drawn in the set's style in whichever language is picked or
+// and a few of the characters on screen, drawn in their styles in whichever language is picked or
 // pointed at; applied with "Print in …". The tab last used opens again, the interface the first time.
 // Where there are no tokens, only the interface, without tabs.
 const tl = { pick: SAME, open: new Set<string>(), tab: "ui" as "ui" | "tok" };
@@ -640,11 +787,11 @@ function startApp() {
   state.edition = known(view.edition) ? view.edition! : "all";
   state.team = typeof view.team === "string" ? view.team : "all";
   buildChoices();
+  loadStyles();
   state.pick = loadPicks();
   persistPicks();
   renderAll();
   goStep(1);
-  refreshDesigns();
   if (!OWN) { openSharedScript(); resumeHomebrew(); }
   if (!guide.wired) { guide.wired = true; wireGuide(); }
 }
@@ -1101,6 +1248,8 @@ function onCopyStep(e: Event) {
   return true;
 }
 
+/** A token with something of its own: changes to its style's look, or its own text, feminine name or icon (a style alone isn't). */
+const hasOwn = (key: string) => { const o = state.overrides.get(key); return !!o && !!(o.look || o.text || o.fem || o.icon); };
 /** The mark of a token with its own changes, and the way to them. Beside the token's button: a button can't hold buttons. */
 function ownPen(key: string, name: string) {
   const label = esc(t("sheet.editOwn", { name }));
@@ -1125,7 +1274,7 @@ function rowHtml(r: Role, q: string, remHits: Set<number> | undefined) {
   const thumb = (key: string, reminder: number | null) => {
     const isRem = reminder != null;
     const spec = { ...catalogSpec(isRem), diameter: isRem ? reminderSpec(DEFAULT_SPEC).diameter : 45, back: "none" };
-    const own = state.overrides.has(key), copies = state.pick.get(key) || 0;
+    const own = hasOwn(key), copies = state.pick.get(key) || 0;
     const name = catalogText(r, reminder);
     // once picked, a small stepper adds copies; tapping the token still drops it
     // a homebrew token whose icon is still on its way pulses where the icon will go
@@ -1143,7 +1292,7 @@ function rowHtml(r: Role, q: string, remHits: Set<number> | undefined) {
   const remSpec = { ...catalogSpec(true), diameter: reminderSpec(DEFAULT_SPEC).diameter, back: "none" };
   const loadingTok = r.loading ? ` loading" style="--team: ${TEAMS[r.team].colour}` : "";
   const chips = [...groups].map(([w, idx]) => {
-    const keys = idx.map((i) => remKey(r, i)), on = keys.filter(isPicked).length, own = keys.find((k) => state.overrides.has(k));
+    const keys = idx.map((i) => remKey(r, i)), on = keys.filter(isPicked).length, own = keys.find(hasOwn);
     const count = keys.length > 1 ? `<small>×${keys.length}${on && on < keys.length ? ` · ${on}/${keys.length}` : ""}</small>` : "";
     return `<div class="rem${idx.some((i) => remHits?.has(i)) ? " hit" : ""}" data-on="${on === keys.length ? "all" : on ? "some" : "none"}">
       <button class="rem-chip" type="button" data-pick-rems="${keys.join(" ")}" aria-pressed="${on === keys.length}" aria-label="${esc(keys.length > 1 ? `${w} ×${keys.length}` : w)}"><span class="rem-tok${loadingTok}">${tokenSvg(state.lib!, r, remSpec, { text: w })}</span><span class="rem-w">${esc(w)}</span>${count}<span class="ck" aria-hidden="true">✓</span></button>${own ? ownPen(own, w) : ""}</div>`;
@@ -1160,19 +1309,23 @@ function selectToken(key: string | undefined) {
   const role = key && tokenRole(key);
   if (!key || !role) return;
   const was = state.sel?.reminder;
+  // another token: changes go to its style again, and the last one's note goes
+  if (state.sel?.key !== key) { state.scope = "style"; state.lastChange = null; state.flash = ""; }
   state.sel = { key, role, reminder: tokenRem(key) };
   if (state.sel!.reminder != null && was == null) { view3d("setView", "top"); syncView("top"); }
 }
 
 // ------------------------------------------------------------ workshop
 //
-// The design step's left column, in two levels. On top, the token's parts, which its type (its
-// shape) decides: a coin's FRONT · BACK · COIN · MAGNET, a ring's FRONT · RING, a card's FRONT ·
-// CARD. Inside FRONT, and inside BACK when the back is a face of its own, the face's Layout · Text ·
-// Icon · Frame (those the type has). The set's design is kept per type (state.specs), so what the
-// column shows always belongs to the token being edited: nothing is there for another shape.
+// The design step's left column: one editor for changing a token, and for making one in your own
+// collections. On top, its shape and the style it uses. Then its parts, which its shape decides: a
+// coin's FRONT · BACK · COIN · MAGNET, a ring's FRONT · RING, a card's FRONT · CARD. FRONT says
+// first what the token says (its content, always its own) and then how it looks (its style's);
+// BACK, its other state and then how the back looks. Inside a face, its Layout · Text · Icon ·
+// Frame (those the shape has). A change to the look goes to the token's style, every token using it,
+// and says so, with the way to keep it to this token only.
 
-/** The type being edited: the selected token's shape (choosing a type selects one of its tokens). */
+/** The shape being edited: the selected token's. */
 const editShape = (): TokenShape => shapeOf(state.sel!.role);
 /** The parts a type is made of (level 1), from what its shape has. */
 const partsOf = (shape: TokenShape): Part[] => {
@@ -1196,7 +1349,7 @@ const editSide = (): Side => (openPart() === "back" ? "back" : "front");
 function openPanel(): string {
   if (state.templates) return "presets";
   const part = openPart(), shape = editShape();
-  if (part === "front" || (part === "back" && editingSpec().backMode === "own")) {
+  if (part === "front" || (part === "back" && editLook().backMode === "own")) {
     const side = part === "back" ? "back" : "front", tabs = faceTabsOf(shape);
     if (!tabs.includes(state.faceTab[side])) state.faceTab[side] = tabs[0];
     return state.faceTab[side];
@@ -1204,26 +1357,8 @@ function openPanel(): string {
   return part;
 }
 
-/** The set's design for the type being edited, or in "this token only" the token's own if it has one. */
-function editingSpec(): TokenSpec {
-  const set = state.specs[editShape()];
-  if (state.tab === "token") return state.overrides.get(state.sel!.key)?.spec ?? set;
-  return set;
-}
-/** The spec a change goes to. In "this token only", the first change gives the token its own copy of its type's. */
-function writableSpec(): TokenSpec {
-  const shape = editShape(), set = state.specs[shape];
-  if (state.tab !== "token") return set;
-  const key = state.sel!.key, own = state.overrides.get(key);
-  if (own?.spec) return own.spec;
-  const spec = structuredClone(set);
-  spec.fromPreset = templateOf(set, shape).preset?.id;   // for the template line
-  delete spec.preset;   // resets go to the set's values
-  state.overrides.set(key, { ...own, spec });
-  return spec;
-}
-/** Keeps the set's design of a type. */
-const storeSpec = (shape: TokenShape) => storeJSON(STYLE_KEYS[shape], state.specs[shape]);
+/** The look the controls show: the selected token's (its style's, with its own changes). */
+const editLook = () => lookOf(state.sel!.key);
 
 /**
  * A face as the controls show it: the front is the spec itself; the back (a face) is the front's
@@ -1239,8 +1374,8 @@ function faceOf(s: TokenSpec, side: Side): TokenSpec {
 }
 /** Applies a change to a face: the front's goes to the spec; the back's to its own settings, only what changed (what it
  *  never changed keeps following the front). */
-function changeFace(side: Side, mutate: (f: TokenSpec) => void) {
-  changeStyle((s) => {
+function changeFace(side: Side, label: string, mutate: (f: TokenSpec) => void) {
+  changeLook(label, (s) => {
     if (side === "front") { mutate(s); return; }
     const before = faceOf(s, "back"), v = structuredClone(before);
     mutate(v);
@@ -1296,20 +1431,12 @@ function applyPreset(s: TokenSpec, p: Preset) {
   for (const k of Object.keys(next)) if (!PRESET_KEEPS.has(k)) (s as unknown as Fields)[k] = structuredClone((next as unknown as Fields)[k]);
   s.preset = p.id;
 }
-/** The line above the tabs: which template, and the way to the others. */
-function renderTemplateRow() {
-  const row = $("#tplRow");
-  row.setAttribute("aria-expanded", String(state.templates));
-  if (state.templates) { row.innerHTML = `<b>${esc(t("tpl.choose"))}</b><em>${esc(t("tpl.done"))}</em>`; return; }
-  const { preset, modified } = templateOf(editingSpec(), editShape());
-  row.innerHTML = `<span>${esc(t("tpl.label"))}</span><b>${esc(preset ? shapeText(`preset.${preset.id}`, editShape()) : t("tpl.none"))}</b>${modified ? `<small>${esc(t("tpl.modified"))}</small>` : ""}<em>${esc(t("tpl.change"))}</em>`;
-}
 /** What each tab shows in the 3D view: a face straight on, the body at an angle, the magnet from behind. */
 const PART_VIEW: Record<Part, ViewKind> = { front: "top", back: "back", body: "angle", magnet: "back" };
-/** Opens the templates (true) or a tab (a part, and inside a face one of its tabs). */
-function showTab({ templates = false, part, face }: { templates?: boolean; part?: Part; face?: FaceTab } = {}) {
+/** Opens the templates (to start a style, or to set this one back) or a tab (a part, and inside a face one of its tabs). */
+function showTab({ templates = null, part, face }: { templates?: "new" | "reset" | null; part?: Part; face?: FaceTab } = {}) {
   state.templates = templates;
-  if (part) state.part[editShape()] = part;
+  if (part) { if (part !== openPart()) state.lastChange = null; state.part[editShape()] = part; }
   if (face) state.faceTab[editSide()] = face;
   state.reliefAsk = null;
   $("#styleFields").scrollTop = 0;
@@ -1336,61 +1463,220 @@ function renderWorkshop() {
     $("#xray").hidden = !token.magnet;
     if (!token.magnet && $("#xray").getAttribute("aria-pressed") === "true") { $("#xray").setAttribute("aria-pressed", "false"); view3d("setXray", false); }
 
-    $("#name").textContent = text;
-    $("#sub").textContent = [isRem ? textFor(charKey(role), role, null) : null, TEAMS[role.team].label[lang], editionName(role, lang),
-      role.en !== text && !isRem ? role.en : null].filter(Boolean).join(" · ");
+    const shape = shapeOf(role), style = styleOf(key, shape);
+    $("#name").textContent = text.trim() || t("own.namePlaceholder");
+    $("#sub").textContent = [state.creating ? t("own.newTokenTitle") : null, isRem ? textFor(charKey(role), role, null) : null, TEAMS[role.team].label[lang], state.creating ? null : editionName(role, lang),
+      t("style.sub", { name: styleName(style, shape) }), ownChanged(key) ? t("style.ownSub") : null].filter(Boolean).join(" · ");
 
-    // the whole set (of this type), or this token only
-    $$(".scope [data-tab]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.tab === state.tab)));
-    const own = state.overrides.get(key);
-    $<HTMLInputElement>("#printed").value = own?.text ?? "";
-    renderIconField();
-    $<HTMLInputElement>("#printed").placeholder = isRem ? remindersOf(role)[reminder!] : charName(role, key);
-    const femName = !isRem && role.fem?.[tokenLang()];
-    $("#femRow").hidden = !femName;
-    if (femName) { $<HTMLInputElement>("#fem").checked = !!own?.fem; $("#femLabel").textContent = t("ws.fem", { name: femName }); }
-    $("#resetToken").hidden = !own || state.tab !== "token";
-    const shape = shapeOf(role);
-    $("#styleScope").textContent = state.tab === "set" ? t(`ws.scopeSet.${shape}`) : t("ws.scopeToken", { name: text });
-    renderTypeRow(role);
-    const editing = editingSpec();
-    renderPresets(role, editing);
-    renderTemplateRow();
-    renderDesigns();
-    renderTabs(role, editing);
-    syncControls(role, editing, token);
+    renderShapeRow(role);
+    renderStyleRow(key, shape, style);
+    renderContent();
+    const look = editLook();
+    $("#lookHead").hidden = !!state.templates;
+    $("#lookTitle").textContent = t(openPart() === "back" ? "look.titleBack" : "look.title");
+    $("#lookSub").textContent = state.scope === "token" ? t("look.subToken") : t("look.subStyle", { name: styleName(style, shape) });
+    renderScopeNote(shape, style);
+    renderPresets(role, look);
+    renderTabs(role, look);
+    syncControls(role, look, token);
     renderColourWarn(role, spec, key);
   });
 }
 
-/**
- * The types (shapes) in the queue, each with a token of its own and how many there are: choosing
- * one edits its design, showing its first token. In "this token only" the token's type, which
- * its collection gives it. With one type in the queue there's nothing to choose.
- */
-function renderTypeRow(role: Role) {
-  const row = $("#typeRow"), mine = shapeOf(role);
-  const keys = sortKeys(state.pick.keys()), shapes = SHAPES.filter((sh) => keys.some((k) => shapeOf(tokenRole(k)) === sh));
-  row.hidden = shapes.length < 2;
-  if (row.hidden) return;
-  const pic = (k: string) => { const r = tokenRole(k), ri = tokenRem(k); return tokenSvg(state.lib!, r, specFor(k, ri != null), { text: textFor(k, r, ri) }); };
-  if (state.tab === "token") { row.innerHTML = `<p class="ws-type-fixed">${pic(state.sel!.key)}<span>${esc(t(`type.fixed.${mine}`))}</span></p>`; return; }
-  row.innerHTML = shapes.map((sh) => {
-    const here = keys.filter((k) => shapeOf(tokenRole(k)) === sh);
-    return `<button type="button" data-type="${sh}" aria-pressed="${sh === mine}">${pic(here[0])}<span>${esc(t(`type.${sh}.many`))}</span><small>${here.length}</small></button>`;
-  }).join("");
-}
-/** Choosing a type: the workshop shows its first token (the one selected, if it's of that type). */
-function chooseType(shape: TokenShape) {
-  if (editShape() === shape) return;
-  const key = sortKeys(state.pick.keys()).find((k) => shapeOf(tokenRole(k)) === shape);
-  if (key) designToken(key);
+/** A style drawn small on the token being edited: its colours and frame at a glance. */
+function styleSwatch(st: Style) {
+  const { role } = state.sel!;
+  return `<span class="style-sw">${tokenSvg(state.lib!, role, { ...filled(st.spec), lang: tokenLang(), icon: ownIcon(role.id), diameter: 45, back: "none", backMode: "design" }, { text: textFor(charKey(role), role, null) })}</span>`;
 }
 
-/** The two levels of tabs, and the back's choices between them. */
+/**
+ * The token's shape. A token of a collection has its shape from its type: it's said, with the
+ * other types of that shape when there are some to move it to. A token being made chooses it, each
+ * shape drawn with the token in that shape's first style; one the collection doesn't use yet makes
+ * its type when the token is created.
+ */
+function renderShapeRow(role: Role) {
+  const row = $("#shapeRow"), c = state.creating, shape = c?.shape ?? shapeOf(role);
+  const tk = ownEditable(role) && state.sel!.reminder == null ? ownTokenOf(role.id) : null;
+  const types = tk ? coll.types.filter((x) => x.shape === shape) : [];
+  const typePick = types.length > 1 ? `<select class="text" data-type-pick aria-label="${esc(t("own.type"))}">${types.map((x) => `<option value="${esc(x.id)}"${x.id === tk!.type ? " selected" : ""}>${esc(nameIn(x.name, uiLang()))}</option>`).join("")}</select>` : "";
+  if (!c) {
+    row.innerHTML = `<p class="ws-shape-fixed">${uiIcon(SHAPE_ICONS[shape])}<span>${esc(t("shape.fixed", { shape: t(`own.shape.${shape}`) }))}</span>${typePick}</p>`;
+    return;
+  }
+  const name = nameIn(c.draft.name, tokenLang()).trim() || t("own.namePlaceholder");
+  row.innerHTML = `<div class="shape-cards" role="radiogroup" aria-label="${esc(t("own.shape"))}">${SHAPES.map((sh) => {
+    const r = draftRole(c, sh), st = sh === c.shape ? styleOf(state.sel!.key, sh) : state.styles[sh][0];
+    return `<button type="button" role="radio" data-shape="${sh}" aria-checked="${sh === c.shape}">${tokenSvg(state.lib!, r, { ...filled(st.spec), lang: tokenLang(), diameter: 45, back: "none", backMode: "design" }, { text: name })}<span>${esc(t(`own.shape.${sh}`))}</span></button>`;
+  }).join("")}</div>${typePick ? `<p class="ws-shape-fixed">${typePick}</p>` : ""}`;
+}
+
+/** The style the token uses, how many tokens use it, and the way back to it when the token has changes of its own. */
+function renderStyleRow(key: string, shape: TokenShape, style: Style) {
+  $("#styleChip").innerHTML = `${styleSwatch(style)}<b>${esc(styleName(style, shape))}</b>${CHEVRON}`;
+  $("#styleChip").setAttribute("aria-label", `${t("style.label")}: ${styleName(style, shape)}`);
+  $("#styleCount").textContent = t("style.count", { n: styleUsers(shape, style.id) });
+  const back = $<HTMLButtonElement>("#styleBack");
+  back.hidden = !ownChanged(key);
+  back.innerHTML = `<span aria-hidden="true">✎</span> ${esc(t("style.own"))} · <u>${esc(t("style.back"))}</u>`;
+  if (!$("#styleMenu").hidden) renderStyleMenu();
+}
+/** The styles of the token's shape (each with how many tokens use it), then what can be done with them. */
+function renderStyleMenu() {
+  const { key, role } = state.sel!, shape = shapeOf(role), cur = styleOf(key, shape), list = state.styles[shape];
+  const item = (act: string, label: string, cls = "") => `<button type="button" role="menuitem" data-style-act="${act}"${cls ? ` class="${cls}"` : ""}>${esc(label)}</button>`;
+  $("#styleMenu").innerHTML = list.map((st) => `<button type="button" role="menuitemradio" aria-checked="${st === cur}" data-style-pick="${esc(st.id)}">${styleSwatch(st)}<span>${esc(styleName(st, shape))}</span><small>${esc(t("style.count", { n: styleUsers(shape, st.id) }))}</small></button>`).join("")
+    + `<hr>${item("new", t("style.new"))}${item("save", t("style.save"))}${item("reset", t("style.reset", { name: styleName(cur, shape) }))}${item("rename", t("style.rename"))}${list.length > 1 ? item("delete", t("style.delete", { name: styleName(cur, shape) }), "danger") : ""}`;
+}
+function openStyleMenu(on: boolean) {
+  $("#styleMenu").hidden = !on;
+  $("#styleChip").setAttribute("aria-expanded", String(on));
+  if (on) { renderStyleMenu(); $<HTMLElement>("#styleMenu button").focus(); }
+}
+/** A token's style: kept on the token unless it's the one it would use anyway (its shape's first, or a linked token's character's). */
+function setTokenStyle(key: string, id: string) {
+  const shape = shapeOf(tokenRole(key)), list = state.styles[shape], own: TokenOverride = { ...state.overrides.get(key) };
+  const charStyle = key.startsWith("r:") ? state.overrides.get(`c:${roleIdOf(key)}`)?.style : undefined;
+  const inherited = list.find((x) => x.id === charStyle) ?? list[0];
+  if (inherited.id === id) delete own.style; else own.style = id;
+  state.lastChange = null; state.scope = "style";   // changes go to the style it has now
+  setOwn(key, own);
+}
+/** What the style menu does: another style for this token, a new one, this token's look as one, the style renamed or deleted. */
+function styleAction(act: string) {
+  const { key, role } = state.sel!, shape = shapeOf(role), cur = styleOf(key, shape), name = styleName(cur, shape);
+  openStyleMenu(false);
+  if (act === "new" || act === "reset") { showTab({ templates: act }); viewTab(); renderWorkshop(); return; }
+  if (act === "save") {
+    const { lang: _lang, icon: _icon, ...spec } = structuredClone(lookOf(key));
+    const st: Style = { id: newId("s"), name: uniqueStyleName(shape, t("style.ofToken", { name: textFor(key, role, state.sel!.reminder) })), spec: spec as TokenSpec };
+    state.styles[shape].push(st); storeStyles();
+    const own: TokenOverride = { ...state.overrides.get(key) }; delete own.look;
+    state.overrides.set(key, own);
+    state.flash = t("style.saved", { name: styleName(st, shape) });
+    setTokenStyle(key, st.id);
+    return;
+  }
+  if (act === "rename") {
+    const next = prompt(t("style.renamePrompt"), name)?.trim(); if (!next) return;
+    cur.name = next; storeStyles(); renderWorkshop(); return;
+  }
+  if (act === "delete") {
+    const n = styleUsers(shape, cur.id);
+    if (!confirm(t("style.deleteConfirm", { name, n, to: styleName(state.styles[shape].find((x) => x !== cur)!, shape) }))) return;
+    state.styles[shape] = state.styles[shape].filter((x) => x !== cur);
+    // its tokens go back to the style they'd use anyway, keeping their own changes
+    for (const [k, v] of [...state.overrides]) if (v.style === cur.id) { const o = { ...v }; delete o.style; if (Object.keys(o).length) state.overrides.set(k, o); else state.overrides.delete(k); }
+    storeStyles(); storeOverrides();
+    state.lastChange = null; state.flash = t("style.deleted", { name });
+    renderWorkshop(); scheduleSheet();
+  }
+}
+/** A style name not yet used in the shape: "Ivory", else "Ivory 2". */
+function uniqueStyleName(shape: TokenShape, base: string) {
+  const taken = new Set(state.styles[shape].map((x) => styleName(x, shape)));
+  let name = base;
+  for (let i = 2; taken.has(name); i++) name = `${base} ${i}`;
+  return name;
+}
+/** A new style from a template, taking the current style's magnet and ring base; the token uses it. */
+function newStyleFrom(p: Preset) {
+  const { key, role } = state.sel!, shape = shapeOf(role), spec = structuredClone(styleOf(key, shape).spec);
+  applyPreset(spec, p);
+  delete spec.fromPreset;
+  const base = shapeText(`preset.${p.id}`, shape), name = uniqueStyleName(shape, base);
+  const st: Style = { id: newId("s"), tpl: p.id, ...(name !== base ? { name } : {}), spec };
+  state.styles[shape].push(st); storeStyles();
+  showTab();
+  state.flash = t("style.created", { name: styleName(st, shape) });
+  setTokenStyle(key, st.id);
+}
+
+/** Your collection's token (or the one being made) that this editor changes the content of: not one of a built-in or closed collection. */
+function ownEditable(role: Role) { return OWN && !READONLY && !!ownTokenOf(role.id) && !isLocked(coll, role.id); }
+const ownTokenOf = (id: string): OwnToken | undefined => (state.creating?.draft.id === id ? state.creating.draft : coll.tokens.find((x) => x.id === id));
+
+/**
+ * What the token says, over FRONT's and BACK's look: always its own. A token of your collection:
+ * its name, icon, group, catalogs and linked tokens, and on the back its other state. Clocktower's,
+ * a closed collection's and a linked token: its printed text, feminine name and icon. Its fields
+ * are filled when another token or tab opens, so typing in them isn't undone by a redraw.
+ */
+let contentFor = "";
+function renderContent(force = false) {
+  const { key, role, reminder } = state.sel!, shape = shapeOf(role), part = state.templates ? null : openPart();
+  const tk = ownEditable(role) && reminder == null ? ownTokenOf(role.id)! : null;
+  const front = part === "front", back = part === "back" && reminder == null && (tk ? SHAPE_FEATURES[shape].flip : !!selFlip(role));
+  const box = $("#contentBlock");
+  box.hidden = !front && !back;
+  if (box.hidden) { contentFor = ""; return; }
+  $("#contentTitle").textContent = t(back ? "content.flip" : "content.says");
+  $("#contentOwn").hidden = !(front && tk);
+  $("#contentClosed").hidden = !(front && !tk);
+  $("#contentFlip").hidden = !(back && tk);
+  $("#contentNote").hidden = !(back && !tk);
+  if (front && !tk) {   // a closed collection's: its text, feminine name and icon (Clocktower's own icon; your collection's tokens have theirs)
+    const own = state.overrides.get(key), isRem = reminder != null;
+    if (document.activeElement !== $("#printed")) $<HTMLInputElement>("#printed").value = own?.text ?? "";
+    $<HTMLInputElement>("#printed").placeholder = isRem ? remindersOf(role)[reminder] : charName(role, key);
+    const femName = !isRem && role.fem?.[tokenLang()];
+    $("#femRow").hidden = !femName;
+    if (femName) { $<HTMLInputElement>("#fem").checked = !!own?.fem; $("#femLabel").textContent = t("ws.fem", { name: femName }); }
+    $("#iconField").hidden = !SHAPE_FEATURES[shape].icon || ownEditable(role);
+    renderIconField();
+  }
+  if (back && !tk) $("#contentNote").textContent = t("content.flipFixed", { name: roleName(selFlip(role)!, tokenLang()) });
+  const sig = [key, part, shape, tokenLang(), uiLang(), state.creating?.draft.id ?? ""].join("|");
+  if (!tk || (sig === contentFor && !force)) return;
+  contentFor = sig;
+  if (front) {
+    $<HTMLInputElement>("#ownTokName").value = nameIn(tk.name, tokenLang());
+    $("#ownTokIconRow").hidden = !SHAPE_FEATURES[shape].icon;
+    $<HTMLInputElement>("#ownTokIq").value = ""; $("#ownTokHits").innerHTML = "";
+    renderGroupPills(tk);
+    const openCats = coll.sections.filter((x) => x.open).flatMap((x) => x.catalogs), inCat = (k: OwnCatalog) => (state.creating ? state.creating.cats.includes(k.id) : k.tokens.includes(tk.id));
+    $("#ownTokCats").innerHTML = openCats.map((k) => `<label class="check"><input type="checkbox" value="${esc(k.id)}"${inCat(k) ? " checked" : ""}> ${esc(nameIn(k.name, uiLang()))}</label>`).join("") || `<p class="hint">${esc(t("own.noCatalogs"))}</p>`;
+    renderOwnLinked(tk);
+    $("#ownTokDelete").hidden = !!state.creating;
+  }
+  if (back) renderOwnFlip(tk);
+}
+/** The groups as their colours, the token's pressed, and a new one. */
+function renderGroupPills(tk: OwnToken) {
+  $("#ownTokGroups").innerHTML = coll.groups.map((g) => `<button class="pill group-pill" type="button" data-group="${esc(g.id)}" aria-pressed="${g.id === tk.group}" style="--c: ${g.colour}"><i></i>${esc(nameIn(g.name, uiLang()))}</button>`).join("")
+    + `<button class="pill" type="button" data-group-new>${esc(t("own.groupNew"))}</button>`;
+}
+function renderOwnLinked(tk: OwnToken) {
+  const lang = tokenLang();
+  $("#ownTokLinked").innerHTML = tk.linked.map((w, i) => `<span class="own-link"><input class="text" value="${esc(nameIn(w, lang))}" data-li="${i}" aria-label="${esc(t("own.linked"))}"><button class="link" type="button" data-ldel="${i}" aria-label="${esc(t("own.remove"))}">✕</button></span>`).join("");
+}
+/** The other state's fields: the way to add one, or its name and icon and the way to take it away. */
+function renderOwnFlip(tk: OwnToken) {
+  $("#ownTokFlipAdd").hidden = !!tk.flip;
+  $("#ownTokFlipBox").hidden = !tk.flip;
+  $<HTMLInputElement>("#ownTokFlipName").value = tk.flip ? nameIn(tk.flip.name, tokenLang()) : "";
+  $<HTMLInputElement>("#ownTokFlipIq").value = ""; $("#ownTokFlipHits").innerHTML = "";
+}
+
+/**
+ * Where the last change went: "You changed the frame in the style Edition: 7 tokens", with the
+ * way to keep it to this token only (or, after that, to give it to the whole style again). Or a
+ * line about what just happened to the style.
+ */
+function renderScopeNote(shape: TokenShape, style: Style) {
+  const box = $("#scopeNote"), lc = state.lastChange?.key === state.sel!.key ? state.lastChange : null;
+  box.hidden = (!lc && !state.flash) || !!state.templates;
+  if (box.hidden) return;
+  if (!lc) { box.innerHTML = `<p>${esc(state.flash)}</p>`; return; }
+  const n = styleUsers(shape, style.id), what = `<b>${esc(shapeText(lc.label, shape))}</b>`;
+  box.innerHTML = `<p>${lc.to === "style" ? t("scope.style", { what, style: `<b>${esc(styleName(style, shape))}</b>`, n }) : t("scope.token", { what })}</p>
+    <div class="seg2" role="group" aria-label="${esc(t("scope.group"))}"><button type="button" data-scope="style" aria-pressed="${lc.to === "style"}">${esc(t("scope.all", { n }))}</button><button type="button" data-scope="token" aria-pressed="${lc.to === "token"}">${esc(t("scope.only"))}</button></div>`;
+}
+
+/** The parts' tabs, and inside them the back's choices and a face's tabs. */
 function renderTabs(role: Role, spec: TokenSpec) {
   const shape = shapeOf(role), part = openPart(), panel = openPanel();
-  $("#parts").hidden = $("#faceTabs").hidden = state.templates;
+  $("#parts").hidden = !!state.templates;
   $("#parts").innerHTML = partsOf(shape).map((p) => `<button type="button" role="tab" data-part="${p}" aria-selected="${p === part}">${esc(p === "body" ? t(`part.body.${shape}`) : t(`part.${p}`))}</button>`).join("");
   const faceOpen = !state.templates && (part === "front" || (part === "back" && spec.backMode === "own"));
   $("#faceTabs").hidden = !faceOpen;
@@ -1399,17 +1685,15 @@ function renderTabs(role: Role, spec: TokenSpec) {
   $$(".ws-panel").forEach((p) => { p.hidden = p.dataset.panel !== panel; });
 }
 
-/** The coins a back design reaches: the token in "this token only", else every coin picked. Their names, split by whether they have another state. */
+/** The token's other state, if the token being edited has one: its name (a back design doesn't reach it). */
 function backReach() {
-  const keys = state.tab === "token" ? [state.sel!.key] : [...state.pick.keys()];
-  const coins = keys.filter((k) => shapeOf(tokenRole(k)) === "coin");
-  const flips = coins.filter((k) => flipFace(tokenRole(k), { linked: tokenRem(k) != null }));
-  return { flips: flips.map((k) => textFor(k, tokenRole(k), null)), plain: coins.length > flips.length };
+  const { key, role } = state.sel!, other = shapeOf(role) === "coin" ? selFlip(role) : null;
+  return { flips: other ? [textFor(key, role, null)] : [], plain: !other };
 }
 /**
  * BACK's three choices, each drawn on the selected token: the front again, a face of its own, or
  * a design. A token with another state always shows that state on its back, drawn with the front's
- * look (or the back's own), and a line under the choices names them.
+ * look (or the back's own), and a line under the choices says so.
  */
 function renderBackModes(role: Role, spec: TokenSpec, open: boolean) {
   const box = $("#backModes");
@@ -1424,17 +1708,14 @@ function renderBackModes(role: Role, spec: TokenSpec, open: boolean) {
     ["own", back({ ...s, backMode: "own", backFace: own })],
     ["design", back({ ...s, backMode: "design" }, { ...role, flip: undefined })],
   ];
-  const { flips } = backReach(), how = mode === "own" ? "own" : mode === "match" ? "match" : "design";
-  const list = (names: string[]) => (names.length > 1 ? `${names.slice(0, -1).join(", ")}${t("colour.and")}${names.at(-1)}` : names[0]);
-  const note = !flips.length ? "" : state.tab === "token"
-    ? t("flip.mine", { name: roleName(selFlip(role)!, tokenLang()), how })
-    : t("flip.others", { names: list(flips), n: flips.length, how });
+  const how = mode === "own" ? "own" : mode === "match" ? "match" : "design", other = selFlip(role);
+  const note = other ? t("flip.mine", { name: roleName(other, tokenLang()), how }) : "";
   box.innerHTML = `<div class="back-mode-list" role="radiogroup" aria-label="${esc(t("back.modes"))}">${modes.map(([m, svg]) => `<button type="button" role="radio" data-back-mode="${m}" aria-checked="${m === mode}">${svg}<span><b>${esc(t(`back.mode.${m}`))}</b><small>${esc(t(`back.mode.${m}.help`))}</small></span></button>`).join("")}</div>`
     + (note ? `<p class="flip-note"><span aria-hidden="true">⇄</span> ${esc(note)}</p>` : "");
 }
 /** Choosing what the back is. A face of its own starts from ownStart the first time. */
 function setBackMode(mode: BackMode) {
-  changeStyle((s) => {
+  changeLook("look.backMode", (s) => {
     s.backMode = mode;
     if (mode === "own" && !hasOwnLook(s.backFace)) s.backFace = { ...s.backFace, ...ownStart(faceOf(s, "front")) };
   });
@@ -1453,7 +1734,7 @@ function renderColourWarn(role: Role, spec: TokenSpec, key: string) {
   // list, "the name, the icon and the frame"); a ring's are letters, and its frame two lines.
   const words = (p: InlayPart) => (p === "front" ? (shape === "ring" ? ["letters"] : SHAPE_FEATURES[shape].icon ? ["name", "icon"] : ["name"]) : [shape === "ring" && p === "frame" ? "lines" : p]);
   const parts = (list: InlayPart[]) => { const w = list.flatMap(words).map((x) => t(`colour.part.${x}`)); return w.length > 1 ? `${w.slice(0, -1).join(", ")}${t("colour.and")}${w.at(-1)}` : w[0]; };
-  const own = !!state.overrides.get(key)?.spec;
+  const own = state.scope === "token";
   box.innerHTML = [
     clash.length ? `<p><span aria-hidden="true">⚠</span> ${esc(shapeText("colour.clash", shape, { parts: parts(clash), n: clash.length }))}</p>` : "",
     light.length ? `<p><span aria-hidden="true">◐</span> ${esc(shapeText("colour.light", shape, { parts: parts(light), n: light.length, mm: dec1(LIGHT_DEPTH) }))}
@@ -1467,13 +1748,9 @@ const shapeText = (key: string, shape: TokenShape, vars?: Vars) => {
 };
 /** One decimal in the interface's language. */
 const dec1 = (v: number) => v.toFixed(1).replace(".", uiLang() === "es" ? "," : ".");
-/** The fix for light inlays: the depth that covers the coin, on the design the token actually uses. */
+/** The fix for light inlays: the depth that covers the coin, where the next change goes (the style, or this token only). */
 function deepen() {
-  const { key, role } = state.sel!, shape = shapeOf(role), own = state.overrides.get(key)?.spec;
-  rememberTemplate(own ?? state.specs[shape], shape);
-  (own ?? state.specs[shape]).depth = LIGHT_DEPTH;
-  if (own) storeOverrides(); else storeSpec(shape);
-  renderWorkshop(); scheduleSheet();
+  changeLook("look.depth", (s) => { s.depth = LIGHT_DEPTH; });
 }
 
 /** The selection's colour problems (see colour-checks.ts), each with its token key and label. */
@@ -1494,18 +1771,16 @@ function colourNotes(way: string) {
     + (light.length ? `<div class="q-note warn small-text"><span aria-hidden="true">◐</span><div>
       <p>${esc(t("print.light", { n: light.length, mm: dec1(LIGHT_DEPTH) }))}</p>${list(light)}
       <p><button class="pill" type="button" data-deepen-all>${esc(t("print.deepenAll", { n: light.length, mm: dec1(LIGHT_DEPTH) }))}</button></p>
-      ${light.some((x) => !state.overrides.get(x.k)?.spec) ? `<p><small>${esc(t("print.deepenSetNote"))}</small></p>` : ""}</div></div>` : "");
+      ${light.some((x) => state.overrides.get(x.k)?.look?.depth == null) ? `<p><small>${esc(t("print.deepenSetNote"))}</small></p>` : ""}</div></div>` : "");
 }
-/** Deepens every selected token with light inlays on a dark coin: its own design, or its type's. */
+/** Deepens every selected token with light inlays on a dark coin: where its depth comes from, its own changes or its style. */
 function deepenAll() {
-  const types = new Set<TokenShape>();
-  let own = false;
   for (const x of selectionColourIssues().filter((x) => x.light.length)) {
-    const o = state.overrides.get(x.k)?.spec, shape = shapeOf(tokenRole(x.k));
-    if (o) { rememberTemplate(o, shape); o.depth = LIGHT_DEPTH; own = true; } else types.add(shape);
+    const own = state.overrides.get(x.k), shape = shapeOf(tokenRole(x.k));
+    if (own?.look?.depth != null) own.look.depth = LIGHT_DEPTH;
+    else { const st = styleOf(x.k, shape); rememberTemplate(st.spec, shape); st.spec.depth = LIGHT_DEPTH; }
   }
-  for (const shape of types) { rememberTemplate(state.specs[shape], shape); state.specs[shape].depth = LIGHT_DEPTH; storeSpec(shape); }
-  if (own) storeOverrides();
+  storeStyles(); storeOverrides();
   if (state.sel) renderWorkshop();
   renderSheet(); renderSpine(); renderQueue();
 }
@@ -1550,31 +1825,17 @@ function renderBackTiles(role: Role, spec: TokenSpec) {
 }
 
 /**
- * The templates the type being edited has, each drawn on the selected token (a ring on its own
- * base, which a template keeps). In the set, when the queue has other types that have the chosen
- * template too, a button applies it to them as well.
+ * The templates of the token's shape, each drawn on it (a ring on its own base, which a template
+ * keeps): to start a new style from, or to set its style back to.
  */
-function renderPresets(role: Role, editing: TokenSpec) {
-  const shape = shapeOf(role), chosen = templateOf(editing, shape).preset;
+function renderPresets(role: Role, look: TokenSpec) {
+  if (!state.templates) return;
+  const shape = shapeOf(role), st = styleOf(state.sel!.key, shape);
+  $("#tplTitle").textContent = state.templates === "new" ? t("style.newTitle") : t("style.resetTitle", { name: styleName(st, shape) });
+  const chosen = state.templates === "reset" ? templateOf(st.spec, shape).preset : undefined;
   $("#presets").innerHTML = presetsFor(shape).map((p) =>
-    `<button class="preset" type="button" data-preset="${p.id}" aria-pressed="${p === chosen}" title="${esc(shapeText(`preset.${p.id}.help`, shape))}">${tokenSvg(state.lib!, role, { ...presetSpec(p), diameter: 45, ringBase: editing.ringBase }, { text: textFor(charKey(role), role, null) })}<span>${esc(shapeText(`preset.${p.id}`, shape))}</span></button>`).join("");
-  // what the chosen one is: under the tiles, so a phone has it too
-  $("#presetHelp").textContent = chosen ? shapeText(`preset.${chosen.id}.help`, shape) : "";
-  const also = alsoTypes(chosen, shape), btn = $("#presetAlso");
-  btn.hidden = !also.length;
-  if (also.length) {
-    const names = also.map((sh) => t(`type.${sh}.many`).toLowerCase());
-    btn.textContent = t("tpl.alsoTo", { types: names.length > 1 ? `${names.slice(0, -1).join(", ")}${t("colour.and")}${names.at(-1)}` : names[0] });
-    btn.dataset.preset = chosen!.id;
-  }
-}
-/** The queue's other types that have this template and aren't already it, right after it was applied to this type (any
- *  other change and the offer goes); the set only: a token's own design is its own. */
-function alsoTypes(p: Preset | undefined, shape: TokenShape): TokenShape[] {
-  if (!p || state.tab !== "set" || state.applied !== shape || state.specs[shape].preset !== p.id) return [];
-  const here = new Set([...state.pick.keys()].map((k) => shapeOf(tokenRole(k))));
-  return SHAPES.filter((sh) => sh !== shape && here.has(sh) && p.shapes.includes(sh)
-    && (() => { const m = templateOf(state.specs[sh], sh); return m.preset?.id !== p.id || m.modified; })());
+    `<button class="preset" type="button" data-preset="${p.id}" aria-pressed="${p === chosen}" title="${esc(shapeText(`preset.${p.id}.help`, shape))}">${tokenSvg(state.lib!, role, { ...presetSpec(p), diameter: 45, ringBase: look.ringBase, lang: tokenLang(), icon: ownIcon(role.id) }, { text: textFor(charKey(role), role, null) })}<span>${esc(shapeText(`preset.${p.id}`, shape))}</span></button>`).join("");
+  $("#presetHelp").textContent = t(state.templates === "new" ? "style.newHelp" : "style.resetHelp");
 }
 
 /** The selected token's other state, if it has one (a reminder, a token of its own, never does). */
@@ -1609,18 +1870,18 @@ function renderRelief(slot: HTMLElement, shape: TokenShape, side: Side, f: Token
 }
 /** Raising or flattening a face part; raising one while the other face has raised parts asks first (renderRelief). */
 function setRelief(side: Side, part: ReliefPart, raised: boolean) {
-  const s = editingSpec();
+  const s = editLook();
   const other = side === "front" ? (s.backMode === "match" || s.backMode === "own") && hasRelief(s.backFace ?? {}) : hasRelief(s);
   if (raised && other) { state.reliefAsk = { side, part }; renderWorkshop(); return; }
   state.reliefAsk = null;
-  changeFace(side, (f) => { f.relief = { ...reliefOf(f), [part]: raised }; });
+  changeFace(side, "look.relief", (f) => { f.relief = { ...reliefOf(f), [part]: raised }; });
   view3d("setView", "side"); syncView("side");
 }
 /** The answer to the question: the other face flush, and the part asked for raised. */
 function swapRelief() {
   const ask = state.reliefAsk; if (!ask) return;
   state.reliefAsk = null;
-  changeStyle((s) => {
+  changeLook("look.relief", (s) => {
     if (ask.side === "front") { s.backFace = { ...s.backFace, relief: { text: false, frame: false, icon: false } }; s.relief = { ...reliefOf(s), [ask.part]: true }; }
     else { s.relief = { text: false, frame: false, icon: false }; s.backFace = { ...s.backFace, relief: { ...reliefOf(s.backFace ?? {}), [ask.part]: true } }; }
   });
@@ -1650,9 +1911,6 @@ function syncControls(role: Role, spec: TokenSpec, token: Token) {
   row("textSize").hidden = !f.textSize || coinStyle("solo");
   row("spacing").hidden = !f.spacing || coinStyle("window") || coinStyle("solo");
   row("maxArc").hidden = !f.maxArc || coinStyle("window") || coinStyle("solo");
-  // the printed text and the feminine name are the token's own, set on its front
-  $("#tokenOnly").hidden = state.tab !== "token" || side === "back";
-  $("#textOnlyHint").hidden = state.tab === "token" || side === "back";
   // The window's front is the window itself; its icon takes the coin's colour. A card's or a
   // ring's front is only its name.
   $("#frontColourLabel").textContent = shape === "coin" ? t(face.style === "window" ? "front.colourWindow" : "front.colour") : t("front.colourName");
@@ -1669,20 +1927,15 @@ function syncControls(role: Role, spec: TokenSpec, token: Token) {
   $("#nameHint").className = "hint" + (names.some((x) => x && x.letterHeight < smallLetters()) ? " warn" : "");
   $("#nameHint").textContent = side === "back" && b ? (other ? `${t("name.flip", { name: roleName(other, tokenLang()) })} ` : `${t("name.back")} `) + hint(b)
     : hint(token.name) + (names[1] && other ? ` ${t("name.flip", { name: roleName(other, tokenLang()) })} ${hint(names[1])}` : "");
-  // Icon: a token's own icon only in "this token only", on its front
-  $("#iconField").hidden = state.tab !== "token" || side === "back";
-  $("#iconOnlyHint").hidden = state.tab === "token" || side === "back";
   $("#iconColourHint").textContent = t(face.style === "window" ? "icon.colourWindow" : "icon.colourName");
   // Frame: a coin's designs, or for a card or a ring only with or without (any design is a line there)
   if (panel === "frame") renderFrameTiles(who, face);
-  // Back: a design (and its colour) or the front again in a colour of its own
+  // Back: a design (and its colour) or the front again in a colour of its own. The designs are the
+  // style's, for its tokens without another state: one with another state shows that instead (the note says so).
   if (panel === "back") {
     const design = s.backMode !== "match";
     $("#backDesign").hidden = !design; $("#backMatch").hidden = design;
-    // a two-state token has its other state there whatever the design: the designs go when nothing they reach would show one
-    const plain = backReach().plain;
-    for (const el of [$("[data-choice=back]"), $(".metal[data-colour=back]"), $("#backDesign .metal-label")]) el.hidden = !plain;
-    if (design && plain) renderBackTiles(role, s);
+    if (design) renderBackTiles(role, s);
     $("#matchColourLabel").textContent = t(s.style === "window" ? "back.faceColourWindow" : "back.faceColour");
   }
   // Body: its colour, size (a coin's diameter, a ring's base, a card's fixed), thickness and colour depth
@@ -1696,8 +1949,7 @@ function syncControls(role: Role, spec: TokenSpec, token: Token) {
   $("#depthHint").className = "hint" + (token.depthClamped ? " warn" : "");
   $("#depthHint").textContent = token.depthClamped ? t("depth.clamped", { max: token.depthClamped.toFixed(1), core: "0.4" }) : shapeText("depth.help", shape);
   // Magnet: the hole, the pause and how thick the coin has to be, as the token prints it. A back
-  // that is a face has no pocket (the magnet goes inside), and in the set a design back's pocket
-  // skips the coins with another state.
+  // that is a face has no pocket (the magnet goes inside), nor has a token with another state.
   const printed = shapeSpec(role, s), faceBack = s.backMode === "match" || s.backMode === "own";
   const m = magnetLayout(printed), dec2 = (v: unknown) => String(v).replace(".", dec);
   $("#magnetSizeRow").hidden = !m;
@@ -1723,13 +1975,12 @@ function syncControls(role: Role, spec: TokenSpec, token: Token) {
     if (slot.closest<HTMLElement>(".ws-panel")!.dataset.panel !== panel || slot.closest(".back-match[hidden]")) { slot.innerHTML = ""; continue; }
     renderRelief(slot, shape, slot.dataset.reliefPart === "all" ? "back" : side, slot.dataset.reliefPart === "all" ? faceOf(spec, "back") : face, s);
   }
-  // Reset buttons: shown where a field differs from its default (see baseSpec), never on a hidden
-  // field, and not on a back face (its fields follow the front until changed).
-  const { spec: base, name } = baseSpec();
+  // Reset buttons: shown where a field differs from what it resets to (see resetBase), never on a
+  // hidden field, and not on a back face (its fields follow the front until changed).
   for (const btn of $$("[data-reset]")) {
-    const k = btn.dataset.reset!, own = btn.closest(".row") || btn.previousElementSibling;
-    btn.hidden = side === "back" || JSON.stringify(fieldValue(s, k)) === JSON.stringify(fieldValue(base, k)) || !!own?.closest("[hidden]:not(.ws-panel)");   // a closed tab keeps its resets
-    btn.title = name ? t("reset.toPreset", { name }) : t("reset.toSet");
+    const k = btn.dataset.reset!, own = btn.closest(".row") || btn.previousElementSibling, { spec: base, title } = resetBase(k);
+    btn.hidden = side === "back" || sameValue(fieldValue(s, k), fieldValue(base, k)) || !!own?.closest("[hidden]:not(.ws-panel)");   // a closed tab keeps its resets
+    btn.title = title;
     btn.setAttribute("aria-label", btn.title);
   }
 }
@@ -1739,41 +1990,99 @@ function fieldValue(spec: SpecInput, key: string) {
   if (key.startsWith("colours.")) return { ...DEFAULT_SPEC.colours, ...spec.colours }[key.slice(8) as keyof SpecColours];
   return spec[key as keyof TokenSpec] ?? DEFAULT_SPEC[key as keyof TokenSpec];
 }
-/** What a field resets to: the template it started from, else for a token its type's set design
- *  and for the set "Edition" (the starting design). `name` is the template's, if any. */
-function baseSpec(): { spec: TokenSpec; name: string | null } {
-  const set = state.specs[editShape()];
-  if (state.tab === "token" && !state.overrides.get(state.sel!.key)?.spec) return { spec: set, name: null };
-  const p = presetsFor(editShape()).find((x) => x.id === editingSpec().preset);
-  if (p) return { spec: presetSpec(p), name: shapeText(`preset.${p.id}`, editShape()) };
-  if (state.tab === "token") return { spec: set, name: null };
-  return { spec: presetSpec(PRESETS[0]), name: shapeText(`preset.${PRESETS[0].id}`, editShape()) };
+/**
+ * What a field resets to: a field the token changed on its own, its style's value; else the
+ * template the style started from ("Edition" when none), and the button's title says which.
+ */
+function resetBase(field: string): { spec: TokenSpec; title: string; own: boolean } {
+  const { key, role } = state.sel!, shape = shapeOf(role), st = styleOf(key, shape);
+  if (lookFields(state.overrides.get(key)?.look).includes(field)) return { spec: st.spec, own: true, title: t("reset.toStyle", { name: styleName(st, shape) }) };
+  const p = presetsFor(shape).find((x) => x.id === (st.spec.preset ?? st.spec.fromPreset ?? st.tpl)) ?? PRESETS[0];
+  return { spec: presetSpec(p), own: false, title: t("reset.toPreset", { name: shapeText(`preset.${p.id}`, shape) }) };
 }
-function resetField(key: string) {
-  const { spec: base } = baseSpec(), v = structuredClone(fieldValue(base, key));
-  changeStyle((s) => {
-    if (key.startsWith("colours.")) s.colours = { ...DEFAULT_SPEC.colours, ...s.colours, [key.slice(8)]: v as ColourRef };
-    else (s as unknown as Fields)[key] = v;
-    if (key === "back" && v === "custom") s.customSvg = base.customSvg;
+function resetField(field: string) {
+  const { spec: base, own } = resetBase(field), key = state.sel!.key;
+  if (own) {   // the token's own change goes: its style's value again
+    const o = { ...state.overrides.get(key)! }, look = prunedLook(styleOf(key).spec, withoutLookField(o.look!, field));
+    if (look) o.look = look; else delete o.look;
+    setOwn(key, o);
+    return;
+  }
+  const v = structuredClone(fieldValue(base, field));
+  changeLook(`look.${field}`, (s) => {
+    setField(s, field, v);
+    if (field === "back" && v === "custom") s.customSvg = base.customSvg;
   });
 }
 
-/** Applies a design change to whatever the controls are editing: the type's set design, or the token's own. */
-function changeStyle(mutate: (s: TokenSpec) => void) {
-  const shape = editShape(), target = writableSpec();
-  state.applied = null;
-  rememberTemplate(target, shape);
-  mutate(target);
-  if (state.tab === "set") storeSpec(shape); else storeOverrides();
+/**
+ * A change to the look, from any control. It asks nothing first: it goes where changes go now (the
+ * token's style, so every token using it, or this token only once "Only this token" was chosen),
+ * and the note under the style says where, with the way to move it. Changes to one control in a row
+ * (a slider dragged) count as one, so moving it moves all of them.
+ */
+function changeLook(label: string, mutate: (s: TokenSpec) => void) {
+  const { key, role } = state.sel!, shape = shapeOf(role), style = styleOf(key, shape);
+  const own: TokenOverride = { ...state.overrides.get(key) };
+  const last = state.lastChange, run = last && last.key === key && last.label === label && last.to === state.scope && last.styleId === style.id ? last : null;
+  const before = lookOf(key), next = structuredClone(before);
+  mutate(next);
+  const fields = lookDiff(before, next);
+  state.flash = "";
+  if (state.scope === "token") {
+    let look = own.look ?? {};
+    for (const f of fields) look = withLookField(look, f, fieldOf(next, f));
+    const kept = prunedLook(style.spec, look);
+    if (kept) own.look = kept; else delete own.look;
+    state.lastChange = { label, key, to: "token", styleId: style.id, before: run?.before ?? structuredClone(style.spec), fields: [...new Set([...(run?.fields ?? []), ...fields])] };
+  } else {
+    const snapshot = run?.before ?? structuredClone(style.spec);
+    rememberTemplate(style.spec, shape);
+    for (const f of fields) setField(style.spec, f, fieldOf(next, f));
+    if (next.preset !== before.preset) style.spec.preset = next.preset;   // a template applied to the style: it's the one it resets to now
+    // this token shows the change: what it had of its own there goes
+    if (own.look) { let look = own.look; for (const f of fields) look = withoutLookField(look, f); if (lookFields(look).length) own.look = look; else delete own.look; }
+    state.lastChange = { label, key, to: "style", styleId: style.id, before: snapshot, fields: [...new Set([...(run?.fields ?? []), ...fields])] };
+    storeStyles();
+  }
+  setOwn(key, own);
+}
+/**
+ * The note's two buttons. "Only this token" right after a change to the style moves that change to
+ * the token (the style is as it was) and sends the next ones there too; "The whole style" moves the
+ * last change made to the token to its style, and the next ones go to the style.
+ */
+function moveScope(to: "style" | "token") {
+  const lc = state.lastChange, { key, role } = state.sel!, shape = shapeOf(role), style = styleOf(key, shape);
+  state.scope = to;
+  if (lc && lc.key === key && lc.to !== to && lc.styleId === style.id) {
+    const own: TokenOverride = { ...state.overrides.get(key) };
+    if (to === "token") {
+      const now = style.spec, fields = lookDiff(lc.before, now);
+      let look = own.look ?? {};
+      for (const f of fields) look = withLookField(look, f, fieldOf(now, f));
+      style.spec = structuredClone(lc.before);
+      const kept = prunedLook(style.spec, look);
+      if (kept) own.look = kept; else delete own.look;
+      state.lastChange = { ...lc, to, fields };
+    } else {
+      const now = lookOf(key), before = structuredClone(style.spec);
+      let look = own.look ?? {};
+      for (const f of lc.fields) { setField(style.spec, f, fieldOf(now, f)); look = withoutLookField(look, f); }
+      if (lookFields(look).length) own.look = look; else delete own.look;
+      state.lastChange = { ...lc, to, before };
+    }
+    storeStyles();
+    setOwn(key, own);
+    return;
+  }
   renderWorkshop();
-  scheduleSheet();
 }
 let sheetTimer: ReturnType<typeof setTimeout> | number = 0;
 function scheduleSheet() { clearTimeout(sheetTimer); sheetTimer = setTimeout(() => { renderSheet(); renderSpine(); renderQueue(); }, 180); }
-function storeOverrides() { storeJSON(OVERRIDES_KEY, Object.fromEntries(state.overrides)); }
-/** A token's own text, design, feminine name or icon; with none left, it goes back to its type's set design. */
+/** A token's own text, feminine name, icon, style or look changes; with none left, it simply uses its shape's first style. */
 function setOwn(key: string, own: TokenOverride) {
-  if (!own.text && !own.spec && !own.fem && !own.icon) state.overrides.delete(key); else state.overrides.set(key, own);
+  if (!own.text && !own.fem && !own.icon && !own.style && !own.look) state.overrides.delete(key); else state.overrides.set(key, own);
   storeOverrides(); renderWorkshop(); scheduleSheet();
 }
 
@@ -1895,7 +2204,7 @@ function wire() {
   // step 1: tap a token to pick it (or drop it); a team or everything shown at once
   $("#rows").onclick = (e) => {
     const ownEdit = hit(e, "[data-own-edit]");
-    if (ownEdit) { openOwnToken(ownEdit.dataset.ownEdit!); return; }
+    if (ownEdit) { editToken(`c:${ownEdit.dataset.ownEdit!}`); return; }
     const pen = hit(e, "[data-edit]");
     if (pen) { editToken(pen.dataset.edit!); return; }
     if (onCopyStep(e)) return;
@@ -1930,8 +2239,10 @@ function wire() {
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("#addMenu").hidden) { openAddMenu(false); $("#addBtn").focus(); } });
   // the steps
   $("#flowSteps").onclick = (e) => { const b = hit(e, "[data-goto]") as HTMLButtonElement | null; if (b && !b.disabled) goStep(+b.dataset.goto!); };
-  $("#flowBack").onclick = () => goStep(state.step - 1);
-  $("#flowNext").onclick = () => (state.step < 3 ? goStep(state.step + 1) : flow.way === "paper" ? downloadPdf() : downloadBambu());
+  // making a token, the bar's buttons are Cancel, Create and another, and Create
+  $("#flowBack").onclick = () => (state.creating ? cancelCreate() : goStep(state.step - 1));
+  $("#flowMore").onclick = () => createToken(true);
+  $("#flowNext").onclick = () => (state.creating ? createToken(false) : state.step < 3 ? goStep(state.step + 1) : flow.way === "paper" ? downloadPdf() : downloadBambu());
   // step 2: your tokens; tap one to give it its own design
   $("#designGrid").onclick = (e) => {
     const drop = hit(e, "[data-drop]");
@@ -1979,24 +2290,42 @@ function wire() {
     view3d("setXray", on);
     if (on) { view3d("setView", "side"); syncView("side"); }
   };
-  $$(".scope [data-tab]").forEach((b) => b.onclick = () => {
-    state.tab = b.dataset.tab!;
-    if (state.tab === "token" && state.templates) showTab({ part: "front", face: "text" });   // a token's text and icon are what's new here
-    renderWorkshop();
-  });
-  $("#typeRow").onclick = (e) => { const b = hit(e, "[data-type]"); if (b) chooseType(b.dataset.type as TokenShape); };
+  // the style: its menu, and the way back to it
+  $("#styleChip").onclick = () => openStyleMenu($("#styleMenu").hidden);
+  $("#styleMenu").onclick = (e) => {
+    const pick = hit(e, "[data-style-pick]"), act = hit(e, "[data-style-act]");
+    if (pick) { openStyleMenu(false); setTokenStyle(state.sel!.key, pick.dataset.stylePick!); }
+    else if (act) styleAction(act.dataset.styleAct!);
+  };
+  $("#styleMenu").onkeydown = (e) => {
+    const items = $$("#styleMenu button"), i = items.indexOf(document.activeElement as HTMLElement);
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); items[(i + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length]?.focus(); }
+    else if (e.key === "Escape") { openStyleMenu(false); $("#styleChip").focus(); }
+  };
+  document.addEventListener("click", (e) => { if (!$("#styleMenu").hidden && !hit(e, "#styleRow")) openStyleMenu(false); });
+  $("#styleBack").onclick = () => {
+    const key = state.sel!.key, own: TokenOverride = { ...state.overrides.get(key) };
+    delete own.look;
+    state.lastChange = null; state.scope = "style"; state.flash = t("style.backDone");
+    setOwn(key, own);
+  };
+  $("#scopeNote").onclick = (e) => { const b = hit(e, "[data-scope]"); if (b) moveScope(b.dataset.scope as "style" | "token"); };
+  $("#shapeRow").onclick = (e) => { const b = hit(e, "[data-shape]"); if (b) chooseShape(b.dataset.shape as TokenShape); };
+  $("#shapeRow").onchange = (e) => {
+    const el = e.target as HTMLSelectElement, tk = el.dataset.typePick != null ? ownTokenOf(state.sel!.role.id) : null;
+    if (tk) { tk.type = el.value; ownEdited(); }
+  };
   $("#parts").onclick = (e) => { const b = hit(e, "[data-part]"); if (!b) return; showTab({ part: b.dataset.part as Part }); viewTab(); renderWorkshop(); };
   $("#faceTabs").onclick = (e) => { const b = hit(e, "[data-face]"); if (!b) return; showTab({ face: b.dataset.face as FaceTab }); renderWorkshop(); };
   $("#backModes").onclick = (e) => { const b = hit(e, "[data-back-mode]"); if (b) setBackMode(b.dataset.backMode as BackMode); };
-  // opens the templates; closing goes back to the tab you were on
-  $("#tplRow").onclick = () => { showTab({ templates: !state.templates }); viewTab(); renderWorkshop(); };
+  $("#tplCancel").onclick = () => { showTab(); viewTab(); renderWorkshop(); };
   // A face's choices and sliders go to the face being edited (the front, or a back of its own); the rest to the token.
   const FACE_KEYS = new Set<string>(FACE_FIELDS);
-  const change = (key: string, mutate: (s: TokenSpec) => void) => (FACE_KEYS.has(key) ? changeFace(editSide(), mutate) : changeStyle(mutate));
+  const change = (key: string, mutate: (s: TokenSpec) => void) => (FACE_KEYS.has(key) ? changeFace(editSide(), `look.${key}`, mutate) : changeLook(`look.${key}`, mutate));
   for (const key of ["style", "frame", "back", "magnet", "magnetSize", "ringBase"]) {
     $(`[data-choice=${key}]`).onclick = (e) => {
       const b = hit(e, "button"); if (!b) return;
-      if (key === "back" && b.dataset.v === "custom" && !editingSpec()?.customSvg) { $("#upload").click(); return; }
+      if (key === "back" && b.dataset.v === "custom" && !editLook().customSvg) { $("#upload").click(); return; }
       change(key, (s) => {
         // a name size doesn't carry over between layouts: each starts from its own
         if (key === "style" && (s.style ?? DEFAULT_SPEC.style) !== b.dataset.v) s.textSize = LAYOUT_TEXT[b.dataset.v as TokenStyle];
@@ -2009,9 +2338,9 @@ function wire() {
   for (const box of $$(".metal")) box.onclick = (e) => {
     const b = hit(e, "button"); if (!b) return;
     const key = box.dataset.colour!, mutate = (s: TokenSpec) => { s.colours = { ...DEFAULT_SPEC.colours, ...s.colours, [key]: b.dataset.v! }; };
-    if (box.dataset.side === "back") changeFace("back", mutate);
-    else if (box.closest("[data-panel=text], [data-panel=frame]")) changeFace(editSide(), mutate);
-    else changeStyle(mutate);
+    if (box.dataset.side === "back") changeFace("back", "look.colours.backFace", mutate);
+    else if (box.closest("[data-panel=text], [data-panel=frame]")) changeFace(editSide(), `look.colours.${key}`, mutate);
+    else changeLook(`look.colours.${key}`, mutate);
   };
   for (const id of Object.keys(RANGES) as RangeKey[]) $("#" + id).oninput = (e) => change(id, (s) => { s[id] = +input(e).value; });
   $("#colourWarn").addEventListener("click", (e) => { if (hit(e, "[data-deepen]")) deepen(); });
@@ -2035,23 +2364,19 @@ function wire() {
     hint.hidden = false;
     if (f.size > MAX_SVG) { hint.className = "hint warn"; hint.textContent = t("upload.tooBig", { file: f.name, kb: (f.size / 1024).toFixed(0), max: MAX_SVG / 1000 }); return; }
     const svg = await f.text();
-    changeStyle((s) => { s.customSvg = svg; s.back = "custom"; });
+    changeLook("look.back", (s) => { s.customSvg = svg; s.back = "custom"; });
     hint.className = "hint"; hint.textContent = t("upload.using", { file: f.name });
     view3d("setView", "back"); syncView("back");
   };
+  // a template: a new style from it, or the style set back to it (a change like any other: the note says where it went)
   $("#presets").onclick = (e) => {
     const b = hit(e, "[data-preset]"); if (!b) return;
-    changeStyle((s) => applyPreset(s, PRESETS.find((p) => p.id === b.dataset.preset)!));
-    if (state.tab === "set") state.applied = editShape();   // offers it to the queue's other types too
+    const p = PRESETS.find((x) => x.id === b.dataset.preset)!;
+    if (state.templates === "new") { newStyleFrom(p); viewTab(); return; }
+    showTab(); viewTab();
+    changeLook("look.template", (s) => applyPreset(s, p));
   };
-  // the chosen template on the queue's other types too
-  $("#presetAlso").onclick = () => {
-    const p = PRESETS.find((x) => x.id === $("#presetAlso").dataset.preset); if (!p) return;
-    for (const sh of alsoTypes(p, editShape())) { applyPreset(state.specs[sh], p); storeSpec(sh); }
-    state.applied = null;
-    renderWorkshop(); scheduleSheet();
-  };
-  // this token only
+  // what the token says: its printed text, its feminine name and its icon (Clocktower's, a closed collection's)
   $("#printed").oninput = (e) => {
     const own = { ...(state.overrides.get(state.sel!.key) || {}), text: input(e).value };
     setOwn(state.sel!.key, own);
@@ -2062,10 +2387,7 @@ function wire() {
     if (input(e).checked) own.fem = true; else delete own.fem;
     setOwn(state.sel!.key, own);
   };
-  $("#resetToken").onclick = () => { state.overrides.delete(state.sel!.key); storeOverrides(); renderWorkshop(); scheduleSheet(); };
   $("#download").onclick = forge;
-  $("#save").onclick = save;
-  $("#saved").onclick = onSavedClick;
 
   // your selection: copies, reminders, clear
   $("#queueToggle").onclick = openQueue;
@@ -2107,7 +2429,7 @@ async function forge() {
 // ------------------------------------------------------------ selection
 
 // What you picked: token keys ("c:imp", "r:imp:0") with how many copies, in the order picked.
-// Picked tokens always use the set's design (or the token's own), so nothing goes stale.
+// Picked tokens always use their style (with their own changes), so nothing goes stale.
 function loadPicks() {
   const saved = loadJSON<[string, number][] | null>(PICK_KEY, null);
   if (Array.isArray(saved)) return new Map(saved.filter(([k, n]) => tokenRole(k) && n > 0));
@@ -2145,16 +2467,15 @@ function queueNow() {
   }
   return out;
 }
-/** A queue entry as the sheet would draw it now: the token language, the set's style (or the token's own) and its text. */
+/** A queue entry as the sheet would draw it now: the token language, its style's look (with its own changes) and its text. */
 function queueEntry(role: Role, ri: number | null): QueueEntry {
   const isRem = ri != null, key = isRem ? remKey(role, ri) : charKey(role);
-  const own = state.overrides.get(key);
   return {
     roleId: role.id, ri: isRem ? ri : null,
     reminder: isRem ? textFor(key, role, ri) : null,
     text: isRem ? null : textFor(key, role, null),
-    custom: !!own,
-    spec: { ...structuredClone(own?.spec ?? state.specs[shapeOf(role)]), lang: tokenLang(), icon: ownIcon(role.id) },
+    custom: hasOwn(key),
+    spec: { ...structuredClone(lookOf(key)), lang: tokenLang(), icon: ownIcon(role.id) },
   };
 }
 const isReminder = (q: QueueEntry): q is QueueEntry & { reminder: string } => q.reminder != null;
@@ -2245,13 +2566,15 @@ const queuePic = (q: QueueEntry, role = roleById(q.roleId)!) => tokenSvg(state.l
 
 /** Moves to step 1 (pick), 2 (design) or 3 (print). Steps 2 and 3 need something picked. */
 function goStep(step: number) {
-  if (step > 1 && !state.pick.size) step = 1;
+  if (state.creating && step !== 2) { dropDraft(); }   // leaving the token being made leaves it unmade
+  if (step > 1 && !state.pick.size && !state.creating) step = 1;
   state.step = step;
   $("#app").dataset.step = String(step);
+  $("#app").toggleAttribute("data-creating", !!state.creating);
   drawer(false);
   if (step === 2) {
-    // the workshop shows a picked token, preferably the one already selected
-    if (!state.sel || !isPicked(state.sel!.key)) { const k = state.pick.keys().next().value; selectToken(k); }
+    // the workshop shows a picked token, preferably the one already selected (or the one being made)
+    if (!state.creating && (!state.sel || !isPicked(state.sel!.key))) { const k = state.pick.keys().next().value; selectToken(k); }
     renderWorkshop(); renderDesignStage();
     revealPicked();
   }
@@ -2272,11 +2595,12 @@ function renderQueue() {
   $("#queueSummary").textContent = n ? t("queue.summary", { c: chars, r: rems }) : t("pick.help");
   $("#flowBack").hidden = step === 1;
   // on a phone only the chevron shows; the step's name stays as the label
-  $("#flowBack").innerHTML = step > 1 ? `<span aria-hidden="true">‹</span> <span class="fb-l">${esc(t(`flow.step${step - 1}`))}</span>` : "";
-  $("#flowBack").setAttribute("aria-label", step > 1 ? t(`flow.step${step - 1}`) : "");
+  $("#flowBack").innerHTML = state.creating ? esc(t("script.cancel")) : step > 1 ? `<span aria-hidden="true">‹</span> <span class="fb-l">${esc(t(`flow.step${step - 1}`))}</span>` : "";
+  $("#flowBack").setAttribute("aria-label", state.creating ? t("script.cancel") : step > 1 ? t(`flow.step${step - 1}`) : "");
+  $("#flowMore").hidden = !state.creating;
   const next = $<HTMLButtonElement>("#flowNext");
-  next.textContent = step === 1 ? `${t("flow.step2")} ›` : step === 2 ? `${t("flow.step3")} ›` : (flow.way === "paper" ? t("queue.downloadPdf") : t("queue.download", { printer: `Bambu ${printerOf(flow.printer).short}` }));
-  next.disabled = !n;
+  next.textContent = state.creating ? t("create.create") : step === 1 ? `${t("flow.step2")} ›` : step === 2 ? `${t("flow.step3")} ›` : (flow.way === "paper" ? t("queue.downloadPdf") : t("queue.download", { printer: `Bambu ${printerOf(flow.printer).short}` }));
+  next.disabled = !n && !state.creating;
   if ($<HTMLDialogElement>("#queueDrawer").open) renderQueueList();
   if (step === 2) renderDesignStage();
   if (step === 3) renderPrintStep();
@@ -2340,7 +2664,7 @@ function renderQueueList() {
     const r = tokenRole(k), ri = tokenRem(k), isRem = ri != null, name = textFor(k, r, ri), char = textFor(charKey(r), r, null);
     const pic = tokenSvg(state.lib!, r, { ...specFor(k, isRem), back: "none" }, { text: name });
     return `<div class="q-item${isRem ? " r" : ""}"><span class="pic">${pic}</span>
-      <span class="q-name"><b>${esc(name)}${state.overrides.has(k) ? ` ${ownPen(k, name)}` : ""}</b>${isRem ? `<small>${esc(char)}</small>` : ""}</span>
+      <span class="q-name"><b>${esc(name)}${hasOwn(k) ? ` ${ownPen(k, name)}` : ""}</b>${isRem ? `<small>${esc(char)}</small>` : ""}</span>
       ${qty(k, isRem ? `${char}: ${name}` : name)}</div>`;
   };
   const section = (title: string, list: string[], byTeam: boolean) => !list.length ? "" : `<section class="q-sec"><h3 class="q-sec-h">${esc(title)}<small>${esc(t("queue.count", { n: copies(list) }))}</small></h3>`
@@ -2349,7 +2673,7 @@ function renderQueueList() {
   $("#queue").innerHTML = section(t("queue.chars"), chars, true) + section(t("queue.rems"), rems, false);
 }
 
-// ------------------------------------------------------------ step 2: your tokens in the set's design
+// ------------------------------------------------------------ step 2: your tokens in their styles
 
 function renderDesignStage() {
   // the coins on the side the 3D view shows: from behind when it's turned over
@@ -2359,7 +2683,7 @@ function renderDesignStage() {
     const spec = specFor(k, ri != null);
     const label = ri != null ? `${textFor(charKey(role), role, null)}: ${text}` : text;
     // the copies stepper sits beside the button (a button can't hold buttons), over the coin's foot
-    return `<div class="ds-item${ri != null ? " r" : ""}"><button class="ds-cell${ri != null ? " r" : ""}${isCard(role) ? " card" : ""}" type="button" data-design="${k}" aria-current="${state.sel?.key === k}" title="${esc(t("design.tap"))}">${tokenSvg(state.lib!, role, spec, { text, side: shapeOf(role) === "coin" ? side : "front" })}${state.overrides.has(k) ? `<span class="mark" title="${esc(t("sheet.own"))}">✎</span>` : ""}<span>${esc(label)}</span></button><button type="button" class="ds-drop" data-drop="${k}" aria-label="${esc(t("queue.removeAria", { name: label }))}">${BIN}</button></div>`;
+    return `<div class="ds-item${ri != null ? " r" : ""}"><button class="ds-cell${ri != null ? " r" : ""}${isCard(role) ? " card" : ""}" type="button" data-design="${k}" aria-current="${state.sel?.key === k}" title="${esc(t("design.tap"))}">${tokenSvg(state.lib!, role, spec, { text, side: shapeOf(role) === "coin" ? side : "front" })}${hasOwn(k) ? `<span class="mark" title="${esc(t("sheet.own"))}">✎</span>` : ""}<span>${esc(label)}</span></button><button type="button" class="ds-drop" data-drop="${k}" aria-label="${esc(t("queue.removeAria", { name: label }))}">${BIN}</button></div>`;
   }).join("");
 }
 /** Takes a token out of the selection from step 2, with Undo. The workshop moves on to another
@@ -2371,8 +2695,9 @@ function dropFromDesign(key: string) {
   if (!state.pick.size) { goStep(1); return; }
   if (!state.sel || !isPicked(state.sel.key)) { selectToken(sortKeys(state.pick.keys())[0]); renderWorkshop(); renderDesignStage(); }
 }
-/** Tapping one of your tokens: the workshop shows it. What you're editing (set or token) stays as it is. */
+/** Tapping one of your tokens: the workshop shows it (a token being made is left unmade). */
 function designToken(key: string) {
+  if (state.creating) { dropDraft(); $("#app").removeAttribute("data-creating"); renderQueue(); }
   const was = state.sel && shapeOf(state.sel.role);
   selectToken(key);
   // another type: its design opens where it was left, the 3D view turned to it
@@ -2386,9 +2711,9 @@ function revealPicked() { $("#designGrid .ds-cell[aria-current=true]")?.scrollIn
 function editToken(key: string) {
   if (!isPicked(key)) { setPick(key, true); picksChanged(); }
   if ($<HTMLDialogElement>("#queueDrawer").open) $<HTMLDialogElement>("#queueDrawer").close();
+  if (state.creating) dropDraft();
   selectToken(key);
-  state.tab = "token";
-  showTab({ part: "front", face: "text" });
+  showTab({ part: "front" });
   goStep(2);
   revealPicked();
 }
@@ -2560,80 +2885,34 @@ declare global {
 }
 window.__mm = { goStep, designToken, estimates: () => plateEstimates(queuePlan()) };
 
-// ------------------------------------------------------------ saved designs
+// ------------------------------------------------------------ designs saved to an account
 
-// Saved designs live in this browser (localStorage), newest first.
-const readDesigns = () => loadJSON<Design[]>(DESIGNS_KEY, []).filter((d) => d && d.id && d.roleId && d.spec).map((d) => ({ ...d, spec: upgradeSpec(d.spec) }));
-const writeDesigns = (list: Design[]) => storeJSON(DESIGNS_KEY, list);
-function refreshDesigns() { state.designs = readDesigns(); renderDesigns(); }
-
-/** Moves designs saved to an account (before sign-in was dropped) into this browser. */
+/**
+ * Moves designs saved to an account (before sign-in was dropped) into this browser: as saved
+ * designs while the styles haven't been made yet (they'll become styles with the rest), else
+ * straight as styles of their type.
+ */
 async function importAccountDesigns(user: User) {
   const remote = await listAccountDesigns(user.uid);
   if (!remote.length) return;
-  const list = readDesigns();
-  for (const d of remote) {
-    if (list.some((x) => x.id === d.id)) continue;
-    const { updatedAt, ...rest } = d;
-    list.push({ ...rest, updatedAt: updatedAt?.toMillis?.() ?? Date.now() } as Design);
+  const styles = loadJSON<Record<TokenShape, Style[]> | null>(STYLES_KEY, null);
+  if (styles) {
+    for (const d of remote) {
+      const role = state.lib && roleById(d.roleId), shape = (d.shape as TokenShape | undefined) ?? (role ? shapeOf(role) : "coin"), { lang: _lang, ...spec } = upgradeSpec(d.spec as TokenSpec);
+      if (!styles[shape].some((x) => x.id === d.id)) styles[shape].push({ id: d.id, name: d.title, spec: spec as TokenSpec });
+    }
+    storeJSON(STYLES_KEY, styles);
+    if (state.lib) loadStyles();
+  } else {
+    const list = loadJSON<Design[]>(DESIGNS_KEY, []);
+    for (const d of remote) {
+      if (list.some((x) => x.id === d.id)) continue;
+      const { updatedAt, ...rest } = d;
+      list.push({ ...rest, updatedAt: updatedAt?.toMillis?.() ?? Date.now() } as Design);
+    }
+    storeJSON(DESIGNS_KEY, list);
   }
-  writeDesigns(list.sort((a, b) => b.updatedAt - a.updatedAt));
   await Promise.all(remote.map((d) => deleteAccountDesign(user.uid, d.id)));
-  if (state.lib) refreshDesigns();
-}
-/** A saved design's type: as it was saved, or (one saved before designs were kept per type) its character's shape. */
-const designShape = (d: Design) => d.shape ?? shapeOf(roleById(d.roleId));
-/** The saved designs of the type being edited. */
-function renderDesigns() {
-  if (!state.lib) return;
-  const shape = state.sel ? shapeOf(state.sel.role) : "coin";
-  const list = state.designs.filter((d) => roleById(d.roleId) && designShape(d) === shape);
-  $("#savedSummary").textContent = list.length ? String(list.length) : "";
-  $("#saved").innerHTML = list.map((d) => {
-    const role = roleById(d.roleId)!;
-    const pic = tokenSvg(state.lib!, role, { ...DEFAULT_SPEC, ...d.spec, diameter: 45, colours: { ...DEFAULT_SPEC.colours, ...d.spec.colours } }, { text: d.text || (d.fem && role.fem?.[d.spec.lang]) || roleName(role, d.spec.lang) });
-    return `<li><button class="open" type="button" data-open="${d.id}">${pic}<span>${esc(d.title)}</span></button><button class="del" type="button" data-del="${d.id}" aria-label="${esc(t("saved.deleteAria", { name: d.title }))}">${esc(t("saved.delete"))}</button></li>`;
-  }).join("") || `<li class="hint">${esc(t("saved.empty"))}</li>`;
-}
-async function save() {
-  const btn = $<HTMLButtonElement>("#save");
-  btn.disabled = true;
-  const { key, role, reminder } = state.sel!;
-  if (reminder != null) { $("#saveNote").textContent = t("saved.charactersOnly"); btn.disabled = false; return; }
-  const title = textFor(key, role, null);
-  try {
-    const spec = specFor(key, false);
-    // One saved design per character: saving again updates it.
-    const list = readDesigns().filter((d) => d.roleId !== role.id);
-    list.unshift({ id: role.id, roleId: role.id, text: state.overrides.get(key)?.text || null, fem: !!state.overrides.get(key)?.fem, spec, title, updatedAt: Date.now(), shape: shapeOf(role) });
-    writeDesigns(list);
-    $("#saveNote").textContent = t("saved.saved", { name: title });
-    refreshDesigns();
-  } catch (err) {
-    $("#saveNote").textContent = t("saved.failed", { message: (err as Error).message });
-  } finally { btn.disabled = false; }
-}
-async function onSavedClick(e: Event) {
-  const open = hit(e, "[data-open]"), del = hit(e, "[data-del]");
-  if (open) {
-    // A saved design becomes that token's own style and name.
-    const d = state.designs.find((x) => x.id === open.dataset.open)!;
-    const role = roleById(d.roleId)!;
-    const { lang, ...spec } = d.spec;   // the token language decides that
-    state.overrides.set(charKey(role), { text: d.text || null, spec: spec as TokenSpec, ...(d.fem ? { fem: true } : {}) });
-    storeOverrides();
-    if (role.edition) state.edition = role.edition;
-    $<HTMLInputElement>("#search").value = "";
-    state.tab = "token";
-    renderSpine(); renderSheet();
-    if (state.step === 2) { selectToken(charKey(role)); renderWorkshop(); renderDesignStage(); }
-    $("#saveNote").textContent = t("saved.opened", { name: d.title });
-  }
-  if (del) {
-    if (del.dataset.confirm !== "1") { del.dataset.confirm = "1"; del.textContent = t("saved.deleteConfirm"); return; }
-    writeDesigns(readDesigns().filter((d) => d.id !== del.dataset.del));
-    refreshDesigns();
-  }
 }
 
 // ------------------------------------------------------------ credits
@@ -2759,10 +3038,12 @@ function syncOwnChrome() {
 
 /** After any change to the collection: keep it, redraw, and drop picks and designs of tokens that are gone. */
 function collectionChanged() {
+  clearTimeout(ownTimer);
   storeCollection(coll);
   applyGroups();
-  state.lib!.roles = collectionRoles(coll, uiLang());
-  const ids = new Set(coll.tokens.map((x) => x.id)), linkedOf = new Map(coll.tokens.map((x) => [x.id, x.linked.length]));
+  state.lib!.roles = ownRoles();
+  // the token being made is there too, with its style
+  const ids = new Set([...coll.tokens, ...(state.creating ? [state.creating.draft] : [])].map((x) => x.id)), linkedOf = new Map([...coll.tokens, ...(state.creating ? [state.creating.draft] : [])].map((x) => [x.id, x.linked.length]));
   const alive = (k: string) => { const [kind, id, i] = k.split(":"); return ids.has(id) && (kind !== "r" || +i < linkedOf.get(id)!); };
   for (const k of [...state.pick.keys()]) if (!alive(k)) state.pick.delete(k);
   for (const k of [...state.overrides.keys()]) if (!alive(k)) state.overrides.delete(k);
@@ -2878,7 +3159,7 @@ function wireOwn() {
     if (what === "import") $("#ownImportFile").click();
   });
   wireOwnSettings();
-  $("#ownNewTok").onclick = () => openOwnToken(null);
+  $("#ownNewTok").onclick = () => startCreate();
   $<HTMLInputElement>("#ownImportFile").onchange = async (e) => {
     const f = input(e).files?.[0]; input(e).value = ""; if (!f) return;
     const noteEl = $("#ownNote");
@@ -2946,63 +3227,116 @@ function renderOwnGroups() {
   </div>`).join("");
 }
 
-// a token, made or changed: the editor holds a copy until it's saved. Names are edited in the
-// token language (a collection with translations keeps the others).
-let ownDraft: (OwnToken & { cats: string[] }) | null = null;
-function openOwnToken(id: string | null) {
-  const tk = id ? coll.tokens.find((x) => x.id === id) : null, lang = tokenLang();
-  const here = catalogOf(state.edition), hereType = typeOfView(state.edition);
-  const openCats = coll.sections.filter((s) => s.open).flatMap((s) => s.catalogs);
-  ownDraft = tk
-    ? { ...structuredClone(tk), cats: openCats.filter((k) => k.tokens.includes(tk.id)).map((k) => k.id) }
-    : { id: newId("t"), type: hereType?.id ?? coll.types[0].id, name: "", icon: null, linked: [], cats: here ? [here.id] : [],
-        group: state.team !== "all" && coll.groups.some((g) => g.id === state.team) ? state.team : coll.groups[0].id };
-  $("#ownTokTitle").textContent = t(tk ? "own.editToken" : "own.newTokenTitle");
-  $("#ownTokSave").textContent = t(tk ? "own.save" : "own.add");
-  $("#ownTokDelete").hidden = !tk;
-  $<HTMLInputElement>("#ownTokName").value = nameIn(ownDraft.name, lang);
-  $<HTMLInputElement>("#ownTokIq").value = ""; $("#ownTokHits").innerHTML = "";
-  $("#ownTokTypeRow").hidden = coll.types.length < 2;
-  $("#ownTokType").innerHTML = coll.types.map((x) => `<option value="${esc(x.id)}"${x.id === ownDraft!.type ? " selected" : ""}>${esc(nameIn(x.name, uiLang()))}</option>`).join("");
-  $("#ownTokGroup").innerHTML = coll.groups.map((g) => `<option value="${esc(g.id)}"${g.id === ownDraft!.group ? " selected" : ""}>${esc(nameIn(g.name, uiLang()))}</option>`).join("");
-  $("#ownTokCats").innerHTML = openCats.map((k) => `<label class="check"><input type="checkbox" value="${esc(k.id)}"${ownDraft!.cats.includes(k.id) ? " checked" : ""}> ${esc(nameIn(k.name, uiLang()))}</label>`).join("") || `<p class="hint">${esc(t("own.noCatalogs"))}</p>`;
-  renderOwnLinked(); renderOwnFlip(); drawOwnPreview();
-  $<HTMLDialogElement>("#ownTok").showModal();
-  if (!tk) $("#ownTokName").focus();
+// A token of your collection, made or changed, in the design step's editor. A token being made is a
+// draft (state.creating) drawn like any token until it's created; its content is edited in place,
+// a token's content the same, kept at once (and the sheet redrawn a moment later).
+
+/** Your collection's tokens as characters, and the one being made. */
+function ownRoles() {
+  const roles = collectionRoles(coll, uiLang());
+  if (state.creating) roles.push(draftRole(state.creating));
+  return roles;
 }
-function renderOwnLinked() {
-  const lang = tokenLang();
-  $("#ownTokLinked").innerHTML = ownDraft!.linked.map((w, i) => `<span class="own-link"><input class="text" value="${esc(nameIn(w, lang))}" data-li="${i}" aria-label="${esc(t("own.linked"))}"><button class="link" type="button" data-ldel="${i}" aria-label="${esc(t("own.remove"))}">✕</button></span>`).join("");
+/** The token being made as a character of a shape: its type's, or (a shape the collection doesn't use yet) one to come. */
+function draftRole(c: Creating, shape = c.shape): Role {
+  const type = coll.types.find((x) => x.id === c.draft.type && x.shape === shape) ?? { id: "__draft", name: "", title: "", shape };
+  return ownRole({ ...coll, types: [...coll.types, type] }, { ...c.draft, type: type.id }, uiLang());
 }
-/** The draft's shape, by its type. */
-const draftShape = () => coll.types.find((x) => x.id === ownDraft!.type)?.shape ?? "coin";
-/** The other state's fields: offered for a shape that has two states, open once it has one. */
-function renderOwnFlip() {
-  const d = ownDraft!;
-  $("#ownTokFlipRow").hidden = !SHAPE_FEATURES[draftShape()].flip;
-  $("#ownTokFlipAdd").hidden = !!d.flip;
-  $("#ownTokFlipBox").hidden = !d.flip;
-  $<HTMLInputElement>("#ownTokFlipName").value = d.flip ? nameIn(d.flip.name, tokenLang()) : "";
-  $<HTMLInputElement>("#ownTokFlipIq").value = ""; $("#ownTokFlipHits").innerHTML = "";
+/** A type of a shape for a token being made: the sheet's own type if it has that shape, else the collection's first of it (none: one comes with Create). */
+function typeFor(shape: TokenShape) {
+  const here = typeOfView(state.edition);
+  return (here?.shape === shape ? here : coll.types.find((x) => x.shape === shape))?.id ?? "__draft";
 }
-function drawOwnPreview() {
-  const d = ownDraft!;
-  const role = { ...collectionRoles({ ...coll, tokens: [d] }, uiLang())[0], id: `__draft_${d.id}`, iconKey: `__draft:${d.icon?.id ?? "none"}` };
-  const spec = { ...state.specs[draftShape()], lang: tokenLang() };
-  const name = nameIn(d.name, tokenLang()).trim() || t("own.namePlaceholder");
-  const coin = draftShape() === "coin";
-  // a two-state token: its other state, as its back prints
-  const other = flipFace(role, spec);
-  $("#ownTokPv").innerHTML = tokenSvg(state.lib!, role, spec, { text: name })
-    + (other ? `<span class="own-pv-flip" title="${esc(t("sheet.flip"))}">⇄ ${tokenSvg(state.lib!, role, spec, { side: "back" })}</span>` : "")
-    + (d.linked.length && coin ? `<span class="own-pv-links">${d.linked.slice(0, 4).map((w) => tokenSvg(state.lib!, role, reminderSpec(spec), { text: nameIn(w, tokenLang()) || "…" })).join("")}</span>` : "");
+let ownTimer: ReturnType<typeof setTimeout> | number = 0;
+/** After a change to a token's content (its name, icon, group…): drawn at once; your collection's is kept, and the sheet redrawn, a moment later. */
+function ownEdited() {
+  state.lib!.roles = ownRoles();
+  const r = roleById(state.sel!.role.id); if (r) state.sel = { ...state.sel!, role: r };
+  renderWorkshop(); renderDesignStage();
+  if (!state.creating) { clearTimeout(ownTimer); ownTimer = setTimeout(collectionChanged, 400); }
 }
+
+/**
+ * "+ Token": the editor on a new token, in the step that designs (with nothing picked too). Its shape
+ * is the sheet's type's, its group the one the sheet shows, and it goes in the catalog open; "Create
+ * and another" passes on the last one's shape, type, group, style and catalogs.
+ */
+function startCreate(like?: { shape: TokenShape; type: string; group: string; style?: string; cats: string[]; back: number }) {
+  if (state.creating) dropDraft();
+  const here = catalogOf(state.edition), shape = like?.shape ?? typeOfView(state.edition)?.shape ?? "coin";
+  const group = like?.group ?? (state.team !== "all" && coll.groups.some((g) => g.id === state.team) ? state.team : coll.groups[0].id);
+  const draft: OwnToken = { id: newId("t"), type: like?.type ?? typeFor(shape), group, name: "", icon: null, linked: [] };
+  state.creating = { draft, shape, cats: like?.cats ?? (here ? [here.id] : []), back: like?.back ?? state.step };
+  if (like?.style) state.overrides.set(charKey(draft as unknown as Role), { style: like.style });
+  state.lib!.roles = ownRoles();
+  selectToken(`c:${draft.id}`);
+  state.templates = null; state.part[shape] = "front";
+  goStep(2);
+  renderQueue();
+  setTimeout(() => $("#ownTokName").focus(), 60);   // once the editor has drawn
+}
+/** The token being made is dropped: its draft and its style. */
+function dropDraft() {
+  const c = state.creating; if (!c) return;
+  state.creating = null;
+  state.overrides.delete(`c:${c.draft.id}`);
+  state.lib!.roles = ownRoles();
+  if (state.sel?.role.id === c.draft.id) state.sel = null;
+}
+/** Cancel: back to where it was started (the design step, if there are tokens to design). */
+function cancelCreate() {
+  const back = state.creating?.back ?? 1;
+  dropDraft();
+  goStep(back === 2 && state.pick.size ? 2 : 1);
+}
+/** Choosing the shape of the token being made: its type follows, and the shape's first style. */
+function chooseShape(shape: TokenShape) {
+  const c = state.creating; if (!c || c.shape === shape) return;
+  c.shape = shape; c.draft.type = typeFor(shape);
+  const key = `c:${c.draft.id}`, own = state.overrides.get(key);
+  if (own) state.overrides.delete(key);   // a style is a shape's: the new shape's first
+  state.part[shape] = "front"; state.lastChange = null;
+  ownEdited(); viewTab();
+}
+/**
+ * Create: the token joins the collection (with a type for its shape, made now if the collection
+ * had none: "Coins", "Rings", "Cards") and the queue, and the editor goes on editing it; "Create
+ * and another" opens a new one like it instead. It needs a name, and its other state one too.
+ */
+function createToken(more: boolean) {
+  const c = state.creating; if (!c) return;
+  const d = c.draft, lang = tokenLang();
+  if (!nameIn(d.name, lang).trim()) { showTab({ part: "front" }); renderWorkshop(); setTimeout(() => $("#ownTokName").focus(), 60); return; }
+  const flip = SHAPE_FEATURES[c.shape].flip ? d.flip : undefined;
+  if (flip && !nameIn(flip.name, lang).trim()) { showTab({ part: "back" }); renderWorkshop(); setTimeout(() => $("#ownTokFlipName").focus(), 60); return; }
+  let type = coll.types.find((x) => x.id === d.type && x.shape === c.shape);
+  if (!type) { const name = t(`type.${c.shape}.many`); type = { id: newId("y"), name, title: name, shape: c.shape }; coll.types.push(type); }
+  const { flip: _flip, ...rest } = d;
+  const tk: OwnToken = { ...rest, type: type.id, linked: d.linked.filter((w) => nameIn(w, lang).trim()), ...(flip ? { flip } : {}) };
+  coll.tokens.push(tk);
+  for (const k of coll.sections.filter((x) => x.open).flatMap((x) => x.catalogs)) if (c.cats.includes(k.id)) k.tokens.push(tk.id);
+  const key = `c:${tk.id}`, style = state.overrides.get(key)?.style, name = nameIn(tk.name, lang);
+  state.creating = null;
+  collectionChanged();
+  setPick(key, true); tk.linked.forEach((_, i) => setPick(`r:${tk.id}:${i}`, true));
+  picksChanged();
+  if (more) { startCreate({ shape: c.shape, type: type.id, group: tk.group, style, cats: c.cats, back: c.back }); state.flash = t("create.doneMore", { name }); renderWorkshop(); return; }
+  selectToken(key);
+  state.flash = t("create.done", { name });
+  goStep(2);
+}
+/** A linked token taken out: the ones after it move up, and their picks and own designs follow them. */
+function dropLinked(id: string, i: number) {
+  for (const store of [state.pick, state.overrides] as Map<string, unknown>[]) {
+    const mine = [...store].filter(([k]) => k.startsWith(`r:${id}:`));
+    for (const [k] of mine) store.delete(k);
+    for (const [k, v] of mine) { const j = +k.split(":")[2]; if (j !== i) store.set(`r:${id}:${j > i ? j - 1 : j}`, v); }
+  }
+}
+/** The token whose content the editor has open, if it's one of yours. */
+const editingOwn = () => (state.sel ? ownTokenOf(state.sel.role.id) : undefined);
 function wireOwnToken() {
-  const dlg = $<HTMLDialogElement>("#ownTok");
-  closeOnBackdrop(dlg);
-  $("#ownTokName").oninput = (e) => { ownDraft!.name = withName(ownDraft!.name, tokenLang(), input(e).value); drawOwnPreview(); };
-  $("#ownTokGroup").onchange = (e) => { ownDraft!.group = (e.target as HTMLSelectElement).value; drawOwnPreview(); };
-  $("#ownTokType").onchange = (e) => { ownDraft!.type = (e.target as HTMLSelectElement).value; renderOwnFlip(); drawOwnPreview(); };
+  $("#ownTokName").oninput = (e) => { const tk = editingOwn(); if (tk) { tk.name = withName(tk.name, tokenLang(), input(e).value); ownEdited(); } };
   // The token's icon and its other state's are chosen alike: game-icons.net, an SVG of yours, or none.
   const iconPicker = (id: string, set: (icon: TokenIcon | null) => void) => {
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -3025,62 +3359,52 @@ function wireOwnToken() {
     };
     $(`#${id}NoIcon`).onclick = () => set(null);
   };
-  iconPicker("ownTok", (icon) => { ownDraft!.icon = icon; drawOwnPreview(); });
-  iconPicker("ownTokFlip", (icon) => { if (ownDraft!.flip) ownDraft!.flip.icon = icon; drawOwnPreview(); });
+  iconPicker("ownTok", (icon) => { const tk = editingOwn(); if (tk) { tk.icon = icon; ownEdited(); } });
+  iconPicker("ownTokFlip", (icon) => { const tk = editingOwn(); if (tk?.flip) { tk.flip.icon = icon; ownEdited(); } });
+  // its group, as the groups' colours, or a new one
+  $("#ownTokGroups").onclick = (e) => {
+    const tk = editingOwn(); if (!tk) return;
+    const g = hit(e, "[data-group]");
+    if (g) { tk.group = g.dataset.group!; renderGroupPills(tk); ownEdited(); return; }
+    if (hit(e, "[data-group-new]")) {
+      const used = new Set(coll.groups.map((x) => x.colour)), id = newId("g");
+      coll.groups.push({ id, name: t("own.groupName", { n: coll.groups.length + 1 }), colour: GROUP_COLOURS.find((c) => !used.has(c)) ?? GROUP_COLOURS[0] });
+      tk.group = id;
+      collectionChanged(); renderGroupPills(tk);
+    }
+  };
+  $("#ownTokCats").onchange = (e) => {
+    const tk = editingOwn(), id = input(e).value, k = catalogsOf(coll).find((x) => x.k.id === id)?.k; if (!tk || !k) return;
+    const on = input(e).checked;
+    if (state.creating) state.creating.cats = on ? [...state.creating.cats, id] : state.creating.cats.filter((x) => x !== id);
+    else { k.tokens = on ? [...k.tokens.filter((x) => x !== tk.id), tk.id] : k.tokens.filter((x) => x !== tk.id); ownEdited(); }
+  };
   // the other state: added, named (in the token language, like the name) and taken out
-  $("#ownTokFlipAdd").onclick = () => { ownDraft!.flip = { name: "", icon: null }; renderOwnFlip(); drawOwnPreview(); $("#ownTokFlipName").focus(); };
-  $("#ownTokFlipRemove").onclick = () => { delete ownDraft!.flip; renderOwnFlip(); drawOwnPreview(); };
-  $("#ownTokFlipName").oninput = (e) => { if (ownDraft!.flip) ownDraft!.flip.name = withName(ownDraft!.flip.name, tokenLang(), input(e).value); drawOwnPreview(); };
-  $("#ownTokAddLinked").onclick = () => { ownDraft!.linked.push(""); renderOwnLinked(); drawOwnPreview(); $<HTMLInputElement>(`[data-li="${ownDraft!.linked.length - 1}"]`).focus(); };
-  $("#ownTokLinked").oninput = (e) => { const i = input(e).dataset.li; if (i != null) { ownDraft!.linked[+i] = withName(ownDraft!.linked[+i], tokenLang(), input(e).value); drawOwnPreview(); } };
-  $("#ownTokLinked").onclick = (e) => { const b = hit(e, "[data-ldel]"); if (b) { ownDraft!.linked.splice(+b.dataset.ldel!, 1); renderOwnLinked(); drawOwnPreview(); } };
-  $("#ownTokCancel").onclick = () => dlg.close();
-  $("#ownTokSave").onclick = () => {
-    const d = ownDraft!, lang = tokenLang();
-    if (!nameIn(d.name, lang).trim()) { $("#ownTokName").focus(); return; }
-    // only a shape with two states keeps the other one; it needs its name too
-    const flip = SHAPE_FEATURES[draftShape()].flip ? d.flip : undefined;
-    if (flip && !nameIn(flip.name, lang).trim()) { $("#ownTokFlipName").focus(); return; }
-    const linked = d.linked.filter((w) => nameIn(w, lang).trim());
-    // a linked token taken out shifts the ones after it: their picks and own designs follow them
-    const old = coll.tokens.find((x) => x.id === d.id);
-    if (old) remapLinked(d.id, old.linked.map((w) => nameIn(w, lang)), linked.map((w) => nameIn(w, lang)));
-    const { cats: _cats, flip: _flip, ...rest } = { ...d, linked };
-    const tk: OwnToken = { ...rest, ...(flip ? { flip } : {}) };
-    if (old) { delete old.flip; Object.assign(old, tk); } else coll.tokens.push(tk);
-    const cats = new Set($$<HTMLInputElement>("#ownTokCats input:checked").map((x) => x.value));
-    for (const k of coll.sections.filter((s) => s.open).flatMap((s) => s.catalogs)) {
-      const has = k.tokens.includes(d.id);
-      if (cats.has(k.id) && !has) k.tokens.push(d.id);
-      if (!cats.has(k.id) && has) k.tokens = k.tokens.filter((x) => x !== d.id);
-    }
-    dlg.close();
-    collectionChanged();
+  $("#ownTokFlipAdd").onclick = () => { const tk = editingOwn(); if (!tk) return; tk.flip = { name: "", icon: null }; renderOwnFlip(tk); ownEdited(); $("#ownTokFlipName").focus(); };
+  $("#ownTokFlipRemove").onclick = () => { const tk = editingOwn(); if (!tk) return; delete tk.flip; renderOwnFlip(tk); ownEdited(); };
+  $("#ownTokFlipName").oninput = (e) => { const tk = editingOwn(); if (tk?.flip) { tk.flip.name = withName(tk.flip.name, tokenLang(), input(e).value); ownEdited(); } };
+  // linked tokens: one more, renamed in place, or taken out (an empty one goes when you leave it)
+  $("#ownTokAddLinked").onclick = () => {
+    const tk = editingOwn(); if (!tk) return;
+    tk.linked.push(""); renderOwnLinked(tk);
+    $<HTMLInputElement>(`[data-li="${tk.linked.length - 1}"]`).focus();
   };
+  $("#ownTokLinked").oninput = (e) => { const tk = editingOwn(), i = input(e).dataset.li; if (tk && i != null) { tk.linked[+i] = withName(tk.linked[+i], tokenLang(), input(e).value); ownEdited(); } };
+  const dropAt = (tk: OwnToken, i: number) => { if (!state.creating) dropLinked(tk.id, i); tk.linked.splice(i, 1); renderOwnLinked(tk); ownEdited(); };
+  $("#ownTokLinked").onclick = (e) => { const tk = editingOwn(), b = hit(e, "[data-ldel]"); if (tk && b) dropAt(tk, +b.dataset.ldel!); };
+  $("#ownTokLinked").addEventListener("focusout", (e) => {
+    const tk = editingOwn(), i = (e.target as HTMLElement).dataset.li;
+    if (tk && i != null && !nameIn(tk.linked[+i], tokenLang()).trim()) dropAt(tk, +i);
+  });
   $("#ownTokDelete").onclick = () => {
-    const d = ownDraft!;
+    const tk = editingOwn(); if (!tk || state.creating) return;
     if (coll.tokens.length <= 1) { alert(t("own.lastToken")); return; }
-    if (!confirm(t("own.deleteTokenConfirm", { name: nameIn(d.name, tokenLang()) }))) return;
-    coll.tokens = coll.tokens.filter((x) => x.id !== d.id);
-    for (const { k } of catalogsOf(coll)) k.tokens = k.tokens.filter((x) => x !== d.id);
-    dlg.close();
+    if (!confirm(t("own.deleteTokenConfirm", { name: nameIn(tk.name, tokenLang()) }))) return;
+    coll.tokens = coll.tokens.filter((x) => x.id !== tk.id);
+    for (const { k } of catalogsOf(coll)) k.tokens = k.tokens.filter((x) => x !== tk.id);
     collectionChanged();
+    if (!state.pick.size) goStep(1); else { selectToken(sortKeys(state.pick.keys())[0]); renderWorkshop(); renderDesignStage(); }
   };
-}
-/** Linked tokens are picked and designed by their place ("r:id:2"): when the list changes, they keep theirs. */
-function remapLinked(id: string, before: string[], after: string[]) {
-  const moveMap = new Map<number, number>(), used = new Set<number>();
-  after.forEach((w, ni) => { const oi = before.findIndex((b, i) => b === w && !used.has(i)); if (oi >= 0) { used.add(oi); moveMap.set(oi, ni); } });
-  for (const store of [state.pick, state.overrides] as Map<string, unknown>[]) {
-    const moved = new Map<string, unknown>();
-    for (const [k, v] of [...store]) {
-      const [kind, rid, i] = k.split(":");
-      if (kind !== "r" || rid !== id) continue;
-      store.delete(k);
-      const ni = moveMap.get(+i); if (ni != null) moved.set(remKey({ id } as Role, ni), v);
-    }
-    for (const [k, v] of moved) store.set(k, v);
-  }
 }
 
 // ------------------------------------------------------------ the collection's own look, loading line and About
