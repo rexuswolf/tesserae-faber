@@ -27,8 +27,8 @@
     <div class="coll-switch">
       <button type="button" id="collSwitch" aria-haspopup="menu" aria-expanded="false" aria-controls="collMenu"><img class="coll-logo" src="/tesserae-faber-small.svg" alt="" width="34" height="34"><span class="cs-text"><b class="coll-name"></b><small>Tesserae Faber</small></span><span class="chev" aria-hidden="true">▾</span></button>
       <div class="coll-menu" id="collMenu" role="menu" hidden>
+        <a class="coll-back" role="menuitem" href="/colecciones"><span aria-hidden="true">‹</span><b data-i18n="own.homeTitle"></b><small data-i18n="own.menuBack"></small></a>
         <div class="coll-list"></div>
-        <a role="menuitem" href="/colecciones"><span aria-hidden="true">‹</span><b data-i18n="own.homeTitle"></b><small data-i18n="own.menuBack"></small></a>
         <hr class="built-only">
         <button class="built-only" role="menuitem" type="button" data-coll="copy"><span aria-hidden="true">⧉</span><b data-i18n="own.copy"></b><small data-i18n="own.menuCopy"></small></button>
         <hr class="own-only">
@@ -53,8 +53,8 @@
       <details class="own-drawer">
         <summary><img class="coll-logo" src="/tesserae-faber-small.svg" alt="" width="34" height="34"><span class="cs-text"><b class="coll-name"></b><small data-i18n="own.switchColl"></small></span><span class="chev" aria-hidden="true">▾</span></summary>
         <div class="coll-fold"><div class="coll-menu-items">
+        <a class="coll-back" role="menuitem" href="/colecciones"><span aria-hidden="true">‹</span><b data-i18n="own.homeTitle"></b><small data-i18n="own.menuBack"></small></a>
         <div class="coll-list"></div>
-        <a role="menuitem" href="/colecciones"><span aria-hidden="true">‹</span><b data-i18n="own.homeTitle"></b><small data-i18n="own.menuBack"></small></a>
         <hr class="built-only">
         <button class="built-only" role="menuitem" type="button" data-coll="copy"><span aria-hidden="true">⧉</span><b data-i18n="own.copy"></b><small data-i18n="own.menuCopy"></small></button>
         <hr class="own-only">
@@ -218,6 +218,8 @@
         <div class="metal" data-colour="frame" data-i18n-attr="aria-label:frame.aria"></div>
       </section>
       <section class="ws-panel" data-panel="back" role="tabpanel" hidden>
+        <!-- a two-state token: its back is its other state -->
+        <div class="flip-back" id="flipBack" hidden><span id="flipBackPv"></span><p class="hint" id="flipBackHint"></p></div>
         <div class="choices" data-choice="back"></div>
         <input type="file" id="upload" accept=".svg,image/svg+xml" hidden data-i18n-attr="aria-label:upload.aria">
         <p class="hint" id="uploadHint" hidden></p>
@@ -450,6 +452,21 @@
       <button class="pill" type="button" id="ownTokNoIcon" data-i18n="own.noIcon"></button>
     </div>
     <div class="icon-results" id="ownTokHits"></div>
+  </div>
+  <div class="field" id="ownTokFlipRow"><span data-i18n="own.flip"></span><p class="hint" data-i18n="own.flipHelp"></p>
+    <button class="link" type="button" id="ownTokFlipAdd" data-i18n="own.flipAdd"></button>
+    <div class="own-flip" id="ownTokFlipBox" hidden>
+      <label class="field"><span data-i18n="own.flipName"></span><input class="text" id="ownTokFlipName" autocomplete="off"></label>
+      <div class="field"><span data-i18n="own.flipIcon"></span>
+        <div class="own-icon-bar">
+          <input class="text" type="search" id="ownTokFlipIq" autocomplete="off" data-i18n-attr="placeholder:icon.placeholder">
+          <label class="pill file"><span data-i18n="icon.upload"></span><input type="file" id="ownTokFlipSvg" accept=".svg,image/svg+xml" hidden></label>
+          <button class="pill" type="button" id="ownTokFlipNoIcon" data-i18n="own.noIcon"></button>
+        </div>
+        <div class="icon-results" id="ownTokFlipHits"></div>
+      </div>
+      <button class="link" type="button" id="ownTokFlipRemove" data-i18n="own.flipRemove"></button>
+    </div>
   </div>
   <div class="field"><span data-i18n="own.linked"></span><p class="hint" data-i18n="own.linkedHelp"></p>
     <div class="own-linked" id="ownTokLinked"></div>

@@ -30,7 +30,8 @@ export const CAL: Record<string, Calibration> = {
 /** Share of a body this thick (mm) that the slicer fills. */
 const bodyFill = (h: number, c: Calibration) => { const sh = c.shells * c.layer; return Math.min(1, (Math.min(h, sh) + Math.max(0, h - sh) * INFILL) / h + c.walls); };
 
-const FACE: PartName[] = ["front", "icon", "frame"], BACK: PartName[] = ["back"];
+// A two-state token's back has a name, an icon and a frame like a front.
+const FACE: PartName[] = ["front", "icon", "frame"], BACK: PartName[] = ["back", "backIcon", "backFrame"];
 
 /** What the estimate needs of a token: its size and depth, its colours, a card's footprint. */
 export interface EstimateToken {

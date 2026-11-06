@@ -8,7 +8,8 @@
 //
 //   front  – role icon + curved name, top face (team colour)
 //   frame  – border design around the rim, top face
-//   back   – pattern on the bottom face (mirrored so it reads correctly)
+//   back   – pattern on the bottom face (mirrored so it reads correctly), or a two-state
+//            token's other state, drawn like a second front (see flipFace)
 
 import * as THREE from "three";
 import { SVGLoader } from "three/addons/loaders/SVGLoader.js";
@@ -138,6 +139,8 @@ export function reminderSpec(spec: TokenSpec): TokenSpec {
     maxArc: 240,
     frameWidth: Math.min(spec.frameWidth ?? 0.8, 0.6),
     // Same back as the character tokens: the designed backs scale with the coin.
+    // A reminder is a token of its own: its character's other state isn't on its back.
+    linked: true,
   };
 }
 
@@ -173,7 +176,9 @@ export function partColours(role: Role, spec: SpecInput): PartColours {
   const team = TEAMS[role.team].colour;
   const c = { ...DEFAULT_SPEC.colours, ...spec.colours };
   const pick = (v: ColourRef): Hex => (v === "team" ? team : v);
-  return { base: pick(c.base), front: pick(c.front), icon: pick(c.base), frame: pick(c.frame), back: pick(c.back) };
+  // A two-state token's back is a second front, in the front's colours (the back colour is for back designs).
+  const back = spec.back === FLIP_BACK ? pick(c.front) : pick(c.back);
+  return { base: pick(c.base), front: pick(c.front), icon: pick(c.base), frame: pick(c.frame), back, backIcon: pick(c.base), backFrame: pick(c.frame) };
 }
 
 // ---------------------------------------------------------------- geometry helpers
@@ -489,33 +494,45 @@ function fittedIcon(lib: Library, role: Role, spec: TokenSpec, text: string) {
   return { shapes, k: fitted.get(key)! * (spec.iconScale || 1), cx: o.cx, cy: o.cy };
 }
 
-function buildFront(lib: Library, role: Role, text: string, spec: TokenSpec) {
-  const top = spec.height - spec.depth;
+/**
+ * Which face a set of inlays goes into. The top one: sunk from the coin's top, its raised
+ * parts standing out of it. The bottom one, a two-state token's other state: sunk from z = 0
+ * and mirrored so it reads right when the coin is turned over, and always flush (see
+ * flipFace for why).
+ */
+interface Face { z: number; mirror: boolean; flush: boolean }
+const topFace = (spec: TokenSpec): Face => ({ z: spec.height - spec.depth, mirror: false, flush: false });
+const BOTTOM_FACE: Face = { z: 0, mirror: true, flush: true };
+/** A face's matrix: on the bottom face, mirrored. */
+const onFace = (face: Face, m: THREE.Matrix4) => (face.mirror ? chain(S(-1, 1, 1), m) : m);
+const faceHeight = (spec: TokenSpec, part: ReliefPart, face: Face) => (face.flush ? spec.depth : inlayHeight(spec, part));
+
+function buildFront(lib: Library, role: Role, text: string, spec: TokenSpec, face = topFace(spec)) {
+  const top = face.z;
   let icon;
   if (spec.style === "solo" || spec.style === "double") {
     const f = fittedIcon(lib, role, spec, text);
-    icon = extrude(f.shapes, inlayHeight(spec, "icon"), chain(T(0, 0, top), S(f.k, -f.k, 1), T(-f.cx, -f.cy, 0)));
+    icon = extrude(f.shapes, faceHeight(spec, "icon", face), onFace(face, chain(T(0, 0, top), S(f.k, -f.k, 1), T(-f.cx, -f.cy, 0))));
   } else {
-    icon = extrude(iconShapes(lib, role, spec), inlayHeight(spec, "icon"), tracedMatrix(spec.diameter * spec.iconScale, top, false, spec.iconOffsetY || 0));
+    icon = extrude(iconShapes(lib, role, spec), faceHeight(spec, "icon", face), onFace(face, tracedMatrix(spec.diameter * spec.iconScale, top, false, spec.iconOffsetY || 0)));
   }
   const L = arcName(lib, text, spec);
   const letters = L ? nameTurns(spec).flatMap((turn) => L.chars.map((c, i) => {
     if (c === " ") return null;
     const g = glyph(lib, c);
     const a = THREE.MathUtils.degToRad(L.angles[i]);
-    return extrude(g.shapes, inlayHeight(spec, "text"), chain(RZ(turn),
+    return extrude(g.shapes, faceHeight(spec, "text", face), onFace(face, chain(RZ(turn),
       T(L.radius * Math.cos(a), L.radius * Math.sin(a), top),
-      RZ(a + Math.PI / 2), S(L.em, L.em, 1), T(-g.center, 0, 0)), 4);
+      RZ(a + Math.PI / 2), S(L.em, L.em, 1), T(-g.center, 0, 0))), 4);
   })) : [];
   // no name ("solo"): nothing to be too small
   return { geom: merge(letters), icon, name: L ?? { letterHeight: Infinity, scale: 1, total: 0 } };
 }
 
-function buildFrame(spec: TokenSpec) {
-  const z = spec.height - spec.depth;
+function buildFrame(spec: TokenSpec, face = topFace(spec)) {
   const design = frameDesign(spec);
   if (!design) return null;
-  return extrude(design.shapes, inlayHeight(spec, "frame"), T(0, 0, z), 24);
+  return extrude(design.shapes, faceHeight(spec, "frame", face), onFace(face, T(0, 0, face.z)), 24);
 }
 
 /** Fits arbitrary shapes into a circle of radius r (used for uploaded SVGs). */
@@ -690,20 +707,19 @@ const inlayHeight = (spec: TokenSpec, part: ReliefPart) => spec.depth + (reliefO
  */
 type WindowLayout = ReturnType<typeof windowLayout>;
 
-function buildWindowToken(lib: Library, role: Role, text: string, spec: TokenSpec) {
-  const H = spec.height, d = spec.depth;
+function buildWindowFace(lib: Library, role: Role, text: string, spec: TokenSpec, face = topFace(spec)) {
+  const d = spec.depth, z = face.z;
   const W = windowLayout(lib, text, spec);
-  const I = windowIconMatrix(lib, role, W, H - d, spec);
-  const window = extrude([new THREE.Shape(windowPoints(W.Rw, W.cutY))], d, T(0, 0, H - d), 48);
+  const I = windowIconMatrix(lib, role, W, z, spec);
+  const window = extrude([new THREE.Shape(windowPoints(W.Rw, W.cutY))], d, onFace(face, T(0, 0, z)), 48);
   const letters = W.lines.map((line) => {
     const shapes = lib.font.generateShapes(line.text, W.em);
     const box = boundsOf(shapes);
-    return extrude(shapes, inlayHeight(spec, "text"), T(-(box.min.x + box.max.x) / 2, line.y, H - d), 4);
+    return extrude(shapes, faceHeight(spec, "text", face), onFace(face, T(-(box.min.x + box.max.x) / 2, line.y, z)), 4);
   });
   return {
-    base: buildBase(spec),
     window, letters: merge(letters),
-    icon: extrude(I.shapes, inlayHeight(spec, "icon"), I.m, 5),
+    icon: extrude(I.shapes, faceHeight(spec, "icon", face), onFace(face, I.m), 5),
     name: { letterHeight: W.cap, scale: W.cap / spec.textSize, total: null, lines: W.lines.length },
   };
 }
@@ -1140,12 +1156,15 @@ export function geometryVolume(geom: THREE.BufferGeometry | null | undefined) {
 export const SMALL_LETTERS_MM = 2.5;
 
 /** How tall the name's letters come out (mm), without building any geometry. */
-export function nameLetterHeight(lib: Library, input: SpecInput, text: string, role: Role | null = null) {
+export function nameLetterHeight(lib: Library, input: SpecInput, text: string, role: Role | null = null): number {
   if (isCard(role)) return cardLayout(lib, text, cardSpec(input)).cap;
   if (isRing(role)) return ringLayout(lib, text, ringSpec(input)).letterHeight;
   const spec = windowFrame({ ...DEFAULT_SPEC, ...input, colours: { ...DEFAULT_SPEC.colours, ...input?.colours } });
-  if (spec.style === "window") return windowLayout(lib, text, spec).cap;
-  return arcName(lib, text, spec)?.letterHeight ?? Infinity;   // "solo" has no name to be too small
+  const front = spec.style === "window" ? windowLayout(lib, text, spec).cap
+    : arcName(lib, text, spec)?.letterHeight ?? Infinity;   // "solo" has no name to be too small
+  // a two-state token's smaller name, of its two
+  const other = flipFace(role, spec);
+  return other ? Math.min(front, nameLetterHeight(lib, input, roleName(other, spec.lang))) : front;
 }
 
 // ---------------------------------------------------------------- info cards
@@ -1384,27 +1403,54 @@ export interface ShapeFeatures {
   diameter: boolean;
   /** The miniature base it fits (RING_BASES). */
   ringBase: boolean;
+  /** A token of this shape can have two states, its back being the other (see flipFace). */
+  flip: boolean;
 }
 export const SHAPE_FEATURES: Record<TokenShape, ShapeFeatures> = {
   // A coin has everything the workshop offers (some layouts leave a control out: see main.ts).
-  coin: { layout: true, icon: true, textSize: true, spacing: true, maxArc: true, frame: "designs", relief: ["text", "frame", "icon"], back: true, magnet: true, diameter: true, ringBase: false },
+  coin: { layout: true, icon: true, textSize: true, spacing: true, maxArc: true, frame: "designs", relief: ["text", "frame", "icon"], back: true, magnet: true, diameter: true, ringBase: false, flip: true },
   // A card (85 × 55 mm, Clocktower's Grimoire): the phrase as large as fits, the frame a line
   // inside the edge, both flush (cardSpec); no icon, back or magnet.
-  card: { layout: false, icon: false, textSize: false, spacing: false, maxArc: false, frame: "line", relief: [], back: false, magnet: false, diameter: false, ringBase: false },
+  card: { layout: false, icon: false, textSize: false, spacing: false, maxArc: false, frame: "line", relief: [], back: false, magnet: false, diameter: false, ringBase: false, flip: false },
   // A condition ring: the name round and round at the height asked for (as far as its band
   // allows, ringBand), a fine line along each edge, either raised (ringSpec); no icon, back or
   // magnet, and sized by its base.
-  ring: { layout: false, icon: false, textSize: true, spacing: true, maxArc: false, frame: "line", relief: ["text", "frame"], back: false, magnet: false, diameter: false, ringBase: true },
+  ring: { layout: false, icon: false, textSize: true, spacing: true, maxArc: false, frame: "line", relief: ["text", "frame"], back: false, magnet: false, diameter: false, ringBase: true, flip: false },
 };
 export const shapeOf = (role: Role | null | undefined): TokenShape => (isCard(role) ? "card" : isRing(role) ? "ring" : "coin");
 
+/**
+ * The back of a two-state token, in its spec (shapeSpec puts it there): its other state.
+ * Back designs, their colour and an uploaded back don't apply to it.
+ */
+export const FLIP_BACK = "flip";
+
+/**
+ * A two-state token's other state, as a character the engine draws like any front: the same
+ * layout, frame, colours and size, with the other state's name and icon. Null for a token
+ * without one, for a shape that has none (SHAPE_FEATURES.flip) and for a linked token (a
+ * reminder), which is a token of its own.
+ *
+ * Printing: the other state is always flush, whatever the front's relief. A token with raised
+ * parts prints face-up, so its back lies on the bed, where nothing can stand out; a flush one
+ * prints face-down, its back on top, flush like any back design. One rule, right both ways up.
+ */
+export function flipFace(role: Role | null | undefined, spec: SpecInput | undefined): Role | null {
+  const f = role?.flip;
+  if (!f || !SHAPE_FEATURES[shapeOf(role)].flip || spec?.linked) return null;
+  return { ...role, en: f.en, es: f.es, names: f.names ?? {}, fem: {}, body: f.body, g: f.g, d: undefined, icon: f.icon, author: f.author, iconKey: f.iconKey, flip: undefined };
+}
+
 /** A spec as its shape prints it: a card's or a ring's keeps only what it has (no back, magnet or
- *  layout), with its real size for `diameter`; a coin's is the spec, filled in. */
+ *  layout), with its real size for `diameter`; a coin's is the spec, filled in, and a two-state
+ *  coin's back is its other state (FLIP_BACK), its magnet hidden inside: a pocket would cut into it. */
 export function shapeSpec(role: Role | null | undefined, input: SpecInput | undefined): TokenSpec {
   const shape = shapeOf(role);
   if (shape === "card") return cardSpec(input);
   if (shape === "ring") return ringSpec(input);
-  return { ...DEFAULT_SPEC, ...input, colours: { ...DEFAULT_SPEC.colours, ...input?.colours } };
+  const spec = { ...DEFAULT_SPEC, ...input, colours: { ...DEFAULT_SPEC.colours, ...input?.colours } };
+  if (!flipFace(role, spec)) return spec;
+  return { ...spec, back: FLIP_BACK, customSvg: null, magnet: spec.magnet === "pocket" ? "hidden" : spec.magnet };
 }
 
 /**
@@ -1431,7 +1477,7 @@ function windowFrame(spec: TokenSpec) {
 export function buildToken(lib: Library, role: Role, input: SpecInput | undefined, text?: string | null): Token {
   if (isCard(role)) return buildCard(lib, role, input, text);
   if (isRing(role)) return buildRing(lib, role, input, text);
-  let spec = windowFrame({ ...DEFAULT_SPEC, ...input, colours: { ...DEFAULT_SPEC.colours, ...input?.colours } });
+  let spec = windowFrame(shapeSpec(role, input));
   // A magnet may need a thicker coin.
   const need = magnetLayout(spec)?.minHeight ?? 0;
   if (spec.height < need) spec = { ...spec, height: need };
@@ -1459,28 +1505,39 @@ export function buildToken(lib: Library, role: Role, input: SpecInput | undefine
     extras.cavity = new THREE.EdgesGeometry(hole, 20);
   }
   const colours: PartColours = { ...partColours(role, spec), hole: "#0b090c" };
-  const frame = buildFrame(spec), back = buildBack(lib, role, text, spec);
+  const frame = buildFrame(spec);
+  // The face as this layout draws it: its name (and window), its icon and how the name came out.
+  const window = spec.style === "window";
+  const face = (who: Role, name: string, at?: Face, s = spec) => {
+    if (window) { const w = buildWindowFace(lib, who, name, s, at); return { name: merge([w.window, w.letters]), letters: w.letters, icon: w.icon, info: w.name }; }
+    const f = buildFront(lib, who, name, s, at);
+    return { name: f.geom, letters: f.geom, icon: f.icon, info: f.name };
+  };
+  const front = face(role, text);
+  // A two-state token's back is its other state, drawn like the front (its own name and icon,
+  // not the token's own icon) on the bottom face; any other's, its back design.
+  const other = flipFace(role, spec);
+  const back = other ? face(other, roleName(other, spec.lang), BOTTOM_FACE, { ...spec, icon: undefined }) : null;
   // The relief above the face, per part (mm³): each raised element is a prism standing
   // `depth` into the coin and `relief` out of it, so that share of its volume.
   const R = reliefOf(spec), r = reliefTop(spec), above = (g: THREE.BufferGeometry | null | undefined) => (g && r ? geometryVolume(g) * r / (spec.depth + r) : 0);
-  if (spec.style === "window") {
-    const w = buildWindowToken(lib, role, text, spec);
-    return {
-      parts: { base: w.base, front: merge([w.window, w.letters]), icon: w.icon || null, frame, back, ...extras },
-      colours, name: w.name, spec, magnet, depthClamped: fit.clamped ? fit.max : null,
-      above: { front: R.text ? above(w.letters) : 0, icon: R.icon ? above(w.icon) : 0, frame: R.frame ? above(frame) : 0 },
-    };
-  }
-  const front = buildFront(lib, role, text, spec);
-  // The classic icon is in the team colour like the name; it's its own part, raised or not.
+  // The window's icon is in the coin colour, over the window; the classic one in the team
+  // colour like the name. Either is its own part, raised or not.
+  const iconColour = window ? colours.icon : colours.front;
   return {
-    parts: { base: buildBase(spec), front: front.geom, icon: front.icon, frame, back, ...extras },
-    colours: { ...colours, icon: colours.front },
-    name: front.name,
+    parts: {
+      base: buildBase(spec), front: front.name, icon: front.icon || null, frame,
+      back: back ? back.name : buildBack(lib, role, text, spec),
+      ...(back ? { backIcon: back.icon || null, backFrame: buildFrame(spec, BOTTOM_FACE) } : {}),
+      ...extras,
+    },
+    colours: { ...colours, icon: iconColour, backIcon: iconColour },
+    name: front.info,
+    ...(back ? { flipName: back.info } : {}),
     spec,
     magnet,
     depthClamped: fit.clamped ? fit.max : null,
-    above: { front: R.text ? above(front.geom) : 0, icon: R.icon ? above(front.icon) : 0, frame: R.frame ? above(frame) : 0 },
+    above: { front: R.text ? above(front.letters) : 0, icon: R.icon ? above(front.icon) : 0, frame: R.frame ? above(frame) : 0 },
   };
 }
 
@@ -1495,7 +1552,10 @@ const esc = (s: unknown) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;",
 export function tokenSvg(lib: Library, role: Role, input: SpecInput | undefined, { side = "front", text }: { side?: "front" | "back"; text?: string | null } = {}) {
   if (isCard(role)) return cardSvg(lib, role, input, side, text);
   if (isRing(role)) return ringSvg(lib, role, input, side, text);
-  const spec = windowFrame({ ...DEFAULT_SPEC, ...input, colours: { ...DEFAULT_SPEC.colours, ...input?.colours } });
+  // a two-state token's back: its other state, drawn as a front (its own icon, not the token's)
+  const other = side === "back" ? flipFace(role, input) : null;
+  if (other) return tokenSvg(lib, other, { ...input, icon: undefined }, { text: roleName(other, input?.lang ?? DEFAULT_SPEC.lang) });
+  const spec = windowFrame(shapeSpec(role, input));
   const c = partColours(role, spec);
   const R = spec.diameter / 2;
   const label = text ?? roleName(role, spec.lang);

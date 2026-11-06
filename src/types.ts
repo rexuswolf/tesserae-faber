@@ -59,6 +59,22 @@ export interface Role {
   loading?: boolean;
   /** What the engine caches the icon's shapes by, when it isn't the id (a token whose icon can change). */
   iconKey?: string;
+  /** A two-state token's other state, drawn on its back like a second front (a coin's only: see SHAPE_FEATURES). */
+  flip?: RoleFlip;
+}
+
+/** A two-state token's other state: its name (as a character's: English, Spanish, the rest by
+ *  language) and its icon (markup placed by `g`, credited like a character's when it's game-icons.net's). */
+export interface RoleFlip {
+  en: string;
+  es?: string;
+  names?: Record<string, string>;
+  body: string;
+  g: string;
+  icon?: string;
+  author?: string;
+  /** What the engine caches its icon's shapes by. */
+  iconKey: string;
 }
 
 // ---------------------------------------------------------------- the design (spec)
@@ -110,6 +126,8 @@ export interface TokenSpec {
   ringBase: string;
   /** A reminder's coin size, when the character style sets one. */
   reminderDiameter?: number;
+  /** A linked token's (a reminder's, see reminderSpec): its own token, without its character's other state. */
+  linked?: boolean;
   /** The template (PRESETS) the set's design is, or a token's own design started from. */
   preset?: string;
   fromPreset?: string;
@@ -146,7 +164,8 @@ export interface Library {
 }
 
 /** The parts a token is built from. Geometry is null for parts the design leaves out. */
-export type PartName = "base" | "front" | "icon" | "frame" | "back";
+/** A two-state token's back is drawn like its front: `back` its name (and window), `backIcon` and `backFrame`. */
+export type PartName = "base" | "front" | "icon" | "frame" | "back" | "backIcon" | "backFrame";
 /** The parts with a filament of their own; `hole` is the preview's pocket. */
 export type PartColours = Record<PartName, Hex> & { hole?: Hex };
 
@@ -156,6 +175,8 @@ export interface TokenParts {
   icon?: BufferGeometry | null;
   frame: BufferGeometry | null;
   back: BufferGeometry | null;
+  backIcon?: BufferGeometry | null;
+  backFrame?: BufferGeometry | null;
   /** The magnet hole, a negative part for the slicer. */
   magnet?: BufferGeometry | null;
   /** Preview only: the open pocket, the magnet and its cavity's outline. */
@@ -208,6 +229,8 @@ export interface Token {
   /** The deepest inlay that fits, when the spec asked for more; null when it fit. */
   depthClamped: number | null;
   above?: Above;
+  /** A two-state token's: how its other state's name came out. */
+  flipName?: NameInfo;
   card?: boolean;
   foot?: Foot;
 }

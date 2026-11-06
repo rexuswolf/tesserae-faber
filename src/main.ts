@@ -2,7 +2,7 @@ import { handingOver } from "./handoff.ts";   // first: a browser arriving from 
 import {
   loadLibrary, buildToken, geometryVolume, magnetLayout, MAGNET_SIZES, tokenSvg, roleName, saveFile, reminderSpec, layoutName, nameLetterHeight, SMALL_LETTERS_MM,
   TEAMS, EDITIONS, FRAME_STYLES, BACK_STYLES, TOKEN_STYLES, FILAMENTS, DEFAULT_SPEC, CARD, isCard, ringSize, ringBand, RING_BASES,
-  SHAPE_FEATURES, shapeOf, shapeSpec, type ShapeFeatures,
+  SHAPE_FEATURES, shapeOf, shapeSpec, type ShapeFeatures, FLIP_BACK, flipFace,
   normalizeSpec, reliefOf, hasRelief, reliefTop,
 } from "./engine/token-engine.ts";
 /** The face parts that can be raised, in the order the Layout section lists them. */
@@ -940,7 +940,8 @@ function renderSheet() {
   if (q) {
     roles = roles.filter((r) => {
       const remHits = remindersOf(r).map((text, i) => [text, r.reminders?.en?.[i], textFor(remKey(r, i), r, i)].some((s) => s && fold(s).includes(q)) ? i : -1).filter((i) => i >= 0);
-      const nameHit = [r.en, r.es, roleName(r, tokenLang()), r.fem?.[tokenLang()], textFor(charKey(r), r, null)].some((s) => s && fold(s).includes(q));
+      // a two-state token by its other state's name too
+      const nameHit = [r.en, r.es, roleName(r, tokenLang()), r.fem?.[tokenLang()], textFor(charKey(r), r, null), r.flip?.en, r.flip?.es, r.flip?.names?.[tokenLang()]].some((s) => s && fold(s).includes(q));
       if (remHits.length) hits.set(r.id, new Set(remHits));
       return nameHit || remHits.length;
     });
@@ -1008,6 +1009,8 @@ function rowHtml(r: Role, q: string, remHits: Set<number> | undefined) {
   };
   const rems = remindersOf(r);
   const other = tokenLang() === "en" ? roleName(r, uiLang() === "en" ? "es" : uiLang()) : r.en;
+  // a two-state token shows its front; its other state is named under it
+  const flip = flipFace(r, catalogSpec(false));
   // Reminders as chips under the name: identical ones share a chip ("Correct ×5"), which adds or
   // removes all of them; it shows how many are in when only some are.
   const groups = new Map<string, number[]>();
@@ -1022,7 +1025,7 @@ function rowHtml(r: Role, q: string, remHits: Set<number> | undefined) {
   }).join("");
   return `<div class="row${isCard(r) ? " info" : ""}${rems.length ? "" : " no-rems"}" data-picked="${isPicked(ck)}" data-row="${ck}">
     ${thumb(ck, null)}
-    <div class="who" data-pick="${ck}"><b>${esc(catalogText(r, null))}</b>${other !== catalogText(r, null) ? `<small>${esc(other)}</small>` : ""}${OWN ? (ownHome(r) && (q || catalogOf(state.edition) !== ownHomeCatalog(r.id)) ? `<em>${esc(ownHome(r))}</em>` : "") : q || state.edition === "all" || (state.edition.startsWith("s:") && r.kind !== "homebrew") ? `<em>${esc(editionName(r, lang))}</em>` : ""}${r.loading ? `<small>${esc(t("sheet.iconLoading"))}</small>` : ""}${OWN && !READONLY && !isLocked(coll, r.id) ? `<button class="own-edit" type="button" data-own-edit="${esc(r.id)}">${esc(t("own.edit"))}</button>` : ""}</div>
+    <div class="who" data-pick="${ck}"><b>${esc(catalogText(r, null))}</b>${other !== catalogText(r, null) ? `<small>${esc(other)}</small>` : ""}${flip ? `<small class="flip-name" title="${esc(t("sheet.flip"))}">⇄ ${esc(roleName(flip, tokenLang()))}</small>` : ""}${OWN ? (ownHome(r) && (q || catalogOf(state.edition) !== ownHomeCatalog(r.id)) ? `<em>${esc(ownHome(r))}</em>` : "") : q || state.edition === "all" || (state.edition.startsWith("s:") && r.kind !== "homebrew") ? `<em>${esc(editionName(r, lang))}</em>` : ""}${r.loading ? `<small>${esc(t("sheet.iconLoading"))}</small>` : ""}${OWN && !READONLY && !isLocked(coll, r.id) ? `<button class="own-edit" type="button" data-own-edit="${esc(r.id)}">${esc(t("own.edit"))}</button>` : ""}</div>
     ${rems.length ? `<div class="rems">${chips}</div>` : ""}
   </div>`;
 }
@@ -1137,22 +1140,47 @@ function renderWorkshop() {
     renderBackTiles(coinRole, editing);
     renderFrameTiles(shapes.all.every((sh) => SHAPE_FEATURES[sh].frame === "line") ? role : coinRole, editing);
     renderStyleTiles(coinRole, editing);
-    syncControls(editing, shapes);
+    const other = flipFace(role, spec);
+    syncControls(editing, shapes, flipReach(role, other));
+    renderFlipBack(role, spec, other);
 
     $("#depthHint").className = "hint" + (token.depthClamped ? " warn" : "");
     $("#depthHint").textContent = token.depthClamped
       ? t("depth.clamped", { max: token.depthClamped.toFixed(1), core: "0.4" })
       : shapeText("depth.help", shapeOf(role));
-    const n = token.name;
-    const small = n.letterHeight < smallLetters();
-    $("#nameHint").className = "hint" + (small ? " warn" : "");
-    $("#nameHint").textContent = !Number.isFinite(n.letterHeight) ? t("name.hintSolo")
-      : n.repeats ? t("name.hintRing", { n: n.repeats, mm: (Math.floor(n.letterHeight * 10) / 10).toFixed(1), shrunk: n.scale < 1, small, nozzle: nozzleMm() })
-      : n.total == null
-      ? t("name.hintWindow", { lines: n.lines, mm: (Math.floor(n.letterHeight * 10) / 10).toFixed(1), small, nozzle: nozzleMm() })
-      : t("name.hint", { arc: n.total.toFixed(0), mm: (Math.floor(n.letterHeight * 10) / 10).toFixed(1), shrunk: n.scale < 1, small, nozzle: nozzleMm() });
+    // how the name came out, and a two-state token's other name too
+    const hint = (n: Token["name"]) => {
+      const small = n.letterHeight < smallLetters(), mm = (Math.floor(n.letterHeight * 10) / 10).toFixed(1);
+      return !Number.isFinite(n.letterHeight) ? t("name.hintSolo")
+        : n.repeats ? t("name.hintRing", { n: n.repeats, mm, shrunk: n.scale < 1, small, nozzle: nozzleMm() })
+        : n.total == null ? t("name.hintWindow", { lines: n.lines, mm, small, nozzle: nozzleMm() })
+        : t("name.hint", { arc: n.total.toFixed(0), mm, shrunk: n.scale < 1, small, nozzle: nozzleMm() });
+    };
+    const n = token.name, f = token.flipName;
+    $("#nameHint").className = "hint" + ([n, f].some((x) => x && x.letterHeight < smallLetters()) ? " warn" : "");
+    $("#nameHint").textContent = hint(n) + (f && other ? ` ${t("name.flip", { name: roleName(other, spec.lang) })} ${hint(f)}` : "");
     renderColourWarn(role, spec, key);
   });
+}
+
+/**
+ * Two-state tokens among those the design reaches: whether the selected token is one (its back
+ * is its other state), whether some coin reached still has a back to design (an ordinary coin, or
+ * a linked token, which has no other state) and whether any is one.
+ */
+function flipReach(role: Role, other: Role | null) {
+  const coins = (state.tab === "token" ? [] : [...state.pick.keys()]).map((k) => ({ role: tokenRole(k), rem: tokenRem(k) })).filter((x) => shapeOf(x.role) === "coin");
+  const isFlip = (x: { role: Role; rem: number | null }) => !!flipFace(x.role, { linked: x.rem != null });
+  return { mine: !!other, plain: (!other && shapeOf(role) === "coin") || coins.some((x) => !isFlip(x)), some: !!other || coins.some(isFlip) };
+}
+type FlipReach = ReturnType<typeof flipReach>;
+/** The Back section's note: a two-state token's back is its other state (shown), or, for the set, which tokens its designs are for. */
+function renderFlipBack(role: Role, spec: TokenSpec, other: Role | null) {
+  const box = $("#flipBack");
+  box.hidden = !other && !(state.tab === "set" && flipReach(role, other).some);
+  if (box.hidden) return;
+  $("#flipBackPv").innerHTML = other ? tokenSvg(state.lib!, role, spec, { side: "back" }) : "";
+  $("#flipBackHint").textContent = other ? t("flip.back", { name: roleName(other, spec.lang) }) : t("flip.others");
 }
 
 /** The shapes the design controls reach: the selected token's (`mine`), and for the whole set
@@ -1264,9 +1292,11 @@ function renderFrameTiles(role: Role, spec: TokenSpec) {
 function renderBackTiles(role: Role, spec: TokenSpec) {
   const s = { ...DEFAULT_SPEC, ...spec, colours: { ...DEFAULT_SPEC.colours, ...spec.colours }, diameter: 45 };
   if (s.colours.back === "team") s.colours.back = FILAMENTS.gold;
+  // on an ordinary coin's back: a two-state token's would show its other state
+  const plain = { ...role, flip: undefined };
   $("[data-choice=back]").innerHTML = BACK_STYLES.filter((b) => b.id !== "seal").map((b) =>
     `<button class="back-tile" type="button" data-v="${b.id}" aria-pressed="${s.back === b.id}">${
-      b.id === "custom" && !s.customSvg ? `<span class="upload-tile">SVG</span>` : tokenSvg(state.lib!, role, { ...s, back: b.id }, { side: "back" })
+      b.id === "custom" && !s.customSvg ? `<span class="upload-tile">SVG</span>` : tokenSvg(state.lib!, plain, { ...s, back: b.id }, { side: "back" })
     }<span>${esc(t(`back.${b.id}`))}</span></button>`).join("");
 }
 
@@ -1303,7 +1333,7 @@ const USES = {
  * dimmed with a note that says so. A section none of them use goes, and if it was open the
  * Text section opens instead.
  */
-function syncControls(spec: TokenSpec, { mine, all }: { mine: TokenShape; all: TokenShape[] }) {
+function syncControls(spec: TokenSpec, { mine, all }: { mine: TokenShape; all: TokenShape[] }, flip: FlipReach) {
   const s = { ...DEFAULT_SPEC, ...spec, colours: { ...DEFAULT_SPEC.colours, ...spec.colours } };
   const dec = uiLang() === "es" ? "," : ".";
   for (const [id, [dp, unit]] of Object.entries(RANGES) as [RangeKey, [number, string]][]) {
@@ -1348,7 +1378,7 @@ function syncControls(spec: TokenSpec, { mine, all }: { mine: TokenShape; all: T
   $("#reliefHeightRow").hidden = !parts.length || !raised;
   const total = (s.height + reliefTop(s)).toFixed(1).replace(".", dec);
   $("#reliefHint").className = "hint" + (raised ? " warn" : "");
-  $("#reliefHint").textContent = raised ? t("relief.raisedHelp", { total }) : shapeText("relief.flatHelp", mine);
+  $("#reliefHint").textContent = (raised ? t("relief.raisedHelp", { total }) : shapeText("relief.flatHelp", mine)) + (flip.mine ? ` ${t("relief.flipFlush")}` : "");
   // Text: the name's size and spacing, the icon
   reach(row("textSize"), USES.textSize);
   reach(row("spacing"), USES.spacing);
@@ -1367,14 +1397,23 @@ function syncControls(spec: TokenSpec, { mine, all }: { mine: TokenShape; all: T
   $("#ringBaseHint").textContent = t("ring.baseHelp", { inner: dec1(2 * rs.inner), outer: dec1(2 * rs.outer) });
   $("#baseColourLabel").textContent = shapeText("coin.colour", mine);
   $("label[for=height]").textContent = shapeText("range.height", mine);
+  // Back: a two-state token's is its other state (renderFlipBack shows it). The designs and their
+  // colour stay for the set's other coins, dimmed; with none, they go.
+  for (const el of [$("[data-choice=back]"), $(".metal[data-colour=back]")]) {
+    el.hidden = flip.mine && !flip.plain;
+    if (flip.mine && flip.plain) el.dataset.na = t("flip.na"); else delete el.dataset.na;
+  }
   // a section's note says it all: no notes again on what's in it
   for (const panel of $$(".ws-panel[data-na]")) for (const el of $$("[data-na]", panel)) delete el.dataset.na;
-  // Magnet: the hole, the pause and how thick the coin has to be.
-  const m = magnetLayout(s), dec2 = (v: unknown) => String(v).replace(".", dec);
+  // Magnet: the hole, the pause and how thick the coin has to be. A two-state token's is as it
+  // prints (shapeSpec): inside, since its back is a face.
+  const ms: TokenSpec = flip.mine ? { ...s, back: FLIP_BACK, magnet: s.magnet === "pocket" ? "hidden" : s.magnet } : s;
+  const m = magnetLayout(ms), dec2 = (v: unknown) => String(v).replace(".", dec);
   $("#magnetSizeRow").hidden = !m;
   $("#magnetHint").textContent = !m ? t("magnet.none.help")
     : t(`magnet.${m.kind}.help`, { d: dec2((m.radius * 2).toFixed(1)), size: `${m.md} × ${m.mt}`, z: dec2(m.pauseZ) })
-      + (s.height < m.minHeight ? " " + t("magnet.taller", { from: dec2(s.height), to: dec2(m.minHeight) }) : "");
+      + (s.height < m.minHeight ? " " + t("magnet.taller", { from: dec2(s.height), to: dec2(m.minHeight) }) : "")
+      + (flip.mine && s.magnet !== "none" ? " " + t("magnet.flipHidden") : "");
   $$("[data-choice] button").forEach((b) => b.setAttribute("aria-pressed", String(s[b.parentElement!.dataset.choice as keyof TokenSpec] === b.dataset.v)));
   $$(".metal").forEach((box) => $$("button", box).forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === s.colours[box.dataset.colour as keyof SpecColours]))));
   // The window style's front is the window itself; its icon takes the coin's colour. A card's
@@ -1807,15 +1846,19 @@ function queuePlan() {
     const team = TEAMS[role.team].colour, pick = (v: ColourRef) => (v === "team" ? team : v);
     const shape = shapeOf(role), has = SHAPE_FEATURES[shape];
     const hasBack = has.back && spec.back !== "none" && (spec.back !== "custom" || spec.customSvg) && (spec.back !== "seal" || state.lib!.sealSvg) && (spec.back !== "edition" || role.edition);
+    const flip = spec.back === FLIP_BACK, iconColour = pick(has.icon && spec.style !== "window" ? spec.colours.front : spec.colours.base);
     return {
       q, title: queueLabel(q, role), group: queueGroup(q, role),
       token: {
         spec,
         // a card's footprint is its own; a ring takes up its outer diameter but has no body in its hole
         ...(shape === "card" ? { foot: { w: CARD.w, h: CARD.h } } : shape === "ring" ? { hole: 2 * ringSize(spec).inner } : {}),
-        parts: { base: 1, front: 1, icon: has.icon ? 1 : null, frame: spec.frame !== "none" ? 1 : null, back: hasBack ? 1 : null },
+        // a two-state token's back (itemSpec says so) is a front: its name, icon and frame
+        parts: { base: 1, front: 1, icon: has.icon ? 1 : null, frame: spec.frame !== "none" ? 1 : null, back: hasBack ? 1 : null,
+          backIcon: flip && has.icon ? 1 : null, backFrame: flip && spec.frame !== "none" ? 1 : null },
         // the window's icon is in the coin colour; the classic one in the name's
-        colours: { base: pick(spec.colours.base), front: pick(spec.colours.front), icon: pick(has.icon && spec.style !== "window" ? spec.colours.front : spec.colours.base), frame: pick(spec.colours.frame), back: pick(spec.colours.back) },
+        colours: { base: pick(spec.colours.base), front: pick(spec.colours.front), icon: iconColour, frame: pick(spec.colours.frame),
+          back: pick(flip ? spec.colours.front : spec.colours.back), backIcon: iconColour, backFrame: pick(spec.colours.frame) },
       },
     };
   });
@@ -2275,7 +2318,9 @@ function openCredits() {
   const ownGame = [...state.overrides.values()].map((o) => o.icon).filter((i): i is TokenIcon => i?.source === "game-icons").map((i) => ({ icon: i.name, author: i.author }));
   // and the interface's own (team filters, the add menu)
   const ui = Object.entries(UI_ICONS).map(([icon, { author }]) => ({ icon, author }));
-  for (const r of [...(state.lib?.roles || []), ...ownGame, ...ui]) {
+  // a two-state token's other state has an icon of its own
+  const flips = (state.lib?.roles || []).flatMap((r) => (r.flip ? [r.flip] : []));
+  for (const r of [...(state.lib?.roles || []), ...flips, ...ownGame, ...ui]) {
     if (!r.icon) continue;
     if (!byAuthor.has(r.author!)) byAuthor.set(r.author!, new Set());
     byAuthor.get(r.author!)!.add(r.icon);
@@ -2579,7 +2624,7 @@ function openOwnToken(id: string | null) {
   $("#ownTokType").innerHTML = coll.types.map((x) => `<option value="${esc(x.id)}"${x.id === ownDraft!.type ? " selected" : ""}>${esc(nameIn(x.name, uiLang()))}</option>`).join("");
   $("#ownTokGroup").innerHTML = coll.groups.map((g) => `<option value="${esc(g.id)}"${g.id === ownDraft!.group ? " selected" : ""}>${esc(nameIn(g.name, uiLang()))}</option>`).join("");
   $("#ownTokCats").innerHTML = openCats.map((k) => `<label class="check"><input type="checkbox" value="${esc(k.id)}"${ownDraft!.cats.includes(k.id) ? " checked" : ""}> ${esc(nameIn(k.name, uiLang()))}</label>`).join("") || `<p class="hint">${esc(t("own.noCatalogs"))}</p>`;
-  renderOwnLinked(); drawOwnPreview();
+  renderOwnLinked(); renderOwnFlip(); drawOwnPreview();
   $<HTMLDialogElement>("#ownTok").showModal();
   if (!tk) $("#ownTokName").focus();
 }
@@ -2587,13 +2632,27 @@ function renderOwnLinked() {
   const lang = tokenLang();
   $("#ownTokLinked").innerHTML = ownDraft!.linked.map((w, i) => `<span class="own-link"><input class="text" value="${esc(nameIn(w, lang))}" data-li="${i}" aria-label="${esc(t("own.linked"))}"><button class="link" type="button" data-ldel="${i}" aria-label="${esc(t("own.remove"))}">✕</button></span>`).join("");
 }
+/** The draft's shape, by its type. */
+const draftShape = () => coll.types.find((x) => x.id === ownDraft!.type)?.shape ?? "coin";
+/** The other state's fields: offered for a shape that has two states, open once it has one. */
+function renderOwnFlip() {
+  const d = ownDraft!;
+  $("#ownTokFlipRow").hidden = !SHAPE_FEATURES[draftShape()].flip;
+  $("#ownTokFlipAdd").hidden = !!d.flip;
+  $("#ownTokFlipBox").hidden = !d.flip;
+  $<HTMLInputElement>("#ownTokFlipName").value = d.flip ? nameIn(d.flip.name, tokenLang()) : "";
+  $<HTMLInputElement>("#ownTokFlipIq").value = ""; $("#ownTokFlipHits").innerHTML = "";
+}
 function drawOwnPreview() {
   const d = ownDraft!;
   const role = { ...collectionRoles({ ...coll, tokens: [d] }, uiLang())[0], id: `__draft_${d.id}`, iconKey: `__draft:${d.icon?.id ?? "none"}` };
   const spec = { ...state.spec, lang: tokenLang() };
   const name = nameIn(d.name, tokenLang()).trim() || t("own.namePlaceholder");
-  const coin = (coll.types.find((x) => x.id === d.type)?.shape ?? "coin") === "coin";
+  const coin = draftShape() === "coin";
+  // a two-state token: its other state, as its back prints
+  const other = flipFace(role, spec);
   $("#ownTokPv").innerHTML = tokenSvg(state.lib!, role, spec, { text: name })
+    + (other ? `<span class="own-pv-flip" title="${esc(t("sheet.flip"))}">⇄ ${tokenSvg(state.lib!, role, spec, { side: "back" })}</span>` : "")
     + (d.linked.length && coin ? `<span class="own-pv-links">${d.linked.slice(0, 4).map((w) => tokenSvg(state.lib!, role, reminderSpec(spec), { text: nameIn(w, tokenLang()) || "…" })).join("")}</span>` : "");
 }
 function wireOwnToken() {
@@ -2601,26 +2660,35 @@ function wireOwnToken() {
   closeOnBackdrop(dlg);
   $("#ownTokName").oninput = (e) => { ownDraft!.name = withName(ownDraft!.name, tokenLang(), input(e).value); drawOwnPreview(); };
   $("#ownTokGroup").onchange = (e) => { ownDraft!.group = (e.target as HTMLSelectElement).value; drawOwnPreview(); };
-  $("#ownTokType").onchange = (e) => { ownDraft!.type = (e.target as HTMLSelectElement).value; drawOwnPreview(); };
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  $("#ownTokIq").oninput = (e) => {
-    clearTimeout(timer);
-    timer = setTimeout(async () => {
-      const query = input(e).value.trim(), hits = query ? await searchGameIcons(query, 48) : [];
-      $("#ownTokHits").innerHTML = hits.map((p) => `<button type="button" class="icon-hit" data-gi="${esc(p)}" title="${esc(p.replace("/", " · "))}"><img src="${gameIconPreview(p)}" alt="" loading="lazy"><span>${esc(p.split("/")[1])}</span></button>`).join("")
-        || (query ? `<p class="hint">${esc(t("icon.none"))}</p>` : "");
-    }, 200);
+  $("#ownTokType").onchange = (e) => { ownDraft!.type = (e.target as HTMLSelectElement).value; renderOwnFlip(); drawOwnPreview(); };
+  // The token's icon and its other state's are chosen alike: game-icons.net, an SVG of yours, or none.
+  const iconPicker = (id: string, set: (icon: TokenIcon | null) => void) => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    $(`#${id}Iq`).oninput = (e) => {
+      clearTimeout(timer);
+      timer = setTimeout(async () => {
+        const query = input(e).value.trim(), hits = query ? await searchGameIcons(query, 48) : [];
+        $(`#${id}Hits`).innerHTML = hits.map((p) => `<button type="button" class="icon-hit" data-gi="${esc(p)}" title="${esc(p.replace("/", " · "))}"><img src="${gameIconPreview(p)}" alt="" loading="lazy"><span>${esc(p.split("/")[1])}</span></button>`).join("")
+          || (query ? `<p class="hint">${esc(t("icon.none"))}</p>` : "");
+      }, 200);
+    };
+    $(`#${id}Hits`).onclick = async (e) => {
+      const b = hit(e, "[data-gi]"); if (!b) return;
+      try { set({ ...(await gameIcon(b.dataset.gi!)), id: b.dataset.gi! }); } catch { /* offline: keep the old one */ }
+    };
+    $<HTMLInputElement>(`#${id}Svg`).onchange = async (e) => {
+      const f = input(e).files?.[0]; input(e).value = ""; if (!f) return;
+      try { set({ ...iconFromSvg(await f.text(), { source: "upload", name: f.name }), id: `upload:${newId("i")}` }); }
+      catch { $(`#${id}Hits`).innerHTML = `<p class="hint warn">${esc(t("own.svgFailed"))}</p>`; }
+    };
+    $(`#${id}NoIcon`).onclick = () => set(null);
   };
-  $("#ownTokHits").onclick = async (e) => {
-    const b = hit(e, "[data-gi]"); if (!b) return;
-    try { ownDraft!.icon = { ...(await gameIcon(b.dataset.gi!)), id: b.dataset.gi! }; drawOwnPreview(); } catch { /* offline: keep the old one */ }
-  };
-  $<HTMLInputElement>("#ownTokSvg").onchange = async (e) => {
-    const f = input(e).files?.[0]; input(e).value = ""; if (!f) return;
-    try { const icon = iconFromSvg(await f.text(), { source: "upload", name: f.name }); ownDraft!.icon = { ...icon, id: `upload:${newId("i")}` }; drawOwnPreview(); }
-    catch { $("#ownTokHits").innerHTML = `<p class="hint warn">${esc(t("own.svgFailed"))}</p>`; }
-  };
-  $("#ownTokNoIcon").onclick = () => { ownDraft!.icon = null; drawOwnPreview(); };
+  iconPicker("ownTok", (icon) => { ownDraft!.icon = icon; drawOwnPreview(); });
+  iconPicker("ownTokFlip", (icon) => { if (ownDraft!.flip) ownDraft!.flip.icon = icon; drawOwnPreview(); });
+  // the other state: added, named (in the token language, like the name) and taken out
+  $("#ownTokFlipAdd").onclick = () => { ownDraft!.flip = { name: "", icon: null }; renderOwnFlip(); drawOwnPreview(); $("#ownTokFlipName").focus(); };
+  $("#ownTokFlipRemove").onclick = () => { delete ownDraft!.flip; renderOwnFlip(); drawOwnPreview(); };
+  $("#ownTokFlipName").oninput = (e) => { if (ownDraft!.flip) ownDraft!.flip.name = withName(ownDraft!.flip.name, tokenLang(), input(e).value); drawOwnPreview(); };
   $("#ownTokAddLinked").onclick = () => { ownDraft!.linked.push(""); renderOwnLinked(); drawOwnPreview(); $<HTMLInputElement>(`[data-li="${ownDraft!.linked.length - 1}"]`).focus(); };
   $("#ownTokLinked").oninput = (e) => { const i = input(e).dataset.li; if (i != null) { ownDraft!.linked[+i] = withName(ownDraft!.linked[+i], tokenLang(), input(e).value); drawOwnPreview(); } };
   $("#ownTokLinked").onclick = (e) => { const b = hit(e, "[data-ldel]"); if (b) { ownDraft!.linked.splice(+b.dataset.ldel!, 1); renderOwnLinked(); drawOwnPreview(); } };
@@ -2628,12 +2696,16 @@ function wireOwnToken() {
   $("#ownTokSave").onclick = () => {
     const d = ownDraft!, lang = tokenLang();
     if (!nameIn(d.name, lang).trim()) { $("#ownTokName").focus(); return; }
+    // only a shape with two states keeps the other one; it needs its name too
+    const flip = SHAPE_FEATURES[draftShape()].flip ? d.flip : undefined;
+    if (flip && !nameIn(flip.name, lang).trim()) { $("#ownTokFlipName").focus(); return; }
     const linked = d.linked.filter((w) => nameIn(w, lang).trim());
     // a linked token taken out shifts the ones after it: their picks and own designs follow them
     const old = coll.tokens.find((x) => x.id === d.id);
     if (old) remapLinked(d.id, old.linked.map((w) => nameIn(w, lang)), linked.map((w) => nameIn(w, lang)));
-    const { cats: _cats, ...tk } = { ...d, linked };
-    if (old) Object.assign(old, tk); else coll.tokens.push(tk);
+    const { cats: _cats, flip: _flip, ...rest } = { ...d, linked };
+    const tk: OwnToken = { ...rest, ...(flip ? { flip } : {}) };
+    if (old) { delete old.flip; Object.assign(old, tk); } else coll.tokens.push(tk);
     const cats = new Set($$<HTMLInputElement>("#ownTokCats input:checked").map((x) => x.value));
     for (const k of coll.sections.filter((s) => s.open).flatMap((s) => s.catalogs)) {
       const has = k.tokens.includes(d.id);

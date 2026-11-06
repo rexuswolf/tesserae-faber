@@ -45,9 +45,13 @@ export interface OwnToken {
   icon: TokenIcon | null;
   /** Linked tokens' words: they come and go with it, like a character's reminders. */
   linked: Names[];
+  /** Its other state, on its back (a coin's only): "Ready" on the front, "Acted" when turned over. */
+  flip?: OwnFlip;
   /** It came with the collection and can't be changed (like Clocktower's info tokens). */
   fixed?: boolean;
 }
+/** A two-state token's other state: a name (in several languages, like the token's) and an icon (like the token's). */
+export interface OwnFlip { name: Names; icon: TokenIcon | null }
 export interface OwnCatalog { id: string; name: Names; tokens: string[] }
 export interface OwnSection { id: string; title: Names; open: boolean; catalogs: OwnCatalog[] }
 /** Does it carry the Community Created Content mark? (Kept before it had its own field: on its loading screen.) */
@@ -230,8 +234,13 @@ export const catalogsOf = (c: Collection) => c.sections.flatMap((s) => s.catalog
 export const isLocked = (c: Collection, id: string) => !!c.tokens.find((t) => t.id === id)?.fixed || c.sections.some((s) => !s.open && s.catalogs.some((k) => k.tokens.includes(id)));
 
 /** The app's character for a token of ours: its group is its team; its linked tokens, its reminders. */
+/** A name as a character has it: English, Spanish and one per language. */
+const namesOf = (n: Names) => (typeof n === "string" ? { en: n, es: n } : n);
+/** An icon's credit, when it's from game-icons.net. */
+const creditOf = (icon: TokenIcon | null) => (icon?.source === "game-icons" ? { icon: icon.name, author: icon.author } : {});
+
 export function tokenRole(c: Collection, t: OwnToken, lang = "es"): Role {
-  const names = typeof t.name === "string" ? { en: t.name, es: t.name } : t.name;
+  const names = namesOf(t.name);
   const langs = new Set(["en", "es", ...Object.keys(names), ...t.linked.flatMap((l) => (typeof l === "string" ? [] : Object.keys(l)))]);
   const type = c.types.find((x) => x.id === t.type);
   // the Edition back: the first closed catalog it's in ("Trouble Brewing"), else the collection's name
@@ -244,31 +253,48 @@ export function tokenRole(c: Collection, t: OwnToken, lang = "es"): Role {
     body: t.icon?.body ?? "", d: [], g: t.icon?.g ?? "",
     ...(type?.shape === "card" ? { kind: "info" as const } : type?.shape === "ring" ? { kind: "ring" as const } : {}),
     // credited like the library's icons, when it's from game-icons.net
-    ...(t.icon?.source === "game-icons" ? { icon: t.icon.name, author: t.icon.author } : {}),
+    ...creditOf(t.icon),
     // the engine caches shapes by this: a new icon for the same token gets drawn afresh
     iconKey: `${t.id}:${t.icon?.id ?? "none"}`,
+    ...(t.flip ? { flip: flipRole(t.id, t.flip) } : {}),
+  };
+}
+/** A token's other state as the engine draws it (the engine leaves it out for shapes without one). */
+function flipRole(id: string, f: OwnFlip): NonNullable<Role["flip"]> {
+  const names = namesOf(f.name);
+  return {
+    en: nameIn(names, "en"), es: nameIn(names, "es"), names: Object.fromEntries(Object.keys({ en: 1, es: 1, ...names }).map((l) => [l, nameIn(names, l)])),
+    body: f.icon?.body ?? "", g: f.icon?.g ?? "", ...creditOf(f.icon), iconKey: `${id}~flip:${f.icon?.id ?? "none"}`,
   };
 }
 export const collectionRoles = (c: Collection, lang?: string) => c.tokens.map((t) => tokenRole(c, t, lang));
 
 // ------------------------------------------------------------ the JSON file
 
-interface FileToken extends Omit<OwnToken, "icon" | "linked"> { icon?: string | { svg: string }; iconCredit?: { name?: string; author?: string }; linked?: ({ name: Names } | string)[] }
+/** An icon in the file: a game-icons.net icon by "author/name", or SVG (with its credit, when it came from game-icons.net). */
+interface FileIcon { icon?: string | { svg: string }; iconCredit?: { name?: string; author?: string } }
+/** A token in the file; its other state is written like the token's own name and icon. */
+interface FileToken extends Omit<OwnToken, "icon" | "linked" | "flip">, FileIcon { linked?: ({ name: Names } | string)[]; flip?: { name: Names } & FileIcon }
 export interface CollectionFile extends Omit<Collection, "tokens"> { format: string; version: number; tokens: FileToken[] }
 
 const isGameIcon = (s: string) => /^[\w-]+\/[\w-]+$/.test(s);
 const svgOf = (icon: TokenIcon) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 127.559055 127.559055"><g transform="${icon.g}">${icon.body}</g></svg>`;
 
+/** An icon as the file has it: a game-icons.net icon by name, the rest as SVG. */
+const fileIcon = (icon: TokenIcon | null): FileIcon => ({
+  ...(icon ? { icon: icon.source === "game-icons" && isGameIcon(icon.id) ? icon.id : { svg: svgOf(icon) } } : {}),
+  // an icon kept as SVG still says where it's from, for the credits
+  ...(icon?.author && !isGameIcon(icon.id) ? { iconCredit: { name: icon.name, author: icon.author } } : {}),
+});
 /** The collection as a file: game-icons.net icons by name, the rest as SVG. */
 export function collectionFile(c: Collection): CollectionFile {
   return {
     format: COLLECTION_FORMAT, version: 1, ...c,
-    tokens: c.tokens.map(({ icon, linked, ...t }) => ({
+    tokens: c.tokens.map(({ icon, linked, flip, ...t }) => ({
       ...t,
-      ...(icon ? { icon: icon.source === "game-icons" && isGameIcon(icon.id) ? icon.id : { svg: svgOf(icon) } } : {}),
-      // an icon kept as SVG still says where it's from, for the credits
-      ...(icon?.author && !isGameIcon(icon.id) ? { iconCredit: { name: icon.name, author: icon.author } } : {}),
+      ...fileIcon(icon),
       linked: linked.map((name) => ({ name })),
+      ...(flip ? { flip: { name: flip.name, ...fileIcon(flip.icon) } } : {}),
     })),
   };
 }
@@ -288,21 +314,27 @@ export async function readCollectionFile(data: unknown, onProgress: (done: numbe
   const knownGroup = new Set(groups.map((g) => g.id)), knownType = new Set(types.map((x) => x.id));
   let done = 0;
   const tokens: OwnToken[] = [];
-  for (const t of f.tokens) {
-    if (!t?.id || !okName(t.name)) continue;
-    let icon: TokenIcon | null = null;
+  /** An icon from the file: fetched (game-icons.net) or read (SVG); null if it won't load. */
+  const readIcon = async (x: FileIcon, id: string): Promise<TokenIcon | null> => {
     try {
-      if (typeof t.icon === "string" && isGameIcon(t.icon)) icon = { ...(await gameIcon(t.icon)), id: t.icon };
-      else if (t.icon && typeof t.icon === "object" && typeof t.icon.svg === "string") {
-        const m = t.icon.svg.match(/<g transform="([^"]*)">([\s\S]*)<\/g>\s*<\/svg>\s*$/);
-        const credit = t.iconCredit;
-        if (m) icon = { id: `svg:${t.id}`, source: credit?.author ? "game-icons" : "upload", g: m[1], body: m[2], ...(credit ?? {}) };
+      if (typeof x.icon === "string" && isGameIcon(x.icon)) return { ...(await gameIcon(x.icon)), id: x.icon };
+      if (x.icon && typeof x.icon === "object" && typeof x.icon.svg === "string") {
+        const m = x.icon.svg.match(/<g transform="([^"]*)">([\s\S]*)<\/g>\s*<\/svg>\s*$/);
+        const credit = x.iconCredit;
+        if (m) return { id, source: credit?.author ? "game-icons" : "upload", g: m[1], body: m[2], ...(credit ?? {}) };
       }
     } catch { /* an icon that won't load: the token stays, without it */ }
+    return null;
+  };
+  for (const t of f.tokens) {
+    if (!t?.id || !okName(t.name)) continue;
+    const icon = await readIcon(t, `svg:${t.id}`);
+    const flip = t.flip && typeof t.flip === "object" && okName(t.flip.name) ? { name: t.flip.name, icon: await readIcon(t.flip, `svg:${t.id}~flip`) } : null;
     tokens.push({
       id: String(t.id), type: knownType.has(String(t.type)) ? String(t.type) : types[0].id, group: knownGroup.has(String(t.group)) ? String(t.group) : groups[0].id,
       name: t.name, ...(t.fem && typeof t.fem === "object" ? { fem: t.fem } : {}), ...(t.fixed ? { fixed: true } : {}), icon,
       linked: (t.linked ?? []).map((l) => (typeof l === "string" ? l : l?.name)).filter(okName),
+      ...(flip ? { flip } : {}),
     });
     if (++done % 20 === 0 || done === f.tokens.length) onProgress(done, f.tokens.length);
   }
@@ -337,7 +369,8 @@ export function readTokenList(c: Collection, text: string): { name: string | nul
   const index = new Map<string, string>();
   for (const t of c.tokens) {
     index.set(key(t.id), t.id);
-    for (const n of typeof t.name === "string" ? [t.name] : Object.values(t.name)) index.set(key(n), t.id);
+    // a two-state token by either of its names
+    for (const name of [t.name, ...(t.flip ? [t.flip.name] : [])]) for (const n of typeof name === "string" ? [name] : Object.values(name)) index.set(key(n), t.id);
   }
   let entries: string[] = [], name: string | null = null;
   try {

@@ -1,6 +1,6 @@
 // Colour checks on a token's design: inlays you can't tell from the coin, and light inlays
 // on a dark coin too shallow to cover it. Shared by the workshop (step 2) and the Print step.
-import { partColours } from "./engine/token-engine.ts";
+import { FLIP_BACK, partColours } from "./engine/token-engine.ts";
 import type { Role, SpecInput } from "./types.ts";
 
 /** CIELAB of an "#rrggbb" colour (D65), as Bambu Studio's flush predictor computes it. */
@@ -59,7 +59,8 @@ export function colourIssues(role: Role, spec: SpecInput): { clash: InlayPart[];
   const c = partColours(role, spec);
   const parts: InlayPart[] = ["front"];
   if (spec.frame && spec.frame !== "none") parts.push("frame");
-  if (spec.back && spec.back !== "none") parts.push("back");
+  // a two-state token's back is in the front's colours: checked with the front
+  if (spec.back && spec.back !== "none" && spec.back !== FLIP_BACK) parts.push("back");
   const clash = parts.filter((p) => deltaE(c[p], c.base) < CLASH);
   const dark = lightness(c.base) <= DARK;
   const light = dark && (spec.depth ?? 0.2) < COVERS ? parts.filter((p) => !clash.includes(p) && lightness(c[p]) >= LIGHT) : [];

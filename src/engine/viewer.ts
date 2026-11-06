@@ -46,14 +46,15 @@ export function createViewer(canvas: HTMLCanvasElement, { background = null }: {
   const backKey = new THREE.DirectionalLight(0xffffff, KEY); backKey.position.set(70, -90, -150); scene.add(backKey);
 
   const meshes = {} as Record<ViewPart, PartMesh>;
-  for (const name of ["base", "front", "icon", "frame", "back", "hole"] as ViewPart[]) {
+  for (const name of ["base", "front", "icon", "frame", "back", "backIcon", "backFrame", "hole"] as ViewPart[]) {
     meshes[name] = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshStandardMaterial({ roughness: 0.6, metalness: 0.05 }));
     scene.add(meshes[name]);
   }
   // Inlays are flush with the coin; nudge them out so the preview doesn't flicker.
   meshes.front.position.z = meshes.frame.position.z = 0.015;
   meshes.icon.position.z = 0.03;   // over the flat window
-  meshes.back.position.z = -0.015;
+  meshes.back.position.z = meshes.backFrame.position.z = -0.015;
+  meshes.backIcon.position.z = -0.03;   // a two-state token's back is a front too: its window's icon over the window
   // X-ray view: the coin turns see-through and shows the magnet inside.
   const magnetMesh = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshStandardMaterial({ color: 0xc8ced6, emissive: 0x30343a, roughness: 0.25, metalness: 0.8 }));
   const cavityLines = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xc9a227 }));

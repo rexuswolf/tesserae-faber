@@ -24,7 +24,7 @@ export function addTokenToZip(zip: JSZip, token: Token, role: Role, text: string
   const name = `${TEAMS[role.team].file}_${slug(text) || slug(role.en)}`;
   const dir = zip.folder(name)!;
   const lines: string[] = [];
-  const order: PartName[] = ["base", "front", "icon", "frame", "back"];
+  const order: PartName[] = ["base", "front", "icon", "frame", "back", "backIcon", "backFrame"];
   order.forEach((part, i) => {
     const geom = token.parts[part];
     if (!geom) return;

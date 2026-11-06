@@ -19,8 +19,9 @@ export const FILAMENT_SLOTS = [
   { hex: "#9a6a3a", name: "Bronze" },
   { hex: "#ece9e2", name: "White" },
 ];
-// Later parts win where parts overlap: the icon sits over the (flat) window.
-export const PARTS: PartName[] = ["base", "front", "icon", "frame", "back"];
+// Later parts win where parts overlap: the icon sits over the (flat) window, on the front and
+// on a two-state token's back.
+export const PARTS: PartName[] = ["base", "front", "icon", "frame", "back", "backIcon", "backFrame"];
 export interface Printer { id: string; name: string; short: string; bed: number }
 // Ids match PRINTERS in tools/make_bambu_template.py, which writes each one's <id>-template.json.
 export const PRINTERS: Record<string, Printer> = {
