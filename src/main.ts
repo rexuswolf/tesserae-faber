@@ -113,6 +113,8 @@ let coll: Collection = (OWN && loadCollection()) || { name: "", types: [], group
 const BUILT = OWN ? (OWN_ID ? builtIn(OWN_ID) : undefined) : builtIn("botc");
 const READONLY = OWN && !!BUILT;
 if (BUILT) document.documentElement.dataset.builtin = BUILT.id;
+// its name, logo, colours and loading line from the start: the loading screen shows them while its file is read
+if (READONLY && BUILT) coll = { ...coll, name: BUILT.name, ...(BUILT.theme ? { theme: BUILT.theme } : {}), ...(BUILT.logo ? { brand: { logo: BUILT.logo } } : {}), ...(BUILT.loader ? { loader: BUILT.loader } : {}) };
 if (OWN && OWN_ID) { applyOwnTheme(); applyOwnBrand(); }   // before the loading screen shows: it wears the collection's colours and mark too
 
 // After a deploy, a page opened earlier may ask for code files that no longer

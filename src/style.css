@@ -880,10 +880,10 @@ html[data-mode=own] .own-spine-h { display: none; }   /* the creator's sections 
 .oh-homelink { display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit; }
 .oh-homelink img { width: 40px; height: 40px; }
 .oh-homelink .faber-wm { font-size: 22px; }
-.oh-nav { display: flex; gap: 4px; margin-left: 18px; }
-.oh-nav a { text-decoration: none; color: var(--dust); padding: 6px 12px; border-radius: 999px; font-size: 15.5px; }
-.oh-nav a:hover { color: var(--bone); }
-.oh-nav a[aria-current=page] { color: var(--bone); background: rgba(236, 227, 208, .08); }
+/* the front page: its content in the middle of the screen, under the bar */
+.own-landing:not([hidden]) { display: flex; flex-direction: column; }
+.own-landing .oh-top, .own-landing .ol-hero { width: 100%; }
+.own-landing .ol-hero { flex: 1; }
 .own-home h1 { font: 400 clamp(34px, 4.6vw, 58px)/1.06 "Marcellus", serif; margin: 0; text-wrap: balance; }
 .ol-lead { color: var(--dust); font-size: 19px; max-width: 34em; margin: 16px 0 0; }
 /* the front page */
@@ -1045,3 +1045,13 @@ html[data-builtin] [data-coll].own-only, html[data-builtin] hr.own-only, html[da
 .about-mark img { width: 120px; }
 /* a new version has arrived (main.ts): a quiet button to reload into it */
 .update-note { position: fixed; left: 50%; bottom: 84px; translate: -50% 0; z-index: 60; font: inherit; font-size: 14px; color: #170812; background: var(--brass); border: 0; border-radius: 999px; padding: 9px 18px; box-shadow: 0 10px 28px rgba(0,0,0,.45); cursor: pointer; }
+/* Moving between the app's pages (View Transitions across documents, Chrome and Safari; elsewhere
+   instant): the top bar stays put and only what's under it changes, with a very short fade. The
+   whole page fading, bar included, read as a reload. */
+@view-transition { navigation: auto; }
+.topbar, .oh-top { view-transition-name: topbar; }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: 120ms; }
+::view-transition-group(topbar) { animation-duration: 120ms; }
+@media (prefers-reduced-motion: reduce) {
+  @view-transition { navigation: none; }
+}

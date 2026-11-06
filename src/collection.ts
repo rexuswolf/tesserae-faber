@@ -120,7 +120,9 @@ export interface BuiltInEntry { id: string; file?: string; name: string; logo?: 
   /** A licence's mark it carries, on its cover and in About, with the notice that goes with it ("Powered by Draw Steel"). */
   mark?: { src: string; alt: string; notice: Names; invert?: boolean };
   /** Its cover's background (CSS), when not Clocktower's velvet. */
-  cover?: string }
+  cover?: string;
+  /** Its colours and loading line, known before its file is read (the loading screen wears them). */
+  theme?: OwnTheme; loader?: OwnLoader }
 /** Where a collection opens: its own app's address for one that has it, else /c/<id>. */
 export const openUrl = (id: string, built: { id: string; href?: string }[]) => built.find((b) => b.id === id)?.href ?? collectionUrl(id);
 export const builtInCollections = (): Promise<BuiltInEntry[]> => Promise.resolve(BUILT_INS);

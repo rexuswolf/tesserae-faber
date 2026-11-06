@@ -43,6 +43,8 @@ export const BUILT_INS: BuiltInEntry[] = [
     preview: "/collections/drawsteel-preview.svg",   // tools/make-drawsteel-collection.mjs
     file: "/collections/drawsteel.json",   // tools/make-drawsteel-collection.mjs
     cover: "radial-gradient(120% 140% at 0% 0%, #3a3f47 0%, #23262b 55%, #141619 100%)",
+    theme: { accent: "#d4a017", background: "#16181b", surface: "#202328", text: "#e8e6e1", muted: "#a3a7ad", glow: "#2b2f36", font: "Bricolage Grotesque" },
+    loader: { text: { es: "Desenvainando…", en: "Drawing steel…" } },
     facts: { es: "15 recursos · 11 condiciones · 11 aros · 2 idiomas", en: "15 resources · 11 conditions · 11 rings · 2 languages" },
     text: { es: "Recursos heroicos, Malicia, Victorias, condiciones y aros de condición.", en: "Heroic resources, Malice, Victories, conditions and condition rings." },
     about: {

@@ -6,7 +6,7 @@ export const threeBySource = { find: /^three$/, replacement: "three/src/Three.js
 
 // An installable app (PWA): the app's files are kept by a service worker, so moving between its
 // pages (/, /colecciones, /c/<id>, /botc) and opening it again doesn't fetch them again, and it
-// works offline. A new version takes over on its own (autoUpdate) the next time a page opens.
+// works offline. The page itself is always asked of the network first (below), so a visit gets the latest.
 const pwa = VitePWA({
   registerType: "autoUpdate",
   injectRegister: false,   // registered in src/main.ts, which also says when a new version has arrived
@@ -34,9 +34,13 @@ const pwa = VitePWA({
     globPatterns: ["**/*.{js,css,html,svg,png,ttf,json,webp}"],
     globIgnores: ["collections/*.json", "guide/**"],   // big and seldom needed: kept when first used (below)
     maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
-    navigateFallback: "/index.html",   // every address is the one page (firebase.json's rewrite)
+    // The page itself comes from the network whenever there is one, so each visit gets the latest
+    // version (its files have new names, fetched then); offline, the one kept. Every address is the
+    // one page (firebase.json's rewrite), so an address never visited offline falls back to it.
+    navigateFallback: null,
     cleanupOutdatedCaches: true,
     runtimeCaching: [
+      { urlPattern: ({ request }) => request.mode === "navigate", handler: "NetworkFirst", options: { cacheName: "pages", networkTimeoutSeconds: 4, precacheFallback: { fallbackURL: "/index.html" } } },
       { urlPattern: ({ url }) => url.origin === self.location.origin && /^\/(collections|guide)\//.test(url.pathname), handler: "StaleWhileRevalidate", options: { cacheName: "app-extras" } },
       { urlPattern: ({ url }) => url.origin === "https://fonts.googleapis.com", handler: "StaleWhileRevalidate", options: { cacheName: "font-css" } },
       { urlPattern: ({ url }) => url.origin === "https://fonts.gstatic.com", handler: "CacheFirst", options: { cacheName: "fonts", expiration: { maxEntries: 40, maxAgeSeconds: 365 * 86400 }, cacheableResponse: { statuses: [0, 200] } } },

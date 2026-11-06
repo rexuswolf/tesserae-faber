@@ -8,6 +8,8 @@
 // sections: Draw Steel (closed) and your encounters (open).
 import fs from "node:fs";
 import path from "node:path";
+import { BUILT_INS } from "../src/builtins.ts";   // its theme and loading screen: one place
+const DS = BUILT_INS.find((b) => b.id === "drawsteel");
 
 const root = path.resolve(import.meta.dirname, "..");
 const GI = JSON.parse(fs.readFileSync(path.join(root, "node_modules/@iconify-json/game-icons/icons.json"), "utf8")).icons;
@@ -20,16 +22,17 @@ const icon = (name) => {
   return { icon: { svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 127.559055 127.559055"><g transform="${PLACE}">${body.replace(/\s(fill)="[^"]*"/g, "")}</g></svg>` }, iconCredit: { name, author: author(name) } };
 };
 
+// group colours are filaments the printer has (src/collection.ts GROUP_COLOURS), so a plate can print them
 const CLASSES = [
-  { id: "censor", name: "Censor", c: "#c0392b", res: ["wrath", { en: "Wrath", es: "Ira" }, "enrage"] },
-  { id: "conduit", name: "Conduit", c: "#e0b33a", res: ["piety", { en: "Piety", es: "Piedad" }, "holy-symbol"] },
-  { id: "elementalist", name: "Elementalist", c: "#e67e22", res: ["essence", { en: "Essence", es: "Esencia" }, "fire-ring"] },
-  { id: "fury", name: "Fury", c: "#8e3b2e", res: ["ferocity", { en: "Ferocity", es: "Ferocidad" }, "wolf-howl"] },
-  { id: "null", name: "Null", c: "#7f8c8d", res: ["discipline", { en: "Discipline", es: "Disciplina" }, "meditation"] },
-  { id: "shadow", name: "Shadow", c: "#5b4b8a", res: ["insight", { en: "Insight", es: "Perspicacia" }, "cowled"] },
-  { id: "tactician", name: "Tactician", c: "#2e86c1", res: ["focus", { en: "Focus", es: "Concentración" }, "rally-the-troops"] },
-  { id: "talent", name: "Talent", c: "#16a085", res: ["clarity", { en: "Clarity", es: "Claridad" }, "third-eye"] },
-  { id: "troubadour", name: "Troubadour", c: "#c2185b", res: ["drama", { en: "Drama", es: "Drama" }, "drama-masks"] },
+  { id: "censor", name: "Censor", c: "#b3191e", res: ["wrath", { en: "Wrath", es: "Ira" }, "enrage"] },
+  { id: "conduit", name: "Conduit", c: "#c9a227", res: ["piety", { en: "Piety", es: "Piedad" }, "holy-symbol"] },
+  { id: "elementalist", name: "Elementalist", c: "#9a6a3a", res: ["essence", { en: "Essence", es: "Esencia" }, "fire-ring"] },
+  { id: "fury", name: "Fury", c: "#b3191e", res: ["ferocity", { en: "Ferocity", es: "Ferocidad" }, "wolf-howl"] },
+  { id: "null", name: "Null", c: "#a7adb4", res: ["discipline", { en: "Discipline", es: "Disciplina" }, "meditation"] },
+  { id: "shadow", name: "Shadow", c: "#8a3d9e", res: ["insight", { en: "Insight", es: "Perspicacia" }, "cowled"] },
+  { id: "tactician", name: "Tactician", c: "#2f86e0", res: ["focus", { en: "Focus", es: "Concentración" }, "rally-the-troops"] },
+  { id: "talent", name: "Talent", c: "#3f9651", res: ["clarity", { en: "Clarity", es: "Claridad" }, "third-eye"] },
+  { id: "troubadour", name: "Troubadour", c: "#ece9e2", res: ["drama", { en: "Drama", es: "Drama" }, "drama-masks"] },
 ];
 const SHARED = [
   ["heroic", { en: "Heroic Resource", es: "Recurso heroico" }, "spark-spirit"],
@@ -69,9 +72,9 @@ const ids = (list) => list.map((x) => x[0]);
 const collection = {
   format: "midnight-mint/collection", version: 1,
   name: "Draw Steel",
-  theme: { accent: "#d4a017", background: "#16181b", surface: "#202328", text: "#e8e6e1", muted: "#a3a7ad", glow: "#2b2f36", font: "Bricolage Grotesque" },
+  theme: DS.theme,
   brand: { logo: "/collections/drawsteel-logo.svg" },
-  loader: { text: { es: "Desenvainando…", en: "Drawing steel…" } },
+  loader: DS.loader,
   languages: ["en", "es"],
   types: [
     { id: "resources", name: { en: "Resources", es: "Recursos" }, title: { en: "All resources", es: "Todos los recursos" }, shape: "coin", icon: "two-coins" },
@@ -79,10 +82,10 @@ const collection = {
     { id: "rings", name: { en: "Condition rings", es: "Aros de condición" }, title: { en: "Condition rings", es: "Aros de condición" }, shape: "ring", icon: "ring" },
   ],
   groups: [
-    { id: "shared", name: { en: "Shared", es: "Compartidos" }, colour: "#d4a017" },
-    { id: "director", name: { en: "Director", es: "Director" }, colour: "#7b2d8e" },
+    { id: "shared", name: { en: "Shared", es: "Compartidos" }, colour: "#d4a72c" },
+    { id: "director", name: { en: "Director", es: "Director" }, colour: "#8a3d9e" },
     ...CLASSES.map((k) => ({ id: k.id, name: k.name, colour: k.c })),
-    { id: "conditions", name: { en: "Conditions", es: "Condiciones" }, colour: "#b8bcc2" },
+    { id: "conditions", name: { en: "Conditions", es: "Condiciones" }, colour: "#a7adb4" },
   ],
   tokens,
   sections: [
