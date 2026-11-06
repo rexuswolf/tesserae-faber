@@ -149,7 +149,6 @@
        In the Taller the same controls change one of your designs. -->
   <aside class="workshop" id="workshop">
     <div class="ws-head taller-only" id="tallerHead"></div>
-    <p class="hint taller-only" id="tallerReadOnly" hidden></p>
     <div class="ws-head design-only">
       <div class="ws-says" id="saysLine"></div>
       <!-- a token of Clocktower's or of a closed collection, or a linked token: its printed text, feminine name and icon -->
@@ -291,12 +290,10 @@
     <div class="ds-grid" id="designGrid"></div>
   </section>
 
-  <!-- the Taller (/taller): designs for every shape, yours and the collections' -->
+  <!-- the Taller (/taller): a new design in two steps (its shape, the base it starts from), then the
+       editor's design on sample tokens and your others of its shape (the controls are the workshop's) -->
   <main class="taller-main" id="tallerMain">
-    <header class="tm-head">
-      <p class="lead" id="tallerLead"></p>
-      <div class="tm-shapes" id="tallerShapes" role="tablist" data-i18n-attr="aria-label:taller.shapes"></div>
-    </header>
+    <div class="taller-wizard" id="tallerWizard"></div>
     <section class="tm-preview" id="tallerPreview" aria-live="polite"></section>
     <div class="tm-list" id="tallerList"></div>
   </main>

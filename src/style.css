@@ -1194,15 +1194,8 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 .taller-title { margin: 0 auto; font: 400 25px/1 var(--display); white-space: nowrap; }
 .taller-title span { color: var(--brass); font-size: 18px; }
 .taller-main { grid-area: main; min-width: 0; overflow-y: auto; padding: 16px 28px 40px; background: radial-gradient(90% 60% at 30% 0%, var(--glow, #33122a) 0%, var(--velvet-deep) 70%); }
-.tm-head .lead { margin: 0 0 12px; }
-.tm-shapes { display: flex; gap: 6px; flex-wrap: wrap; }
-.tm-shapes button { display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px 7px 10px; border: 1px solid var(--seam); border-radius: 999px; background: none; color: var(--dust); font: inherit; font-size: 14px; cursor: pointer; }
-.tm-shapes button:hover { color: var(--bone); }
-.tm-shapes button[aria-selected=true] { color: var(--bone); border-color: var(--brass); background: rgba(201, 162, 39, .1); }
-.tm-shapes .gi { width: 20px; height: 20px; }
-.tm-shapes small { font-size: 12px; opacity: .75; }
 /* the design on the sample tokens stays in view while the list scrolls */
-.tm-preview { position: sticky; top: -16px; z-index: 2; margin: 14px -28px 0; padding: 14px 28px 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; border-bottom: 1px solid var(--seam); background: color-mix(in srgb, var(--velvet-deep) 90%, transparent); backdrop-filter: blur(6px); }
+.tm-preview { position: sticky; top: -16px; z-index: 2; margin: -16px -28px 0; padding: 14px 28px 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; border-bottom: 1px solid var(--seam); background: color-mix(in srgb, var(--velvet-deep) 90%, transparent); backdrop-filter: blur(6px); }
 .tv-hero { display: flex; gap: 14px; }
 .tv-hero figure { margin: 0; display: grid; justify-items: center; gap: 4px; }
 .tv-hero svg { display: block; width: 150px; height: 150px; }
@@ -1218,9 +1211,6 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 .tv-rest svg { display: block; width: 62px; height: 62px; }
 .tv-rest span.r svg { width: 46px; height: 46px; }
 .tv-rest.cards svg { width: 96px; }
-.tv-name { flex-basis: 100%; margin: 0; }
-.tv-name b { font: 400 22px/1.2 var(--display); }
-.tv-name small { color: var(--dust); font-size: 13px; }
 .tl-sec { margin-top: 22px; }
 .tl-sec h3 { margin: 0 0 10px; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; font-size: 12.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--dust); }
 .tl-sec h3 small { font-size: 12.5px; font-weight: 400; letter-spacing: 0; text-transform: none; }
@@ -1232,15 +1222,65 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 .tl-design > span:last-child { display: grid; min-width: 0; line-height: 1.25; }
 .tl-design b { font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tl-design small { color: var(--dust); font-size: 12px; }
-.tl-new { border-style: dashed; }
-.tl-new .plus { flex: none; width: 46px; height: 46px; display: grid; place-items: center; border: 1px dashed var(--dust); border-radius: 50%; color: var(--brass); font-size: 24px; }
-#tallerHead h2 { margin: 2px 0 2px; font: 400 26px/1.15 var(--display); overflow-wrap: anywhere; }
+/* the editor's head: back to your designs and the shape, the name (typed over), where it's used, what can be done */
+#tallerHead { gap: 6px; }
 #tallerHead .hint { margin: 0; }
-.th-kicker { margin: 0; color: var(--dust); font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; }
-.th-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.th-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.th-back { font-size: 13.5px; }
+.th-shape { display: inline-flex; align-items: center; gap: 6px; color: var(--dust); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+.th-shape .gi { width: 18px; height: 18px; fill: currentColor; }
+.th-name { width: 100%; min-width: 0; margin: 2px 0 0; padding: 6px 10px; border: 1px solid var(--seam); border-radius: 10px; background: rgba(239, 230, 214, .06); color: var(--bone); font: 400 24px/1.2 var(--display); }
+.th-name:hover { border-color: rgba(239, 230, 214, .25); }
+.th-name:focus { outline: 2px solid var(--brass); outline-offset: 1px; }
+.th-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
 .th-actions .pill { font-size: 13px; padding: 5px 12px; }
 .th-actions .pill.danger { color: var(--warn); }
-#tallerReadOnly { margin: 14px 16px; }
+.th-actions .th-new { margin-left: auto; color: var(--brass); border-color: rgba(201, 162, 39, .45); }
+/* a new design: 1. its shape (or one of yours), 2. its base; the page alone, the workshop column hidden */
+.app[data-step="taller"][data-tv="start"] { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); grid-template-areas: "top" "main"; }
+.app[data-step="taller"][data-tv="start"] .workshop { display: none; }
+.taller-wizard { max-width: 1240px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; padding-top: 4px; }
+.tw-steps { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: 13px; color: var(--dust); }
+.tw-steps li { display: flex; align-items: center; gap: 6px; }
+.tw-steps li + li::before { content: "›"; opacity: .5; }
+.tw-steps span { border: 1px solid var(--seam); border-radius: 999px; padding: 2px 11px; }
+.tw-steps [aria-current=step] span { background: var(--brass); border-color: var(--brass); color: var(--velvet-deep); font-weight: 600; }
+.tw-title { margin: 0; font: 400 32px/1.1 var(--display); }
+.tw-titlebar { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
+.tw-titlebar .link { font-size: 14px; }
+.tw-shapes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.tw-shape { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 20px 14px 18px; border: 1px solid var(--seam); border-radius: 18px; background: rgba(42, 15, 32, .45); color: var(--bone); font: inherit; text-align: center; cursor: pointer; }
+.tw-shape:hover { border-color: var(--brass); background: rgba(201, 162, 39, .06); }
+.tw-shape > span:last-child { display: grid; justify-items: center; gap: 2px; }
+.tw-shape b { font: 400 28px/1.15 var(--display); }
+.tw-shape small { color: var(--dust); font-size: 13px; }
+.tw-shape .cnt { color: var(--brass); font-size: 12.5px; }
+.tw-tok { display: grid; place-items: center; height: 132px; }
+.tw-tok svg { display: block; height: 128px; width: 128px; filter: drop-shadow(0 10px 16px rgba(0, 0, 0, .5)); }
+.tw-tok.ring svg, .tw-tok.card svg { width: 210px; }
+.tw-none { font-size: 14px; }
+.tw-blist { display: grid; grid-template-columns: 380px minmax(0, 1fr); gap: 22px; align-items: start; }
+.tw-opts { display: flex; flex-direction: column; gap: 4px; }
+.tw-gl { margin: 10px 0 2px 6px; color: var(--dust); font-size: 11.5px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; }
+.tw-gl:first-child { margin-top: 0; }
+.tw-gl small { font-size: 12px; font-weight: 400; letter-spacing: 0; text-transform: none; margin-left: 6px; }
+.tw-opt { display: grid; grid-template-columns: 46px minmax(0, 1fr) 18px; align-items: center; gap: 0 12px; padding: 7px 10px 7px 7px; border: 1px solid transparent; border-radius: 12px; background: none; color: var(--bone); font: inherit; text-align: left; cursor: pointer; }
+.tw-opt:hover { background: rgba(239, 230, 214, .04); }
+.tw-opt[aria-checked=true] { border-color: var(--brass); background: rgba(201, 162, 39, .1); }
+.tw-opt .style-sw svg { display: block; width: 46px; height: 46px; }
+.tw-ot { display: grid; min-width: 0; line-height: 1.3; }
+.tw-ot b { font-weight: 600; font-size: 14.5px; }
+.tw-ot small { color: var(--dust); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tw-tag { margin-left: 4px; padding: 1px 8px; border-radius: 999px; background: var(--brass); color: var(--velvet-deep); font-size: 10.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; vertical-align: 1px; }
+.tw-opt .rad { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--dust); }
+.tw-opt[aria-checked=true] .rad { border: 5px solid var(--brass); }
+.tw-more { display: none; }
+.tw-side { position: sticky; top: 0; display: grid; gap: 12px; justify-items: start; }
+.tw-pv { justify-self: stretch; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 14px 22px; padding: 18px; border: 1px solid var(--seam); border-radius: 16px; background: radial-gradient(60% 80% at 30% 40%, rgba(201, 162, 39, .12), transparent 70%), rgba(42, 15, 32, .5); }
+.tw-pv .tv-hero svg { width: 170px; height: 170px; }
+.tw-desc { margin: 0; color: var(--dust); font-size: 13.5px; }
+.tw-desc b { color: var(--bone); font-weight: 600; }
+.tw-side .forge { padding-inline: 22px; }
 @media (max-width: 900px) {
   /* a phone: the shapes, the design on its samples and the designs on top, the controls under them, each
      scrolling on its own (like the design step), so the design stays in view while it's changed */
@@ -1249,10 +1289,7 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
   .taller-main { padding: 10px 16px 12px; }
   .taller-title { font-size: 20px; }
   .taller-back { padding-right: 6px; }
-  .taller-back small, .tm-head .lead { display: none; }
-  .tm-shapes { flex-wrap: nowrap; }
-  .tm-shapes button { padding: 5px 10px 5px 8px; font-size: 13px; }
-  .tm-preview { top: -10px; margin: 8px -16px 0; padding: 8px 16px; gap: 6px 10px; }
+  .tm-preview { top: -10px; margin: -10px -16px 0; padding: 8px 16px; gap: 6px 10px; }
   .tv-hero svg { width: 76px; height: 76px; }
   .tv-rest svg { width: 44px; height: 44px; }
   .tv-rest span.r svg { width: 36px; height: 36px; }
@@ -1260,12 +1297,29 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
   .tv-rest i, .tv-rest.two i.b, .tv-rest.two span.b { display: none; }
   .tv-rest.two { grid-template-columns: repeat(var(--n), auto); }
   .tv-hero figcaption { font-size: 11px; }
-  .tv-name b { font-size: 18px; }
-  .tv-name small { display: none; }
+  .taller-back small { display: none; }
+  /* a new design on a phone: the shapes in a column, the bases a list (the one chosen with a few tokens
+     drawn in it) and the way to start always at hand, at the bottom */
+  .taller-wizard { gap: 12px; padding-top: 0; }
+  .tw-title { font-size: 25px; }
+  .tw-shapes { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .tw-shape { flex-direction: row; text-align: left; gap: 14px; padding: 10px 14px; }
+  .tw-shape > span:last-child { justify-items: start; }
+  .tw-shape b { font-size: 22px; }
+  .tw-tok { height: 66px; width: 96px; flex: none; }
+  .tw-tok svg { width: 64px; height: 64px; filter: none; }
+  .tw-tok.ring svg, .tw-tok.card svg { width: 96px; }
+  .tw-blist { display: block; }
+  .tw-more { grid-column: 1 / -1; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; padding: 8px 0 2px; }
+  .tw-more svg { display: block; width: 56px; height: 56px; }
+  .tw-side { position: sticky; top: auto; bottom: -12px; margin: 8px -16px -12px; padding: 12px 16px 16px; background: linear-gradient(180deg, transparent, var(--velvet-deep) 30%); justify-items: stretch; }
+  .tw-pv, .tw-desc, .tw-note { display: none; }
   /* the designs as a strip to swipe */
   .tl-sec { margin-top: 14px; }
   .tl-grid { display: flex; overflow-x: auto; gap: 6px; padding-bottom: 4px; }
   .tl-design { flex: none; width: 168px; }
+  .taller-wizard .tl-grid { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .taller-wizard .tl-design { width: auto; }
 }
 
 /* A token's content, in a panel over the sheet: the token as it prints beside its fields */
