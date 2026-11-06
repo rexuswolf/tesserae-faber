@@ -39,18 +39,18 @@ export const BUILT_INS: BuiltInEntry[] = [
     name: "Draw Steel",
     logo: "/collections/drawsteel-logo.svg",
     accent: "#d4a017",
-    tokens: 37,
+    tokens: 39,
     preview: "/collections/drawsteel-preview.svg",   // tools/make-drawsteel-collection.mjs
     file: "/collections/drawsteel.json",   // tools/make-drawsteel-collection.mjs
     cover: "radial-gradient(120% 140% at 0% 0%, #3a3f47 0%, #23262b 55%, #141619 100%)",
     theme: { accent: "#d4a017", background: "#16181b", surface: "#202328", text: "#e8e6e1", muted: "#a3a7ad", glow: "#2b2f36", font: "Bricolage Grotesque" },
     loader: { text: { es: "Desenvainando…", en: "Drawing steel…" } },
-    facts: { es: "15 recursos · 11 condiciones · 11 aros · 2 idiomas", en: "15 resources · 11 conditions · 11 rings · 2 languages" },
-    text: { es: "Recursos heroicos, Malicia, Victorias, condiciones y aros de condición.", en: "Heroic resources, Malice, Victories, conditions and condition rings." },
+    facts: { es: "15 recursos · 2 fichas de dos caras · 11 condiciones · 11 aros · 2 idiomas", en: "15 resources · 2 two-sided tokens · 11 conditions · 11 rings · 2 languages" },
+    text: { es: "Recursos heroicos, Malicia, Victorias, fichas de turno de dos caras, condiciones y aros de condición.", en: "Heroic resources, Malice, Victories, two-sided turn tokens, conditions and condition rings." },
     about: {
       text: {
-        es: "Fichas para jugar a Draw Steel: el recurso heroico de cada clase (y uno genérico), Impulso, Victorias, Recuperaciones, fichas de héroe, la Malicia del Director y las condiciones, con su duración como fichas asociadas, y un aro por condición para ponerlo en la peana de la miniatura.",
-        en: "Tokens to play Draw Steel: each class's heroic resource (and a generic one), Surges, Victories, Recoveries, Hero Tokens, the Director's Malice and the conditions, with their duration as linked tokens, and a ring per condition to slip over a miniature's base.",
+        es: "Fichas para jugar a Draw Steel: el recurso heroico de cada clase (y uno genérico), Impulso, Victorias, Recuperaciones, fichas de héroe, la Malicia del Director, dos fichas de dos caras para llevar el turno (Por actuar / Ya actuó, Reacción / Reacción usada: se les da la vuelta) y las condiciones, con su duración como fichas asociadas, y un aro por condición para ponerlo en la peana de la miniatura.",
+        en: "Tokens to play Draw Steel: each class's heroic resource (and a generic one), Surges, Victories, Recoveries, Hero Tokens, the Director's Malice, two two-sided tokens to keep track of the turn (Ready / Acted, Triggered Action / Used: turn them over) and the conditions, with their duration as linked tokens, and a ring per condition to slip over a miniature's base.",
       },
       credits: {
         es: "Una colección hecha por fans: los nombres de las mecánicas son de Draw Steel; los iconos, de game-icons.net. No lleva arte de MCDM.",

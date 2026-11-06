@@ -4,7 +4,8 @@
 // what the app says about it (its card, its About, the "Powered by Draw Steel" mark) is code, src/builtins.ts.
 //   node tools/make-drawsteel-collection.mjs
 // Types: resources and conditions (coins), and condition rings (one per condition, to go round a
-// miniature's base); groups: one per class, the shared ones, the Director's and the conditions';
+// miniature's base); two-state coins (their back the other state: Ready / Acted) are resources;
+// groups: one per class, the shared ones, the Director's and the conditions';
 // sections: Draw Steel (closed) and your encounters (open).
 import fs from "node:fs";
 import path from "node:path";
@@ -41,6 +42,12 @@ const SHARED = [
   ["recovery", { en: "Recovery", es: "Recuperación" }, "heart-plus"],
   ["hero-token", { en: "Hero Token", es: "Ficha de héroe" }, "round-star"],
 ];
+// Two-state coins: the front and, on the back, the other state (name and icon), for the turn's
+// bookkeeping: side-by-side initiative (who has acted) and each creature's one triggered action.
+const TWO_STATE = [
+  ["ready", { en: "Ready", es: "Por actuar" }, "sprint", { en: "Acted", es: "Ya actuó" }, "sands-of-time"],
+  ["triggered", { en: "Triggered Action", es: "Reacción" }, "lightning-trio", { en: "Triggered Action Used", es: "Reacción usada" }, "lightning-dissipation"],
+];
 const DURATIONS = [{ name: { en: "EoT", es: "Fin de turno" } }, { name: { en: "Save ends", es: "Salvación termina" } }];
 const CONDITIONS = [
   ["bleeding", { en: "Bleeding", es: "Sangrando" }, "bleeding-wound"],
@@ -62,6 +69,7 @@ const tok = (id, type, group, name, ic, linked = []) => ({ id, type, group, name
 const tokens = [
   ...SHARED.map(([id, name, ic]) => tok(id, "resources", "shared", name, ic)),
   tok("malice", "resources", "director", { en: "Malice", es: "Malicia" }, "imp-laugh"),
+  ...TWO_STATE.map(([id, name, ic, other, otherIcon]) => ({ ...tok(id, "resources", "shared", name, ic), flip: { name: other, ...icon(otherIcon) } })),
   ...CLASSES.map((k) => tok(k.res[0], "resources", k.id, k.res[1], k.res[2])),
   ...CONDITIONS.map(([id, name, ic]) => tok(id, "conditions", "conditions", name, ic, DURATIONS)),
   ...STATES.map(([id, name, ic]) => tok(id, "conditions", "conditions", name, ic)),
@@ -92,6 +100,7 @@ const collection = {
     { id: "drawsteel", title: "Draw Steel", open: false, catalogs: [
       { id: "shared", name: { en: "Shared resources", es: "Recursos compartidos" }, tokens: [...ids(SHARED), "malice"] },
       { id: "classes", name: { en: "Class resources", es: "Recursos de clase" }, tokens: CLASSES.map((k) => k.res[0]) },
+      { id: "two-sided", name: { en: "Two-sided tokens", es: "Fichas de dos caras" }, tokens: ids(TWO_STATE) },
       { id: "conditions", name: { en: "Conditions", es: "Condiciones" }, tokens: [...ids(CONDITIONS), ...ids(STATES)] },
       { id: "rings", name: { en: "Condition rings", es: "Aros de condición" }, tokens: [...ids(CONDITIONS), ...ids(STATES)].map((id) => `ring-${id}`) },
     ] },
