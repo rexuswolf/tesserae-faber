@@ -148,24 +148,23 @@
         <button type="button" data-tab="token" aria-pressed="false" data-i18n="ws.token"></button>
       </div>
       <p class="scope-note"><span id="styleScope"></span> <button class="link" type="button" id="resetToken" data-i18n="ws.reset" hidden></button></p>
+      <!-- which type's design is being edited: the shapes in the queue (a token of each), or the token's own -->
+      <div class="ws-types" id="typeRow" role="group" data-i18n-attr="aria-label:type.group" hidden></div>
     </div>
-    <!-- the template isn't one more section: it replaces the whole design, and each section adjusts one part of it.
-         Open, the templates sit right under this line and the sections wait until it closes. -->
+    <!-- the template isn't one more tab: it replaces the type's whole design, and each tab adjusts one part of it.
+         Open, the templates sit right under this line and the tabs wait until it closes. -->
     <button class="tpl-row" type="button" id="tplRow" aria-expanded="true" aria-controls="presetsPanel"></button>
-    <div class="sections" id="sections" role="tablist" data-i18n-attr="aria-label:ws.sections" hidden>
-      <button type="button" role="tab" data-section="layout" aria-selected="false" data-i18n="sec.layout"></button>
-      <button type="button" role="tab" data-section="text" aria-selected="false" data-i18n="sec.text"></button>
-      <button type="button" role="tab" data-section="frame" aria-selected="false" data-i18n="sec.frame"></button>
-      <button type="button" role="tab" data-section="back" aria-selected="false" data-i18n="sec.back"></button>
-      <button type="button" role="tab" data-section="coin" aria-selected="false" data-i18n="sec.coin"></button>
-      <button type="button" role="tab" data-section="magnet" aria-selected="false" data-i18n="sec.magnet"></button>
-    </div>
+    <!-- level 1: the token's parts (a coin's FRONT · BACK · COIN · MAGNET); level 2: a face's Layout · Text · Icon · Frame -->
+    <div class="parts" id="parts" role="tablist" data-i18n-attr="aria-label:ws.sections" hidden></div>
+    <div class="back-modes" id="backModes" hidden></div>
+    <div class="face-tabs" id="faceTabs" role="tablist" data-i18n-attr="aria-label:ws.faceTabs" hidden></div>
     <div class="ws-body" id="styleFields">
       <div class="ws-warn" id="colourWarn" hidden></div>
       <section class="ws-panel" id="presetsPanel" data-panel="presets">
         <div class="presets" id="presetsBox">
           <div class="preset-list" id="presets"></div>
           <p class="hint" id="presetHelp"></p>
+          <button class="pill" type="button" id="presetAlso" hidden></button>
         </div>
         <div class="saved-zone" id="savedPanel">
           <h3 class="zone-title"><span data-i18n="ws.saved"></span> <small id="savedSummary"></small></h3>
@@ -174,73 +173,90 @@
           <ul class="list" id="saved"></ul>
         </div>
       </section>
+      <!-- a face (the front, or a back of its own): its layout, name, icon and frame, each part flush or raised -->
       <section class="ws-panel" data-panel="layout" role="tabpanel" hidden>
         <div class="choices layout-tiles" data-choice="style"></div>
         <p class="hint" id="styleHint"></p>
-        <h3 class="zone-title" data-i18n="relief.title"></h3>
-        <div class="relief-els" id="reliefEls"></div>
-        <div class="row" id="reliefHeightRow"><label for="reliefHeight" data-i18n="range.reliefHeight"></label><output data-for="reliefHeight"></output><input type="range" id="reliefHeight" min="0.4" max="1.2" step="0.2" value="0.6"></div>
-        <p class="hint" id="reliefHint"></p>
       </section>
       <section class="ws-panel" data-panel="text" role="tabpanel" hidden>
         <div class="token-only" id="tokenOnly">
           <label class="field"><span data-i18n="ws.printedText"></span><input class="text" type="text" id="printed" autocomplete="off"></label>
           <label class="check" id="femRow" hidden><input type="checkbox" id="fem"> <span id="femLabel"></span></label>
-          <div class="field icon-field" id="iconField">
-            <span data-i18n="icon.label"></span>
-            <div class="icon-actions">
-              <button class="pill" type="button" id="iconSearchOpen" data-i18n="icon.search"></button>
-              <button class="pill" type="button" id="iconUpload" data-i18n="icon.upload"></button>
-              <button class="link" type="button" id="iconReset" data-i18n="icon.reset" hidden></button>
-            </div>
-            <input type="file" id="iconFile" accept=".svg,image/svg+xml" hidden>
-            <p class="hint" id="iconHint"></p>
-            <div class="icon-search" id="iconSearch" hidden>
-              <input class="text" type="search" id="iconQuery" autocomplete="off" data-i18n-attr="placeholder:icon.placeholder">
-              <div class="icon-results" id="iconResults"></div>
-            </div>
-          </div>
         </div>
         <p class="hint" id="textOnlyHint" data-i18n="ws.textInToken"></p>
         <p class="hint" id="nameHint"></p>
         <div class="row"><label for="textSize" data-i18n="range.textSize"></label><output data-for="textSize"></output><input type="range" id="textSize" min="2" max="6" step="0.1" value="4"></div>
         <div class="row"><label for="spacing" data-i18n="range.spacing"></label><output data-for="spacing"></output><input type="range" id="spacing" min="0.8" max="2" step="0.05" value="1.1"></div>
         <div class="row"><label for="maxArc" data-i18n="range.maxArc"></label><output data-for="maxArc"></output><input type="range" id="maxArc" min="90" max="240" step="5" value="180"></div>
-        <div class="row"><label for="iconScale" data-i18n="range.iconScale"></label><output data-for="iconScale"></output><input type="range" id="iconScale" min="0.6" max="1.2" step="0.05" value="1"></div>
         <p class="metal-label" id="frontColourLabel"></p>
         <div class="metal" data-colour="front" data-i18n-attr="aria-label:front.colour"></div>
+        <div class="relief-slot" data-relief-part="text"></div>
+      </section>
+      <section class="ws-panel" data-panel="icon" role="tabpanel" hidden>
+        <div class="field icon-field" id="iconField">
+          <span data-i18n="icon.label"></span>
+          <div class="icon-actions">
+            <button class="pill" type="button" id="iconSearchOpen" data-i18n="icon.search"></button>
+            <button class="pill" type="button" id="iconUpload" data-i18n="icon.upload"></button>
+            <button class="link" type="button" id="iconReset" data-i18n="icon.reset" hidden></button>
+          </div>
+          <input type="file" id="iconFile" accept=".svg,image/svg+xml" hidden>
+          <p class="hint" id="iconHint"></p>
+          <div class="icon-search" id="iconSearch" hidden>
+            <input class="text" type="search" id="iconQuery" autocomplete="off" data-i18n-attr="placeholder:icon.placeholder">
+            <div class="icon-results" id="iconResults"></div>
+          </div>
+        </div>
+        <p class="hint" id="iconOnlyHint" data-i18n="ws.iconInToken"></p>
+        <div class="row"><label for="iconScale" data-i18n="range.iconScale"></label><output data-for="iconScale"></output><input type="range" id="iconScale" min="0.6" max="1.2" step="0.05" value="1"></div>
+        <p class="hint" id="iconColourHint"></p>
+        <div class="relief-slot" data-relief-part="icon"></div>
       </section>
       <section class="ws-panel" data-panel="frame" role="tabpanel" hidden>
         <div class="choices" data-choice="frame"></div>
         <div class="row"><label for="frameWidth" data-i18n="range.frameWidth"></label><output data-for="frameWidth"></output><input type="range" id="frameWidth" min="0.4" max="2" step="0.1" value="0.8"></div>
         <div class="metal" data-colour="frame" data-i18n-attr="aria-label:frame.aria"></div>
+        <div class="relief-slot" data-relief-part="frame"></div>
       </section>
+      <!-- the back when it isn't a face of its own: a design and its colour, or the front again in a colour of its own -->
       <section class="ws-panel" data-panel="back" role="tabpanel" hidden>
-        <!-- a two-state token: its back is its other state -->
-        <div class="flip-back" id="flipBack" hidden><span id="flipBackPv"></span><p class="hint" id="flipBackHint"></p></div>
-        <div class="choices" data-choice="back"></div>
-        <input type="file" id="upload" accept=".svg,image/svg+xml" hidden data-i18n-attr="aria-label:upload.aria">
-        <p class="hint" id="uploadHint" hidden></p>
-        <div class="metal" data-colour="back" data-i18n-attr="aria-label:back.aria"></div>
+        <div class="back-design" id="backDesign">
+          <div class="choices" data-choice="back"></div>
+          <input type="file" id="upload" accept=".svg,image/svg+xml" hidden data-i18n-attr="aria-label:upload.aria">
+          <p class="hint" id="uploadHint" hidden></p>
+          <p class="metal-label" data-i18n="back.colour"></p>
+          <div class="metal" data-colour="back" data-i18n-attr="aria-label:back.aria"></div>
+        </div>
+        <div class="back-match" id="backMatch">
+          <p class="metal-label" id="matchColourLabel"></p>
+          <div class="metal" data-colour="front" data-side="back" data-i18n-attr="aria-label:back.aria"></div>
+          <p class="hint" data-i18n="back.matchHelp"></p>
+          <div class="relief-slot" data-relief-part="all"></div>
+        </div>
       </section>
-      <section class="ws-panel" data-panel="coin" role="tabpanel" hidden>
-        <p class="metal-label" id="baseColourLabel" data-i18n="coin.colour"></p>
-        <div class="metal" data-colour="base" data-i18n-attr="aria-label:coin.colour"></div>
-        <div class="row"><label for="diameter" data-i18n="range.diameter"></label><output data-for="diameter"></output><input type="range" id="diameter" min="30" max="60" step="1" value="45"></div>
+      <section class="ws-panel" data-panel="body" role="tabpanel" hidden>
+        <div class="row" id="diameterRow"><label for="diameter" data-i18n="range.diameter"></label><output data-for="diameter"></output><input type="range" id="diameter" min="30" max="60" step="1" value="45"></div>
         <div id="ringBaseRow" hidden>
           <p class="metal-label" data-i18n="ring.base"></p>
           <div class="choices" data-choice="ringBase" data-i18n-attr="aria-label:ring.base"></div>
           <p class="hint" id="ringBaseHint"></p>
         </div>
+        <p class="hint" id="cardSizeHint" data-i18n="card.size" hidden></p>
         <div class="row"><label for="height" data-i18n="range.height"></label><output data-for="height"></output><input type="range" id="height" min="1.2" max="4" step="0.2" value="2"></div>
         <div class="row"><label for="depth" data-i18n="range.depth"></label><output data-for="depth"></output><input type="range" id="depth" min="0.2" max="1.6" step="0.2" value="0.2"></div>
         <p class="hint" id="depthHint"></p>
+        <p class="metal-label" id="baseColourLabel" data-i18n="coin.colour"></p>
+        <div class="metal" data-colour="base" data-i18n-attr="aria-label:coin.colour"></div>
       </section>
       <section class="ws-panel" data-panel="magnet" role="tabpanel" hidden>
         <div class="choices" data-choice="magnet"></div>
         <div class="choices" data-choice="magnetSize" id="magnetSizeRow"></div>
         <p class="hint" id="magnetHint"></p>
       </section>
+      <!-- the raised parts' height: moved into the open tab's relief slot when something there is raised -->
+      <div class="relief-height" id="reliefHeightBox" hidden>
+        <div class="row" id="reliefHeightRow"><label for="reliefHeight" data-i18n="range.reliefHeight"></label><output data-for="reliefHeight"></output><input type="range" id="reliefHeight" min="0.4" max="1.2" step="0.2" value="0.6"></div>
+      </div>
     </div>
   </aside>
 

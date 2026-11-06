@@ -401,12 +401,43 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .scope button[aria-pressed=true] { background: var(--bone); color: var(--velvet-deep); font-weight: 600; }
 .scope-note { margin: 7px 2px 0; font-size: 12.5px; line-height: 1.35; color: var(--dust); }
 .scope-note .link { font-size: 12.5px; color: var(--bone); }
-.sections { flex: none; display: flex; justify-content: space-around; align-items: center; gap: 2px; padding: 6px 10px; border-bottom: 1px solid var(--seam); overflow-x: auto; scrollbar-width: none; }
-.sections::-webkit-scrollbar { display: none; }
-.sections button { flex: none; border: 0; background: none; border-radius: 9px; padding: 6px 7px; font-size: 13px; color: var(--dust); cursor: pointer; }
-.sections button:hover { color: var(--bone); }
-.sections button[aria-selected=true] { background: var(--bone); color: var(--velvet-deep); font-weight: 600; }
-.sections[hidden] { display: none; }
+/* The type being edited: the shapes in the queue, a token of each with how many */
+.ws-types { display: flex; gap: 6px; margin-top: 10px; }
+.ws-types[hidden] { display: none; }
+.ws-types button { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 5px 6px; border: 1px solid var(--seam); border-radius: 12px; background: none; color: var(--bone); font: inherit; font-size: 13px; cursor: pointer; }
+.ws-types button:hover { background: rgba(239, 230, 214, .05); }
+.ws-types button[aria-pressed=true] { border-color: var(--brass); background: rgba(201, 162, 39, .1); }
+.ws-types button svg { width: 26px; height: 26px; flex: none; }
+.ws-types button span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ws-types small { color: var(--dust); font-size: 12px; }
+.ws-type-fixed { margin: 0; display: flex; align-items: center; gap: 9px; font-size: 12.5px; color: var(--dust); }
+.ws-type-fixed svg { width: 26px; height: 26px; flex: none; }
+/* Level 1: the token's parts (FRONT · BACK · COIN · MAGNET), underlined */
+.parts { flex: none; display: flex; border-bottom: 1px solid var(--seam); }
+.parts[hidden] { display: none; }
+.parts button { flex: 1; min-width: 0; border: 0; border-bottom: 2px solid transparent; background: none; padding: 10px 2px 8px; font: inherit; font-size: 12px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--dust); cursor: pointer; white-space: nowrap; }
+.parts button:hover { color: var(--bone); }
+.parts button[aria-selected=true] { color: var(--bone); border-bottom-color: var(--brass); }
+/* Level 2: a face's Layout · Text · Icon · Frame, as pills */
+.face-tabs { flex: none; display: flex; gap: 2px; padding: 7px 10px; border-bottom: 1px solid var(--seam); overflow-x: auto; scrollbar-width: none; }
+.face-tabs::-webkit-scrollbar { display: none; }
+.face-tabs[hidden] { display: none; }
+.face-tabs button { flex: none; border: 0; background: none; border-radius: 999px; padding: 5px 12px; font: inherit; font-size: 13px; color: var(--dust); cursor: pointer; }
+.face-tabs button:hover { color: var(--bone); }
+.face-tabs button[aria-selected=true] { background: var(--bone); color: var(--velvet-deep); font-weight: 600; }
+/* BACK's three choices, each a card with the back it gives */
+.back-modes { flex: none; border-bottom: 1px solid var(--seam); padding: 10px 12px; display: grid; gap: 8px; }
+.back-modes[hidden] { display: none; }
+.back-mode-list { display: grid; gap: 6px; }
+.back-mode-list button { display: flex; align-items: center; gap: 10px; text-align: left; padding: 6px 10px; border: 1px solid var(--seam); border-radius: 12px; background: none; color: var(--bone); font: inherit; cursor: pointer; }
+.back-mode-list button:hover { background: rgba(239, 230, 214, .05); }
+.back-mode-list button[aria-checked=true] { border-color: var(--brass); background: rgba(201, 162, 39, .08); }
+.back-mode-list svg { width: 38px; height: 38px; flex: none; }
+.back-mode-list b { display: block; font-weight: 600; font-size: 14px; }
+.back-mode-list small { display: block; color: var(--dust); font-size: 12.5px; line-height: 1.35; }
+.flip-note { margin: 0; font-size: 12.5px; line-height: 1.4; color: var(--dust); }
+.back-design, .back-match { display: flex; flex-direction: column; gap: 12px; }
+.back-design[hidden], .back-match[hidden] { display: none; }
 /* the template: a line of its own over the sections */
 .tpl-row { flex: none; width: 100%; display: flex; align-items: center; gap: 7px; padding: 8px 16px; border: 0; border-bottom: 1px solid var(--seam); background: rgba(239, 230, 214, .04); color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .tpl-row:hover { background: rgba(239, 230, 214, .08); }
@@ -438,8 +469,10 @@ button, input, select, textarea { font: inherit; color: inherit; }
 [data-choice=style].layout-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .layout-tiles .back-tile { padding: 10px 4px; font-size: 13px; }
 .layout-tiles .back-tile svg { width: 84px; height: 84px; }
-[data-panel=layout] .zone-title { margin-top: 18px; }
-.relief-els { display: grid; gap: 8px; margin-top: 8px; }
+/* A face part flush or raised, at the foot of its tab; the raised parts' height under it when there are some */
+.relief-slot { display: grid; gap: 8px; }
+.relief-slot:not(:empty) { padding-top: 12px; border-top: 1px solid var(--seam); }
+.relief-ask { display: grid; gap: 7px; justify-items: start; }
 .relief-el { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .relief-el b { display: block; font-weight: 600; font-size: 14px; }
 .relief-el small { color: var(--dust); font-size: 12px; }
@@ -452,13 +485,6 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .back-tile[aria-pressed=true] { border-color: var(--brass); color: var(--bone); background: rgba(201, 162, 39, .08); }
 .metal { display: flex; flex-wrap: wrap; gap: 6px; }
 .metal-label { margin: 0 0 -4px; font-size: 13px; color: var(--dust); }
-/* A control the selected token doesn't use, there for the set's other shapes (a coin's back
-   while a ring is selected): dimmed, under a line that says so. Whatever the box's layout,
-   the line takes a row of its own. */
-[data-na]::before { content: attr(data-na); display: block; grid-column: 1 / -1; flex-basis: 100%; font-size: 12px; font-style: italic; color: var(--dust); }
-[data-na] > * { opacity: .55; }
-.relief-el[data-na] { flex-wrap: wrap; }
-[data-choice=style][data-na] ~ #styleHint { opacity: .55; }
 .metal button { width: 24px; height: 24px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; box-shadow: inset 0 0 0 1px rgba(239, 230, 214, .22); }
 .metal button[aria-pressed=true] { border-color: var(--bone); }
 .metal .team { background: conic-gradient(#2f86e0 0 25%, #b3191e 0 50%, #8a3d9e 0 75%, #d4a72c 0); }
@@ -648,8 +674,7 @@ dialog .import { margin-top: 10px; }
   :root { --spine-w: 180px; }
   .foot-row { flex-wrap: wrap; justify-content: center; }
   .app[data-step="2"] { grid-template-columns: 360px minmax(0, 1fr); }
-  .sections { padding-inline: 6px; gap: 0; }
-  .sections button { padding-inline: 5px; font-size: 12.5px; }
+  .face-tabs { padding-inline: 6px; }
   #rows .row { grid-template-columns: 64px minmax(0, 1fr); }
   #rows .row > .tok-w svg { width: 60px; height: 60px; }
 }
@@ -690,7 +715,14 @@ dialog .import { margin-top: 10px; }
   /* step 3's download label is long: the selection keeps only its count */
   .app[data-step="3"] .qb-toggle .stack { display: none; }
   .app[data-step="3"] .qb-toggle { padding-left: 14px; }
-  .workshop { border-right: 0; }
+  /* the column scrolls as one: its tabs and the back's choices would leave the controls no room */
+  .workshop { border-right: 0; overflow-y: auto; }
+  .ws-body { flex: none; overflow: visible; }
+  /* BACK's choices three across, each its picture and name */
+  .back-mode-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .back-mode-list button { flex-direction: column; text-align: center; gap: 4px; padding: 8px 4px; }
+  .back-mode-list b { font-size: 13px; line-height: 1.2; }
+  .back-mode-list small { display: none; }
   .design-stage { border-bottom: 1px solid var(--seam); }
   .view-panel { flex: none; height: 186px; padding: 6px 8px 4px; }
   .turn { flex-direction: column; align-items: flex-start; left: 8px; bottom: 8px; gap: 3px; }
@@ -706,7 +738,6 @@ dialog .import { margin-top: 10px; }
   .ds-cell svg, .ds-cell.r svg { width: 50px; height: 50px; margin: 0; }
   .ds-cell.card svg, .ds-cell.card.r svg { width: 64px; }
   .ds-cell .mark { top: 0; right: 0; }
-  .sections { padding-block: 6px; }
   .print-page { padding: 16px 14px 30px; }
   .ways { grid-template-columns: 1fr; }
 }
@@ -830,9 +861,6 @@ html[data-mode=own]:not([data-theme=botc]) h1, html[data-mode=own]:not([data-the
 .own-pv-flip svg { width: 56px; height: 56px; }
 .own-flip { display: grid; gap: 10px; margin-top: 6px; padding-left: 12px; border-left: 2px solid var(--seam); }
 /* the workshop's Back section, for a two-state token: its back, and what it is */
-.flip-back { display: flex; gap: 12px; align-items: center; margin-bottom: 10px; }
-.flip-back svg { width: 84px; height: 84px; flex: none; display: block; }
-.flip-back .hint { margin: 0; }
 .own-linked { display: grid; gap: 6px; margin: 6px 0; }
 .own-link { display: flex; gap: 6px; align-items: center; }
 .own-cats { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 4px; }

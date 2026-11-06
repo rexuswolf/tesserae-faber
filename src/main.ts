@@ -2,10 +2,10 @@ import { handingOver } from "./handoff.ts";   // first: a browser arriving from 
 import {
   loadLibrary, buildToken, geometryVolume, magnetLayout, MAGNET_SIZES, tokenSvg, roleName, saveFile, reminderSpec, layoutName, nameLetterHeight, SMALL_LETTERS_MM,
   TEAMS, EDITIONS, FRAME_STYLES, BACK_STYLES, TOKEN_STYLES, FILAMENTS, DEFAULT_SPEC, CARD, isCard, ringSize, ringBand, RING_BASES,
-  SHAPE_FEATURES, shapeOf, shapeSpec, type ShapeFeatures, FACE_BACK, flipFace,
-  normalizeSpec, reliefOf, hasRelief, reliefTop,
+  SHAPE_FEATURES, shapeOf, shapeSpec, flipFace, FACE_FIELDS, backFaceOf, partColours,
+  normalizeSpec, reliefOf, hasRelief,
 } from "./engine/token-engine.ts";
-/** The face parts that can be raised, in the order the Layout section lists them. */
+/** The face parts that can be raised, in the order a back that matches the front lists them. */
 const RELIEF_PARTS: ReliefPart[] = ["text", "frame", "icon"];
 /** Each layout's name size (mm): the arcs' run along the edge, the window's has the lower half. */
 const LAYOUT_TEXT: Record<TokenStyle, number> = { classic: DEFAULT_SPEC.textSize, window: 6, solo: DEFAULT_SPEC.textSize, double: DEFAULT_SPEC.textSize };
@@ -32,7 +32,7 @@ import type { PaperSize, SheetSlot } from "./pdf/layout.ts";
 import type { Viewer, ViewKind } from "./engine/viewer.ts";
 import type { User } from "firebase/auth";
 import type {
-  ColourRef, Hex, Library, MagnetLayout, PartName, PlanToken, PlateItem, PlatePlan, QueueEntry, ReliefPart, Role, SpecColours,
+  BackFace, BackMode, ColourRef, Hex, Library, MagnetLayout, PartName, PlanToken, PlateItem, PlatePlan, QueueEntry, ReliefPart, Role, SpecColours,
   SpecInput, Team, Token, TokenIcon, TokenOverride, TokenShape, TokenSpec, TokenStyle, Volumes,
 } from "./types.ts";
 
@@ -61,6 +61,8 @@ const QUEUE_KEY = "midnight-mint-queue";   // the old print queue, read once to 
 const KEYS = OWN ? `midnight-mint-own-${OWN_ID ?? "none"}-` : "midnight-mint-";   // each collection its own
 const PICK_KEY = `${KEYS}picks`;
 const STYLE_KEY = `${KEYS}style`;
+// The set's design, one per type (shape): the coin's keeps the key the single design had.
+const STYLE_KEYS: Record<TokenShape, string> = { coin: STYLE_KEY, ring: `${KEYS}style-ring`, card: `${KEYS}style-card` };
 const OVERRIDES_KEY = `${KEYS}overrides`;
 const DESIGNS_KEY = `${KEYS}designs`;
 const TOKEN_LANG_KEY = "midnight-mint-token-lang";
@@ -81,13 +83,27 @@ const PLATE_LABEL: Record<string, Record<string, string>> = {
 
 /** The token the workshop shows: its key, its character and, for a reminder, which one. */
 interface Selection { key: string; role: Role; reminder: number | null }
-/** A design saved in this browser (one per character). */
-interface Design { id: string; roleId: string; text: string | null; fem: boolean; spec: TokenSpec; title: string; updatedAt: number }
+/** A design saved in this browser (one per character), listed with its type's (older ones: their character's shape). */
+interface Design { id: string; roleId: string; text: string | null; fem: boolean; spec: TokenSpec; title: string; updatedAt: number; shape?: TokenShape }
+/** The workshop's tabs: level 1, the token's parts ("body" is the coin, ring or card itself); level 2, a face's. */
+type Part = "front" | "back" | "body" | "magnet";
+type FaceTab = "layout" | "text" | "icon" | "frame";
+type Side = "front" | "back";
 
 const state: {
   user: User | null; lib: Library | null;
-  edition: string; team: string; sel: Selection | null; tab: string; section: string; lastSection: string;
-  spec: TokenSpec; overrides: Map<string, TokenOverride>; step: number; pick: Map<string, number>; designs: Design[];
+  edition: string; team: string; sel: Selection | null; tab: string;
+  /** The templates are open (under their line), in place of the tabs. */
+  templates: boolean;
+  /** The open part of each type, and the open tab of each face. */
+  part: Record<TokenShape, Part>; faceTab: Record<Side, FaceTab>;
+  /** A part asked to be raised while the other face has raised parts: the question is shown. */
+  reliefAsk: { side: Side; part: ReliefPart } | null;
+  /** The 3D view's side ("back" shows the strip's coins from behind too). */
+  view: string;
+  /** The type a template was just applied to, which offers it to the queue's other types. */
+  applied: TokenShape | null;
+  specs: Record<TokenShape, TokenSpec>; overrides: Map<string, TokenOverride>; step: number; pick: Map<string, number>; designs: Design[];
   /** The characters the sheet shows, and the token the workshop built. */
   shown?: Role[]; token?: Token;
 } = {
@@ -95,14 +111,10 @@ const state: {
   edition: "all", team: "all",   // the sheet opens on every character
   sel: null,              // { key, role, reminder: index | null }
   tab: "set",   // what the controls edit: "set" or "token"
-  section: "presets",   // what the panel shows; "presets" is the templates, open under their line
-  lastSection: "text",
-  // Default set style: "Edición" (black coin, team colour, thin team rim, the edition's name in
-  // gold on the back), the first of PRESETS.
-  spec: upgradeSpec(loadJSON<TokenSpec | null>(STYLE_KEY, null)) || {
-    ...structuredClone(DEFAULT_SPEC), preset: "edicion", style: "classic", frame: "rim", frameWidth: 0.8, back: "edition", depth: 0.4,
-    colours: { ...DEFAULT_SPEC.colours, base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold },
-  },
+  templates: true,
+  part: { coin: "front", ring: "front", card: "front" }, faceTab: { front: "text", back: "layout" },
+  reliefAsk: null, view: "angle", applied: null,
+  specs: loadSpecs(),
   // key -> { text?, spec?, icon? }; game-icons placed before they sat with the library's are moved there
   overrides: new Map(Object.entries(loadJSON<Record<string, TokenOverride>>(OVERRIDES_KEY, {})).map(([k, v]): [string, TokenOverride] => [k, v && { ...v, ...(v.icon ? { icon: placeGameIcon(v.icon) } : {}), ...(v.spec ? { spec: upgradeSpec(v.spec) } : {}) }])),
   step: 1,
@@ -168,34 +180,56 @@ const COLOUR_CHOICES = ["Black", "White", "Gold", "Silver", "Bronze", "Blue", "R
   .map((name) => ({ id: name.toLowerCase(), hex: FILAMENT_SLOTS.find((f) => f.name === name)!.hex }));
 let gateState: (() => GateConfig) | null = null;
 
-/** A template: the spec it sets (anything left out takes DEFAULT_SPEC's). */
-interface Preset { id: string; spec: Partial<TokenSpec> }
+/** A template: the spec it sets (anything left out takes DEFAULT_SPEC's), and the types it's offered for. */
+interface Preset { id: string; spec: Partial<TokenSpec>; shapes: TokenShape[] }
 /** Premade designs. Applying one replaces the style being edited (set or token), all but its
  *  magnet, which is a choice of its own. Every design keeps the frame in the team colour, like
  *  the name, so a token's side reads the same whatever the design. */
+const ALL_SHAPES: TokenShape[] = ["coin", "ring", "card"];
 const PRESETS: Preset[] = [
   // The default: the edition's name (a homebrew's script) in gold on the back; gold on a dark
   // coin needs two layers (0.4 mm) to cover it.
   { id: "edicion", spec: { style: "classic", frame: "rim", frameWidth: 0.8, back: "edition", depth: 0.4,
-    colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } } },
+    colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } }, shapes: ALL_SHAPES },
   // The thinnest token that holds up: one layer of colour on 1 mm of black (opaque, stiff at
   // 45 mm), no back. 1.2 mm is also the thickness slider's floor.
   { id: "rapida", spec: { style: "classic", height: 1.2, frame: "rim", frameWidth: 0.8, back: "none", depth: 0.2,
-    colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } } },
+    colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } }, shapes: ALL_SHAPES },
+  // Night and Midnight are their frame and back designs: on a ring or a card (a line, no back) they'd be Edition.
   { id: "noche", spec: { style: "classic", frame: "fases", frameWidth: 0.8, back: "eclipse", depth: 0.4,
-    colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } } },
+    colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } }, shapes: ["coin"] },
   // The gold midnight clock on the back is light on a dark coin: 0.4 mm covers it.
   { id: "medianoche", spec: { style: "classic", frame: "firmamento", frameWidth: 0.8, back: "medianoche", depth: 0.4,
-    colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } } },
+    colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } }, shapes: ["coin"] },
+  // Ivory and Legible are a white body: a ring or a card takes that too.
   { id: "marfil", spec: { style: "classic", frame: "rim", frameWidth: 1.0, back: "guilloche", depth: 0.4,
-    colours: { base: FILAMENTS.white, front: "team", frame: "team", back: FILAMENTS.bronze } } },
+    colours: { base: FILAMENTS.white, front: "team", frame: "team", back: FILAMENTS.bronze } }, shapes: ALL_SHAPES },
   { id: "legible", spec: { style: "window", textSize: 6, frame: "none", back: "none", depth: 0.4,
-    colours: { base: FILAMENTS.white, front: "team", frame: "team", back: FILAMENTS.gold } } },
+    colours: { base: FILAMENTS.white, front: "team", frame: "team", back: FILAMENTS.gold } }, shapes: ALL_SHAPES },
 ];
-/** Applying a design leaves these alone: the magnet is chosen in its own section, a ring's base is the miniatures'. */
+/** Applying a design leaves these alone: the magnet is chosen in its own tab, a ring's base is the miniatures'. */
 const PRESET_KEEPS = new Set(["lang", "customSvg", "magnet", "magnetSize", "ringBase"]);
 const presetSpec = (p: Preset): TokenSpec => ({ ...structuredClone(DEFAULT_SPEC), ...structuredClone(p.spec) });
 
+/**
+ * The set's design per type. The coin's is the one the set had before designs were kept per type;
+ * a ring's and a card's start as a copy of it (what they printed from, as their shape prints it),
+ * kept at once so they stay as they were whatever the coin's becomes.
+ */
+function loadSpecs(): Record<TokenShape, TokenSpec> {
+  // Default: "Edición" (black coin, team colour, thin team rim, the edition's name in gold on the back), the first of PRESETS.
+  const coin = upgradeSpec(loadJSON<TokenSpec | null>(STYLE_KEY, null)) || {
+    ...structuredClone(DEFAULT_SPEC), preset: "edicion", style: "classic", frame: "rim", frameWidth: 0.8, back: "edition", depth: 0.4,
+    colours: { ...DEFAULT_SPEC.colours, base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold },
+  } as TokenSpec;
+  const specs = { coin } as Record<TokenShape, TokenSpec>;
+  for (const shape of ["ring", "card"] as const) {
+    const kept = upgradeSpec(loadJSON<TokenSpec | null>(STYLE_KEYS[shape], null));
+    specs[shape] = kept ?? structuredClone(coin);
+    if (!kept) storeJSON(STYLE_KEYS[shape], specs[shape]);
+  }
+  return specs;
+}
 function loadJSON<T>(key: string, fallback: T): T { try { return JSON.parse(localStorage.getItem(key) as string) ?? fallback; } catch { return fallback; } }
 function storeJSON(key: string, value: unknown) { try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* storage unavailable */ } }
 /** A saved design as the app now has it: an old window's "relief" finish becomes its icon raised. */
@@ -220,12 +254,12 @@ const remindersOf = (role: Role, lang = tokenLang()): string[] => role.reminders
 const charName = (role: Role, key = charKey(role), lang = tokenLang()) =>
   (state.overrides.get(key)?.fem && role.fem?.[lang]) || roleName(role, lang);
 
-/** The style a token uses: its own, or the set's; reminders get the reminder layout. */
 /** A character's own icon (on its token; its reminders share it), or undefined. */
 const ownIcon = (roleId: string) => state.overrides.get(`c:${roleId}`)?.icon;
 const roleIdOf = (key: string) => key.split(":")[1];
+/** The design a token uses: its own, or its type's set design; reminders get the reminder layout. */
 function specFor(key: string, isReminder: boolean): TokenSpec {
-  const base = state.overrides.get(key)?.spec ?? state.spec;
+  const base = state.overrides.get(key)?.spec ?? state.specs[shapeOf(tokenRole(key))];
   const spec = { ...DEFAULT_SPEC, ...base, colours: { ...DEFAULT_SPEC.colours, ...base.colours }, lang: tokenLang(), icon: ownIcon(roleIdOf(key)) };
   return isReminder ? reminderSpec(spec) : spec;
 }
@@ -1041,59 +1075,159 @@ function selectToken(key: string | undefined) {
 }
 
 // ------------------------------------------------------------ workshop
+//
+// The design step's left column, in two levels. On top, the token's parts, which its type (its
+// shape) decides: a coin's FRONT · BACK · COIN · MAGNET, a ring's FRONT · RING, a card's FRONT ·
+// CARD. Inside FRONT, and inside BACK when the back is a face of its own, the face's Layout · Text ·
+// Icon · Frame (those the type has). The set's design is kept per type (state.specs), so what the
+// column shows always belongs to the token being edited: nothing is there for another shape.
 
-/** The spec the style controls show: the set's, or the selected token's own if it has one. */
-function editingSpec(): TokenSpec {
-  if (state.tab === "token") return state.overrides.get(state.sel!.key)?.spec ?? state.spec;
-  return state.spec;
+/** The type being edited: the selected token's shape (choosing a type selects one of its tokens). */
+const editShape = (): TokenShape => shapeOf(state.sel!.role);
+/** The parts a type is made of (level 1), from what its shape has. */
+const partsOf = (shape: TokenShape): Part[] => {
+  const f = SHAPE_FEATURES[shape];
+  return ["front", ...(f.back ? ["back" as const] : []), "body", ...(f.magnet ? ["magnet" as const] : [])];
+};
+/** A face's tabs (level 2): the layout only where there's more than one, the icon where the shape has one. */
+const faceTabsOf = (shape: TokenShape): FaceTab[] => {
+  const f = SHAPE_FEATURES[shape];
+  return [...(f.layout ? ["layout" as const] : []), "text", ...(f.icon ? ["icon" as const] : []), "frame"];
+};
+/** The open level-1 tab of the type being edited (one it has). */
+function openPart(): Part {
+  const shape = editShape(), list = partsOf(shape);
+  if (!list.includes(state.part[shape])) state.part[shape] = "front";
+  return state.part[shape];
 }
-/** The spec a change goes to. In "this token only", the first change gives the token its own copy of the set's. */
+/** Which face the controls edit: the back's when BACK is open, else the front's. */
+const editSide = (): Side => (openPart() === "back" ? "back" : "front");
+/** The open panel: the templates, a face's tab, the back's choices, the body or the magnet. */
+function openPanel(): string {
+  if (state.templates) return "presets";
+  const part = openPart(), shape = editShape();
+  if (part === "front" || (part === "back" && editingSpec().backMode === "own")) {
+    const side = part === "back" ? "back" : "front", tabs = faceTabsOf(shape);
+    if (!tabs.includes(state.faceTab[side])) state.faceTab[side] = tabs[0];
+    return state.faceTab[side];
+  }
+  return part;
+}
+
+/** The set's design for the type being edited, or in "this token only" the token's own if it has one. */
+function editingSpec(): TokenSpec {
+  const set = state.specs[editShape()];
+  if (state.tab === "token") return state.overrides.get(state.sel!.key)?.spec ?? set;
+  return set;
+}
+/** The spec a change goes to. In "this token only", the first change gives the token its own copy of its type's. */
 function writableSpec(): TokenSpec {
-  if (state.tab !== "token") return state.spec;
+  const shape = editShape(), set = state.specs[shape];
+  if (state.tab !== "token") return set;
   const key = state.sel!.key, own = state.overrides.get(key);
   if (own?.spec) return own.spec;
-  const spec = structuredClone(state.spec);
-  spec.fromPreset = templateOf(state.spec).preset?.id;   // for the template line
+  const spec = structuredClone(set);
+  spec.fromPreset = templateOf(set, shape).preset?.id;   // for the template line
   delete spec.preset;   // resets go to the set's values
   state.overrides.set(key, { ...own, spec });
   return spec;
 }
-/** Whether a spec differs from a template in anything the template sets (the magnet is a choice of its own). */
-function differsFrom(p: Preset, spec: TokenSpec) {
+/** Keeps the set's design of a type. */
+const storeSpec = (shape: TokenShape) => storeJSON(STYLE_KEYS[shape], state.specs[shape]);
+
+/**
+ * A face as the controls show it: the front is the spec itself; the back (a face) is the front's
+ * look, or with "own" its own, with the back's relief and colours. As backFaceOf draws it, before
+ * the rule that only one face is raised (the workshop asks about that instead).
+ */
+function faceOf(s: TokenSpec, side: Side): TokenSpec {
+  const spec = { ...DEFAULT_SPEC, ...s, colours: { ...DEFAULT_SPEC.colours, ...s.colours } };
+  if (side === "front") return spec;
+  const b = spec.backFace ?? {};
+  const look = spec.backMode === "own" ? Object.fromEntries(FACE_FIELDS.filter((k) => b[k] != null).map((k) => [k, b[k]])) : {};
+  return { ...spec, ...look, relief: reliefOf(b), colours: { ...spec.colours, front: b.colours?.front ?? spec.colours.front, frame: b.colours?.frame ?? spec.colours.frame } };
+}
+/** Applies a change to a face: the front's goes to the spec; the back's to its own settings, only what changed (what it
+ *  never changed keeps following the front). */
+function changeFace(side: Side, mutate: (f: TokenSpec) => void) {
+  changeStyle((s) => {
+    if (side === "front") { mutate(s); return; }
+    const before = faceOf(s, "back"), v = structuredClone(before);
+    mutate(v);
+    const b: BackFace = { ...s.backFace };
+    for (const k of FACE_FIELDS) if (v[k] !== before[k]) (b as Fields)[k] = v[k];
+    for (const k of ["front", "frame"] as const) if (v.colours[k] !== before.colours[k]) b.colours = { ...b.colours, [k]: v.colours[k] };
+    b.relief = reliefOf(v);
+    s.backFace = b;
+  });
+}
+/** A back face of its own starts as the front in another layout (the solo, or the classic for a solo front), so choosing it shows something new. */
+function ownStart(s: TokenSpec): BackFace {
+  const style: TokenStyle = s.style === "solo" ? "classic" : "solo";
+  return { ...Object.fromEntries(FACE_FIELDS.map((k) => [k, s[k] ?? DEFAULT_SPEC[k]])), style, textSize: LAYOUT_TEXT[style] };
+}
+const hasOwnLook = (b: BackFace | undefined) => FACE_FIELDS.some((k) => b?.[k] != null);
+
+/** Whether a template's look (preset) is one a type has, by id. */
+const presetsFor = (shape: TokenShape) => PRESETS.filter((p) => p.shapes.includes(shape));
+/**
+ * What of a design a shape shows, to tell whether it's a template's: a coin, everything a
+ * template sets; a card or a ring, its colours, its frame as none or a line, its thickness and
+ * colour depth (and a ring its letters and relief).
+ */
+function shapeLook(shape: TokenShape, spec: SpecInput) {
+  const f = <K extends keyof TokenSpec>(k: K) => spec[k] ?? DEFAULT_SPEC[k], c = { ...DEFAULT_SPEC.colours, ...spec.colours };
+  const line = f("frame") !== "none";
+  const look = { base: c.base, front: c.front, frame: line ? c.frame : null, frameWidth: line ? f("frameWidth") : null, height: f("height"), depth: f("depth") };
+  return shape === "ring" ? { ...look, textSize: f("textSize"), spacing: f("spacing"), relief: reliefOf(spec) } : look;
+}
+/** Whether a spec differs from a template in anything the template sets for the shape (the magnet is a choice of its own). */
+function differsFrom(p: Preset, spec: TokenSpec, shape: TokenShape) {
+  if (shape !== "coin") return JSON.stringify(shapeLook(shape, presetSpec(p))) !== JSON.stringify(shapeLook(shape, spec));
   const colours = (c: unknown) => ({ ...DEFAULT_SPEC.colours, ...(c as Partial<SpecColours>) });
   return Object.entries(presetSpec(p)).some(([k, v]) => !PRESET_KEEPS.has(k)
     && JSON.stringify(k === "colours" ? colours(v) : v) !== JSON.stringify(k === "colours" ? colours(spec.colours) : spec[k as keyof TokenSpec] ?? DEFAULT_SPEC[k as keyof TokenSpec]));
 }
-/** The template a spec started from, or for one saved before this was kept, the template it matches. */
-function templateOf(spec: TokenSpec) {
-  const id = spec.preset ?? spec.fromPreset;
-  const preset = PRESETS.find((p) => p.id === id) ?? PRESETS.find((p) => !differsFrom(p, spec));
-  return { preset, modified: !!preset && differsFrom(preset, spec) };
+/** The template a spec started from (one its type has), or for one saved before this was kept, the template it matches. */
+function templateOf(spec: TokenSpec, shape: TokenShape) {
+  const list = presetsFor(shape), id = spec.preset ?? spec.fromPreset;
+  const preset = list.find((p) => p.id === id) ?? list.find((p) => !differsFrom(p, spec, shape));
+  return { preset, modified: !!preset && differsFrom(preset, spec, shape) };
 }
 /** Before a change: a spec that matches a template but never named it keeps which one, or it'd be lost. */
-function rememberTemplate(spec: TokenSpec) {
+function rememberTemplate(spec: TokenSpec, shape: TokenShape) {
   if (spec.preset || spec.fromPreset) return;
-  const { preset } = templateOf(spec);
+  const { preset } = templateOf(spec, shape);
   if (preset) spec.fromPreset = preset.id;
 }
-/** The line above the sections: which template, and the way to the others. */
-function renderTemplateRow() {
-  const open = state.section === "presets", row = $("#tplRow");
-  row.setAttribute("aria-expanded", String(open));
-  if (open) { row.innerHTML = `<b>${esc(t("tpl.choose"))}</b><em>${esc(t("tpl.done"))}</em>`; return; }
-  const { preset, modified } = templateOf(editingSpec());
-  row.innerHTML = `<span>${esc(t("tpl.label"))}</span><b>${esc(preset ? t(`preset.${preset.id}`) : t("tpl.none"))}</b>${modified ? `<small>${esc(t("tpl.modified"))}</small>` : ""}<em>${esc(t("tpl.change"))}</em>`;
+/** A template's design, applied over a spec: all but what it leaves alone (PRESET_KEEPS). */
+function applyPreset(s: TokenSpec, p: Preset) {
+  const next = presetSpec(p);
+  for (const k of Object.keys(next)) if (!PRESET_KEEPS.has(k)) (s as unknown as Fields)[k] = structuredClone((next as unknown as Fields)[k]);
+  s.preset = p.id;
 }
-/** Each section turns the 3D view to what it changes. */
-const SECTION_VIEW: Record<string, ViewKind> = { presets: "angle", layout: "angle", text: "top", frame: "top", back: "back", coin: "angle", magnet: "back" };
-function showSection(section: string) {
-  state.section = section;
-  if (section !== "presets") state.lastSection = section;
-  $("#sections").hidden = section === "presets";
-  renderTemplateRow();
-  $$(".sections [data-section]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.section === section)));
-  $$(".ws-panel").forEach((p) => { p.hidden = p.dataset.panel !== section; });
+/** The line above the tabs: which template, and the way to the others. */
+function renderTemplateRow() {
+  const row = $("#tplRow");
+  row.setAttribute("aria-expanded", String(state.templates));
+  if (state.templates) { row.innerHTML = `<b>${esc(t("tpl.choose"))}</b><em>${esc(t("tpl.done"))}</em>`; return; }
+  const { preset, modified } = templateOf(editingSpec(), editShape());
+  row.innerHTML = `<span>${esc(t("tpl.label"))}</span><b>${esc(preset ? shapeText(`preset.${preset.id}`, editShape()) : t("tpl.none"))}</b>${modified ? `<small>${esc(t("tpl.modified"))}</small>` : ""}<em>${esc(t("tpl.change"))}</em>`;
+}
+/** What each tab shows in the 3D view: a face straight on, the body at an angle, the magnet from behind. */
+const PART_VIEW: Record<Part, ViewKind> = { front: "top", back: "back", body: "angle", magnet: "back" };
+/** Opens the templates (true) or a tab (a part, and inside a face one of its tabs). */
+function showTab({ templates = false, part, face }: { templates?: boolean; part?: Part; face?: FaceTab } = {}) {
+  state.templates = templates;
+  if (part) state.part[editShape()] = part;
+  if (face) state.faceTab[editSide()] = face;
+  state.reliefAsk = null;
   $("#styleFields").scrollTop = 0;
+}
+/** Turns the 3D view to what the open tab changes. */
+function viewTab() {
+  const v = state.templates ? "angle" : PART_VIEW[openPart()];
+  view3d("setView", v); syncView(v);
 }
 
 let raf = 0;
@@ -1116,11 +1250,9 @@ function renderWorkshop() {
     $("#sub").textContent = [isRem ? textFor(charKey(role), role, null) : null, TEAMS[role.team].label[lang], editionName(role, lang),
       role.en !== text && !isRem ? role.en : null].filter(Boolean).join(" · ");
 
-    // the whole set, or this token only
+    // the whole set (of this type), or this token only
     $$(".scope [data-tab]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.tab === state.tab)));
     const own = state.overrides.get(key);
-    $("#tokenOnly").hidden = state.tab !== "token";
-    $("#textOnlyHint").hidden = state.tab === "token";
     $<HTMLInputElement>("#printed").value = own?.text ?? "";
     renderIconField();
     $<HTMLInputElement>("#printed").placeholder = isRem ? remindersOf(role)[reminder!] : charName(role, key);
@@ -1128,75 +1260,97 @@ function renderWorkshop() {
     $("#femRow").hidden = !femName;
     if (femName) { $<HTMLInputElement>("#fem").checked = !!own?.fem; $("#femLabel").textContent = t("ws.fem", { name: femName }); }
     $("#resetToken").hidden = !own || state.tab !== "token";
-    $("#styleScope").textContent = state.tab === "set" ? t("ws.scopeSet") : t("ws.scopeToken", { name: text });
+    const shape = shapeOf(role);
+    $("#styleScope").textContent = state.tab === "set" ? t(`ws.scopeSet.${shape}`) : t("ws.scopeToken", { name: text });
+    renderTypeRow(role);
     const editing = editingSpec();
-    const shapes = designShapes(role);
-    // Layouts, backs and frame designs are drawn on a coin, the one shape that has them: on a
-    // picked one if there is one. Templates too, unless every token they reach is of the selected
-    // token's shape, which then shows them.
-    const isCoin = (r: Role) => shapeOf(r) === "coin";
-    const coinRole = isCoin(role) ? role : [...state.pick.keys()].map(tokenRole).find(isCoin) ?? state.lib!.roles.find((r) => isCoin(r) && (OWN || r.edition === "tb")) ?? role;
-    renderPresets(shapes.all.length === 1 ? role : coinRole, editing);
+    renderPresets(role, editing);
     renderTemplateRow();
-    renderBackTiles(coinRole, editing);
-    renderFrameTiles(shapes.all.every((sh) => SHAPE_FEATURES[sh].frame === "line") ? role : coinRole, editing);
-    renderStyleTiles(coinRole, editing);
-    const other = flipFace(role, spec);
-    syncControls(editing, shapes, flipReach(role, other));
-    renderFlipBack(role, spec, other);
-
-    $("#depthHint").className = "hint" + (token.depthClamped ? " warn" : "");
-    $("#depthHint").textContent = token.depthClamped
-      ? t("depth.clamped", { max: token.depthClamped.toFixed(1), core: "0.4" })
-      : shapeText("depth.help", shapeOf(role));
-    // how the name came out, and a two-state token's other name too
-    const hint = (n: Token["name"]) => {
-      const small = n.letterHeight < smallLetters(), mm = (Math.floor(n.letterHeight * 10) / 10).toFixed(1);
-      return !Number.isFinite(n.letterHeight) ? t("name.hintSolo")
-        : n.repeats ? t("name.hintRing", { n: n.repeats, mm, shrunk: n.scale < 1, small, nozzle: nozzleMm() })
-        : n.total == null ? t("name.hintWindow", { lines: n.lines, mm, small, nozzle: nozzleMm() })
-        : t("name.hint", { arc: n.total.toFixed(0), mm, shrunk: n.scale < 1, small, nozzle: nozzleMm() });
-    };
-    const n = token.name, f = token.backName;
-    $("#nameHint").className = "hint" + ([n, f].some((x) => x && x.letterHeight < smallLetters()) ? " warn" : "");
-    $("#nameHint").textContent = hint(n) + (f && other ? ` ${t("name.flip", { name: roleName(other, spec.lang) })} ${hint(f)}` : "");
+    renderDesigns();
+    renderTabs(role, editing);
+    syncControls(role, editing, token);
     renderColourWarn(role, spec, key);
   });
 }
 
 /**
- * Two-state tokens among those the design reaches: whether the selected token is one (its back
- * is its other state), whether some coin reached still has a back to design (an ordinary coin, or
- * a linked token, which has no other state) and whether any is one.
+ * The types (shapes) in the queue, each with a token of its own and how many there are: choosing
+ * one edits its design, showing its first token. In "this token only" the token's type, which
+ * its collection gives it. With one type in the queue there's nothing to choose.
  */
-function flipReach(role: Role, other: Role | null) {
-  const coins = (state.tab === "token" ? [] : [...state.pick.keys()]).map((k) => ({ role: tokenRole(k), rem: tokenRem(k) })).filter((x) => shapeOf(x.role) === "coin");
-  const isFlip = (x: { role: Role; rem: number | null }) => !!flipFace(x.role, { linked: x.rem != null });
-  return { mine: !!other, plain: (!other && shapeOf(role) === "coin") || coins.some((x) => !isFlip(x)), some: !!other || coins.some(isFlip) };
+function renderTypeRow(role: Role) {
+  const row = $("#typeRow"), mine = shapeOf(role);
+  const keys = sortKeys(state.pick.keys()), shapes = SHAPES.filter((sh) => keys.some((k) => shapeOf(tokenRole(k)) === sh));
+  row.hidden = shapes.length < 2;
+  if (row.hidden) return;
+  const pic = (k: string) => { const r = tokenRole(k), ri = tokenRem(k); return tokenSvg(state.lib!, r, specFor(k, ri != null), { text: textFor(k, r, ri) }); };
+  if (state.tab === "token") { row.innerHTML = `<p class="ws-type-fixed">${pic(state.sel!.key)}<span>${esc(t(`type.fixed.${mine}`))}</span></p>`; return; }
+  row.innerHTML = shapes.map((sh) => {
+    const here = keys.filter((k) => shapeOf(tokenRole(k)) === sh);
+    return `<button type="button" data-type="${sh}" aria-pressed="${sh === mine}">${pic(here[0])}<span>${esc(t(`type.${sh}.many`))}</span><small>${here.length}</small></button>`;
+  }).join("");
 }
-type FlipReach = ReturnType<typeof flipReach>;
-/** The Back section's note: a two-state token's back is its other state (shown), or, for the set, which tokens its designs are for. */
-function renderFlipBack(role: Role, spec: TokenSpec, other: Role | null) {
-  const box = $("#flipBack");
-  box.hidden = !other && !(state.tab === "set" && flipReach(role, other).some);
-  if (box.hidden) return;
-  $("#flipBackPv").innerHTML = other ? tokenSvg(state.lib!, role, spec, { side: "back" }) : "";
-  $("#flipBackHint").textContent = other ? t("flip.back", { name: roleName(other, spec.lang) }) : t("flip.others");
+/** Choosing a type: the workshop shows its first token (the one selected, if it's of that type). */
+function chooseType(shape: TokenShape) {
+  if (editShape() === shape) return;
+  const key = sortKeys(state.pick.keys()).find((k) => shapeOf(tokenRole(k)) === shape);
+  if (key) designToken(key);
 }
 
-/** The shapes the design controls reach: the selected token's (`mine`), and for the whole set
- *  every picked token's too, since the set's design goes to all of them. */
-function designShapes(role: Role): { mine: TokenShape; all: TokenShape[] } {
-  const mine = shapeOf(role);
-  if (state.tab === "token") return { mine, all: [mine] };
-  const picked = new Set([mine, ...[...state.pick.keys()].map((k) => shapeOf(tokenRole(k)))]);
-  return { mine, all: SHAPES.filter((sh) => picked.has(sh)) };
+/** The two levels of tabs, and the back's choices between them. */
+function renderTabs(role: Role, spec: TokenSpec) {
+  const shape = shapeOf(role), part = openPart(), panel = openPanel();
+  $("#parts").hidden = $("#faceTabs").hidden = state.templates;
+  $("#parts").innerHTML = partsOf(shape).map((p) => `<button type="button" role="tab" data-part="${p}" aria-selected="${p === part}">${esc(p === "body" ? t(`part.body.${shape}`) : t(`part.${p}`))}</button>`).join("");
+  const faceOpen = !state.templates && (part === "front" || (part === "back" && spec.backMode === "own"));
+  $("#faceTabs").hidden = !faceOpen;
+  if (faceOpen) $("#faceTabs").innerHTML = faceTabsOf(shape).map((f) => `<button type="button" role="tab" data-face="${f}" aria-selected="${f === panel}">${esc(t(`face.${f}`))}</button>`).join("");
+  renderBackModes(role, spec, !state.templates && part === "back");
+  $$(".ws-panel").forEach((p) => { p.hidden = p.dataset.panel !== panel; });
 }
-/** A design text that names the token's body: the coin's, or the card's or ring's own version of it. */
-const shapeText = (key: string, shape: TokenShape, vars?: Vars) => {
-  const own = `${key}.${shape}`, text = t(own, vars);
-  return text === own ? t(key, vars) : text;   // the coin's words where they fit any shape
-};
+
+/** The coins a back design reaches: the token in "this token only", else every coin picked. Their names, split by whether they have another state. */
+function backReach() {
+  const keys = state.tab === "token" ? [state.sel!.key] : [...state.pick.keys()];
+  const coins = keys.filter((k) => shapeOf(tokenRole(k)) === "coin");
+  const flips = coins.filter((k) => flipFace(tokenRole(k), { linked: tokenRem(k) != null }));
+  return { flips: flips.map((k) => textFor(k, tokenRole(k), null)), plain: coins.length > flips.length };
+}
+/**
+ * BACK's three choices, each drawn on the selected token: the front again, a face of its own, or
+ * a design. A token with another state always shows that state on its back, drawn with the front's
+ * look (or the back's own), and a line under the choices names them.
+ */
+function renderBackModes(role: Role, spec: TokenSpec, open: boolean) {
+  const box = $("#backModes");
+  box.hidden = !open;
+  if (!open) return;
+  const s = faceOf(spec, "front"), mode = s.backMode, text = textFor(state.sel!.key, role, state.sel!.reminder);
+  const isRem = state.sel!.reminder != null;
+  const back = (input: TokenSpec, r = role) => { const sp = { ...input, lang: tokenLang(), icon: ownIcon(role.id) }; return tokenSvg(state.lib!, r, isRem ? reminderSpec(sp) : sp, { side: "back", text }); };
+  const own = hasOwnLook(s.backFace) ? s.backFace : { ...s.backFace, ...ownStart(s) };
+  const modes: [BackMode, string][] = [
+    ["match", back({ ...s, backMode: "match" })],
+    ["own", back({ ...s, backMode: "own", backFace: own })],
+    ["design", back({ ...s, backMode: "design" }, { ...role, flip: undefined })],
+  ];
+  const { flips } = backReach(), how = mode === "own" ? "own" : mode === "match" ? "match" : "design";
+  const list = (names: string[]) => (names.length > 1 ? `${names.slice(0, -1).join(", ")}${t("colour.and")}${names.at(-1)}` : names[0]);
+  const note = !flips.length ? "" : state.tab === "token"
+    ? t("flip.mine", { name: roleName(selFlip(role)!, tokenLang()), how })
+    : t("flip.others", { names: list(flips), n: flips.length, how });
+  box.innerHTML = `<div class="back-mode-list" role="radiogroup" aria-label="${esc(t("back.modes"))}">${modes.map(([m, svg]) => `<button type="button" role="radio" data-back-mode="${m}" aria-checked="${m === mode}">${svg}<span><b>${esc(t(`back.mode.${m}`))}</b><small>${esc(t(`back.mode.${m}.help`))}</small></span></button>`).join("")}</div>`
+    + (note ? `<p class="flip-note"><span aria-hidden="true">⇄</span> ${esc(note)}</p>` : "");
+}
+/** Choosing what the back is. A face of its own starts from ownStart the first time. */
+function setBackMode(mode: BackMode) {
+  changeStyle((s) => {
+    s.backMode = mode;
+    if (mode === "own" && !hasOwnLook(s.backFace)) s.backFace = { ...s.backFace, ...ownStart(faceOf(s, "front")) };
+  });
+  state.reliefAsk = null;
+  view3d("setView", "back"); syncView("back");
+}
 
 /** Under the token's name: inlays the coin's colour, or light ones too shallow on a dark coin. */
 function renderColourWarn(role: Role, spec: TokenSpec, key: string) {
@@ -1216,14 +1370,19 @@ function renderColourWarn(role: Role, spec: TokenSpec, key: string) {
       <button class="pill" type="button" data-deepen>${esc(t(own ? "colour.deepenToken" : "colour.deepenSet", { mm: dec1(LIGHT_DEPTH) }))}</button></p>` : "",
   ].join("");
 }
+/** A design text that names the token's body: the coin's, or the card's or ring's own version of it. */
+const shapeText = (key: string, shape: TokenShape, vars?: Vars) => {
+  const own = `${key}.${shape}`, text = t(own, vars);
+  return text === own ? t(key, vars) : text;   // the coin's words where they fit any shape
+};
 /** One decimal in the interface's language. */
 const dec1 = (v: number) => v.toFixed(1).replace(".", uiLang() === "es" ? "," : ".");
-/** The fix for light inlays: the depth that covers the coin, on the style the token actually uses. */
+/** The fix for light inlays: the depth that covers the coin, on the design the token actually uses. */
 function deepen() {
-  const key = state.sel!.key, own = state.overrides.get(key)?.spec;
-  rememberTemplate(own ?? state.spec);
-  (own ?? state.spec).depth = LIGHT_DEPTH;
-  if (own) storeOverrides(); else storeJSON(STYLE_KEY, state.spec);
+  const { key, role } = state.sel!, shape = shapeOf(role), own = state.overrides.get(key)?.spec;
+  rememberTemplate(own ?? state.specs[shape], shape);
+  (own ?? state.specs[shape]).depth = LIGHT_DEPTH;
+  if (own) storeOverrides(); else storeSpec(shape);
   renderWorkshop(); scheduleSheet();
 }
 
@@ -1247,36 +1406,35 @@ function colourNotes(way: string) {
       <p><button class="pill" type="button" data-deepen-all>${esc(t("print.deepenAll", { n: light.length, mm: dec1(LIGHT_DEPTH) }))}</button></p>
       ${light.some((x) => !state.overrides.get(x.k)?.spec) ? `<p><small>${esc(t("print.deepenSetNote"))}</small></p>` : ""}</div></div>` : "");
 }
-/** Deepens every selected token with light inlays on a dark coin: its own style, or the set's. */
+/** Deepens every selected token with light inlays on a dark coin: its own design, or its type's. */
 function deepenAll() {
-  let set = false, own = false;
+  const types = new Set<TokenShape>();
+  let own = false;
   for (const x of selectionColourIssues().filter((x) => x.light.length)) {
-    const o = state.overrides.get(x.k)?.spec;
-    if (o) { rememberTemplate(o); o.depth = LIGHT_DEPTH; own = true; } else set = true;
+    const o = state.overrides.get(x.k)?.spec, shape = shapeOf(tokenRole(x.k));
+    if (o) { rememberTemplate(o, shape); o.depth = LIGHT_DEPTH; own = true; } else types.add(shape);
   }
-  if (set) { rememberTemplate(state.spec); state.spec.depth = LIGHT_DEPTH; storeJSON(STYLE_KEY, state.spec); }
+  for (const shape of types) { rememberTemplate(state.specs[shape], shape); state.specs[shape].depth = LIGHT_DEPTH; storeSpec(shape); }
   if (own) storeOverrides();
   if (state.sel) renderWorkshop();
   renderSheet(); renderSpine(); renderQueue();
 }
 
-/** The two layouts, each drawn on the selected character in the current colours. */
-function renderStyleTiles(role: Role, spec: TokenSpec) {
-  const s = { ...DEFAULT_SPEC, ...spec, colours: { ...DEFAULT_SPEC.colours, ...spec.colours }, diameter: 45 };
-  const text = textFor(charKey(role), role, null);
+/** The layouts, each drawn on the token (the back's: on what its back shows) in the face's current colours. */
+function renderStyleTiles(face: { role: Role; text: string }, spec: TokenSpec) {
+  const s = { ...spec, diameter: 45, back: "none", backMode: "design" as const };
   $("[data-choice=style]").innerHTML = TOKEN_STYLES.map((st) =>
     `<button class="back-tile" type="button" data-v="${st.id}" aria-pressed="${s.style === st.id}">${
-      tokenSvg(state.lib!, role, { ...s, style: st.id, ...(st.id !== s.style ? { textSize: LAYOUT_TEXT[st.id] } : {}) }, { text })
+      tokenSvg(state.lib!, face.role, { ...s, style: st.id, ...(st.id !== s.style ? { textSize: LAYOUT_TEXT[st.id] } : {}) }, { text: face.text })
     }<span>${esc(t(`style.${st.id}`))}</span></button>`).join("");
 }
 
-/** The frame designs, each drawn on the selected character in the current colours. A card or a
- *  ring (whose shape has frames only as a line) gets two tiles, without and with, drawn on itself. */
-function renderFrameTiles(role: Role, spec: TokenSpec) {
-  const s = { ...DEFAULT_SPEC, ...spec, colours: { ...DEFAULT_SPEC.colours, ...spec.colours }, diameter: 45 };
-  const text = textFor(charKey(role), role, null), shape = shapeOf(role);
+/** The frame designs, each drawn on the token in the face's current colours. A card or a ring
+ *  (whose shape has frames only as a line) gets two tiles, without and with, drawn on itself. */
+function renderFrameTiles(face: { role: Role; text: string }, spec: TokenSpec) {
+  const s = { ...spec, diameter: 45, back: "none", backMode: "design" as const }, shape = shapeOf(face.role), { role, text } = face;
   if (SHAPE_FEATURES[shape].frame === "line") {
-    // "with" keeps whatever design the set has (a coin of the set would show it), so choosing it changes nothing else
+    // "with" keeps whatever design the spec has, so choosing it changes nothing else
     const line = s.frame === "none" ? "rim" : s.frame;
     $("[data-choice=frame]").innerHTML = [["none", t("frame.none")], [line, t(`frame.line.${shape}`)]].map(([v, label]) =>
       `<button class="back-tile frame-tile" type="button" data-v="${v}" aria-pressed="${s.frame === v}">${tokenSvg(state.lib!, role, { ...s, frame: v }, { text })}<span>${esc(label)}</span></button>`).join("");
@@ -1289,9 +1447,9 @@ function renderFrameTiles(role: Role, spec: TokenSpec) {
     }<span>${esc(t(`frame.${f.id}`))}</span></button>`).join("");
 }
 
-/** The back designs as small coin backs, in the colours of the style being edited. */
+/** The back designs as small coin backs, in the colours of the design being edited. */
 function renderBackTiles(role: Role, spec: TokenSpec) {
-  const s = { ...DEFAULT_SPEC, ...spec, colours: { ...DEFAULT_SPEC.colours, ...spec.colours }, diameter: 45 };
+  const s = { ...DEFAULT_SPEC, ...spec, colours: { ...DEFAULT_SPEC.colours, ...spec.colours }, diameter: 45, backMode: "design" as const };
   if (s.colours.back === "team") s.colours.back = FILAMENTS.gold;
   // on an ordinary coin's back: a two-state token's would show its other state
   const plain = { ...role, flip: undefined };
@@ -1301,132 +1459,188 @@ function renderBackTiles(role: Role, spec: TokenSpec) {
     }<span>${esc(t(`back.${b.id}`))}</span></button>`).join("");
 }
 
-/** The premade designs, each previewed with the selected character (a ring on its own base, which a template keeps). */
+/**
+ * The templates the type being edited has, each drawn on the selected token (a ring on its own
+ * base, which a template keeps). In the set, when the queue has other types that have the chosen
+ * template too, a button applies it to them as well.
+ */
 function renderPresets(role: Role, editing: TokenSpec) {
-  const chosen = templateOf(editing).preset;
-  $("#presets").innerHTML = PRESETS.map((p) =>
-    `<button class="preset" type="button" data-preset="${p.id}" aria-pressed="${p === chosen}" title="${esc(t(`preset.${p.id}.help`))}">${tokenSvg(state.lib!, role, { ...presetSpec(p), diameter: 45, ringBase: editing.ringBase }, { text: textFor(charKey(role), role, null) })}<span>${esc(t(`preset.${p.id}`))}</span></button>`).join("");
+  const shape = shapeOf(role), chosen = templateOf(editing, shape).preset;
+  $("#presets").innerHTML = presetsFor(shape).map((p) =>
+    `<button class="preset" type="button" data-preset="${p.id}" aria-pressed="${p === chosen}" title="${esc(shapeText(`preset.${p.id}.help`, shape))}">${tokenSvg(state.lib!, role, { ...presetSpec(p), diameter: 45, ringBase: editing.ringBase }, { text: textFor(charKey(role), role, null) })}<span>${esc(shapeText(`preset.${p.id}`, shape))}</span></button>`).join("");
   // what the chosen one is: under the tiles, so a phone has it too
-  $("#presetHelp").textContent = chosen ? t(`preset.${chosen.id}.help`) : "";
+  $("#presetHelp").textContent = chosen ? shapeText(`preset.${chosen.id}.help`, shape) : "";
+  const also = alsoTypes(chosen, shape), btn = $("#presetAlso");
+  btn.hidden = !also.length;
+  if (also.length) {
+    const names = also.map((sh) => t(`type.${sh}.many`).toLowerCase());
+    btn.textContent = t("tpl.alsoTo", { types: names.length > 1 ? `${names.slice(0, -1).join(", ")}${t("colour.and")}${names.at(-1)}` : names[0] });
+    btn.dataset.preset = chosen!.id;
+  }
+}
+/** The queue's other types that have this template and aren't already it, right after it was applied to this type (any
+ *  other change and the offer goes); the set only: a token's own design is its own. */
+function alsoTypes(p: Preset | undefined, shape: TokenShape): TokenShape[] {
+  if (!p || state.tab !== "set" || state.applied !== shape || state.specs[shape].preset !== p.id) return [];
+  const here = new Set([...state.pick.keys()].map((k) => shapeOf(tokenRole(k))));
+  return SHAPES.filter((sh) => sh !== shape && here.has(sh) && p.shapes.includes(sh)
+    && (() => { const m = templateOf(state.specs[sh], sh); return m.preset?.id !== p.id || m.modified; })());
+}
+
+/** The selected token's other state, if it has one (a reminder, a token of its own, never does). */
+const selFlip = (role: Role) => flipFace(role, { linked: state.sel!.reminder != null });
+/** The face being edited as the controls draw it: on the back of a two-state token, its other state. */
+function faceRole(role: Role, side: Side) {
+  const other = side === "back" ? selFlip(role) : null;
+  return other ? { role: other, text: roleName(other, tokenLang()) } : { role, text: textFor(state.sel!.key, role, state.sel!.reminder) };
 }
 
 /**
- * Which shapes use each design control, by what SHAPE_FEATURES says of them and, on a coin, by
- * its layout: the window and the solo have no curved name, the solo no name at all.
+ * A face part's relief, flush or raised (the shape's parts only), in a tab's relief slot: in Text,
+ * Icon and Frame their own; in a back that matches the front, all three. Only one face can stand
+ * out (the other lies on the bed): raising a part while the other face has raised parts asks
+ * first, with the way to make that face flush.
  */
-const USES = {
-  layout: (f: ShapeFeatures) => f.layout,
-  icon: (f: ShapeFeatures) => f.icon,
-  textSize: (f: ShapeFeatures, s: TokenSpec) => f.textSize && !(f.layout && s.style === "solo"),
-  spacing: (f: ShapeFeatures, s: TokenSpec) => f.spacing && !(f.layout && (s.style === "window" || s.style === "solo")),
-  maxArc: (f: ShapeFeatures, s: TokenSpec) => f.maxArc && s.style !== "window" && s.style !== "solo",
-  relief: (f: ShapeFeatures) => f.relief.length > 0,
-  frameDesigns: (f: ShapeFeatures) => f.frame === "designs",
-  back: (f: ShapeFeatures) => f.back,
-  magnet: (f: ShapeFeatures) => f.magnet,
-  diameter: (f: ShapeFeatures) => f.diameter,
-  ringBase: (f: ShapeFeatures) => f.ringBase,
-};
+function renderRelief(slot: HTMLElement, shape: TokenShape, side: Side, f: TokenSpec, front: TokenSpec) {
+  const has = SHAPE_FEATURES[shape].relief, which = slot.dataset.reliefPart!;
+  const parts = (which === "all" ? RELIEF_PARTS : [which as ReliefPart]).filter((k) => has.includes(k));
+  if (!parts.length) { slot.innerHTML = ""; return; }
+  const relief = reliefOf(f), raised = parts.some((k) => relief[k]);
+  // no name in the solo layout: nothing to raise
+  const off = (k: ReliefPart) => k === "text" && shape === "coin" && f.style === "solo";
+  const row = (k: ReliefPart) => `<div class="relief-el"><span><b>${esc(which === "all" ? t(`relief.${k}`) : t("relief.title"))}</b><small>${esc(shapeText(`relief.${k}.help`, shape))}</small></span><span class="seg2" role="group" aria-label="${esc(t(`relief.${k}`))}" data-relief="${k}" data-side="${side}"><button type="button" data-v="flat" aria-pressed="${!relief[k]}"${off(k) ? " disabled" : ""}>${esc(t("relief.flat"))}</button><button type="button" data-v="raised" aria-pressed="${relief[k]}"${off(k) ? " disabled" : ""}>${esc(t("relief.raised"))}</button></span></div>`;
+  const ask = state.reliefAsk && state.reliefAsk.side === side && parts.includes(state.reliefAsk.part)
+    ? `<p class="hint warn relief-ask">${esc(t(side === "front" ? "relief.askBack" : "relief.askFront"))} <button class="pill" type="button" data-relief-swap>${esc(t(side === "front" ? "relief.flattenBack" : "relief.flattenFront"))}</button></p>` : "";
+  const total = dec1(front.height + front.reliefHeight);
+  const help = raised ? t(side === "front" ? "relief.raisedHelp" : "relief.raisedBackHelp", { total }) : side === "front" ? shapeText("relief.flatHelp", shape) : t("relief.flatBack");
+  slot.innerHTML = parts.map(row).join("") + ask + `<p class="hint${raised ? " warn" : ""}">${esc(help)}</p>`;
+  // the raised parts' height, shared by every part (only one face stands out)
+  if (raised) { slot.insertBefore($("#reliefHeightBox"), slot.lastElementChild); $("#reliefHeightBox").hidden = false; }
+}
+/** Raising or flattening a face part; raising one while the other face has raised parts asks first (renderRelief). */
+function setRelief(side: Side, part: ReliefPart, raised: boolean) {
+  const s = editingSpec();
+  const other = side === "front" ? (s.backMode === "match" || s.backMode === "own") && hasRelief(s.backFace ?? {}) : hasRelief(s);
+  if (raised && other) { state.reliefAsk = { side, part }; renderWorkshop(); return; }
+  state.reliefAsk = null;
+  changeFace(side, (f) => { f.relief = { ...reliefOf(f), [part]: raised }; });
+  view3d("setView", "side"); syncView("side");
+}
+/** The answer to the question: the other face flush, and the part asked for raised. */
+function swapRelief() {
+  const ask = state.reliefAsk; if (!ask) return;
+  state.reliefAsk = null;
+  changeStyle((s) => {
+    if (ask.side === "front") { s.backFace = { ...s.backFace, relief: { text: false, frame: false, icon: false } }; s.relief = { ...reliefOf(s), [ask.part]: true }; }
+    else { s.relief = { text: false, frame: false, icon: false }; s.backFace = { ...s.backFace, relief: { ...reliefOf(s.backFace ?? {}), [ask.part]: true } }; }
+  });
+  view3d("setView", "side"); syncView("side");
+}
 
-/**
- * Puts a design's values into the controls, showing those the shapes it reaches use (see
- * designShapes): one the selected token doesn't use, there for the set's other tokens, is
- * dimmed with a note that says so. A section none of them use goes, and if it was open the
- * Text section opens instead.
- */
-function syncControls(spec: TokenSpec, { mine, all }: { mine: TokenShape; all: TokenShape[] }, flip: FlipReach) {
-  const s = { ...DEFAULT_SPEC, ...spec, colours: { ...DEFAULT_SPEC.colours, ...spec.colours } };
+/** Puts a design's values into the controls: the face's (front or back) in a face's tabs, the token's elsewhere. */
+function syncControls(role: Role, spec: TokenSpec, token: Token) {
+  const shape = shapeOf(role), f = SHAPE_FEATURES[shape], side = editSide(), panel = openPanel();
+  const s = faceOf(spec, "front"), face = faceOf(spec, side), who = faceRole(role, side);
   const dec = uiLang() === "es" ? "," : ".";
+  const FACE_RANGES = new Set<string>(FACE_FIELDS);
   for (const [id, [dp, unit]] of Object.entries(RANGES) as [RangeKey, [number, string]][]) {
-    $<HTMLInputElement>("#" + id).value = String(s[id]);
-    $(`output[data-for=${id}]`).textContent = (+s[id]).toFixed(dp).replace(".", dec) + unit;
+    const v = (FACE_RANGES.has(id) ? face : s)[id];
+    $<HTMLInputElement>("#" + id).value = String(v);
+    $(`output[data-for=${id}]`).textContent = (+v).toFixed(dp).replace(".", dec) + unit;
   }
-  // A ring's letters are as tall as asked only up to the band between its edge lines: on a
-  // ring the slider stops there and shows the height they print at.
-  const textSize = $<HTMLInputElement>("#textSize");
-  textSize.max = mine === "ring" ? String(Math.floor(ringBand(s).band * 10) / 10) : "6";
-  if (mine === "ring") { textSize.value = String(s.textSize); $("output[data-for=textSize]").textContent = (Math.min(s.textSize, +textSize.max)).toFixed(1).replace(".", dec) + " mm"; }
-  // Shown if some shape reached uses it; noted if the selected token's doesn't.
-  const na = t(`shape.na.${mine}`);
-  const reach = (el: HTMLElement, use: (f: ShapeFeatures, s: TokenSpec) => boolean) => {
-    const used = all.some((sh) => use(SHAPE_FEATURES[sh], s)), mineToo = use(SHAPE_FEATURES[mine], s);
-    el.hidden = !used;
-    if (used && !mineToo) el.dataset.na = na; else delete el.dataset.na;
-    return used;
-  };
   const row = (id: string) => $("#" + id).closest<HTMLElement>(".row")!;
-  // the sections
-  const sections: Record<string, (f: ShapeFeatures, s: TokenSpec) => boolean> = {
-    layout: (f) => USES.layout(f) || USES.relief(f), text: () => true, frame: () => true, back: USES.back, coin: () => true, magnet: USES.magnet,
+  // Layout: the coin's layouts, drawn on this face
+  if (panel === "layout") { renderStyleTiles(who, face); $("#styleHint").textContent = t(`style.${face.style}.help`); }
+  // Text: the name; a ring's letters are as tall as asked only up to the band between its edge
+  // lines (the slider stops there and shows the height they print at); a card's phrase is fitted.
+  const textSize = $<HTMLInputElement>("#textSize");
+  textSize.max = shape === "ring" ? String(Math.floor(ringBand(face).band * 10) / 10) : "6";
+  if (shape === "ring") $("output[data-for=textSize]").textContent = (Math.min(face.textSize, +textSize.max)).toFixed(1).replace(".", dec) + " mm";
+  const coinStyle = (st: TokenStyle) => shape === "coin" && face.style === st;
+  row("textSize").hidden = !f.textSize || coinStyle("solo");
+  row("spacing").hidden = !f.spacing || coinStyle("window") || coinStyle("solo");
+  row("maxArc").hidden = !f.maxArc || coinStyle("window") || coinStyle("solo");
+  // the printed text and the feminine name are the token's own, set on its front
+  $("#tokenOnly").hidden = state.tab !== "token" || side === "back";
+  $("#textOnlyHint").hidden = state.tab === "token" || side === "back";
+  // The window's front is the window itself; its icon takes the coin's colour. A card's or a
+  // ring's front is only its name.
+  $("#frontColourLabel").textContent = shape === "coin" ? t(face.style === "window" ? "front.colourWindow" : "front.colour") : t("front.colourName");
+  // how the name came out: this face's (a two-state token's front also names its other state's when it's drawn alike)
+  const hint = (n: Token["name"]) => {
+    const small = n.letterHeight < smallLetters(), mm = (Math.floor(n.letterHeight * 10) / 10).toFixed(1);
+    return !Number.isFinite(n.letterHeight) ? t("name.hintSolo")
+      : n.repeats ? t("name.hintRing", { n: n.repeats, mm, shrunk: n.scale < 1, small, nozzle: nozzleMm() })
+      : n.total == null ? t("name.hintWindow", { lines: n.lines, mm, small, nozzle: nozzleMm() })
+      : t("name.hint", { arc: n.total.toFixed(0), mm, shrunk: n.scale < 1, small, nozzle: nozzleMm() });
   };
-  for (const [sec, use] of Object.entries(sections)) {
-    const tab = $(`.sections [data-section=${sec}]`), panel = $(`.ws-panel[data-panel=${sec}]`);
-    tab.hidden = !all.some((sh) => use(SHAPE_FEATURES[sh], s));
-    if (!tab.hidden && !use(SHAPE_FEATURES[mine], s)) panel.dataset.na = na; else delete panel.dataset.na;
-    if (tab.hidden && state.lastSection === sec) state.lastSection = "text";
-    if (tab.hidden && state.section === sec) showSection("text");
-  }
-  $("[data-section=coin]").textContent = shapeText("sec.coin", mine);
-  // Type: the layouts, and which parts stand raised
-  reach($("[data-choice=style]"), USES.layout);
-  $("#styleHint").hidden = $("[data-choice=style]").hidden;
-  $("#styleHint").textContent = t(`style.${s.style}.help`);
-  // Relief: each face part flat or raised; the height only matters with something raised.
-  const relief = reliefOf(s), raised = hasRelief(s);
-  const parts = RELIEF_PARTS.filter((k) => all.some((sh) => SHAPE_FEATURES[sh].relief.includes(k)));
-  for (const el of [$("[data-panel=layout] .zone-title"), $("#reliefEls"), $("#reliefHint")]) el.hidden = !parts.length;
-  $("#reliefEls").innerHTML = parts.map((k) => `<div class="relief-el"${SHAPE_FEATURES[mine].relief.includes(k) ? "" : ` data-na="${esc(na)}"`}><span><b>${esc(t(`relief.${k}`))}</b><small>${esc(shapeText(`relief.${k}.help`, mine))}</small></span><span class="seg2" role="group" aria-label="${esc(t(`relief.${k}`))}" data-relief="${k}"><button type="button" data-v="flat" aria-pressed="${!relief[k]}"${k === "text" && mine === "coin" && s.style === "solo" ? " disabled" : ""}>${esc(t("relief.flat"))}</button><button type="button" data-v="raised" aria-pressed="${relief[k]}"${k === "text" && mine === "coin" && s.style === "solo" ? " disabled" : ""}>${esc(t("relief.raised"))}</button></span></div>`).join("");
-  $("#reliefHeightRow").hidden = !parts.length || !raised;
-  const total = (s.height + reliefTop(s)).toFixed(1).replace(".", dec);
-  $("#reliefHint").className = "hint" + (raised ? " warn" : "");
-  $("#reliefHint").textContent = (raised ? t("relief.raisedHelp", { total }) : shapeText("relief.flatHelp", mine)) + (flip.mine ? ` ${t("relief.flipFlush")}` : "");
-  // Text: the name's size and spacing, the icon
-  reach(row("textSize"), USES.textSize);
-  reach(row("spacing"), USES.spacing);
-  reach(row("maxArc"), USES.maxArc);
-  reach(row("iconScale"), USES.icon);
-  // a token's own icon: only in "this token only", so only the token's shape counts
-  $("#iconField").hidden = !SHAPE_FEATURES[mine].icon;
+  const other = selFlip(role), b = token.backName;
+  const names = side === "back" ? [b] : [token.name, other && s.backMode !== "own" ? b : undefined];
+  $("#nameHint").className = "hint" + (names.some((x) => x && x.letterHeight < smallLetters()) ? " warn" : "");
+  $("#nameHint").textContent = side === "back" && b ? (other ? `${t("name.flip", { name: roleName(other, tokenLang()) })} ` : `${t("name.back")} `) + hint(b)
+    : hint(token.name) + (names[1] && other ? ` ${t("name.flip", { name: roleName(other, tokenLang()) })} ${hint(names[1])}` : "");
+  // Icon: a token's own icon only in "this token only", on its front
+  $("#iconField").hidden = state.tab !== "token" || side === "back";
+  $("#iconOnlyHint").hidden = state.tab === "token" || side === "back";
+  $("#iconColourHint").textContent = t(face.style === "window" ? "icon.colourWindow" : "icon.colourName");
   // Frame: a coin's designs, or for a card or a ring only with or without (any design is a line there)
-  const frames = $("[data-choice=frame]");
-  if (all.some((sh) => SHAPE_FEATURES[sh].frame === "designs") && SHAPE_FEATURES[mine].frame === "line") frames.dataset.na = t(`frame.lineOnly.${mine}`);
-  else delete frames.dataset.na;
-  // Coin: its size, or the base a ring fits
-  reach(row("diameter"), USES.diameter);
-  reach($("#ringBaseRow"), USES.ringBase);
+  if (panel === "frame") renderFrameTiles(who, face);
+  // Back: a design (and its colour) or the front again in a colour of its own
+  if (panel === "back") {
+    const design = s.backMode !== "match";
+    $("#backDesign").hidden = !design; $("#backMatch").hidden = design;
+    // a two-state token has its other state there whatever the design: the designs go when nothing they reach would show one
+    const plain = backReach().plain;
+    for (const el of [$("[data-choice=back]"), $(".metal[data-colour=back]"), $("#backDesign .metal-label")]) el.hidden = !plain;
+    if (design && plain) renderBackTiles(role, s);
+    $("#matchColourLabel").textContent = t(s.style === "window" ? "back.faceColourWindow" : "back.faceColour");
+  }
+  // Body: its colour, size (a coin's diameter, a ring's base, a card's fixed), thickness and colour depth
+  $("#diameterRow").hidden = !f.diameter;
+  $("#ringBaseRow").hidden = !f.ringBase;
+  $("#cardSizeHint").hidden = shape !== "card";
   const rs = ringSize(s);
   $("#ringBaseHint").textContent = t("ring.baseHelp", { inner: dec1(2 * rs.inner), outer: dec1(2 * rs.outer) });
-  $("#baseColourLabel").textContent = shapeText("coin.colour", mine);
-  $("label[for=height]").textContent = shapeText("range.height", mine);
-  // Back: a two-state token's is its other state (renderFlipBack shows it). The designs and their
-  // colour stay for the set's other coins, dimmed; with none, they go.
-  for (const el of [$("[data-choice=back]"), $(".metal[data-colour=back]")]) {
-    el.hidden = flip.mine && !flip.plain;
-    if (flip.mine && flip.plain) el.dataset.na = t("flip.na"); else delete el.dataset.na;
-  }
-  // a section's note says it all: no notes again on what's in it
-  for (const panel of $$(".ws-panel[data-na]")) for (const el of $$("[data-na]", panel)) delete el.dataset.na;
-  // Magnet: the hole, the pause and how thick the coin has to be. A two-state token's is as it
-  // prints (shapeSpec): inside, since its back is a face.
-  const ms: TokenSpec = flip.mine ? { ...s, back: FACE_BACK, magnet: s.magnet === "pocket" ? "hidden" : s.magnet } : s;
-  const m = magnetLayout(ms), dec2 = (v: unknown) => String(v).replace(".", dec);
+  $("#baseColourLabel").textContent = shapeText("coin.colour", shape);
+  $("label[for=height]").textContent = shapeText("range.height", shape);
+  $("#depthHint").className = "hint" + (token.depthClamped ? " warn" : "");
+  $("#depthHint").textContent = token.depthClamped ? t("depth.clamped", { max: token.depthClamped.toFixed(1), core: "0.4" }) : shapeText("depth.help", shape);
+  // Magnet: the hole, the pause and how thick the coin has to be, as the token prints it. A back
+  // that is a face has no pocket (the magnet goes inside), and in the set a design back's pocket
+  // skips the coins with another state.
+  const printed = shapeSpec(role, s), faceBack = s.backMode === "match" || s.backMode === "own";
+  const m = magnetLayout(printed), dec2 = (v: unknown) => String(v).replace(".", dec);
   $("#magnetSizeRow").hidden = !m;
+  const flipsHere = backReach().flips;
   $("#magnetHint").textContent = !m ? t("magnet.none.help")
     : t(`magnet.${m.kind}.help`, { d: dec2((m.radius * 2).toFixed(1)), size: `${m.md} × ${m.mt}`, z: dec2(m.pauseZ) })
       + (s.height < m.minHeight ? " " + t("magnet.taller", { from: dec2(s.height), to: dec2(m.minHeight) }) : "")
-      + (flip.mine && s.magnet !== "none" ? " " + t("magnet.flipHidden") : "");
-  $$("[data-choice] button").forEach((b) => b.setAttribute("aria-pressed", String(s[b.parentElement!.dataset.choice as keyof TokenSpec] === b.dataset.v)));
-  $$(".metal").forEach((box) => $$("button", box).forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === s.colours[box.dataset.colour as keyof SpecColours]))));
-  // The window style's front is the window itself; its icon takes the coin's colour. A card's
-  // or a ring's front is only its name.
-  $("#frontColourLabel").textContent = mine === "coin" ? t(s.style === "window" ? "front.colourWindow" : "front.colour") : t("front.colourName");
-  // Reset buttons: shown where a field differs from its default (see baseSpec), never on a hidden field.
+      + (faceBack && s.magnet !== "none" ? " " + t("magnet.faceBack") : s.magnet === "pocket" && flipsHere.length ? " " + t("magnet.flipHidden", { n: flipsHere.length }) : "");
+  // pressed: the face's choices in a face's tabs, the token's elsewhere; the magnet as it prints
+  for (const b of $$("[data-choice] button")) {
+    const key = b.parentElement!.dataset.choice as keyof TokenSpec, from = key === "style" || key === "frame" ? face : s;
+    const v = key === "magnet" && faceBack && s.magnet === "pocket" ? "hidden" : from[key];
+    b.setAttribute("aria-pressed", String(v === b.dataset.v));
+  }
+  $("[data-choice=magnet] [data-v=pocket]").hidden = faceBack;
+  $$(".metal").forEach((box) => {
+    const k = box.dataset.colour as keyof SpecColours, from = box.dataset.side === "back" || (box.closest("[data-panel=text], [data-panel=frame]") && side === "back") ? faceOf(spec, "back") : s;
+    $$("button", box).forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === from.colours[k])));
+  });
+  // Relief: in the open tab's slot, for the face being edited
+  $("#reliefHeightBox").hidden = true; $("#styleFields").append($("#reliefHeightBox"));
+  for (const slot of $$<HTMLElement>(".relief-slot")) {
+    if (slot.closest<HTMLElement>(".ws-panel")!.dataset.panel !== panel || slot.closest(".back-match[hidden]")) { slot.innerHTML = ""; continue; }
+    renderRelief(slot, shape, slot.dataset.reliefPart === "all" ? "back" : side, slot.dataset.reliefPart === "all" ? faceOf(spec, "back") : face, s);
+  }
+  // Reset buttons: shown where a field differs from its default (see baseSpec), never on a hidden
+  // field, and not on a back face (its fields follow the front until changed).
   const { spec: base, name } = baseSpec();
-  for (const b of $$("[data-reset]")) {
-    const k = b.dataset.reset!, own = b.closest(".row") || b.previousElementSibling;
-    b.hidden = JSON.stringify(fieldValue(s, k)) === JSON.stringify(fieldValue(base, k)) || !!own?.closest("[hidden]:not(.ws-panel)");   // a closed section keeps its resets
-    b.title = name ? t("reset.toPreset", { name }) : t("reset.toSet");
-    b.setAttribute("aria-label", b.title);
+  for (const btn of $$("[data-reset]")) {
+    const k = btn.dataset.reset!, own = btn.closest(".row") || btn.previousElementSibling;
+    btn.hidden = side === "back" || JSON.stringify(fieldValue(s, k)) === JSON.stringify(fieldValue(base, k)) || !!own?.closest("[hidden]:not(.ws-panel)");   // a closed tab keeps its resets
+    btn.title = name ? t("reset.toPreset", { name }) : t("reset.toSet");
+    btn.setAttribute("aria-label", btn.title);
   }
 }
 
@@ -1435,14 +1649,15 @@ function fieldValue(spec: SpecInput, key: string) {
   if (key.startsWith("colours.")) return { ...DEFAULT_SPEC.colours, ...spec.colours }[key.slice(8) as keyof SpecColours];
   return spec[key as keyof TokenSpec] ?? DEFAULT_SPEC[key as keyof TokenSpec];
 }
-/** What a field resets to: the design (preset) it started from, else for a token its set's
- *  style and for the set "Edition" (the starting style). `name` is the preset's, if any. */
+/** What a field resets to: the template it started from, else for a token its type's set design
+ *  and for the set "Edition" (the starting design). `name` is the template's, if any. */
 function baseSpec(): { spec: TokenSpec; name: string | null } {
-  if (state.tab === "token" && !state.overrides.get(state.sel!.key)?.spec) return { spec: state.spec, name: null };
-  const p = PRESETS.find((x) => x.id === editingSpec().preset);
-  if (p) return { spec: presetSpec(p), name: t(`preset.${p.id}`) };
-  if (state.tab === "token") return { spec: state.spec, name: null };
-  return { spec: presetSpec(PRESETS[0]), name: t(`preset.${PRESETS[0].id}`) };
+  const set = state.specs[editShape()];
+  if (state.tab === "token" && !state.overrides.get(state.sel!.key)?.spec) return { spec: set, name: null };
+  const p = presetsFor(editShape()).find((x) => x.id === editingSpec().preset);
+  if (p) return { spec: presetSpec(p), name: shapeText(`preset.${p.id}`, editShape()) };
+  if (state.tab === "token") return { spec: set, name: null };
+  return { spec: presetSpec(PRESETS[0]), name: shapeText(`preset.${PRESETS[0].id}`, editShape()) };
 }
 function resetField(key: string) {
   const { spec: base } = baseSpec(), v = structuredClone(fieldValue(base, key));
@@ -1453,19 +1668,20 @@ function resetField(key: string) {
   });
 }
 
-/** Applies a style change to whatever the controls are editing. */
+/** Applies a design change to whatever the controls are editing: the type's set design, or the token's own. */
 function changeStyle(mutate: (s: TokenSpec) => void) {
-  const target = writableSpec();
-  rememberTemplate(target);
+  const shape = editShape(), target = writableSpec();
+  state.applied = null;
+  rememberTemplate(target, shape);
   mutate(target);
-  if (state.tab === "set") storeJSON(STYLE_KEY, state.spec); else storeOverrides();
+  if (state.tab === "set") storeSpec(shape); else storeOverrides();
   renderWorkshop();
   scheduleSheet();
 }
 let sheetTimer: ReturnType<typeof setTimeout> | number = 0;
 function scheduleSheet() { clearTimeout(sheetTimer); sheetTimer = setTimeout(() => { renderSheet(); renderSpine(); renderQueue(); }, 180); }
 function storeOverrides() { storeJSON(OVERRIDES_KEY, Object.fromEntries(state.overrides)); }
-/** A token's own text, style, feminine name or icon; with none left, it goes back to the set's. */
+/** A token's own text, design, feminine name or icon; with none left, it goes back to its type's set design. */
 function setOwn(key: string, own: TokenOverride) {
   if (!own.text && !own.spec && !own.fem && !own.icon) state.overrides.delete(key); else state.overrides.set(key, own);
   storeOverrides(); renderWorkshop(); scheduleSheet();
@@ -1515,7 +1731,12 @@ function wireIcons() {
   };
 }
 
-function syncView(v: string | undefined) { $$(".turn .pill[data-view]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.view === v))); }
+function syncView(v: string | undefined) {
+  const turned = (state.view === "back") !== (v === "back");
+  state.view = v ?? "angle";
+  $$(".turn .pill[data-view]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.view === v)));
+  if (turned && state.step === 2 && state.lib) renderDesignStage();   // the strip shows the coins from the side the view does
+}
 
 function buildChoices() {
   const make = (key: string, list: { id: string }[]) => {
@@ -1653,7 +1874,15 @@ function wire() {
   });
 
   // workshop
-  $$(".turn .pill[data-view]").forEach((b) => b.onclick = () => { view3d("setView", b.dataset.view as ViewKind); syncView(b.dataset.view); });
+  // Front and Back turn the view; on a coin, they also open its FRONT or BACK when one of them is open.
+  $$(".turn .pill[data-view]").forEach((b) => b.onclick = () => {
+    const v = b.dataset.view as ViewKind;
+    view3d("setView", v); syncView(v);
+    if (state.sel && editShape() === "coin" && !state.templates && (v === "top" || v === "back")) {
+      const part = openPart(), want = v === "back" ? "back" : "front";
+      if ((part === "front" || part === "back") && part !== want) { showTab({ part: want }); renderWorkshop(); }
+    }
+  });
   $("#xray").onclick = () => {
     const on = $("#xray").getAttribute("aria-pressed") !== "true";
     $("#xray").setAttribute("aria-pressed", String(on));
@@ -1662,18 +1891,23 @@ function wire() {
   };
   $$(".scope [data-tab]").forEach((b) => b.onclick = () => {
     state.tab = b.dataset.tab!;
-    if (state.tab === "token" && state.section === "presets") showSection("text");   // a token's text and icon are what's new here
+    if (state.tab === "token" && state.templates) showTab({ part: "front", face: "text" });   // a token's text and icon are what's new here
     renderWorkshop();
   });
-  const goSection = (section: string) => { showSection(section); view3d("setView", SECTION_VIEW[section]); syncView(SECTION_VIEW[section]); };
-  $$(".sections [data-section]").forEach((b) => b.onclick = () => goSection(b.dataset.section!));
-  // opens the templates; closing goes back to the section you were on
-  $("#tplRow").onclick = () => goSection(state.section === "presets" ? state.lastSection : "presets");
+  $("#typeRow").onclick = (e) => { const b = hit(e, "[data-type]"); if (b) chooseType(b.dataset.type as TokenShape); };
+  $("#parts").onclick = (e) => { const b = hit(e, "[data-part]"); if (!b) return; showTab({ part: b.dataset.part as Part }); viewTab(); renderWorkshop(); };
+  $("#faceTabs").onclick = (e) => { const b = hit(e, "[data-face]"); if (!b) return; showTab({ face: b.dataset.face as FaceTab }); renderWorkshop(); };
+  $("#backModes").onclick = (e) => { const b = hit(e, "[data-back-mode]"); if (b) setBackMode(b.dataset.backMode as BackMode); };
+  // opens the templates; closing goes back to the tab you were on
+  $("#tplRow").onclick = () => { showTab({ templates: !state.templates }); viewTab(); renderWorkshop(); };
+  // A face's choices and sliders go to the face being edited (the front, or a back of its own); the rest to the token.
+  const FACE_KEYS = new Set<string>(FACE_FIELDS);
+  const change = (key: string, mutate: (s: TokenSpec) => void) => (FACE_KEYS.has(key) ? changeFace(editSide(), mutate) : changeStyle(mutate));
   for (const key of ["style", "frame", "back", "magnet", "magnetSize", "ringBase"]) {
     $(`[data-choice=${key}]`).onclick = (e) => {
       const b = hit(e, "button"); if (!b) return;
       if (key === "back" && b.dataset.v === "custom" && !editingSpec()?.customSvg) { $("#upload").click(); return; }
-      changeStyle((s) => {
+      change(key, (s) => {
         // a name size doesn't carry over between layouts: each starts from its own
         if (key === "style" && (s.style ?? DEFAULT_SPEC.style) !== b.dataset.v) s.textSize = LAYOUT_TEXT[b.dataset.v as TokenStyle];
         (s as unknown as Fields)[key] = b.dataset.v;
@@ -1681,25 +1915,29 @@ function wire() {
       if (key === "back") { view3d("setView", "back"); syncView("back"); }
     };
   }
+  // the name's and the frame's colours are the face's; the back's own (a back that matches the front) is marked as the back's
   for (const box of $$(".metal")) box.onclick = (e) => {
     const b = hit(e, "button"); if (!b) return;
-    changeStyle((s) => { s.colours = { ...DEFAULT_SPEC.colours, ...s.colours, [box.dataset.colour!]: b.dataset.v! }; });
+    const key = box.dataset.colour!, mutate = (s: TokenSpec) => { s.colours = { ...DEFAULT_SPEC.colours, ...s.colours, [key]: b.dataset.v! }; };
+    if (box.dataset.side === "back") changeFace("back", mutate);
+    else if (box.closest("[data-panel=text], [data-panel=frame]")) changeFace(editSide(), mutate);
+    else changeStyle(mutate);
   };
-  for (const id of Object.keys(RANGES) as RangeKey[]) $("#" + id).oninput = (e) => changeStyle((s) => { s[id] = +input(e).value; });
+  for (const id of Object.keys(RANGES) as RangeKey[]) $("#" + id).oninput = (e) => change(id, (s) => { s[id] = +input(e).value; });
   $("#colourWarn").addEventListener("click", (e) => { if (hit(e, "[data-deepen]")) deepen(); });
   // A reset button for every field: in a slider's row, after a group of choices or colours.
   const resetBtn = () => Object.assign(document.createElement("button"), { type: "button", className: "reset-f", hidden: true, textContent: "↺" });
   for (const id of Object.keys(RANGES)) { const b = resetBtn(); b.dataset.reset = id; $(`output[data-for=${id}]`).after(b); }
-  for (const el of $$("#styleFields [data-choice], #styleFields .metal")) {
+  for (const el of $$("#styleFields [data-choice], #styleFields .metal:not([data-side])")) {
     const b = resetBtn(); b.classList.add("group"); b.dataset.reset = el.dataset.choice ?? `colours.${el.dataset.colour}`; el.after(b);
   }
-  { const b = resetBtn(); b.classList.add("group"); b.dataset.reset = "relief"; $("#reliefEls").after(b); }
-  $("#reliefEls").onclick = (e) => {
-    const b = hit(e, "[data-v]"), part = hit(e, "[data-relief]")?.dataset.relief; if (!b || !part) return;
-    changeStyle((s) => { s.relief = { ...reliefOf(s), [part]: b.dataset.v === "raised" }; });
-    view3d("setView", "side"); syncView("side");
-  };
-  $("#styleFields").addEventListener("click", (e) => { const b = hit(e, "[data-reset]"); if (b) resetField(b.dataset.reset!); });
+  $("#styleFields").addEventListener("click", (e) => {
+    const r = hit(e, "[data-reset]");
+    if (r) { resetField(r.dataset.reset!); return; }
+    if (hit(e, "[data-relief-swap]")) { swapRelief(); return; }
+    const v = hit(e, "[data-relief] [data-v]"), seg = hit(e, "[data-relief]");
+    if (v && seg) setRelief(seg.dataset.side as Side, seg.dataset.relief as ReliefPart, v.dataset.v === "raised");
+  });
   $("#upload").onchange = async (e) => {
     const f = input(e).files![0]; input(e).value = "";
     if (!f) return;
@@ -1713,8 +1951,15 @@ function wire() {
   };
   $("#presets").onclick = (e) => {
     const b = hit(e, "[data-preset]"); if (!b) return;
-    const next = presetSpec(PRESETS.find((p) => p.id === b.dataset.preset)!);
-    changeStyle((s) => { for (const k of Object.keys(next)) if (!PRESET_KEEPS.has(k)) (s as unknown as Fields)[k] = structuredClone((next as unknown as Fields)[k]); s.preset = b.dataset.preset; });
+    changeStyle((s) => applyPreset(s, PRESETS.find((p) => p.id === b.dataset.preset)!));
+    if (state.tab === "set") state.applied = editShape();   // offers it to the queue's other types too
+  };
+  // the chosen template on the queue's other types too
+  $("#presetAlso").onclick = () => {
+    const p = PRESETS.find((x) => x.id === $("#presetAlso").dataset.preset); if (!p) return;
+    for (const sh of alsoTypes(p, editShape())) { applyPreset(state.specs[sh], p); storeSpec(sh); }
+    state.applied = null;
+    renderWorkshop(); scheduleSheet();
   };
   // this token only
   $("#printed").oninput = (e) => {
@@ -1819,7 +2064,7 @@ function queueEntry(role: Role, ri: number | null): QueueEntry {
     reminder: isRem ? textFor(key, role, ri) : null,
     text: isRem ? null : textFor(key, role, null),
     custom: !!own,
-    spec: { ...structuredClone(own?.spec ?? state.spec), lang: tokenLang(), icon: ownIcon(role.id) },
+    spec: { ...structuredClone(own?.spec ?? state.specs[shapeOf(role)]), lang: tokenLang(), icon: ownIcon(role.id) },
   };
 }
 const isReminder = (q: QueueEntry): q is QueueEntry & { reminder: string } => q.reminder != null;
@@ -1844,22 +2089,21 @@ function queuePlan() {
     const role = roleById(q.roleId)!;
     const base = itemSpec(q);
     const spec = { ...DEFAULT_SPEC, ...base, colours: { ...DEFAULT_SPEC.colours, ...base.colours } };
-    const team = TEAMS[role.team].colour, pick = (v: ColourRef) => (v === "team" ? team : v);
-    const shape = shapeOf(role), has = SHAPE_FEATURES[shape];
+    const shape = shapeOf(role), has = SHAPE_FEATURES[shape], c = partColours(role, spec);
     const hasBack = has.back && spec.back !== "none" && (spec.back !== "custom" || spec.customSvg) && (spec.back !== "seal" || state.lib!.sealSvg) && (spec.back !== "edition" || role.edition);
-    const flip = spec.back === FACE_BACK, iconColour = pick(has.icon && spec.style !== "window" ? spec.colours.front : spec.colours.base);
+    // a back that is a face (itemSpec says so) is drawn like a front: its name, icon and frame
+    const face = backFaceOf(role, spec, "")?.spec, iconColour = has.icon && spec.style !== "window" ? c.front : c.base;
     return {
       q, title: queueLabel(q, role), group: queueGroup(q, role),
       token: {
         spec,
         // a card's footprint is its own; a ring takes up its outer diameter but has no body in its hole
         ...(shape === "card" ? { foot: { w: CARD.w, h: CARD.h } } : shape === "ring" ? { hole: 2 * ringSize(spec).inner } : {}),
-        // a two-state token's back (itemSpec says so) is a front: its name, icon and frame
         parts: { base: 1, front: 1, icon: has.icon ? 1 : null, frame: spec.frame !== "none" ? 1 : null, back: hasBack ? 1 : null,
-          backIcon: flip && has.icon ? 1 : null, backFrame: flip && spec.frame !== "none" ? 1 : null },
-        // the window's icon is in the coin colour; the classic one in the name's
-        colours: { base: pick(spec.colours.base), front: pick(spec.colours.front), icon: iconColour, frame: pick(spec.colours.frame),
-          back: pick(flip ? spec.colours.front : spec.colours.back), backIcon: iconColour, backFrame: pick(spec.colours.frame) },
+          backIcon: face && has.icon ? 1 : null, backFrame: face && face.frame !== "none" ? 1 : null },
+        // the window's icon is in the coin colour; the classic one in the name's (on a back face, in the back's)
+        colours: { base: c.base, front: c.front, icon: iconColour, frame: c.frame, back: c.back,
+          backIcon: face ? (face.style === "window" ? c.base : c.back) : iconColour, backFrame: c.backFrame },
       },
     };
   });
@@ -2018,13 +2262,14 @@ function renderQueueList() {
 // ------------------------------------------------------------ step 2: your tokens in the set's design
 
 function renderDesignStage() {
-  const keys = sortKeys(state.pick.keys()), total = queueNow().length;
+  // the coins on the side the 3D view shows: from behind when it's turned over
+  const keys = sortKeys(state.pick.keys()), total = queueNow().length, side = state.view === "back" ? "back" : "front";
   $("#designGrid").innerHTML = keys.map((k) => {
     const role = tokenRole(k), ri = tokenRem(k), text = textFor(k, role, ri);
     const spec = specFor(k, ri != null);
     const label = ri != null ? `${textFor(charKey(role), role, null)}: ${text}` : text;
     // the copies stepper sits beside the button (a button can't hold buttons), over the coin's foot
-    return `<div class="ds-item${ri != null ? " r" : ""}"><button class="ds-cell${ri != null ? " r" : ""}${isCard(role) ? " card" : ""}" type="button" data-design="${k}" aria-current="${state.sel?.key === k}" title="${esc(t("design.tap"))}">${tokenSvg(state.lib!, role, spec, { text })}${state.overrides.has(k) ? `<span class="mark" title="${esc(t("sheet.own"))}">✎</span>` : ""}<span>${esc(label)}</span></button><button type="button" class="ds-drop" data-drop="${k}" aria-label="${esc(t("queue.removeAria", { name: label }))}">${BIN}</button></div>`;
+    return `<div class="ds-item${ri != null ? " r" : ""}"><button class="ds-cell${ri != null ? " r" : ""}${isCard(role) ? " card" : ""}" type="button" data-design="${k}" aria-current="${state.sel?.key === k}" title="${esc(t("design.tap"))}">${tokenSvg(state.lib!, role, spec, { text, side: shapeOf(role) === "coin" ? side : "front" })}${state.overrides.has(k) ? `<span class="mark" title="${esc(t("sheet.own"))}">✎</span>` : ""}<span>${esc(label)}</span></button><button type="button" class="ds-drop" data-drop="${k}" aria-label="${esc(t("queue.removeAria", { name: label }))}">${BIN}</button></div>`;
   }).join("");
 }
 /** Takes a token out of the selection from step 2, with Undo. The workshop moves on to another
@@ -2038,7 +2283,10 @@ function dropFromDesign(key: string) {
 }
 /** Tapping one of your tokens: the workshop shows it. What you're editing (set or token) stays as it is. */
 function designToken(key: string) {
+  const was = state.sel && shapeOf(state.sel.role);
   selectToken(key);
+  // another type: its design opens where it was left, the 3D view turned to it
+  if (was && was !== shapeOf(state.sel!.role)) viewTab();
   renderWorkshop(); renderDesignStage();
   revealPicked();
 }
@@ -2050,7 +2298,7 @@ function editToken(key: string) {
   if ($<HTMLDialogElement>("#queueDrawer").open) $<HTMLDialogElement>("#queueDrawer").close();
   selectToken(key);
   state.tab = "token";
-  showSection("text");
+  showTab({ part: "front", face: "text" });
   goStep(2);
   revealPicked();
 }
@@ -2243,12 +2491,16 @@ async function importAccountDesigns(user: User) {
   await Promise.all(remote.map((d) => deleteAccountDesign(user.uid, d.id)));
   if (state.lib) refreshDesigns();
 }
+/** A saved design's type: as it was saved, or (one saved before designs were kept per type) its character's shape. */
+const designShape = (d: Design) => d.shape ?? shapeOf(roleById(d.roleId));
+/** The saved designs of the type being edited. */
 function renderDesigns() {
   if (!state.lib) return;
-  $("#savedSummary").textContent = state.designs.length ? String(state.designs.length) : "";
-  $("#saved").innerHTML = state.designs.map((d) => {
-    const role = roleById(d.roleId);
-    if (!role) return "";
+  const shape = state.sel ? shapeOf(state.sel.role) : "coin";
+  const list = state.designs.filter((d) => roleById(d.roleId) && designShape(d) === shape);
+  $("#savedSummary").textContent = list.length ? String(list.length) : "";
+  $("#saved").innerHTML = list.map((d) => {
+    const role = roleById(d.roleId)!;
     const pic = tokenSvg(state.lib!, role, { ...DEFAULT_SPEC, ...d.spec, diameter: 45, colours: { ...DEFAULT_SPEC.colours, ...d.spec.colours } }, { text: d.text || (d.fem && role.fem?.[d.spec.lang]) || roleName(role, d.spec.lang) });
     return `<li><button class="open" type="button" data-open="${d.id}">${pic}<span>${esc(d.title)}</span></button><button class="del" type="button" data-del="${d.id}" aria-label="${esc(t("saved.deleteAria", { name: d.title }))}">${esc(t("saved.delete"))}</button></li>`;
   }).join("") || `<li class="hint">${esc(t("saved.empty"))}</li>`;
@@ -2263,7 +2515,7 @@ async function save() {
     const spec = specFor(key, false);
     // One saved design per character: saving again updates it.
     const list = readDesigns().filter((d) => d.roleId !== role.id);
-    list.unshift({ id: role.id, roleId: role.id, text: state.overrides.get(key)?.text || null, fem: !!state.overrides.get(key)?.fem, spec, title, updatedAt: Date.now() });
+    list.unshift({ id: role.id, roleId: role.id, text: state.overrides.get(key)?.text || null, fem: !!state.overrides.get(key)?.fem, spec, title, updatedAt: Date.now(), shape: shapeOf(role) });
     writeDesigns(list);
     $("#saveNote").textContent = t("saved.saved", { name: title });
     refreshDesigns();
@@ -2646,7 +2898,7 @@ function renderOwnFlip() {
 function drawOwnPreview() {
   const d = ownDraft!;
   const role = { ...collectionRoles({ ...coll, tokens: [d] }, uiLang())[0], id: `__draft_${d.id}`, iconKey: `__draft:${d.icon?.id ?? "none"}` };
-  const spec = { ...state.spec, lang: tokenLang() };
+  const spec = { ...state.specs[draftShape()], lang: tokenLang() };
   const name = nameIn(d.name, tokenLang()).trim() || t("own.namePlaceholder");
   const coin = draftShape() === "coin";
   // a two-state token: its other state, as its back prints
