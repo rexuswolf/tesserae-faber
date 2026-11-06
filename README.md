@@ -27,7 +27,7 @@ Tokens come in **collections**. Open one, pick its tokens, design them, print th
 
 - **Ready to use**: collections that come with the app, read-only (*Make a copy* gives you one to change):
   ***Blood on the Clocktower***, as [Midnight Mint](#midnight-mint-blood-on-the-clocktower), at `/botc`, and
-  ***Draw Steel*** (heroic resources, Malice, Victories and conditions), at `/c/drawsteel`.
+  ***Draw Steel*** (heroic resources, Malice, Victories, conditions and condition rings), at `/c/drawsteel`.
 - **Your own**: make one from scratch, or import one. You create and edit its tokens (a name, an icon from
   game-icons.net or an SVG, a colour group) and their **linked tokens**, which come and go with them, as a
   character's reminders do.
@@ -37,7 +37,8 @@ Tokens come in **collections**. Open one, pick its tokens, design them, print th
 A collection is laid out like this:
 
 - **Types**: the fixed entries at the top of the sidebar ("All characters", "Grimoire"). A type also says its
-  tokens' shape: coins, or cards.
+  tokens' shape: coins, cards, or condition rings (a flat ring that slips over a miniature's base, its name
+  repeated all the way round; for 25, 32 or 40 mm bases, chosen in the design's Coin section).
 - **Groups**: the colours, and the filters and order of the sheet (Clocktower's teams).
 - **Tokens**: each of one type and one group, with its linked tokens. Names can come in several languages.
 - **Sections**: the sidebar's headings, each **closed** (it comes with the collection, like Clocktower's

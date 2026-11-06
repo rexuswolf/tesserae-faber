@@ -116,6 +116,7 @@ export const DEFAULT_SPEC: TokenSpec = {
   frameWidth: 0.8,
   back: "none",
   customSvg: null,
+  ringBase: "25",
   colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold },
 };
 
@@ -1141,6 +1142,7 @@ export const SMALL_LETTERS_MM = 2.5;
 /** How tall the name's letters come out (mm), without building any geometry. */
 export function nameLetterHeight(lib: Library, input: SpecInput, text: string, role: Role | null = null) {
   if (isCard(role)) return cardLayout(lib, text, cardSpec(input)).cap;
+  if (isRing(role)) return ringLayout(lib, text, ringSpec(input)).letterHeight;
   const spec = windowFrame({ ...DEFAULT_SPEC, ...input, colours: { ...DEFAULT_SPEC.colours, ...input?.colours } });
   if (spec.style === "window") return windowLayout(lib, text, spec).cap;
   return arcName(lib, text, spec)?.letterHeight ?? Infinity;   // "solo" has no name to be too small
@@ -1239,6 +1241,112 @@ function cardSvg(lib: Library, role: Role, input: SpecInput | undefined, side: "
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${-w / 2 - 0.5} ${-h / 2 - 0.5} ${w + 1} ${h + 1}" role="img" aria-label="${esc(label)}"><rect x="${-w / 2}" y="${-h / 2}" width="${w}" height="${h}" rx="${r}" fill="${c.base}"/>${body}</svg>`;
 }
 
+// ---------------------------------------------------------------- condition rings
+
+/**
+ * Condition rings (a collection's types of shape "ring") are flat rings that slip over a
+ * miniature's base, the token's name running all the way round, repeated with a dot between,
+ * so it reads from any side of the table. A fine line runs along each edge (as the coin's rim
+ * does) when the design has a frame. They print like the coins: the body in the coin colour, the letters, dots
+ * and lines as inlays (flush or raised); no icon, back or magnet. Roles with kind "ring".
+ */
+export const RING_BASES = ["25", "32", "40"];
+/** Play between the ring and the base on each side, the ring's width, and the coin colour kept
+ *  between the letters and the lines or edges (mm): wider than the nozzle, so it prints. */
+const RING_PLAY = 0.6, RING_WIDTH = 6, RING_TEXT_GAP = 0.7;
+export const isRing = (role: Role | null | undefined) => role?.kind === "ring";
+
+/** A ring's radii (mm) for the base its design is for: the hole, and the outer edge. */
+export function ringSize(spec: { ringBase?: string }) {
+  const base = Number(RING_BASES.includes(spec.ringBase ?? "") ? spec.ringBase : DEFAULT_SPEC.ringBase);
+  const inner = base / 2 + RING_PLAY;
+  return { base, inner, outer: inner + RING_WIDTH };
+}
+
+/** A ring's spec: the set's colours, frame, relief, height and depth; `diameter` its outer edge, so plates, paper and the 3D view size it right. */
+export function ringSpec(input: SpecInput | undefined): TokenSpec {
+  const s = normalizeSpec({ ...DEFAULT_SPEC, ...input, colours: { ...DEFAULT_SPEC.colours, ...input?.colours } });
+  const spec: TokenSpec = { ...s, style: "classic", relief: { ...reliefOf(s), icon: false }, back: "none", magnet: "none", diameter: 2 * ringSize(s).outer };
+  return { ...spec, depth: fittingDepth(spec).depth };
+}
+
+/**
+ * Where the name goes round the ring: as many times as fit with a comfortable gap (at least
+ * twice, the letters shrinking if they must), each repetition centred on its share of the
+ * circle with a dot halfway to the next. Letters stand on a circle inside the band, tops
+ * outwards, reading clockwise. Angles in degrees, engine space (y up).
+ */
+export function ringLayout(lib: Library, text: string | null | undefined, spec: TokenSpec) {
+  const { inner, outer } = ringSize(spec), mid = (inner + outer) / 2;
+  // fine lines: the default frame width (0.8 mm) gives the thinnest that prints well, 0.45 mm
+  const line = spec.frame === "none" ? null : Math.min(Math.max(spec.frameWidth * 0.55, 0.45), 0.8);
+  // the letters fill the band between the lines, as tall as the name size allows (3.7 mm by default)
+  const band = RING_WIDTH - 2 * ((line ?? 0) + RING_TEXT_GAP);
+  const want = Math.min(spec.textSize, band);
+  const chars = [...(text || "").toUpperCase().trim()];
+  const adv = chars.map((c) => (c === " " ? Math.max(glyph(lib, " ").advance, 0.45) : glyph(lib, c).advance) * spec.spacing);
+  const word = adv.reduce((a, b) => a + b, 0);                    // in em
+  const circ = 2 * Math.PI * mid, gap = want * 1.6;               // room for the dot and some air either side
+  let em = want / lib.capHeight, n = Math.floor(circ / (word * em + gap));
+  if (n < 2) { n = 2; em = Math.min(em, (circ / 2 - gap) / Math.max(word, 1e-6)); }
+  const cap = em * lib.capHeight;
+  const letters: { ch: string; a: number }[] = [], dots: number[] = [];
+  for (let k = 0; k < n; k++) {
+    const centre = 90 - (k * 360) / n;                            // the first on top, then clockwise
+    let s = -(word * em) / 2;
+    chars.forEach((ch, i) => {
+      const at = s + (adv[i] * em) / 2;
+      s += adv[i] * em;
+      if (ch !== " ") letters.push({ ch, a: centre - (at / mid) * (180 / Math.PI) });
+    });
+    dots.push(centre - 180 / n);
+  }
+  return { inner, outer, mid, line, letters, dots, em, cap, n, base: mid - cap / 2, dot: Math.max(0.5, cap * 0.2), letterHeight: cap, scale: cap / want };
+}
+
+/** The lines along the ring's edges, as filled shapes: drawn like its body, so their edges are the body's. */
+const ringLines = (L: ReturnType<typeof ringLayout>) => (L.line ? [annulus(L.outer, L.outer - L.line), annulus(L.inner + L.line, L.inner)] : []);
+
+function buildRing(lib: Library, role: Role, input: SpecInput | undefined, text?: string | null): Token {
+  const spec = ringSpec(input);
+  text ??= roleName(role, spec.lang);
+  const L = ringLayout(lib, text, spec), H = spec.height, top = H - spec.depth;
+  const letters = L.letters.map(({ ch, a }) => {
+    const g = glyph(lib, ch), r = THREE.MathUtils.degToRad(a);
+    return extrude(g.shapes, inlayHeight(spec, "text"), chain(T(L.base * Math.cos(r), L.base * Math.sin(r), top), RZ(r - Math.PI / 2), S(L.em, L.em, 1), T(-g.center, 0, 0)), 4);
+  });
+  const dots = extrude(L.dots.map((a) => disc(L.dot, ...ptXY(L.mid, THREE.MathUtils.degToRad(a)))), inlayHeight(spec, "text"), T(0, 0, top), 8);
+  const front = merge([...letters, dots]);
+  const frame = L.line ? extrude(ringLines(L), inlayHeight(spec, "frame"), T(0, 0, top), 64) : null;
+  const R = reliefOf(spec), r = reliefTop(spec), above = (g: THREE.BufferGeometry | null) => (g && r ? geometryVolume(g) * r / (spec.depth + r) : 0);
+  return {
+    parts: { base: extrude([annulus(L.outer, L.inner)], H, T(0, 0, 0), 64), front, icon: null, frame, back: null },
+    colours: { ...partColours(role, spec), hole: "#0b090c" },
+    name: { letterHeight: L.letterHeight, scale: L.scale, total: null, repeats: L.n },
+    spec, magnet: null, depthClamped: null,
+    above: { front: R.text ? above(front) : 0, frame: R.frame ? above(frame) : 0 },
+  };
+}
+
+function ringSvg(lib: Library, role: Role, input: SpecInput | undefined, side: "front" | "back", text?: string | null) {
+  const spec = ringSpec(input);
+  const c = partColours(role, spec), label = text ?? roleName(role, spec.lang);
+  const L = ringLayout(lib, label, spec), o = L.outer, i = L.inner;
+  let body = "";
+  if (side === "front") {
+    // SVG y points down: angle a in engine space is -a on screen.
+    for (const { ch, a } of L.letters) {
+      const r = (a * Math.PI) / 180;
+      body += letterSvg(lib, ch, L.base * Math.cos(r), -L.base * Math.sin(r), 90 - a, L.em, c.front);
+    }
+    for (const a of L.dots) body += `<circle cx="${(L.mid * Math.cos((a * Math.PI) / 180)).toFixed(2)}" cy="${(-L.mid * Math.sin((a * Math.PI) / 180)).toFixed(2)}" r="${L.dot.toFixed(2)}" fill="${c.front}"/>`;
+    if (L.line) body += `<path fill="${c.frame}" fill-rule="evenodd" d="${shapesToPath(ringLines(L), 0, 0, 48)}"/>`;
+  }
+  // the ring itself first, in the coin colour (print-pdf.ts reads its colour from it)
+  const ring = `M${o} 0A${o} ${o} 0 1 0 ${-o} 0A${o} ${o} 0 1 0 ${o} 0ZM${i} 0A${i} ${i} 0 1 1 ${-i} 0A${i} ${i} 0 1 1 ${i} 0Z`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${-o - 0.5} ${-o - 0.5} ${2 * o + 1} ${2 * o + 1}" role="img" aria-label="${esc(label)}"><path fill="${c.base}" fill-rule="evenodd" d="${ring}"/>${body}</svg>`;
+}
+
 /**
  * A spec as the engine builds it. A window saved with the old "relief" finish (the icon
  * standing in a recessed window) becomes a window with its icon raised. In the window
@@ -1262,6 +1370,7 @@ function windowFrame(spec: TokenSpec) {
 
 export function buildToken(lib: Library, role: Role, input: SpecInput | undefined, text?: string | null): Token {
   if (isCard(role)) return buildCard(lib, role, input, text);
+  if (isRing(role)) return buildRing(lib, role, input, text);
   let spec = windowFrame({ ...DEFAULT_SPEC, ...input, colours: { ...DEFAULT_SPEC.colours, ...input?.colours } });
   // A magnet may need a thicker coin.
   const need = magnetLayout(spec)?.minHeight ?? 0;
@@ -1325,6 +1434,7 @@ const esc = (s: unknown) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;",
  */
 export function tokenSvg(lib: Library, role: Role, input: SpecInput | undefined, { side = "front", text }: { side?: "front" | "back"; text?: string | null } = {}) {
   if (isCard(role)) return cardSvg(lib, role, input, side, text);
+  if (isRing(role)) return ringSvg(lib, role, input, side, text);
   const spec = windowFrame({ ...DEFAULT_SPEC, ...input, colours: { ...DEFAULT_SPEC.colours, ...input?.colours } });
   const c = partColours(role, spec);
   const R = spec.diameter / 2;

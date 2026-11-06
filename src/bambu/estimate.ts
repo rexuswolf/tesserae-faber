@@ -37,6 +37,8 @@ export interface EstimateToken {
   spec: Pick<TokenSpec, "diameter" | "depth"> & { reliefHeight?: number };
   colours: Record<PartName, Hex>;
   foot?: Foot;
+  /** A condition ring's hole, mm across. */
+  hole?: number;
 }
 
 /**
@@ -52,7 +54,7 @@ export function plateFeatures(items: { token: EstimateToken; vol: Volumes }[], n
   for (const { token, vol } of items) {
     const { spec, colours } = token, base = slotOf(colours.base);
     n++; if (token.foot) cards++; body += vol.base;   // the coin as built: a magnet may have made it thicker than its spec
-    const footArea = token.foot ? token.foot.w * token.foot.h : Math.PI * (spec.diameter / 2) ** 2;   // a card, or a coin
+    const footArea = token.foot ? token.foot.w * token.foot.h : Math.PI * ((spec.diameter / 2) ** 2 - ((token.hole ?? 0) / 2) ** 2);   // a card, or a coin or ring
     const h = vol.base / footArea;
     layers = Math.max(layers, Math.round(spec.depth / c.layer));
     // Raised parts (vol.above: part -> mm³ standing out of the face) add layers above the

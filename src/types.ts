@@ -29,7 +29,7 @@ export interface TokenIcon {
 
 /**
  * A character from the catalog (the role library), a script's own (homebrew) character, or
- * one of the grimoire's info tokens (kind "info", drawn as a card).
+ * one of the grimoire's info tokens (kind "info", drawn as a card); a collection's condition rings are kind "ring".
  */
 export interface Role {
   id: string;
@@ -51,7 +51,7 @@ export interface Role {
   /** The icon's name and author on game-icons.net (credited). */
   icon?: string;
   author?: string;
-  kind?: "homebrew" | "info";
+  kind?: "homebrew" | "info" | "ring";
   /** A homebrew character's script name (its edition, on the Edition back). */
   editionName?: string;
   ability?: string;
@@ -104,6 +104,8 @@ export interface TokenSpec {
   colours: SpecColours;
   /** The token's own icon, in place of its character's. */
   icon?: TokenIcon;
+  /** A condition ring's miniature base (mm): "25", "32" or "40" (see ringSize). */
+  ringBase: string;
   /** A reminder's coin size, when the character style sets one. */
   reminderDiameter?: number;
   /** The template (PRESETS) the set's design is, or a token's own design started from. */
@@ -174,12 +176,14 @@ export interface MagnetLayout {
   pauseZ?: number;
 }
 
-/** How the name came out: its letters' height, how much it shrank, the arc it spans (null off a curve). */
+/** How the name came out: its letters' height, how much it shrank, the arc it spans (null off a coin's curve). */
 export interface NameInfo {
   letterHeight: number;
   scale: number;
   total: number | null;
   lines?: number;
+  /** A condition ring's: how many times the name goes round. */
+  repeats?: number;
 }
 
 /** A card's footprint (info tokens), mm. */
@@ -234,6 +238,8 @@ export interface QueueEntry {
 /** The least a plate plan needs of a token: its size, which parts it has and their colours. */
 export interface PlanToken {
   spec: Pick<TokenSpec, "diameter">;
+  /** A condition ring's hole (mm across): it takes up its outer diameter on the plate, but has no body there. */
+  hole?: number;
   parts: Partial<Record<PartName, unknown>>;
   colours: Record<PartName, Hex>;
   foot?: Foot;

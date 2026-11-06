@@ -1,7 +1,8 @@
 // Your own collection, for Tesserae Faber, the generic creator. The app shows it the way it shows
 // Clocktower:
 //   types     → the fixed entries at the top of the sidebar ("All characters", "Grimoire"); a
-//               type also says the tokens' shape (coins, or cards like the info tokens)
+//               type also says the tokens' shape (coins, cards like the info tokens, or
+//               condition rings that go round a miniature's base)
 //   groups    → the colours, and the sheet's filters and order (Clocktower's teams)
 //   tokens    → each of one type and one group, with its linked tokens (the reminders)
 //   sections  → the sidebar's headings, closed (come with the collection: "Editions") or open
@@ -30,7 +31,9 @@ export const collectionUrl = (id: string) => `/c/${id}`;
 
 /** A name: one text, or one per token language ("en", "es", "es-castelgard"…). */
 export type Names = string | Record<string, string>;
-export interface OwnType { id: string; name: Names; title: Names; shape: "coin" | "card"; icon?: string }
+export type TokenShape = "coin" | "card" | "ring";
+export const SHAPES: TokenShape[] = ["coin", "card", "ring"];
+export interface OwnType { id: string; name: Names; title: Names; shape: TokenShape; icon?: string }
 export interface OwnGroup { id: string; name: Names; colour: Hex; icon?: string }
 export interface OwnToken {
   id: string;
@@ -238,7 +241,7 @@ export function tokenRole(c: Collection, t: OwnToken, lang = "es"): Role {
     edition: "own", editionName: nameIn(home?.name ?? c.name, lang),
     reminders: Object.fromEntries([...langs].map((l) => [l, t.linked.map((n) => nameIn(n, l))])),
     body: t.icon?.body ?? "", d: [], g: t.icon?.g ?? "",
-    ...(type?.shape === "card" ? { kind: "info" as const } : {}),
+    ...(type?.shape === "card" ? { kind: "info" as const } : type?.shape === "ring" ? { kind: "ring" as const } : {}),
     // credited like the library's icons, when it's from game-icons.net
     ...(t.icon?.source === "game-icons" ? { icon: t.icon.name, author: t.icon.author } : {}),
     // the engine caches shapes by this: a new icon for the same token gets drawn afresh
@@ -277,7 +280,7 @@ const okName = (n: unknown): n is Names => typeof n === "string" || (!!n && type
 export async function readCollectionFile(data: unknown, onProgress: (done: number, total: number) => void = () => {}): Promise<Collection> {
   const f = data as Partial<CollectionFile> | null;
   if (!f || f.format !== COLLECTION_FORMAT || !Array.isArray(f.tokens) || !Array.isArray(f.groups)) throw new Error("not-collection");
-  const types: OwnType[] = (f.types ?? []).filter((x) => x?.id).map((x) => ({ id: String(x.id), name: okName(x.name) ? x.name : String(x.id), title: okName(x.title) ? x.title : okName(x.name) ? x.name : String(x.id), shape: x.shape === "card" ? "card" : "coin", ...(x.icon ? { icon: String(x.icon) } : {}) }));
+  const types: OwnType[] = (f.types ?? []).filter((x) => x?.id).map((x) => ({ id: String(x.id), name: okName(x.name) ? x.name : String(x.id), title: okName(x.title) ? x.title : okName(x.name) ? x.name : String(x.id), shape: SHAPES.includes(x.shape) ? x.shape : "coin", ...(x.icon ? { icon: String(x.icon) } : {}) }));
   if (!types.length) types.push(...starterCollection().types);
   const groups: OwnGroup[] = f.groups.filter((g) => g?.id).map((g, i) => ({ id: String(g.id), name: okName(g.name) ? g.name : `Grupo ${i + 1}`, colour: /^#[0-9a-f]{6}$/i.test(g.colour) ? g.colour : GROUP_COLOURS[i % GROUP_COLOURS.length], ...(g.icon ? { icon: String(g.icon) } : {}) }));
   if (!groups.length) groups.push({ id: "g1", name: "Grupo 1", colour: GROUP_COLOURS[0] });

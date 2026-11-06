@@ -3,8 +3,9 @@
 // (https://mcdm.gg/DS-license): the game's terms and mechanics, game-icons.net icons, no MCDM art;
 // what the app says about it (its card, its About, the "Powered by Draw Steel" mark) is code, src/builtins.ts.
 //   node tools/make-drawsteel-collection.mjs
-// Types: resources and conditions (coins); groups: one per class, the shared ones, the Director's and
-// the conditions'; sections: Draw Steel (closed) and your encounters (open).
+// Types: resources and conditions (coins), and condition rings (one per condition, to go round a
+// miniature's base); groups: one per class, the shared ones, the Director's and the conditions';
+// sections: Draw Steel (closed) and your encounters (open).
 import fs from "node:fs";
 import path from "node:path";
 
@@ -61,6 +62,8 @@ const tokens = [
   ...CLASSES.map((k) => tok(k.res[0], "resources", k.id, k.res[1], k.res[2])),
   ...CONDITIONS.map(([id, name, ic]) => tok(id, "conditions", "conditions", name, ic, DURATIONS)),
   ...STATES.map(([id, name, ic]) => tok(id, "conditions", "conditions", name, ic)),
+  // the rings carry only their name, all the way round: no icon
+  ...[...CONDITIONS, ...STATES].map(([id, name]) => ({ id: `ring-${id}`, type: "rings", group: "conditions", name, linked: [] })),
 ];
 const ids = (list) => list.map((x) => x[0]);
 const collection = {
@@ -73,6 +76,7 @@ const collection = {
   types: [
     { id: "resources", name: { en: "Resources", es: "Recursos" }, title: { en: "All resources", es: "Todos los recursos" }, shape: "coin", icon: "two-coins" },
     { id: "conditions", name: { en: "Conditions", es: "Condiciones" }, title: { en: "Conditions", es: "Condiciones" }, shape: "coin", icon: "bleeding-wound" },
+    { id: "rings", name: { en: "Condition rings", es: "Aros de condición" }, title: { en: "Condition rings", es: "Aros de condición" }, shape: "ring", icon: "ring" },
   ],
   groups: [
     { id: "shared", name: { en: "Shared", es: "Compartidos" }, colour: "#d4a017" },
@@ -86,6 +90,7 @@ const collection = {
       { id: "shared", name: { en: "Shared resources", es: "Recursos compartidos" }, tokens: [...ids(SHARED), "malice"] },
       { id: "classes", name: { en: "Class resources", es: "Recursos de clase" }, tokens: CLASSES.map((k) => k.res[0]) },
       { id: "conditions", name: { en: "Conditions", es: "Condiciones" }, tokens: [...ids(CONDITIONS), ...ids(STATES)] },
+      { id: "rings", name: { en: "Condition rings", es: "Aros de condición" }, tokens: [...ids(CONDITIONS), ...ids(STATES)].map((id) => `ring-${id}`) },
     ] },
     { id: "encounters", title: { en: "Encounters", es: "Encuentros" }, open: true, catalogs: [] },
   ],

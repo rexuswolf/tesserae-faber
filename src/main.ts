@@ -1,7 +1,7 @@
 import { handingOver } from "./handoff.ts";   // first: a browser arriving from midnight-mint.web.app brings its keepings
 import {
   loadLibrary, buildToken, geometryVolume, magnetLayout, MAGNET_SIZES, tokenSvg, roleName, saveFile, reminderSpec, layoutName, nameLetterHeight, SMALL_LETTERS_MM,
-  TEAMS, EDITIONS, FRAME_STYLES, BACK_STYLES, TOKEN_STYLES, FILAMENTS, DEFAULT_SPEC, CARD, isCard,
+  TEAMS, EDITIONS, FRAME_STYLES, BACK_STYLES, TOKEN_STYLES, FILAMENTS, DEFAULT_SPEC, CARD, isCard, isRing, ringSpec, ringSize, RING_BASES,
   normalizeSpec, reliefOf, hasRelief, reliefTop,
 } from "./engine/token-engine.ts";
 /** The face parts that can be raised, in the order the Layout section lists them. */
@@ -19,8 +19,8 @@ import { plateFeatures } from "./bambu/estimate.ts";
 import { PAGE, layoutCoins, backX } from "./pdf/layout.ts";
 import { t, uiLang, setUiLang, LANGUAGES } from "./i18n.ts";
 import { TRANSLATIONS, VILLACUERVOS_URL } from "./translations.ts";
-import { uiIcon, UI_ICONS, TEAM_ICONS } from "./ui-icons.ts";
-import { OWN, OWN_ID, OWN_VIEW, LIST_URL, lastCollection, rememberCollection, collectionUrl, openUrl, listCollections, addCollection, deleteCollection, starterCollection, builtInCollections, MODE, loadCollection, storeCollection, collectionRoles, collectionFile, readCollectionFile, readTokenList, readBuiltIn, copyBuiltIn, GROUP_COLOURS, newId, nameIn, withName, catalogsOf, isLocked, THEMES, THEME_FONTS, okLogo, hasCcc, builtIn, APP_LOGO, APP_LOGO_SMALL, APP_ICON, APP_NAME } from "./collection.ts";
+import { uiIcon, UI_ICONS, TEAM_ICONS, SHAPE_ICONS } from "./ui-icons.ts";
+import { OWN, OWN_ID, OWN_VIEW, LIST_URL, lastCollection, rememberCollection, collectionUrl, openUrl, listCollections, addCollection, deleteCollection, starterCollection, builtInCollections, MODE, loadCollection, storeCollection, collectionRoles, collectionFile, readCollectionFile, readTokenList, SHAPES, readBuiltIn, copyBuiltIn, GROUP_COLOURS, newId, nameIn, withName, catalogsOf, isLocked, THEMES, THEME_FONTS, okLogo, hasCcc, builtIn, APP_LOGO, APP_LOGO_SMALL, APP_ICON, APP_NAME } from "./collection.ts";
 import type { Collection, OwnToken, OwnCatalog, OwnSection, OwnTheme, CollectionEntry } from "./collection.ts";
 import { loadScripts, storeScripts, saveScript, scriptLink, readLink, scriptJson, idKey as scriptKey } from "./scripts.ts";
 import type { HomebrewEntry, NewScript, Script, ScriptJsonEntry } from "./scripts.ts";
@@ -187,8 +187,8 @@ const PRESETS: Preset[] = [
   { id: "legible", spec: { style: "window", textSize: 6, frame: "none", back: "none", depth: 0.4,
     colours: { base: FILAMENTS.white, front: "team", frame: "team", back: FILAMENTS.gold } } },
 ];
-/** Applying a design leaves these alone: the magnet is chosen in its own section. */
-const PRESET_KEEPS = new Set(["lang", "customSvg", "magnet", "magnetSize"]);
+/** Applying a design leaves these alone: the magnet is chosen in its own section, a ring's base is the miniatures'. */
+const PRESET_KEEPS = new Set(["lang", "customSvg", "magnet", "magnetSize", "ringBase"]);
 const presetSpec = (p: Preset): TokenSpec => ({ ...structuredClone(DEFAULT_SPEC), ...structuredClone(p.spec) });
 
 function loadJSON<T>(key: string, fallback: T): T { try { return JSON.parse(localStorage.getItem(key) as string) ?? fallback; } catch { return fallback; } }
@@ -1122,14 +1122,19 @@ function renderWorkshop() {
     $("#resetToken").hidden = !own || state.tab !== "token";
     $("#styleScope").textContent = state.tab === "set" ? t("ws.scopeSet") : t("ws.scopeToken", { name: text });
     const editing = editingSpec();
-    // The design tiles show a coin: a card shows them on a character.
-    const tileRole = isCard(role) ? state.lib!.roles.find((r) => !isCard(r) && r.edition === "tb") ?? role : role;
+    // The design tiles show a coin: a card or a ring shows them on a character (one of its collection's coins).
+    const coin = (r: Role) => !isCard(r) && !isRing(r);
+    const tileRole = coin(role) ? role : state.lib!.roles.find((r) => coin(r) && (OWN || r.edition === "tb")) ?? role;
     renderPresets(tileRole, editing);
     renderTemplateRow();
     renderBackTiles(tileRole, editing);
     renderFrameTiles(tileRole, editing);
     renderStyleTiles(tileRole, editing);
-    syncControls(editing);
+    // A ring has no back or magnet to choose: their sections go while one is open.
+    const ring = isRing(role);
+    for (const b of $$(".sections [data-section=back], .sections [data-section=magnet]")) b.hidden = ring;
+    if (ring && (state.section === "back" || state.section === "magnet")) showSection("coin");
+    syncControls(editing, ring);
 
     $("#depthHint").className = "hint" + (token.depthClamped ? " warn" : "");
     $("#depthHint").textContent = token.depthClamped
@@ -1139,10 +1144,11 @@ function renderWorkshop() {
     const small = n.letterHeight < smallLetters();
     $("#nameHint").className = "hint" + (small ? " warn" : "");
     $("#nameHint").textContent = !Number.isFinite(n.letterHeight) ? t("name.hintSolo")
+      : n.repeats ? t("name.hintRing", { n: n.repeats, mm: (Math.floor(n.letterHeight * 10) / 10).toFixed(1), shrunk: n.scale < 1, small, nozzle: nozzleMm() })
       : n.total == null
       ? t("name.hintWindow", { lines: n.lines, mm: (Math.floor(n.letterHeight * 10) / 10).toFixed(1), small, nozzle: nozzleMm() })
       : t("name.hint", { arc: n.total.toFixed(0), mm: (Math.floor(n.letterHeight * 10) / 10).toFixed(1), shrunk: n.scale < 1, small, nozzle: nozzleMm() });
-    renderColourWarn(role, spec, key);
+    renderColourWarn(role, ring ? token.spec : spec, key);   // a ring's own spec: no back to check
   });
 }
 
@@ -1246,7 +1252,8 @@ function renderPresets(role: Role, editing: TokenSpec) {
 }
 
 /** Puts a spec's values into the style controls. */
-function syncControls(spec: TokenSpec) {
+/** The workshop's fields for a design; `ring` when it's shown on a condition ring, which has no layout or icon and goes by its base. */
+function syncControls(spec: TokenSpec, ring = false) {
   const s = { ...DEFAULT_SPEC, ...spec, colours: { ...DEFAULT_SPEC.colours, ...spec.colours } };
   const dec = uiLang() === "es" ? "," : ".";
   for (const [id, [dp, unit]] of Object.entries(RANGES) as [RangeKey, [number, string]][]) {
@@ -1256,14 +1263,22 @@ function syncControls(spec: TokenSpec) {
   $("#styleHint").textContent = t(`style.${s.style}.help`);
   // Relief: each face part flat or raised; the height only matters with something raised.
   const relief = reliefOf(s), raised = hasRelief(s);
-  $("#reliefEls").innerHTML = RELIEF_PARTS.map((k) => `<div class="relief-el"><span><b>${esc(t(`relief.${k}`))}</b><small>${esc(t(`relief.${k}.help`))}</small></span><span class="seg2" role="group" aria-label="${esc(t(`relief.${k}`))}" data-relief="${k}"><button type="button" data-v="flat" aria-pressed="${!relief[k]}"${k === "text" && s.style === "solo" ? " disabled" : ""}>${esc(t("relief.flat"))}</button><button type="button" data-v="raised" aria-pressed="${relief[k]}"${k === "text" && s.style === "solo" ? " disabled" : ""}>${esc(t("relief.raised"))}</button></span></div>`).join("");
+  $("#reliefEls").innerHTML = RELIEF_PARTS.filter((k) => !ring || k !== "icon").map((k) => `<div class="relief-el"><span><b>${esc(t(`relief.${k}`))}</b><small>${esc(t(`relief.${k}.help`))}</small></span><span class="seg2" role="group" aria-label="${esc(t(`relief.${k}`))}" data-relief="${k}"><button type="button" data-v="flat" aria-pressed="${!relief[k]}"${k === "text" && s.style === "solo" ? " disabled" : ""}>${esc(t("relief.flat"))}</button><button type="button" data-v="raised" aria-pressed="${relief[k]}"${k === "text" && s.style === "solo" ? " disabled" : ""}>${esc(t("relief.raised"))}</button></span></div>`).join("");
   $("#reliefHeightRow").hidden = !raised;
   const total = (s.height + reliefTop(s)).toFixed(1).replace(".", dec);
   $("#reliefHint").className = "hint" + (raised ? " warn" : "");
   $("#reliefHint").textContent = raised ? t("relief.raisedHelp", { total }) : t("relief.flatHelp");
   // The curved-name controls don't apply to the window style.
   for (const id of ["spacing", "maxArc"]) $("#" + id).closest<HTMLElement>(".row")!.hidden = s.style === "window" || s.style === "solo";
-  $("#textSize").closest<HTMLElement>(".row")!.hidden = s.style === "solo";   // no name on the face
+  $("#textSize").closest<HTMLElement>(".row")!.hidden = s.style === "solo" && !ring;   // no name on the face
+  // A ring: its name goes all the way round, with no icon; its size is its base's.
+  if (ring) for (const id of ["maxArc", "iconScale", "diameter"]) $("#" + id).closest<HTMLElement>(".row")!.hidden = true;
+  else for (const id of ["iconScale", "diameter"]) $("#" + id).closest<HTMLElement>(".row")!.hidden = false;
+  if (ring) $("#spacing").closest<HTMLElement>(".row")!.hidden = false;
+  for (const el of [$("[data-choice=style]"), $("#styleHint"), $("#iconField")]) el.hidden = ring;
+  $("#ringBaseRow").hidden = !ring;
+  const rs = ringSize(s);
+  $("#ringBaseHint").textContent = t("ring.baseHelp", { inner: dec1(2 * rs.inner), outer: dec1(2 * rs.outer) });
   // Magnet: the hole, the pause and how thick the coin has to be.
   const m = magnetLayout(s), dec2 = (v: unknown) => String(v).replace(".", dec);
   $("#magnetSizeRow").hidden = !m;
@@ -1378,6 +1393,7 @@ function buildChoices() {
   // Layouts are drawn as coin tiles by renderStyleTiles().
   make("magnet", [{ id: "none" }, { id: "pocket" }, { id: "hidden" }]);
   $("[data-choice=magnetSize]").innerHTML = MAGNET_SIZES.map((v) => `<button class="pill" type="button" data-v="${v}">${v.replace("x", " × ")} mm</button>`).join("");
+  $("[data-choice=ringBase]").innerHTML = RING_BASES.map((v) => `<button class="pill" type="button" data-v="${v}">${v} mm</button>`).join("");
   // Frames are drawn as coin tiles by renderFrameTiles().
   // Backs are drawn as coin tiles by renderBackTiles().
   for (const box of $$(".metal")) {
@@ -1522,7 +1538,7 @@ function wire() {
   $$(".sections [data-section]").forEach((b) => b.onclick = () => goSection(b.dataset.section!));
   // opens the templates; closing goes back to the section you were on
   $("#tplRow").onclick = () => goSection(state.section === "presets" ? state.lastSection : "presets");
-  for (const key of ["style", "frame", "back", "magnet", "magnetSize"]) {
+  for (const key of ["style", "frame", "back", "magnet", "magnetSize", "ringBase"]) {
     $(`[data-choice=${key}]`).onclick = (e) => {
       const b = hit(e, "button"); if (!b) return;
       if (key === "back" && b.dataset.v === "custom" && !editingSpec()?.customSvg) { $("#upload").click(); return; }
@@ -1676,7 +1692,8 @@ function queueEntry(role: Role, ri: number | null): QueueEntry {
   };
 }
 const isReminder = (q: QueueEntry): q is QueueEntry & { reminder: string } => q.reminder != null;
-const itemSpec = (q: QueueEntry): TokenSpec => (isReminder(q) ? reminderSpec({ ...DEFAULT_SPEC, ...q.spec }) : { ...DEFAULT_SPEC, ...q.spec });
+// a ring's spec has its outer edge for its diameter, which plates and paper go by
+const itemSpec = (q: QueueEntry): TokenSpec => (isReminder(q) ? reminderSpec({ ...DEFAULT_SPEC, ...q.spec }) : isRing(roleById(q.roleId)) ? ringSpec(q.spec) : { ...DEFAULT_SPEC, ...q.spec });
 const queueTitle = (q: QueueEntry, role: Role) => (isReminder(q) ? q.reminder : q.text ?? roleName(role, q.spec.lang));
 const queueLabel = (q: QueueEntry, role: Role) => (isReminder(q) ? `${roleName(role, q.spec.lang)}: ${q.reminder}` : queueTitle(q, role));
 const queueGroup = (q: QueueEntry, role: Role) => PLATE_LABEL[uiLang()][PLATE_GROUP[role.team]] + (isReminder(q) ? t("queue.reminderSuffix") : "");
@@ -1700,6 +1717,11 @@ function queuePlan() {
     if (isCard(role)) return {   // a card: its body, the phrase and the set's frame; no back
       q, title: queueLabel(q, role), group: queueGroup(q, role),
       token: { spec, foot: { w: CARD.w, h: CARD.h }, parts: { base: 1, front: 1, icon: null, frame: spec.frame !== "none" ? 1 : null, back: null },
+        colours: { base: pick(spec.colours.base), front: pick(spec.colours.front), icon: pick(spec.colours.base), frame: pick(spec.colours.frame), back: pick(spec.colours.back) } },
+    };
+    if (isRing(role)) return {   // a ring: its body, the name and dots, the guide lines with a frame; no icon or back
+      q, title: queueLabel(q, role), group: queueGroup(q, role),
+      token: { spec, hole: 2 * ringSize(spec).inner, parts: { base: 1, front: 1, icon: null, frame: spec.frame !== "none" ? 1 : null, back: null },
         colours: { base: pick(spec.colours.base), front: pick(spec.colours.front), icon: pick(spec.colours.base), frame: pick(spec.colours.frame), back: pick(spec.colours.back) } },
     };
     return {
@@ -2282,7 +2304,7 @@ function renderOwnSpine() {
   const sub = (roles: Role[], card: boolean) => card ? t("ed.countInfo", { n: roles.length }) : t("own.count", { n: roles.length, l: roles.reduce((n, r) => n + remindersOf(r).length, 0) });
   $("#library").innerHTML = coll.types.map((ty) => {
     const roles = state.lib!.roles.filter((r) => typeOfToken(r.id) === ty.id);
-    return `<button class="ed" type="button" data-ed="t:${esc(ty.id)}" aria-current="${state.edition === `t:${ty.id}` && !q}">${uiIcon(ty.icon && UI_ICONS[ty.icon] ? ty.icon : ty.shape === "card" ? "id-card" : "two-coins")}
+    return `<button class="ed" type="button" data-ed="t:${esc(ty.id)}" aria-current="${state.edition === `t:${ty.id}` && !q}">${uiIcon(ty.icon && UI_ICONS[ty.icon] ? ty.icon : SHAPE_ICONS[ty.shape])}
       <span>${esc(nameIn(ty.title, lang))}<small>${esc(sub(roles, ty.shape === "card"))}</small></span>${pickedBadge(roles)}</button>`;
   }).join("");
   $("#editions").innerHTML = coll.sections.map((sec) => `
@@ -2422,7 +2444,7 @@ function wireOwn() {
     if (el.dataset.gname) { const g = coll.groups.find((x) => x.id === el.dataset.gname)!; g.name = withName(g.name, lang, el.value.trim() || t("own.groupName", { n: 1 })); }
     else if (el.dataset.tname) { const ty = coll.types.find((x) => x.id === el.dataset.tname)!; ty.name = withName(ty.name, lang, el.value.trim() || ty.id); }
     else if (el.dataset.ttitle) { const ty = coll.types.find((x) => x.id === el.dataset.ttitle)!; ty.title = withName(ty.title, lang, el.value.trim() || nameIn(ty.name, lang)); }
-    else if (el.dataset.tshape) coll.types.find((x) => x.id === el.dataset.tshape)!.shape = el.value === "card" ? "card" : "coin";
+    else if (el.dataset.tshape) coll.types.find((x) => x.id === el.dataset.tshape)!.shape = SHAPES.find((x) => x === el.value) ?? "coin";
     else return;
     collectionChanged();
   });
@@ -2436,7 +2458,7 @@ function renderOwnGroups() {
     <span class="own-type-fields">
       <label class="field"><span>${esc(t("own.typeNameLabel"))}</span><input class="text" value="${esc(nameIn(ty.name, lang))}" data-tname="${esc(ty.id)}"></label>
       <label class="field"><span>${esc(t("own.typeTitleLabel"))}</span><input class="text" value="${esc(nameIn(ty.title, lang))}" data-ttitle="${esc(ty.id)}"></label>
-      <label class="field"><span>${esc(t("own.shape"))}</span><select class="text" data-tshape="${esc(ty.id)}"><option value="coin"${ty.shape === "coin" ? " selected" : ""}>${esc(t("own.shapeCoin"))}</option><option value="card"${ty.shape === "card" ? " selected" : ""}>${esc(t("own.shapeCard"))}</option></select></label>
+      <label class="field"><span>${esc(t("own.shape"))}</span><select class="text" data-tshape="${esc(ty.id)}">${SHAPES.map((x) => `<option value="${x}"${ty.shape === x ? " selected" : ""}>${esc(t(`own.shape.${x}`))}</option>`).join("")}</select></label>
     </span>
     <small>${esc(t("own.groupCount", { n: coll.tokens.filter((tk) => tk.type === ty.id).length }))}</small>
     ${coll.types.length > 1 ? `<button class="link" type="button" data-tdel="${esc(ty.id)}">${esc(t("own.deleteGroup"))}</button>` : ""}
@@ -2482,9 +2504,9 @@ function drawOwnPreview() {
   const role = { ...collectionRoles({ ...coll, tokens: [d] }, uiLang())[0], id: `__draft_${d.id}`, iconKey: `__draft:${d.icon?.id ?? "none"}` };
   const spec = { ...state.spec, lang: tokenLang() };
   const name = nameIn(d.name, tokenLang()).trim() || t("own.namePlaceholder");
-  const card = coll.types.find((x) => x.id === d.type)?.shape === "card";
+  const coin = (coll.types.find((x) => x.id === d.type)?.shape ?? "coin") === "coin";
   $("#ownTokPv").innerHTML = tokenSvg(state.lib!, role, spec, { text: name })
-    + (d.linked.length && !card ? `<span class="own-pv-links">${d.linked.slice(0, 4).map((w) => tokenSvg(state.lib!, role, reminderSpec(spec), { text: nameIn(w, tokenLang()) || "…" })).join("")}</span>` : "");
+    + (d.linked.length && coin ? `<span class="own-pv-links">${d.linked.slice(0, 4).map((w) => tokenSvg(state.lib!, role, reminderSpec(spec), { text: nameIn(w, tokenLang()) || "…" })).join("")}</span>` : "");
 }
 function wireOwnToken() {
   const dlg = $<HTMLDialogElement>("#ownTok");
