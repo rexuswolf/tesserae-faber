@@ -1179,10 +1179,18 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 .tm-shapes small { font-size: 12px; opacity: .75; }
 /* the design on the sample tokens stays in view while the list scrolls */
 .tm-preview { position: sticky; top: -16px; z-index: 2; margin: 14px -28px 0; padding: 14px 28px 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; border-bottom: 1px solid var(--seam); background: color-mix(in srgb, var(--velvet-deep) 90%, transparent); backdrop-filter: blur(6px); }
-.tv-hero { display: flex; gap: 8px; }
+.tv-hero { display: flex; gap: 14px; }
+.tv-hero figure { margin: 0; display: grid; justify-items: center; gap: 4px; }
 .tv-hero svg { display: block; width: 150px; height: 150px; }
-.tv-rest { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
-.tv-rest span { display: grid; justify-items: center; gap: 4px; }
+.tv-hero figcaption, .tv-rest i { color: var(--dust); font-size: 12px; font-style: normal; letter-spacing: .02em; }
+.tv-hero figure + figure figcaption, .tv-rest i.b { color: var(--brass); }
+/* the other samples in two rows, fronts over backs, each row named on its left */
+.tv-rest { display: grid; grid-template-columns: repeat(var(--n), auto); grid-auto-flow: row; align-items: center; justify-items: center; gap: 8px 12px; }
+.tv-rest.two { grid-template-columns: auto repeat(var(--n), auto); }
+.tv-rest i { justify-self: end; padding-right: 2px; }
+.tv-rest span { display: grid; justify-items: center; }
+.tv-rest.two i.b { padding-top: 8px; border-top: 1px solid var(--seam); align-self: stretch; display: grid; align-items: center; }
+.tv-rest.two span.b { padding-top: 8px; border-top: 1px solid var(--seam); justify-self: stretch; }
 .tv-rest svg { display: block; width: 62px; height: 62px; }
 .tv-rest span.r svg { width: 46px; height: 46px; }
 .tv-rest.cards svg { width: 96px; }
@@ -1225,7 +1233,9 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
   .tv-rest svg { width: 44px; height: 44px; }
   .tv-rest span.r svg { width: 36px; height: 36px; }
   .tv-rest.cards svg { width: 64px; }
-  .tv-rest span svg + svg { display: none; }
+  .tv-rest i, .tv-rest.two i.b, .tv-rest.two span.b { display: none; }
+  .tv-rest.two { grid-template-columns: repeat(var(--n), auto); }
+  .tv-hero figcaption { font-size: 11px; }
   .tv-name b { font-size: 18px; }
   .tv-name small { display: none; }
   /* the designs as a strip to swipe */

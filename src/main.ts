@@ -3181,8 +3181,10 @@ function renderTallerPreview() {
   const sh = taller.shape, keys = taller.samples[sh], d = designOf(sh, taller.ref)!;
   const pic = (key: string, side: "front" | "back") => { const role = tokenRole(key), ri = tokenRem(key); return tokenSvg(state.lib!, role, specFor(key, ri != null), { text: textFor(key, role, ri), side }); };
   const backs = SHAPE_FEATURES[sh].back;
-  $("#tallerPreview").innerHTML = `<div class="tv-hero"><span>${pic(keys[0], "front")}</span>${backs ? `<span>${pic(keys[0], "back")}</span>` : ""}</div>
-    <div class="tv-rest${sh === "card" ? " cards" : ""}">${keys.slice(1).map((k) => `<span class="${tokenRem(k) != null ? "r" : ""}">${pic(k, "front")}${backs ? pic(k, "back") : ""}</span>`).join("")}</div>
+  const front = esc(t("part.front")), back = esc(t("part.back")), rest = keys.slice(1);
+  const cell = (k: string, side: "front" | "back") => `<span class="${tokenRem(k) != null ? "r" : ""}${side === "back" ? " b" : ""}">${pic(k, side)}</span>`;
+  $("#tallerPreview").innerHTML = `<div class="tv-hero"><figure>${pic(keys[0], "front")}${backs ? `<figcaption>${front}</figcaption>` : ""}</figure>${backs ? `<figure>${pic(keys[0], "back")}<figcaption>${back}</figcaption></figure>` : ""}</div>
+    ${rest.length ? `<div class="tv-rest${sh === "card" ? " cards" : ""}${backs ? " two" : ""}" style="--n:${rest.length}">${backs ? `<i>${front}</i>` : ""}${rest.map((k) => cell(k, "front")).join("")}${backs ? `<i class="b">${back}</i>${rest.map((k) => cell(k, "back")).join("")}` : ""}</div>` : ""}
     <p class="tv-name"><b>${esc(d.name)}</b>${d.help ? ` <small>${esc(d.help)}</small>` : ""}</p>`;
 }
 /** Your designs of the shape (with a new one), then each collection's, each drawn on the first sample token. */
