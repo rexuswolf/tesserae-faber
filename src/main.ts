@@ -1427,11 +1427,14 @@ function ownPen(key: string, name: string) {
  * A character in or out of the queue, with its reminders: they come and go with it (each
  * reminder chip still adds or drops itself on its own).
  */
+/** The rows on the sheet showing their linked tokens: opened by hand, or by picking the token. */
+const openRows = new Set<string>();
 function toggleCharacter(key: string) {
   const role = tokenRole(key);
   if (!role) return;
   const on = !isPicked(key);
   setPick(key, on);
+  if (on) openRows.add(key);
   if (key.startsWith("c:")) remindersOf(role).forEach((_, i) => setPick(remKey(role, i), on));
   picksChanged();
 }
@@ -1465,18 +1468,24 @@ function rowHtml(r: Role, q: string, remHits: Set<number> | undefined) {
   // removes all of them; it shows how many are in when only some are.
   const groups = new Map<string, number[]>();
   rems.forEach((_, i) => { const w = catalogText(r, i); groups.set(w, [...(groups.get(w) || []), i]); });
-  const remSpec = { ...catalogSpec(true), diameter: reminderSpec(DEFAULT_SPEC).diameter, back: "none" };
+  const remSpec = (key: string) => ({ ...specFor(key, true), diameter: reminderSpec(DEFAULT_SPEC).diameter, back: "none" });
   const loadingTok = r.loading ? ` loading" style="--team: ${r.colour ?? TEAMS[r.team].colour}` : "";
   const chips = [...groups].map(([w, idx]) => {
     const keys = idx.map((i) => remKey(r, i)), on = keys.filter(isPicked).length, own = keys.find(hasOwn);
     const count = keys.length > 1 ? `<small>×${keys.length}${on && on < keys.length ? ` · ${on}/${keys.length}` : ""}</small>` : "";
     return `<div class="rem${idx.some((i) => remHits?.has(i)) ? " hit" : ""}" data-on="${on === keys.length ? "all" : on ? "some" : "none"}">
-      <button class="rem-chip" type="button" data-pick-rems="${keys.join(" ")}" aria-pressed="${on === keys.length}" aria-label="${esc(keys.length > 1 ? `${w} ×${keys.length}` : w)}"><span class="rem-tok${loadingTok}">${tokenSvg(state.lib!, r, remSpec, { text: w })}</span><span class="rem-w">${esc(w)}</span>${count}<span class="ck" aria-hidden="true">✓</span></button>${own ? ownPen(own, w) : ""}</div>`;
+      <button class="rem-chip" type="button" data-pick-rems="${keys.join(" ")}" aria-pressed="${on === keys.length}" aria-label="${esc(keys.length > 1 ? `${w} ×${keys.length}` : w)}"><span class="rem-tok${loadingTok}">${tokenSvg(state.lib!, r, remSpec(keys[0]), { text: textFor(keys[0], r, idx[0]) })}</span><span class="rem-w">${esc(w)}</span>${count}<span class="ck" aria-hidden="true">✓</span></button>${own ? ownPen(own, w) : ""}</div>`;
   }).join("");
-  return `<div class="row${isCard(r) ? " info" : ""}${rems.length ? "" : " no-rems"}" data-picked="${isPicked(ck)}" data-row="${ck}">
+  // Folded, the row shows how many linked tokens it has (and how many are in) with their small faces;
+  // open, the linked tokens large, to pick. A search that found one opens its row.
+  const open = rems.length > 0 && !isCard(r) && (openRows.has(ck) || !!remHits?.size);
+  const inN = rems.filter((_, i) => isPicked(remKey(r, i))).length;
+  const minis = [...groups].slice(0, 4).map(([w, idx]) => tokenSvg(state.lib!, r, remSpec(remKey(r, idx[0])), { text: w })).join("");
+  const fold = rems.length && !isCard(r) ? `<button class="rems-fold" type="button" data-rems-fold="${ck}" aria-expanded="${open}"><span class="rf-minis" aria-hidden="true">${minis}</span><span>${esc(t("sheet.linked", { n: rems.length }))}</span>${inN ? `<b class="rf-in">${esc(inN === rems.length ? t("sheet.linkedAll") : t("sheet.linkedSome", { n: inN, of: rems.length }))}</b>` : ""}${CHEVRON}</button>` : "";
+  return `<div class="row${isCard(r) ? " info" : ""}${rems.length ? "" : " no-rems"}${open ? " open" : ""}" data-picked="${isPicked(ck)}" data-row="${ck}">
     ${thumb(ck, null)}
     <div class="who" data-pick="${ck}"><b>${esc(catalogText(r, null))}${flip ? `<span class="flip-sep" title="${esc(t("sheet.flip"))}"> ⇄ </span>${esc(roleName(flip, tokenLang()))}` : ""}</b>${other !== catalogText(r, null) ? `<small>${esc(other)}</small>` : ""}${OWN ? (ownHome(r) && (q || catalogOf(state.edition) !== ownHomeCatalog(r.id)) ? `<em>${esc(ownHome(r))}</em>` : "") : q || state.edition === "all" || (state.edition.startsWith("s:") && r.kind !== "homebrew") ? `<em>${esc(editionName(r, lang))}</em>` : ""}${r.loading ? `<small>${esc(t("sheet.iconLoading"))}</small>` : ""}${OWN && !READONLY && !isLocked(coll, r.id) ? `<button class="own-edit" type="button" data-own-edit="${esc(r.id)}">${esc(t("own.edit"))}</button>` : ""}</div>
-    ${rems.length ? `<div class="rems">${chips}</div>` : ""}
+    ${rems.length ? `<div class="rems">${fold}${open ? `<div class="rem-list">${chips}</div>` : ""}</div>` : ""}
   </div>`;
 }
 
@@ -2216,6 +2225,8 @@ function wire() {
     const pen = hit(e, "[data-edit]");
     if (pen) { editToken(pen.dataset.edit!); return; }
     if (onCopyStep(e)) return;
+    const fold = hit(e, "[data-rems-fold]");
+    if (fold) { const k = fold.dataset.remsFold!; openRows.has(k) ? openRows.delete(k) : openRows.add(k); renderSheet(); $(`[data-rems-fold="${CSS.escape(k)}"]`)?.focus(); return; }
     const pick = hit(e, "[data-pick]"), team = hit(e, "[data-pick-team]");
     if (pick) { toggleCharacter(pick.dataset.pick!); return; }
     // a reminder chip: all its reminders in, or (when they're all in already) all out
