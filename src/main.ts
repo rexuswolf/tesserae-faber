@@ -3108,11 +3108,13 @@ async function openTaller() {
   if (c && id) { coll = c; taller.from = { path, id, name: label(c) }; applyGroups(); }
   applyOwnTheme();   // the collection's colours (Clocktower's velvet), else Tesserae Faber's
   const groups: TallerGroup[] = [];
-  // a collection's own designs (one without any for a shape has Basic there, listed once, last)
-  if (c?.styles) groups.push({ label: label(c), designs: c.styles });
+  // the collection's own designs first (one that comes with none has Basic); Basic is also there for the
+  // shapes a collection has no designs for, listed once, last
+  if (c) groups.push({ label: label(c), designs: c.styles ?? basicStyles() });
   if (id !== "botc") groups.push({ label: "Blood on the Clocktower", designs: BOTC_STYLES });
   if (id !== "drawsteel") { const ds = await builtInStyles("drawsteel"); if (ds) groups.push({ label: builtIn("drawsteel")!.name, designs: ds }); }
-  groups.push({ label: APP_NAME, designs: basicStyles() });
+  const basic = SHAPES.filter((sh) => !c?.styles?.[sh]?.length);
+  if (!c || (c.styles && basic.length)) groups.push({ label: APP_NAME, designs: Object.fromEntries(basic.map((sh) => [sh, basicStyles()[sh]])) });
   taller.groups = groups;
   // the tokens to draw on: a few of each shape from the collection, different groups first, one with another state
   const roles = c ? collectionRoles(c, uiLang()) : [];
