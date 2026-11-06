@@ -8,8 +8,9 @@
 //
 //   front  – role icon + curved name, top face (team colour)
 //   frame  – border design around the rim, top face
-//   back   – pattern on the bottom face (mirrored so it reads correctly), or a two-state
-//            token's other state, drawn like a second front (see flipFace)
+//   back   – pattern on the bottom face (mirrored so it reads correctly), or a face drawn like
+//            a second front: the front again, a face of its own, or a two-state token's other
+//            state (see backFaceOf)
 
 import * as THREE from "three";
 import { SVGLoader } from "three/addons/loaders/SVGLoader.js";
@@ -18,7 +19,7 @@ import { Font } from "three/addons/loaders/FontLoader.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import type {
   Role, Team, Hex, ColourRef, TokenSpec, SpecInput, TokenStyle, Relief, ReliefPart, Library, Glyph,
-  PartColours, TokenParts, Token, MagnetLayout, TokenIcon, TokenShape,
+  PartColours, TokenParts, Token, MagnetLayout, TokenIcon, TokenShape, FaceField, BackFace,
 } from "../types.ts";
 
 export { THREE };
@@ -116,6 +117,7 @@ export const DEFAULT_SPEC: TokenSpec = {
   frame: "none",
   frameWidth: 0.8,
   back: "none",
+  backMode: "design",     // the back is the design above, or a face (see BackMode)
   customSvg: null,
   ringBase: "25",
   colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold },
@@ -176,9 +178,9 @@ export function partColours(role: Role, spec: SpecInput): PartColours {
   const team = TEAMS[role.team].colour;
   const c = { ...DEFAULT_SPEC.colours, ...spec.colours };
   const pick = (v: ColourRef): Hex => (v === "team" ? team : v);
-  // A two-state token's back is a second front, in the front's colours (the back colour is for back designs).
-  const back = spec.back === FLIP_BACK ? pick(c.front) : pick(c.back);
-  return { base: pick(c.base), front: pick(c.front), icon: pick(c.base), frame: pick(c.frame), back, backIcon: pick(c.base), backFrame: pick(c.frame) };
+  // A back that is a face is a second front, in its colours (the back colour is for back designs).
+  const face = spec.back === FACE_BACK ? backColours(spec) : null;
+  return { base: pick(c.base), front: pick(c.front), icon: pick(c.base), frame: pick(c.frame), back: pick(face?.front ?? c.back), backIcon: pick(c.base), backFrame: pick(face?.frame ?? c.frame) };
 }
 
 // ---------------------------------------------------------------- geometry helpers
@@ -496,25 +498,28 @@ function fittedIcon(lib: Library, role: Role, spec: TokenSpec, text: string) {
 
 /**
  * Which face a set of inlays goes into. The top one: sunk from the coin's top, its raised
- * parts standing out of it. The bottom one, a two-state token's other state: sunk from z = 0
- * and mirrored so it reads right when the coin is turned over, and always flush (see
- * flipFace for why).
+ * parts standing out of it. The bottom one, a back that is a face: sunk from z = 0 and
+ * mirrored so it reads right when the coin is turned over; its raised parts (when the front
+ * has none: see backRelief) stand out below z = 0, and the coin prints face-down, that face on top.
  */
-interface Face { z: number; mirror: boolean; flush: boolean }
+interface Face { z: number; mirror: boolean; flush: boolean; bottom?: boolean }
 const topFace = (spec: TokenSpec): Face => ({ z: spec.height - spec.depth, mirror: false, flush: false });
-const BOTTOM_FACE: Face = { z: 0, mirror: true, flush: true };
+const bottomFace = (raised: boolean): Face => ({ z: 0, mirror: true, flush: !raised, bottom: true });
 /** A face's matrix: on the bottom face, mirrored. */
 const onFace = (face: Face, m: THREE.Matrix4) => (face.mirror ? chain(S(-1, 1, 1), m) : m);
 const faceHeight = (spec: TokenSpec, part: ReliefPart, face: Face) => (face.flush ? spec.depth : inlayHeight(spec, part));
+/** Where a part's inlay starts: on the top face `depth` under the top (its relief above it); on
+ *  the bottom face its relief under z = 0, so every part ends `depth` into the coin. */
+const partZ = (spec: TokenSpec, part: ReliefPart, face: Face) => (face.bottom ? spec.depth - faceHeight(spec, part, face) : face.z);
 
 function buildFront(lib: Library, role: Role, text: string, spec: TokenSpec, face = topFace(spec)) {
-  const top = face.z;
+  const top = partZ(spec, "text", face), iconZ = partZ(spec, "icon", face);
   let icon;
   if (spec.style === "solo" || spec.style === "double") {
     const f = fittedIcon(lib, role, spec, text);
-    icon = extrude(f.shapes, faceHeight(spec, "icon", face), onFace(face, chain(T(0, 0, top), S(f.k, -f.k, 1), T(-f.cx, -f.cy, 0))));
+    icon = extrude(f.shapes, faceHeight(spec, "icon", face), onFace(face, chain(T(0, 0, iconZ), S(f.k, -f.k, 1), T(-f.cx, -f.cy, 0))));
   } else {
-    icon = extrude(iconShapes(lib, role, spec), faceHeight(spec, "icon", face), onFace(face, tracedMatrix(spec.diameter * spec.iconScale, top, false, spec.iconOffsetY || 0)));
+    icon = extrude(iconShapes(lib, role, spec), faceHeight(spec, "icon", face), onFace(face, tracedMatrix(spec.diameter * spec.iconScale, iconZ, false, spec.iconOffsetY || 0)));
   }
   const L = arcName(lib, text, spec);
   const letters = L ? nameTurns(spec).flatMap((turn) => L.chars.map((c, i) => {
@@ -532,7 +537,7 @@ function buildFront(lib: Library, role: Role, text: string, spec: TokenSpec, fac
 function buildFrame(spec: TokenSpec, face = topFace(spec)) {
   const design = frameDesign(spec);
   if (!design) return null;
-  return extrude(design.shapes, faceHeight(spec, "frame", face), onFace(face, T(0, 0, face.z)), 24);
+  return extrude(design.shapes, faceHeight(spec, "frame", face), onFace(face, T(0, 0, partZ(spec, "frame", face))), 24);
 }
 
 /** Fits arbitrary shapes into a circle of radius r (used for uploaded SVGs). */
@@ -694,9 +699,21 @@ function windowIconMatrix(lib: Library, role: Role, W: WindowLayout, z: number, 
 export const reliefOf = (spec?: { relief?: Partial<Relief> } | null): Relief => ({ text: !!spec?.relief?.text, frame: !!spec?.relief?.frame, icon: !!spec?.relief?.icon });
 /** Does anything stand out of the face? Then the token prints face-up. */
 export const hasRelief = (spec?: { relief?: Partial<Relief> } | null) => Object.values(reliefOf(spec)).some(Boolean);
-/** How far the relief stands out of the face (mm), 0 when nothing is raised. */
-export const reliefTop = (spec: { relief?: Partial<Relief>; reliefHeight?: number }) => (hasRelief(spec) ? spec.reliefHeight ?? DEFAULT_SPEC.reliefHeight : 0);
-/** Is this token printed face-up? When anything on its face is raised. */
+const FLAT: Relief = { text: false, frame: false, icon: false };
+/**
+ * Which parts of a back face stand out ({text, frame, icon}; none for a back design). Only one
+ * face can have raised parts, since the other lies on the bed: the back's count only while the
+ * front's are all flush, and a two-state token's other state under a back design is always flush.
+ * The workshop never lets both be raised; this is the rule should a design say otherwise.
+ */
+export function backRelief(spec: SpecInput): Relief {
+  if (spec.back !== FACE_BACK || (spec.backMode !== "match" && spec.backMode !== "own") || hasRelief(spec)) return FLAT;
+  return reliefOf(spec.backFace);
+}
+/** How far the relief stands out of its face (mm), 0 when nothing is raised on either. */
+export const reliefTop = (spec: SpecInput) => (hasRelief(spec) || hasRelief({ relief: backRelief(spec) }) ? spec.reliefHeight ?? DEFAULT_SPEC.reliefHeight : 0);
+/** Is this token printed face-up? When anything on its front is raised. A raised back prints
+ *  face-down like a flush token, its back on top. */
 export const printsFaceUp = hasRelief;
 /** How tall a face part's inlay is: the inlay depth, plus the relief when it's raised. */
 const inlayHeight = (spec: TokenSpec, part: ReliefPart) => spec.depth + (reliefOf(spec)[part] ? reliefTop(spec) : 0);
@@ -710,12 +727,12 @@ type WindowLayout = ReturnType<typeof windowLayout>;
 function buildWindowFace(lib: Library, role: Role, text: string, spec: TokenSpec, face = topFace(spec)) {
   const d = spec.depth, z = face.z;
   const W = windowLayout(lib, text, spec);
-  const I = windowIconMatrix(lib, role, W, z, spec);
+  const I = windowIconMatrix(lib, role, W, partZ(spec, "icon", face), spec);
   const window = extrude([new THREE.Shape(windowPoints(W.Rw, W.cutY))], d, onFace(face, T(0, 0, z)), 48);
   const letters = W.lines.map((line) => {
     const shapes = lib.font.generateShapes(line.text, W.em);
     const box = boundsOf(shapes);
-    return extrude(shapes, faceHeight(spec, "text", face), onFace(face, T(-(box.min.x + box.max.x) / 2, line.y, z)), 4);
+    return extrude(shapes, faceHeight(spec, "text", face), onFace(face, T(-(box.min.x + box.max.x) / 2, line.y, partZ(spec, "text", face))), 4);
   });
   return {
     window, letters: merge(letters),
@@ -1376,9 +1393,9 @@ function ringSvg(lib: Library, role: Role, input: SpecInput | undefined, side: "
 // ---------------------------------------------------------------- what each shape has
 
 /**
- * What a token shape can have, the one place that says so: the workshop shows only the
- * controls the shapes being edited use, and every spec that reaches the print step goes
- * through shapeSpec, so a back or a magnet never counts for a shape that has none.
+ * What a token shape can have, the one place that says so: the workshop's tabs for a type are
+ * its parts and its face's (main.ts, partsOf and faceTabsOf), and every spec that reaches the
+ * print step goes through shapeSpec, so a back or a magnet never counts for a shape that has none.
  * Every shape has the colours of its body and name, its thickness and the colour's depth.
  */
 export interface ShapeFeatures {
@@ -1420,20 +1437,43 @@ export const SHAPE_FEATURES: Record<TokenShape, ShapeFeatures> = {
 export const shapeOf = (role: Role | null | undefined): TokenShape => (isCard(role) ? "card" : isRing(role) ? "ring" : "coin");
 
 /**
- * The back of a two-state token, in its spec (shapeSpec puts it there): its other state.
- * Back designs, their colour and an uploaded back don't apply to it.
+ * A back that is a face, in its spec (shapeSpec puts it there): the front again, a face of its
+ * own, or a two-state token's other state (see backFaceOf). Back designs, their colour and an
+ * uploaded back don't apply to it.
  */
-export const FLIP_BACK = "flip";
+export const FACE_BACK = "face";
+/** The fields a back face of its own ("own") sets apart from the front's: its layout, name, icon and frame. */
+export const FACE_FIELDS: FaceField[] = ["style", "textSize", "spacing", "maxArc", "iconScale", "frame", "frameWidth"];
+/** Is the coin's back a face: its other state, or a back that matches the front or has a face of its own? */
+export const backIsFace = (role: Role | null | undefined, spec: SpecInput | undefined) =>
+  shapeOf(role) === "coin" && (!!flipFace(role, spec) || spec?.backMode === "match" || spec?.backMode === "own");
+
+/** A back face's colours: its own with "match" and "own", else (a two-state token's other state under a back design) the front's. */
+function backColours(spec: SpecInput) {
+  const c = { ...DEFAULT_SPEC.colours, ...spec.colours }, own = spec.backMode === "match" || spec.backMode === "own" ? spec.backFace?.colours : undefined;
+  return { front: own?.front ?? c.front, frame: own?.frame ?? c.frame };
+}
+
+/**
+ * What a coin's back face shows, as a front the engine draws (null when the back is a design):
+ * the role (a two-state token's other state, else the token itself), its text, and the spec it's
+ * drawn with: the front's look, or with "own" the back's own (a linked token keeps its reminder
+ * look); the back's relief (backRelief) and colours. `spec` is the token's as its shape prints it.
+ */
+export function backFaceOf(role: Role, spec: TokenSpec, text: string): { role: Role; text: string; spec: TokenSpec } | null {
+  if (spec.back !== FACE_BACK) return null;
+  const other = flipFace(role, spec), b: BackFace = spec.backFace ?? {};
+  const look = spec.backMode === "own" && !spec.linked ? Object.fromEntries(FACE_FIELDS.filter((k) => b[k] != null).map((k) => [k, b[k]])) : {};
+  const c = backColours(spec);
+  const face = windowFrame({ ...spec, ...look, relief: backRelief(spec), colours: { ...spec.colours, front: c.front, frame: c.frame } });
+  return other ? { role: other, text: roleName(other, spec.lang), spec: { ...face, icon: undefined } } : { role, text, spec: face };
+}
 
 /**
  * A two-state token's other state, as a character the engine draws like any front: the same
  * layout, frame, colours and size, with the other state's name and icon. Null for a token
  * without one, for a shape that has none (SHAPE_FEATURES.flip) and for a linked token (a
- * reminder), which is a token of its own.
- *
- * Printing: the other state is always flush, whatever the front's relief. A token with raised
- * parts prints face-up, so its back lies on the bed, where nothing can stand out; a flush one
- * prints face-down, its back on top, flush like any back design. One rule, right both ways up.
+ * reminder), which is a token of its own. Its back is always a face (backFaceOf).
  */
 export function flipFace(role: Role | null | undefined, spec: SpecInput | undefined): Role | null {
   const f = role?.flip;
@@ -1442,15 +1482,16 @@ export function flipFace(role: Role | null | undefined, spec: SpecInput | undefi
 }
 
 /** A spec as its shape prints it: a card's or a ring's keeps only what it has (no back, magnet or
- *  layout), with its real size for `diameter`; a coin's is the spec, filled in, and a two-state
- *  coin's back is its other state (FLIP_BACK), its magnet hidden inside: a pocket would cut into it. */
+ *  layout), with its real size for `diameter`; a coin's is the spec, filled in, and a coin whose
+ *  back is a face (backIsFace) has FACE_BACK for its back and its magnet hidden inside: a pocket
+ *  would cut into the face. */
 export function shapeSpec(role: Role | null | undefined, input: SpecInput | undefined): TokenSpec {
   const shape = shapeOf(role);
   if (shape === "card") return cardSpec(input);
   if (shape === "ring") return ringSpec(input);
   const spec = { ...DEFAULT_SPEC, ...input, colours: { ...DEFAULT_SPEC.colours, ...input?.colours } };
-  if (!flipFace(role, spec)) return spec;
-  return { ...spec, back: FLIP_BACK, customSvg: null, magnet: spec.magnet === "pocket" ? "hidden" : spec.magnet };
+  if (!backIsFace(role, spec)) return spec;
+  return { ...spec, back: FACE_BACK, customSvg: null, magnet: spec.magnet === "pocket" ? "hidden" : spec.magnet };
 }
 
 /**
@@ -1509,35 +1550,41 @@ export function buildToken(lib: Library, role: Role, input: SpecInput | undefine
   // The face as this layout draws it: its name (and window), its icon and how the name came out.
   const window = spec.style === "window";
   const face = (who: Role, name: string, at?: Face, s = spec) => {
-    if (window) { const w = buildWindowFace(lib, who, name, s, at); return { name: merge([w.window, w.letters]), letters: w.letters, icon: w.icon, info: w.name }; }
+    if (s.style === "window") { const w = buildWindowFace(lib, who, name, s, at); return { name: merge([w.window, w.letters]), letters: w.letters, icon: w.icon, info: w.name }; }
     const f = buildFront(lib, who, name, s, at);
     return { name: f.geom, letters: f.geom, icon: f.icon, info: f.name };
   };
   const front = face(role, text);
-  // A two-state token's back is its other state, drawn like the front (its own name and icon,
-  // not the token's own icon) on the bottom face; any other's, its back design.
-  const other = flipFace(role, spec);
-  const back = other ? face(other, roleName(other, spec.lang), BOTTOM_FACE, { ...spec, icon: undefined }) : null;
-  // The relief above the face, per part (mm³): each raised element is a prism standing
+  // A back that is a face is drawn like a front on the bottom face (backFaceOf: the front again,
+  // a face of its own or a two-state token's other state); any other back is its design.
+  const bf = backFaceOf(role, spec, text);
+  const backSpec = bf?.spec, backUp = !!backSpec && hasRelief(backSpec);
+  const back = bf ? face(bf.role, bf.text, bottomFace(backUp), bf.spec) : null;
+  const backFrame = backSpec ? buildFrame(backSpec, bottomFace(backUp)) : null;
+  // The relief out of each face, per part (mm³): each raised element is a prism standing
   // `depth` into the coin and `relief` out of it, so that share of its volume.
-  const R = reliefOf(spec), r = reliefTop(spec), above = (g: THREE.BufferGeometry | null | undefined) => (g && r ? geometryVolume(g) * r / (spec.depth + r) : 0);
+  const R = reliefOf(spec), B = reliefOf(backSpec), r = reliefTop(spec), above = (g: THREE.BufferGeometry | null | undefined) => (g && r ? geometryVolume(g) * r / (spec.depth + r) : 0);
   // The window's icon is in the coin colour, over the window; the classic one in the team
-  // colour like the name. Either is its own part, raised or not.
+  // colour like the name. Either is its own part, raised or not; on a back face likewise.
   const iconColour = window ? colours.icon : colours.front;
+  const backIconColour = backSpec?.style === "window" ? colours.icon : backSpec ? colours.back : iconColour;
   return {
     parts: {
       base: buildBase(spec), front: front.name, icon: front.icon || null, frame,
       back: back ? back.name : buildBack(lib, role, text, spec),
-      ...(back ? { backIcon: back.icon || null, backFrame: buildFrame(spec, BOTTOM_FACE) } : {}),
+      ...(back ? { backIcon: back.icon || null, backFrame } : {}),
       ...extras,
     },
-    colours: { ...colours, icon: iconColour, backIcon: iconColour },
+    colours: { ...colours, icon: iconColour, backIcon: backIconColour },
     name: front.info,
-    ...(back ? { flipName: back.info } : {}),
+    ...(back ? { backName: back.info } : {}),
     spec,
     magnet,
     depthClamped: fit.clamped ? fit.max : null,
-    above: { front: R.text ? above(front.letters) : 0, icon: R.icon ? above(front.icon) : 0, frame: R.frame ? above(frame) : 0 },
+    above: {
+      front: R.text ? above(front.letters) : 0, icon: R.icon ? above(front.icon) : 0, frame: R.frame ? above(frame) : 0,
+      ...(back && hasRelief(backSpec) ? { back: B.text ? above(back.letters) : 0, backIcon: B.icon ? above(back.icon) : 0, backFrame: B.frame ? above(backFrame) : 0 } : {}),
+    },
   };
 }
 
@@ -1552,10 +1599,10 @@ const esc = (s: unknown) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;",
 export function tokenSvg(lib: Library, role: Role, input: SpecInput | undefined, { side = "front", text }: { side?: "front" | "back"; text?: string | null } = {}) {
   if (isCard(role)) return cardSvg(lib, role, input, side, text);
   if (isRing(role)) return ringSvg(lib, role, input, side, text);
-  // a two-state token's back: its other state, drawn as a front (its own icon, not the token's)
-  const other = side === "back" ? flipFace(role, input) : null;
-  if (other) return tokenSvg(lib, other, { ...input, icon: undefined }, { text: roleName(other, input?.lang ?? DEFAULT_SPEC.lang) });
   const spec = windowFrame(shapeSpec(role, input));
+  // a back that is a face: drawn as a front (a two-state token's other state with its own icon, not the token's)
+  const bf = side === "back" ? backFaceOf(role, spec, text ?? roleName(role, spec.lang)) : null;
+  if (bf) return tokenSvg(lib, bf.role, { ...bf.spec, back: "none", backMode: "design" }, { text: bf.text });
   const c = partColours(role, spec);
   const R = spec.diameter / 2;
   const label = text ?? roleName(role, spec.lang);

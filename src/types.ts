@@ -87,6 +87,23 @@ export type MagnetKind = "none" | "pocket" | "hidden";
 export type ReliefPart = "text" | "frame" | "icon";
 export type Relief = Record<ReliefPart, boolean>;
 
+/**
+ * What a coin's back is: "design", one of the back designs (BACK_STYLES); "match", a face like the
+ * front (its layout, text, icon and frame), so the coin reads the same whichever way up; "own", a
+ * face with a layout, text, icon and frame of its own (BackFace). A two-state token's back is
+ * always a face, its other state: drawn like the front with "design" and "match", with the back's
+ * own settings with "own".
+ */
+export type BackMode = "design" | "match" | "own";
+/** The fields that make a face's look (layout, name, icon, frame): a back face of its own sets them apart from the front's. */
+export type FaceField = "style" | "textSize" | "spacing" | "maxArc" | "iconScale" | "frame" | "frameWidth";
+/** A coin's back face (see BackMode): its own look ("own" only), its relief and its colours (both
+ *  "match" and "own"); anything left out is the front's. */
+export interface BackFace extends Partial<Pick<TokenSpec, FaceField>> {
+  relief?: Partial<Relief>;
+  colours?: Partial<Pick<SpecColours, "front" | "frame">>;
+}
+
 export interface SpecColours {
   base: ColourRef;
   front: ColourRef;
@@ -116,8 +133,13 @@ export interface TokenSpec {
   /** A FRAME_STYLES id. */
   frame: string;
   frameWidth: number;
-  /** A BACK_STYLES id (or one of the older "seal", "clock", "rings", "name"). */
+  /** A BACK_STYLES id (or one of the older "seal", "clock", "rings", "name"); shapeSpec makes it
+   *  FACE_BACK when the back is a face. */
   back: string;
+  /** What the back is: a design, or a face (see BackMode). */
+  backMode: BackMode;
+  /** The back face's own settings. */
+  backFace?: BackFace;
   customSvg: string | null;
   colours: SpecColours;
   /** The token's own icon, in place of its character's. */
@@ -164,7 +186,8 @@ export interface Library {
 }
 
 /** The parts a token is built from. Geometry is null for parts the design leaves out. */
-/** A two-state token's back is drawn like its front: `back` its name (and window), `backIcon` and `backFrame`. */
+/** A back that is a face (a two-state token's, or one that matches the front or has its own) is drawn like a
+ *  front: `back` its name (and window), `backIcon` and `backFrame`. */
 export type PartName = "base" | "front" | "icon" | "frame" | "back" | "backIcon" | "backFrame";
 /** The parts with a filament of their own; `hole` is the preview's pocket. */
 export type PartColours = Record<PartName, Hex> & { hole?: Hex };
@@ -229,8 +252,8 @@ export interface Token {
   /** The deepest inlay that fits, when the spec asked for more; null when it fit. */
   depthClamped: number | null;
   above?: Above;
-  /** A two-state token's: how its other state's name came out. */
-  flipName?: NameInfo;
+  /** A back face's: how its name came out (a two-state token's, its other state's). */
+  backName?: NameInfo;
   card?: boolean;
   foot?: Foot;
 }

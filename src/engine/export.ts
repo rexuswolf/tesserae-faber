@@ -3,7 +3,7 @@
 import * as THREE from "three";
 import { STLExporter } from "three/addons/exporters/STLExporter.js";
 import type JSZip from "jszip";
-import { TEAMS, printsFaceUp, reliefTop } from "./token-engine.ts";
+import { TEAMS, printsFaceUp, reliefTop, hasRelief, backRelief } from "./token-engine.ts";
 import type { PartName, Role, Token, TokenSpec } from "../types.ts";
 
 const M = () => new THREE.Matrix4();
@@ -38,7 +38,7 @@ export function addTokenToZip(zip: JSZip, token: Token, role: Role, text: string
     ? `\nmagnet_cut.stl: add it to the object as a NEGATIVE PART. It leaves a ${(m.radius * 2).toFixed(1)} mm hole in the back\nfor a ${m.md}x${m.mt} mm magnet; glue it in after printing.\n`
     : `\nmagnet_cut.stl: add it to the object as a NEGATIVE PART. It leaves a hidden ${(m.radius * 2).toFixed(1)} mm cavity\nfor a ${m.md}x${m.mt} mm magnet. Add a pause at the layer that ends at ${m.pauseZ} mm,\ndrop the magnet in (a dot of glue keeps it from jumping to the nozzle) and resume.\n`;
   dir.file("README.txt",
-    `${text} (${role.en})\nDiameter ${token.spec.diameter} mm, thickness ${+(token.spec.height + reliefTop(token.spec)).toFixed(2)} mm${printsFaceUp(token.spec) ? ", face-up (raised parts on top)" : faceDown ? ", face-down" : ""}.\n\n` +
+    `${text} (${role.en})\nDiameter ${token.spec.diameter} mm, thickness ${+(token.spec.height + reliefTop(token.spec)).toFixed(2)} mm${printsFaceUp(token.spec) ? ", face-up (raised parts on top)" : faceDown ? (hasRelief({ relief: backRelief(token.spec) }) ? ", face-down (the raised back on top)" : ", face-down") : ""}.\n\n` +
     `Load all STLs together as ONE object with several parts (Bambu Studio: "Yes" when asked),\nthen give each part its filament:\n\n${lines.join("\n")}\n${magnetNote}`);
   return name;
 }

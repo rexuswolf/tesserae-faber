@@ -2,7 +2,7 @@ import { handingOver } from "./handoff.ts";   // first: a browser arriving from 
 import {
   loadLibrary, buildToken, geometryVolume, magnetLayout, MAGNET_SIZES, tokenSvg, roleName, saveFile, reminderSpec, layoutName, nameLetterHeight, SMALL_LETTERS_MM,
   TEAMS, EDITIONS, FRAME_STYLES, BACK_STYLES, TOKEN_STYLES, FILAMENTS, DEFAULT_SPEC, CARD, isCard, ringSize, ringBand, RING_BASES,
-  SHAPE_FEATURES, shapeOf, shapeSpec, type ShapeFeatures, FLIP_BACK, flipFace,
+  SHAPE_FEATURES, shapeOf, shapeSpec, type ShapeFeatures, FACE_BACK, flipFace,
   normalizeSpec, reliefOf, hasRelief, reliefTop,
 } from "./engine/token-engine.ts";
 /** The face parts that can be raised, in the order the Layout section lists them. */
@@ -1157,7 +1157,7 @@ function renderWorkshop() {
         : n.total == null ? t("name.hintWindow", { lines: n.lines, mm, small, nozzle: nozzleMm() })
         : t("name.hint", { arc: n.total.toFixed(0), mm, shrunk: n.scale < 1, small, nozzle: nozzleMm() });
     };
-    const n = token.name, f = token.flipName;
+    const n = token.name, f = token.backName;
     $("#nameHint").className = "hint" + ([n, f].some((x) => x && x.letterHeight < smallLetters()) ? " warn" : "");
     $("#nameHint").textContent = hint(n) + (f && other ? ` ${t("name.flip", { name: roleName(other, spec.lang) })} ${hint(f)}` : "");
     renderColourWarn(role, spec, key);
@@ -1408,7 +1408,7 @@ function syncControls(spec: TokenSpec, { mine, all }: { mine: TokenShape; all: T
   for (const panel of $$(".ws-panel[data-na]")) for (const el of $$("[data-na]", panel)) delete el.dataset.na;
   // Magnet: the hole, the pause and how thick the coin has to be. A two-state token's is as it
   // prints (shapeSpec): inside, since its back is a face.
-  const ms: TokenSpec = flip.mine ? { ...s, back: FLIP_BACK, magnet: s.magnet === "pocket" ? "hidden" : s.magnet } : s;
+  const ms: TokenSpec = flip.mine ? { ...s, back: FACE_BACK, magnet: s.magnet === "pocket" ? "hidden" : s.magnet } : s;
   const m = magnetLayout(ms), dec2 = (v: unknown) => String(v).replace(".", dec);
   $("#magnetSizeRow").hidden = !m;
   $("#magnetHint").textContent = !m ? t("magnet.none.help")
@@ -1847,7 +1847,7 @@ function queuePlan() {
     const team = TEAMS[role.team].colour, pick = (v: ColourRef) => (v === "team" ? team : v);
     const shape = shapeOf(role), has = SHAPE_FEATURES[shape];
     const hasBack = has.back && spec.back !== "none" && (spec.back !== "custom" || spec.customSvg) && (spec.back !== "seal" || state.lib!.sealSvg) && (spec.back !== "edition" || role.edition);
-    const flip = spec.back === FLIP_BACK, iconColour = pick(has.icon && spec.style !== "window" ? spec.colours.front : spec.colours.base);
+    const flip = spec.back === FACE_BACK, iconColour = pick(has.icon && spec.style !== "window" ? spec.colours.front : spec.colours.base);
     return {
       q, title: queueLabel(q, role), group: queueGroup(q, role),
       token: {
