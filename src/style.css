@@ -991,19 +991,40 @@ html[data-mode=own]:not([data-theme=botc]) .cs-text b { font-weight: 700; letter
 .coll-menu hr { border: 0; border-top: 1px solid var(--seam); margin: 4px 6px; }
 .coll-menu .hint:empty { display: none; }
 .coll-menu .hint { padding: 4px 10px; }
-/* a phone: the collection and its menu head the drawer instead */
-.own-drawer { display: none; }
+/* a phone: the collection and its menu head the drawer instead. The current collection is a card; opening it
+   unfolds the menu below in a block of its own, inset and rounded like the desktop dropdown, so the active
+   item's highlight sits inside the block instead of running into the drawer's edge, and every row, heading and
+   separator shares one left edge. Colours come from the theme variables, so it follows a collection's own theme. */
+.own-drawer, .own-drawer-rule { display: none; }
 @media (max-width: 900px) {
   .coll-switch { display: none !important; }
-  .own-drawer { display: block; margin: 0 0 10px; border-bottom: 1px solid var(--seam); padding-bottom: 8px; }
-  .own-drawer summary { display: flex; align-items: center; gap: 9px; list-style: none; cursor: pointer; padding: 4px 8px; border-radius: 12px; }
+  .own-drawer { display: block; margin: 0 10px; }
+  .own-drawer-rule { display: block; }
+  .own-drawer summary { display: flex; align-items: center; gap: 12px; list-style: none; cursor: pointer; padding: 12px; border-radius: 14px; background: color-mix(in srgb, var(--bone) 6%, transparent); border: 1px solid var(--seam); }
   .own-drawer summary::-webkit-details-marker { display: none; }
+  .own-drawer summary:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
   .own-drawer summary img { width: 34px; height: 34px; object-fit: contain; flex: none; }
-  .own-drawer summary .chev { margin-left: auto; color: var(--dust); }
+  /* the name may take two lines here: the drawer is narrow and a name cut short is hard to recognise */
+  .own-drawer .cs-text b { font-size: 19px; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .own-drawer .cs-text small { font-size: 12.5px; letter-spacing: 0; }
+  .own-drawer summary .chev { margin-left: auto; color: var(--dust); transition: transform .2s ease; }
   .own-drawer[open] summary .chev { transform: rotate(180deg); }
-  .coll-menu-items { display: grid; padding-top: 4px; }
+  /* the unfolding: the details' content is a one-row grid that grows from 0fr to 1fr (where the browser can
+     style it; elsewhere it simply appears) */
+  .own-drawer::details-content { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .22s ease, content-visibility .22s allow-discrete; }
+  .own-drawer[open]::details-content { grid-template-rows: 1fr; }
+  .coll-fold { min-height: 0; overflow: hidden; }
+  .coll-menu-items { display: grid; margin: 6px 0 0; padding: 4px; border-radius: 14px; background: var(--velvet-deep); border: 1px solid var(--seam); }
+  .coll-menu-items .coll-list .cm-h { margin: 8px 10px 4px; }
+  /* one kind of separator: "Your collections" draws none of its own, the list ends with one like the others */
+  .coll-menu-items .coll-list + a { border-top: 0; margin-top: 0; padding-top: 8px; }
+  .coll-menu-items .coll-list::after { content: ""; border-top: 1px solid var(--seam); margin: 4px 6px; }
+}
+@media (max-width: 900px) and (prefers-reduced-motion: reduce) {
+  .own-drawer::details-content, .own-drawer summary .chev { transition: none; }
 }
 .coll-menu-items a, .coll-menu-items button { display: grid; grid-template-columns: 22px 1fr; gap: 0 8px; align-items: center; padding: 8px 10px; border-radius: 9px; border: 0; background: none; color: inherit; text-decoration: none; text-align: left; cursor: pointer; font: inherit; }
+.coll-menu-items a:hover, .coll-menu-items button:hover, .coll-menu-items a:focus-visible, .coll-menu-items button:focus-visible { background: color-mix(in srgb, var(--bone) 7%, transparent); }
 .coll-menu-items span { color: var(--brass); text-align: center; }
 .coll-menu-items b { font-weight: 500; font-size: 14.5px; }
 .coll-menu-items small { grid-column: 2; color: var(--dust); font-size: 12px; }
@@ -1011,13 +1032,10 @@ html[data-mode=own]:not([data-theme=botc]) .cs-text b { font-weight: 700; letter
 /* the app's own collections are read-only: "Make a copy" instead of editing */
 html:not([data-builtin]) .built-only { display: none !important; }
 html[data-builtin] [data-coll].own-only, html[data-builtin] hr.own-only, html[data-builtin] .spine-add, html[data-builtin] #ownCatList { display: none !important; }
-/* Moving between the app's pages: a quick cross-fade instead of a blank flash (View Transitions), and the
-   loading screen only when loading actually takes a while (with the files kept by the service worker, it seldom does) */
-@view-transition { navigation: auto; }
-::view-transition-old(root), ::view-transition-new(root) { animation-duration: 160ms; }
+/* Moving between the app's pages is instant (no cross-fade: it looked odd); the loading screen only shows
+   when loading actually takes a while (with the files kept by the service worker, it seldom does) */
 .gate { animation: gate-in 220ms ease-out 350ms both; }
 @keyframes gate-in { from { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
-  @view-transition { navigation: none; }
   .gate { animation: none; }
 }

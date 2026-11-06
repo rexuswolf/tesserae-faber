@@ -51,8 +51,8 @@
     <div class="spine-scroll">
       <!-- on a phone: the collection and its menu head the drawer (the top bar has no room) -->
       <details class="own-drawer">
-        <summary><img class="coll-logo" src="/tesserae-faber-small.svg" alt="" width="34" height="34"><span class="cs-text"><b class="coll-name"></b><small>Tesserae Faber</small></span><span class="chev" aria-hidden="true">▾</span></summary>
-        <div class="coll-menu-items">
+        <summary><img class="coll-logo" src="/tesserae-faber-small.svg" alt="" width="34" height="34"><span class="cs-text"><b class="coll-name"></b><small data-i18n="own.switchColl"></small></span><span class="chev" aria-hidden="true">▾</span></summary>
+        <div class="coll-fold"><div class="coll-menu-items">
         <div class="coll-list"></div>
         <a role="menuitem" href="/colecciones"><span aria-hidden="true">‹</span><b data-i18n="own.homeTitle"></b><small data-i18n="own.menuBack"></small></a>
         <hr class="built-only">
@@ -63,8 +63,9 @@
         <hr class="own-only">
         <button class="own-only" role="menuitem" type="button" data-coll="import"><span aria-hidden="true">⇩</span><b data-i18n="own.import"></b><small data-i18n="own.menuImport"></small></button>
         <button class="own-only" role="menuitem" type="button" data-coll="export"><span aria-hidden="true">⇧</span><b data-i18n="own.export"></b><small data-i18n="own.menuExport"></small></button>
-        </div>
+        </div></div>
       </details>
+      <hr class="spine-rule own-drawer-rule">
       <!-- every character, and the grimoire's info tokens: above the editions -->
       <div id="library"></div>
       <hr class="spine-rule">
