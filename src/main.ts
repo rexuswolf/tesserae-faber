@@ -1434,7 +1434,7 @@ function toggleCharacter(key: string) {
   if (!role) return;
   const on = !isPicked(key);
   setPick(key, on);
-  if (on) openRows.add(key);
+  if (on) openRows.add(key); else openRows.delete(key);   // picked, its row opens; dropped, it folds
   if (key.startsWith("c:")) remindersOf(role).forEach((_, i) => setPick(remKey(role, i), on));
   picksChanged();
 }
