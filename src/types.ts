@@ -157,6 +157,9 @@ export interface TokenSpec {
   reminderDiameter?: number;
   /** A linked token's (a reminder's, see reminderSpec): its own token, without its character's other state. */
   linked?: boolean;
+  /** A reminder's word sized by its length and its icon fitted round it (AUTO_TEXT): true for the
+   *  defaults, or some of them; unset, the word is textSize and the icon iconScale, as always. */
+  autoText?: boolean | Partial<AutoText>;
   /** The collection's style (StyleDef) a style is, or started from: what it resets to. */
   preset?: string;
   fromPreset?: string;
@@ -164,6 +167,10 @@ export interface TokenSpec {
   windowFinish?: string;
   windowDepth?: number;
 }
+
+/** Auto text (see AUTO_TEXT in the engine): the word's tallest (mm, by its ink), the arc a short word
+ *  fills (°), the icon's largest (as iconScale) and, if given, the widest arc for a long word (°). */
+export interface AutoText { cap: number; arc: number; icon: number; maxArc?: number }
 
 /** A spec as it may come in: any field left out takes DEFAULT_SPEC's. */
 export type SpecInput = Partial<Omit<TokenSpec, "colours">> & {

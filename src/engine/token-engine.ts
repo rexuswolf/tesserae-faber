@@ -19,7 +19,7 @@ import { Font } from "three/addons/loaders/FontLoader.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import type {
   Role, Team, Hex, ColourRef, TokenSpec, SpecInput, TokenStyle, Relief, ReliefPart, Library, Glyph,
-  PartColours, TokenParts, Token, MagnetLayout, TokenIcon, TokenShape, FaceField, BackFace, RingSeparator,
+  PartColours, TokenParts, Token, MagnetLayout, TokenIcon, TokenShape, FaceField, BackFace, RingSeparator, AutoText,
 } from "../types.ts";
 
 export { THREE };
@@ -147,6 +147,16 @@ export function reminderSpec(spec: TokenSpec): TokenSpec {
     linked: true,
   };
 }
+
+/**
+ * A reminder's word sized by its length (spec.autoText, off unless set): a short word grows until
+ * its ink spans `arc` degrees or stands `cap` mm tall, a long one keeps textSize and shrinks to fit
+ * maxArc as before; the icon then takes the largest size that keeps clear of the word and the frame
+ * (at most `icon` of the coin, as iconScale), centred in the room left. Classic layout only.
+ */
+export const AUTO_TEXT: AutoText = { cap: 7, arc: 120, icon: 0.85 };
+const autoOf = (spec: TokenSpec): AutoText | null =>
+  spec.autoText && spec.style === "classic" ? { ...AUTO_TEXT, ...(spec.autoText === true ? {} : spec.autoText) } : null;
 
 // ---------------------------------------------------------------- loading
 
@@ -291,6 +301,11 @@ function glyphPoints(lib: Library, ch: string) {
  * towards the centre, as in letterSvg and the 3D name.
  */
 function inkMidAngle(lib: Library, chars: string[], angles: number[], radius: number, em: number) {
+  const [lo, hi] = inkRange(lib, chars, angles, radius, em);
+  return lo <= hi ? (lo + hi) / 2 - 270 : 0;
+}
+/** The angles (°) the name's ink covers on the circle, lowest and highest (lo > hi: no ink). */
+function inkRange(lib: Library, chars: string[], angles: number[], radius: number, em: number): [number, number] {
   let lo = Infinity, hi = -Infinity;
   chars.forEach((ch, i) => {
     if (ch === " ") return;
@@ -303,7 +318,7 @@ function inkMidAngle(lib: Library, chars: string[], angles: number[], radius: nu
       if (deg > hi) hi = deg;
     }
   });
-  return lo <= hi ? (lo + hi) / 2 - 270 : 0;
+  return [lo, hi];
 }
 
 /** Inner edge of the frame (mm from centre), so text can stay clear of it. */
@@ -317,15 +332,48 @@ export function layoutName(lib: Library, text: string | null | undefined, spec: 
   const R = spec.diameter / 2;
   const margin = Math.max(spec.margin, R - frameInner(spec) + 0.9);   // clear of the frame ornament
   const radius = R - margin;
+  const auto = autoOf(spec);
+  if (auto) {
+    // sized by the ink: letters by the capitals' height, a word of signs only ("?") by its own
+    const ref = /[\p{L}\p{N}]/u.test(text || "") ? lib.capHeight : inkHeight(lib, chars);
+    const arcAt = (size: number) => {
+      const P = placeName(lib, chars, size / ref, radius, spec.spacing, Infinity);
+      const [lo, hi] = inkRange(lib, chars, P.angles, radius, size / ref);
+      return hi - lo;
+    };
+    // the ink's arc grows about in step with the size: a few rounds reach the target
+    let size = spec.textSize;
+    for (let i = 0; i < 4; i++) {
+      const arc = arcAt(size);
+      if (!(arc > 0)) break;
+      size = Math.min(auto.cap, (size * auto.arc) / arc);
+    }
+    size = Math.max(size, Math.min(spec.textSize, auto.cap));
+    const em = size / ref, P = placeName(lib, chars, em, radius, spec.spacing, auto.maxArc ?? spec.maxArc);
+    return { chars, angles: P.angles, radius, em: em * P.scale, total: P.total, scale: P.scale, letterHeight: size * P.scale, margin };
+  }
   const em = spec.textSize / lib.capHeight;
-  const widths = chars.map((c) => (c === " " ? Math.max(glyph(lib, " ").advance, 0.45) : glyph(lib, c).advance) * em * spec.spacing);
+  const P = placeName(lib, chars, em, radius, spec.spacing, spec.maxArc);
+  return { chars, angles: P.angles, radius, em: em * P.scale, total: P.total, scale: P.scale, letterHeight: spec.textSize * P.scale, margin };
+}
+
+/** The ink's height (font units at 1 em) of the name's characters; the capitals' for none. */
+function inkHeight(lib: Library, chars: string[]) {
+  let lo = Infinity, hi = -Infinity;
+  for (const ch of chars) if (ch !== " ") for (const [, y] of glyphPoints(lib, ch)) { if (y < lo) lo = y; if (y > hi) hi = y; }
+  return hi > lo ? Math.max(hi - lo, lib.capHeight * 0.4) : lib.capHeight;
+}
+
+/** The letters along the circle at `em`, centred on the bottom, squeezed to maxArc (°). */
+function placeName(lib: Library, chars: string[], em: number, radius: number, spacing: number, maxArc: number) {
+  const widths = chars.map((c) => (c === " " ? Math.max(glyph(lib, " ").advance, 0.45) : glyph(lib, c).advance) * em * spacing);
   let steps: number[] = [];
   for (let i = 1; i < chars.length; i++) steps.push((widths[i - 1] + widths[i]) / 2);
   let total = (steps.reduce((a, b) => a + b, 0) / radius) * (180 / Math.PI);
   let scale = 1;
-  if (total > spec.maxArc) {
-    scale = spec.maxArc / total;
-    total = spec.maxArc;
+  if (total > maxArc) {
+    scale = maxArc / total;
+    total = maxArc;
     steps = steps.map((s) => s * scale);
   }
   const angles: number[] = [];
@@ -339,7 +387,7 @@ export function layoutName(lib: Library, text: string | null | undefined, spec: 
   // circle, spans the same angle either side of the bottom.
   const off = inkMidAngle(lib, chars, angles, radius, em * scale);
   if (off) for (let i = 0; i < angles.length; i++) angles[i] -= off;
-  return { chars, angles, radius, em: em * scale, total, scale, letterHeight: spec.textSize * scale, margin };
+  return { angles, total, scale };
 }
 
 /**
@@ -457,14 +505,20 @@ function iconOutline(shapes: THREE.Shape[]) {
   return o;
 }
 
-const fitted = new Map<string, number>();
+const fitted = new Map<string, number | { k: number; dy: number }>();
+/** The layouts whose icon is fitted round the name (fittedIcon) rather than drawn at iconScale. */
+const fitsIcon = (spec: TokenSpec) => spec.style === "solo" || spec.style === "double" || !!autoOf(spec);
 /**
  * "solo" and "double": the icon centred, at the largest scale (mm per icon unit) that keeps
  * NAME_GAP clear of each name's letters and EDGE_GAP clear of the frame; iconScale then
- * shrinks or grows it from there. Returns the placement in icon units.
+ * shrinks or grows it from there. With autoText (a reminder's word sized by its length) the
+ * icon may also move up: the largest that fits anywhere on the vertical axis, at most
+ * autoText.icon of the coin, centred in the room it has. Returns the placement in icon units
+ * and how far up (mm) it sits.
  */
 function fittedIcon(lib: Library, role: Role, spec: TokenSpec, text: string) {
-  const shapes = iconShapes(lib, role, spec), o = iconOutline(shapes);
+  const shapes = iconShapes(lib, role, spec), o = iconOutline(shapes), auto = autoOf(spec);
+  if (auto) return fittedAutoIcon(lib, spec, text, shapes, o, auto, iconOf(role, spec).key);
   const key = [iconOf(role, spec).key, text, spec.style, spec.diameter, spec.textSize, spec.spacing, spec.margin, spec.maxArc, spec.frame, spec.frameWidth].join("|");
   if (!fitted.has(key)) {
     const edge = frameInner(spec), L = arcName(lib, text, spec);
@@ -495,7 +549,68 @@ function fittedIcon(lib: Library, role: Role, spec: TokenSpec, text: string) {
     fitted.set(key, lo);
     if (fitted.size > 2000) fitted.delete(fitted.keys().next().value!);
   }
-  return { shapes, k: fitted.get(key)! * (spec.iconScale || 1), cx: o.cx, cy: o.cy };
+  return { shapes, k: (fitted.get(key) as number) * (spec.iconScale || 1), cx: o.cx, cy: o.cy, dy: 0 };
+}
+
+/** The name's ink as an annular sector: the angles it covers (°) and how near the centre it reaches (mm). */
+function nameSector(lib: Library, L: ReturnType<typeof layoutName>) {
+  let lo = Infinity, hi = -Infinity, rIn = Infinity;
+  L.chars.forEach((ch, i) => {
+    if (ch === " ") return;
+    const a = (L.angles[i] * Math.PI) / 180, rot = a + Math.PI / 2, c = Math.cos(rot), sn = Math.sin(rot);
+    for (const [gx, gy] of glyphPoints(lib, ch)) {
+      const x = gx * L.em, y = gy * L.em;
+      const px = L.radius * Math.cos(a) + x * c - y * sn, py = L.radius * Math.sin(a) + x * sn + y * c;
+      const deg = ((Math.atan2(py, px) * 180) / Math.PI + 360) % 360;
+      lo = Math.min(lo, deg); hi = Math.max(hi, deg); rIn = Math.min(rIn, Math.hypot(px, py));
+    }
+  });
+  return lo <= hi ? { lo, hi, rIn } : null;
+}
+
+/** fittedIcon for autoText: the icon as large as fits (up to auto.icon), moved up the axis to the middle of its room. */
+function fittedAutoIcon(lib: Library, spec: TokenSpec, text: string, shapes: THREE.Shape[], o: ReturnType<typeof iconOutline>, auto: AutoText, iconKey: string) {
+  const key = ["auto", iconKey, text, spec.diameter, spec.textSize, spec.spacing, spec.margin, spec.maxArc, spec.frame, spec.frameWidth, auto.cap, auto.arc, auto.icon, auto.maxArc].join("|");
+  if (!fitted.has(key)) {
+    const edge = frameInner(spec), sc = nameSector(lib, layoutName(lib, text, spec));
+    const fits = (k: number, dy: number) => o.rel.every(([ux, uy]) => {
+      const x = ux * k, y = uy * k + dy, r = Math.hypot(x, y);
+      if (r > edge - EDGE_GAP) return false;
+      if (!sc) return true;
+      const deg = ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360, da = ((NAME_GAP / Math.max(r, 0.5)) * 180) / Math.PI;
+      return !(deg >= sc.lo - da && deg <= sc.hi + da && r > sc.rIn - NAME_GAP);
+    });
+    const largest = (dy: number) => {
+      let lo = 0, hi = spec.diameter / Math.max(o.w, o.h, 1e-6);
+      for (let i = 0; i < 24; i++) { const m = (lo + hi) / 2; if (fits(m, dy)) lo = m; else hi = m; }
+      return lo;
+    };
+    // where along the vertical axis (mm, up) the icon may sit: from the centre up to half the radius
+    const R = spec.diameter / 2, ys: number[] = [];
+    for (let i = Math.round(-R * 2.5); i <= Math.round(R * 5); i++) ys.push(i / 10);   // every 0.1 mm
+    // the largest anywhere: every 0.5 mm, then every 0.1 mm round the best
+    let best = 0, bestK = -1;
+    for (const dy of ys.filter((_, i) => i % 5 === 0)) { const kk = largest(dy); if (kk > bestK) { bestK = kk; best = dy; } }
+    for (const dy of ys.filter((y) => Math.abs(y - best) < 0.45)) { const kk = largest(dy); if (kk > bestK) { bestK = kk; best = dy; } }
+    const k = Math.min(bestK, (spec.diameter * auto.icon) / TRACE_VIEW);
+    // at that size, the stretch of the axis where it fits; the icon in its middle
+    const ok = ys.filter((y) => fits(k, y));
+    let dy = ok.length ? Math.round(((ok[0] + ok[ok.length - 1]) / 2) * 100) / 100 : best;
+    if (!fits(k, dy)) dy = best;
+    fitted.set(key, { k, dy });
+    if (fitted.size > 2000) fitted.delete(fitted.keys().next().value!);
+  }
+  const f = fitted.get(key) as { k: number; dy: number };
+  return { shapes, k: f.k, cx: o.cx, cy: o.cy, dy: f.dy };
+}
+
+/** The icon's larger side as printed (mm), for a classic, solo or double coin. */
+export function faceIconSize(lib: Library, role: Role, input: SpecInput | undefined, text?: string | null): number {
+  const spec = windowFrame(shapeSpec(role, input));
+  if (spec.style === "window") return NaN;
+  const o = iconOutline(iconShapes(lib, role, spec));
+  if (fitsIcon(spec)) return fittedIcon(lib, role, spec, text ?? roleName(role, spec.lang)).k * Math.max(o.w, o.h);
+  return (spec.diameter * spec.iconScale / TRACE_VIEW) * Math.max(o.w, o.h);
 }
 
 /**
@@ -517,9 +632,9 @@ const partZ = (spec: TokenSpec, part: ReliefPart, face: Face) => (face.bottom ? 
 function buildFront(lib: Library, role: Role, text: string, spec: TokenSpec, face = topFace(spec)) {
   const top = partZ(spec, "text", face), iconZ = partZ(spec, "icon", face);
   let icon;
-  if (spec.style === "solo" || spec.style === "double") {
+  if (fitsIcon(spec)) {
     const f = fittedIcon(lib, role, spec, text);
-    icon = extrude(f.shapes, faceHeight(spec, "icon", face), onFace(face, chain(T(0, 0, iconZ), S(f.k, -f.k, 1), T(-f.cx, -f.cy, 0))));
+    icon = extrude(f.shapes, faceHeight(spec, "icon", face), onFace(face, chain(T(0, f.dy, iconZ), S(f.k, -f.k, 1), T(-f.cx, -f.cy, 0))));
   } else {
     icon = extrude(iconShapes(lib, role, spec), faceHeight(spec, "icon", face), onFace(face, tracedMatrix(spec.diameter * spec.iconScale, iconZ, false, spec.iconOffsetY || 0)));
   }
@@ -1684,9 +1799,9 @@ export function tokenSvg(lib: Library, role: Role, input: SpecInput | undefined,
     if (spec.frame !== "none") body += `<circle r="${(R - FRAME_INSET - spec.frameWidth / 2).toFixed(2)}" fill="none" stroke="${c.frame}" stroke-width="${spec.frameWidth}"/>`;
   } else if (side === "front") {
     const icon = iconOf(role, spec);
-    if (spec.style === "solo" || spec.style === "double") {
+    if (fitsIcon(spec)) {
       const f = fittedIcon(lib, role, spec, label);
-      body += `<g fill="${c.front}" transform="scale(${f.k.toFixed(5)}) translate(${(-f.cx).toFixed(3)} ${(-f.cy).toFixed(3)})"><g transform="${icon.g}">${icon.body}</g></g>`;
+      body += `<g fill="${c.front}" transform="${f.dy ? `translate(0 ${(-f.dy).toFixed(3)}) ` : ""}scale(${f.k.toFixed(5)}) translate(${(-f.cx).toFixed(3)} ${(-f.cy).toFixed(3)})"><g transform="${icon.g}">${icon.body}</g></g>`;
     } else {
       body += `<g fill="${c.front}" transform="translate(0 ${-(spec.iconOffsetY || 0)}) scale(${k}) translate(${-TRACE_VIEW / 2} ${-TRACE_VIEW / 2})"><g transform="${icon.g}">${icon.body}</g></g>`;
     }
