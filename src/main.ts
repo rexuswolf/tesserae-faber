@@ -3535,6 +3535,13 @@ function renderTallerShapes() {
       : `<p class="hint tw-none">${esc(t("taller.noneYet"))}</p>`}`;
 }
 /** The second step: the bases for the shape, Basic first; the one chosen drawn on the sample tokens, and the way to start. */
+/** The collections' groups of bases left open in step 2 (shape:index). */
+const tallerOpenGroups = new Set<string>();
+document.addEventListener("toggle", (e) => {
+  const d = e.target as HTMLElement;
+  if (!(d instanceof HTMLDetailsElement) || !d.dataset.twGroup) return;
+  if (d.open) tallerOpenGroups.add(d.dataset.twGroup); else tallerOpenGroups.delete(d.dataset.twGroup);
+}, true);
 function renderTallerBases() {
   const sh = taller.shape, role = tokenRole(taller.samples[sh][0]);
   if (!tallerBase(sh, taller.pick)) taller.pick = firstBase(sh);
@@ -3546,8 +3553,15 @@ function renderTallerBases() {
   };
   const label = (g: TallerGroup) => (g.kind === "blank" ? t("taller.blankGroup") : g.kind === "app" ? t("taller.appGroup", { name: g.name }) : t("taller.of", { name: g.name }));
   const note = (g: TallerGroup) => (g.kind === "blank" ? t("taller.blankNote") : g.kind === "from" ? t("taller.fromNote") : "");
-  const opts = taller.groups.map((g, i) => (g.designs[sh]?.length
-    ? `<p class="tw-gl">${esc(label(g))}${note(g) ? ` <small>${esc(note(g))}</small>` : ""}</p>${g.designs[sh]!.map((def) => row(g, i, def)).join("")}` : "")).join("");
+  // the starting base in the open; each collection's designs folded (open where the chosen base is)
+  const opts = taller.groups.map((g, i) => {
+    const list = g.designs[sh];
+    if (!list?.length) return "";
+    const head = `${esc(label(g))}${note(g) ? ` <small>${esc(note(g))}</small>` : ""}`, rows = list.map((def) => row(g, i, def)).join("");
+    if (g.kind === "blank") return `<p class="tw-gl">${head}</p>${rows}`;
+    const open = tallerOpenGroups.has(`${sh}:${i}`) || list.some((def) => `g${i}:${def.id}` === pick.ref);
+    return `<details class="tw-grp" data-tw-group="${sh}:${i}"${open ? " open" : ""}><summary class="tw-gl">${head}<span class="tw-n">${list.length}</span>${CHEVRON}</summary>${rows}</details>`;
+  }).join("");
   const go = esc(t("taller.go", { name: pick.name }));
   $("#tallerWizard").innerHTML = `${tallerSteps(2)}
     <div class="tw-titlebar"><button class="link" type="button" data-tw-back>‹ ${esc(t("taller.step.shape"))}</button><h2 class="tw-title">${esc(t(`taller.baseQ.${sh}`))}</h2></div>

@@ -1411,3 +1411,10 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 }
 @keyframes dz-up { from { transform: translateY(40px); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .design-dlg[open] { animation: none; } }
+
+/* Taller step 2: each collection's bases folded under its name */
+.tw-grp > summary { list-style: none; display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.tw-grp > summary::-webkit-details-marker { display: none; }
+.tw-grp > summary .tw-n { margin-left: auto; color: var(--dust); font-size: 12px; font-weight: 400; }
+.tw-grp > summary .chev { transition: rotate .2s; }
+.tw-grp[open] > summary .chev { rotate: 180deg; }
