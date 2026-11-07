@@ -170,16 +170,22 @@ function keepGateLook() {
 // After a deploy, a page opened earlier may ask for code files that no longer
 // exist (their names change with each version). Reload once to get the new ones.
 //
-// The service worker (vite.config.js) keeps the app's files. When a new version takes over, a page that
-// holds nothing of yours mid-way (the front page, the list of collections) reloads into it at once; a
-// collection, where you may be designing, offers to reload instead.
+// The service worker (vite.config.js) keeps the app's files. When a new version takes over, the page
+// reloads into it at once, unless something you're making lives only in this page (a token not yet
+// created, a design in the Taller): then it offers to reload, at the bottom of the page.
 if ("serviceWorker" in navigator && import.meta.env.PROD) {
   const hadOne = !!navigator.serviceWorker.controller;   // the first install brings nothing new
   const reg = navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => undefined);
   // a phone keeps the tab alive for days: look for a new version whenever the app comes back to the front
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") void reg.then((r) => r?.update().catch(() => {})); });
-  // a new version took over: everything you do is kept as you do it, so load it straight away
-  navigator.serviceWorker.addEventListener("controllerchange", () => { if (hadOne) location.reload(); });
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!hadOne) return;
+    if (!state.creating && $("#app").dataset.step !== "taller") { location.reload(); return; }
+    const el = $("#appToast"), b = $<HTMLButtonElement>("button", el);
+    $("span", el).textContent = t("app.updated");
+    b.textContent = t("app.reload"); b.hidden = false; b.onclick = () => location.reload();
+    clearTimeout(toastTimer); el.hidden = false;
+  });
 }
 $("#buildTag").textContent = `v ${__BUILD__}`;
 window.addEventListener("vite:preloadError", (e) => {

@@ -563,8 +563,11 @@ const fitsIcon = (spec: TokenSpec) => spec.style === "solo" || spec.style === "d
  */
 function fittedIcon(lib: Library, role: Role, spec: TokenSpec, text: string) {
   const shapes = iconShapes(lib, role, spec), o = iconOutline(shapes), auto = autoOf(spec);
-  if (auto) return fittedAutoIcon(lib, spec, text, shapes, o, auto, iconOf(role, spec).key);
-  const key = [iconOf(role, spec).key, text, spec.style, spec.diameter, spec.textSize, spec.spacing, spec.margin, spec.maxArc, spec.frame, spec.frameWidth].join("|");
+  if (auto) {
+    const a = fittedAutoIcon(lib, spec, text, shapes, o, auto, iconOf(role, spec).key);
+    if (a.k > 0) return a;   // no room anywhere beside the word: the usual layout below
+  }
+  const key = [iconOf(role, spec).key, text, spec.style, spec.diameter, faceRadius(spec), spec.textSize, spec.spacing, spec.margin, spec.maxArc, spec.frame, spec.frameWidth].join("|");
   if (!fitted.has(key)) {
     const edge = frameInner(spec), L = arcName(lib, text, spec);
     // each name's ink as an annular sector: the angles it covers and how near the centre it reaches
@@ -615,7 +618,7 @@ function nameSector(lib: Library, L: ReturnType<typeof layoutName>) {
 
 /** fittedIcon for autoText: the icon as large as fits (up to auto.icon), moved up the axis to the middle of its room. */
 function fittedAutoIcon(lib: Library, spec: TokenSpec, text: string, shapes: THREE.Shape[], o: ReturnType<typeof iconOutline>, auto: AutoText, iconKey: string) {
-  const key = ["auto", iconKey, text, spec.diameter, spec.textSize, spec.spacing, spec.margin, spec.maxArc, spec.frame, spec.frameWidth, auto.cap, auto.arc, auto.icon, auto.maxArc].join("|");
+  const key = ["auto", iconKey, text, spec.diameter, faceRadius(spec), spec.textSize, spec.spacing, spec.margin, spec.maxArc, spec.frame, spec.frameWidth, auto.cap, auto.arc, auto.icon, auto.maxArc].join("|");
   if (!fitted.has(key)) {
     const edge = frameInner(spec), sc = nameSector(lib, layoutName(lib, text, spec));
     const fits = (k: number, dy: number) => o.rel.every(([ux, uy]) => {
@@ -1680,7 +1683,12 @@ function patternPart(role: Role, spec: TokenSpec): "frame" | "front" {
 }
 
 const v2 = (q: Poly) => q.map(([x, y]) => new THREE.Vector2(x, y));
-const cutShapes = (cut: PatternCut) => cut.rings.map((r) => { const sh = new THREE.Shape(v2(r.outer)); sh.holes = r.holes.map((h) => new THREE.Path(v2(h))); return sh; });
+const cutShapeCache = new WeakMap<PatternCut, THREE.Shape[]>();
+const cutShapes = (cut: PatternCut) => {
+  let out = cutShapeCache.get(cut);
+  if (!out) cutShapeCache.set(cut, (out = cut.rings.map((r) => { const sh = new THREE.Shape(v2(r.outer)); sh.holes = r.holes.map((h) => new THREE.Path(v2(h))); return sh; })));
+  return out;
+};
 /** SVG path data for a pattern (fill-rule evenodd), flipped to SVG's y-down. */
 const cutPath = (cut: PatternCut) => cut.rings.flatMap((r) => [r.outer, ...r.holes]).map((q) => q.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(3)} ${(-y).toFixed(3)}`).join("") + "Z").join("");
 
@@ -2600,7 +2608,8 @@ export function tokenSvg(lib: Library, role: Role, input: SpecInput | undefined,
   const k = spec.diameter * spec.iconScale / TRACE_VIEW;
   // raised parts drawn with relief shading (reliefFilter); flat ones as they are
   const raised = side === "front" && hasRelief(spec) ? reliefOf(spec) : null, rid = raised ? `tfr${++reliefIds}` : "";
-  const up = (part: ReliefPart, svg: string) => (raised?.[part] && svg ? `<g filter="url(#${rid})">${svg}</g>` : svg);
+  const flatFrame = !!spec.reliefBevel && !BEVEL_FRAMES.has(String(spec.frame));
+  const up = (part: ReliefPart, svg: string) => (raised?.[part] && svg ? `<g filter="url(#${rid}${part === "frame" && flatFrame ? "s" : ""})">${svg}</g>` : svg);
   let body = "";
   if (side === "front" && spec.style === "window") {
     const W = windowLayout(lib, label, spec);
@@ -2640,7 +2649,7 @@ export function tokenSvg(lib: Library, role: Role, input: SpecInput | undefined,
     const fd = frameDesign(spec);
     if (fd) body += up("frame", `<path fill="${c.frame}" fill-rule="nonzero" d="${shapesToPath(fd.shapes, 0, 0, 48)}"/>`);
     const fp = frontPattern(lib, role, spec, label);
-    if (fp) body += `<path fill="${c[patternPart(role, spec)]}" fill-rule="evenodd" d="${cutPath(fp)}"/>`;
+    if (fp) { const part = patternPart(role, spec); body += up(part === "frame" ? "frame" : "text", `<path fill="${c[part]}" fill-rule="evenodd" d="${cutPath(fp)}"/>`); }
   } else {
     const back = ({ seal: "Seal", clock: "Clock", rings: "Rings", name: "Name", custom: "Custom" } as Record<string, string | undefined>)[spec.back];
     const designed = backDesign(spec.back, R);
@@ -2656,7 +2665,7 @@ export function tokenSvg(lib: Library, role: Role, input: SpecInput | undefined,
     if (spec.back === "seal" && lib.sealSvg) body += `<g fill="${c.back}" transform="scale(${spec.diameter / TRACE_VIEW}) translate(${-TRACE_VIEW / 2} ${-TRACE_VIEW / 2})">${lib.sealSvg.replace(/^[\s\S]*?<g /, "<g ").replace(/fill="#000000"/, "").replace(/<\/svg>\s*$/, "")}</g>`;
     else if (back && !designed) body += `<text y="1.5" text-anchor="middle" font-size="5" fill="${c.back}" font-family="${LETTERING.family}">${esc(back === "Name" ? label.toUpperCase() : back.toUpperCase())}</text>`;
   }
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${-R - 0.5} ${-R - 0.5} ${spec.diameter + 1} ${spec.diameter + 1}" role="img" aria-label="${esc(label)} token">${raised ? reliefFilter(rid, spec.reliefBevel) : ""}${coinSvg(spec, c.base)}${body}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${-R - 0.5} ${-R - 0.5} ${spec.diameter + 1} ${spec.diameter + 1}" role="img" aria-label="${esc(label)} token">${raised ? reliefFilter(rid, spec.reliefBevel) + (flatFrame ? reliefFilter(rid + "s") : "") : ""}${coinSvg(spec, c.base)}${body}</svg>`;
 }
 
 /** Offers a file to the viewer: claude.ai's downloads capability, or a plain download. */
