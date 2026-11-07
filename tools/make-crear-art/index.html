@@ -73,7 +73,7 @@ const dsStrip = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${s + step
 document.querySelector("#strip").insertAdjacentHTML("afterend", `<div>${dsStrip}</div>`);
 
 // 5e Fantasy's cover strip: a two-sided marker, three conditions and Bloodied, in their colours
-const SRD = [["Ventaja", "delapouite/dice-twenty-faces-twenty", "#d4a72c"], ["Asustado", "lorc/terror", "#8a3d9e"], ["Malherido", "lorc/bleeding-heart", "#b3191e"], ["Envenenado", "lorc/poison-bottle", "#3f9651"], ["Paralizado", "delapouite/frozen-body", "#2f86e0"]];
+const SRD = [["Ventaja", "delapouite/dice-twenty-faces-twenty", "#d4a72c"], ["Asustado", "lorc/terror", "#8a3d9e"], ["Ensangrentado", "lorc/bleeding-heart", "#b3191e"], ["Envenenado", "lorc/poison-bottle", "#3f9651"], ["Paralizado", "delapouite/frozen-body", "#2f86e0"]];
 const srdTokens = [];
 for (const [name, path, colour] of SRD) srdTokens.push(await own(name, path, colour));
 const srdStrip = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${s + step * (SRD.length - 1) + 20} ${s + 24}" role="img" aria-label="Fichas de Fantasía 5e">${defs}${srdTokens.map((svg, j) => place(svg, 10 + j * step, 6, s, "cell", j)).join("")}</svg>`;

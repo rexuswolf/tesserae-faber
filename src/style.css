@@ -1015,23 +1015,21 @@ html[data-mode=own] .own-spine-h { display: none; }   /* the creator's sections 
 .oh-zone { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin: 0 0 16px; }
 .oh-zone h2 { font: 400 30px/1.15 "Marcellus", serif; margin: 0; }
 .oh-zone p { margin: 0; color: var(--dust); font-size: 16px; }
-.oh-readyrow { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr); gap: 12px; }
-.oh-covers { display: grid; gap: 12px; }
-.oh-cover { position: relative; border-radius: 18px; border: 1px solid color-mix(in srgb, var(--acc) 45%, transparent); background: var(--cover, radial-gradient(120% 140% at 0% 0%, #4a1a3c 0%, #2a0f20 55%, #170812 100%)); color: #efe6d6; }
+.oh-covers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.oh-cover { position: relative; display: flex; flex-direction: column; border-radius: 18px; border: 1px solid color-mix(in srgb, var(--acc) 45%, transparent); background: var(--cover, radial-gradient(120% 140% at 0% 0%, #4a1a3c 0%, #2a0f20 55%, #170812 100%)); color: #efe6d6; }
 .oh-cover:hover { border-color: var(--acc); }
-.oh-cover-link { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px 28px; align-items: center; padding: 22px 24px; color: inherit; text-decoration: none; }
+/* two side by side: each stacked, its name, its tokens, then Open */
+.oh-cover-link { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 18px; padding: 22px 24px; color: inherit; text-decoration: none; }
 .oh-cover .who { display: flex; gap: 16px; align-items: center; }
 .oh-cover .who img { width: 64px; height: 64px; object-fit: contain; }
 .oh-cover h3 { font: 400 28px/1.1 Gloock, serif; margin: 0; }
 .oh-cover p { margin: 4px 0 0; color: #c8b3c0; font-size: 15.5px; }
-.oh-cover .strip { height: 92px; width: auto; }
-.oh-cover .go { grid-column: 1 / -1; display: flex; gap: 16px; align-items: center; color: #c8b3c0; font-size: 14.5px; }
+.oh-cover .strip { height: auto; max-height: 92px; width: auto; max-width: 100%; justify-self: start; }
+.oh-cover .go { display: flex; gap: 16px; align-items: center; color: #c8b3c0; font-size: 14.5px; margin-top: auto; }
 .oh-cover .go .forge { background: var(--acc); color: #170812; padding: 9px 18px; }
-.oh-cover .oh-actions { position: absolute; right: 22px; bottom: 20px; display: flex; gap: 14px; font-size: 13.5px; }
+.oh-cover .oh-actions { display: flex; gap: 14px; font-size: 13.5px; padding: 0 24px 18px; }
 .oh-cover .oh-actions .link { color: #c8b3c0; }
-.oh-cover .oh-ccc { position: absolute; right: 24px; bottom: 20px; width: 120px; height: auto; pointer-events: none; }
-.oh-share { border: 1px dashed var(--seam); border-radius: 18px; padding: 18px 22px; color: var(--dust); font-size: 15.5px; display: grid; align-content: center; gap: 4px; margin: 0; }
-.oh-share b { color: var(--bone); font-weight: 500; }
+.oh-cover .oh-ccc { display: block; margin: -6px 24px 18px auto; width: 120px; height: auto; pointer-events: none; }
 .oh-new { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
 .oh-make { display: flex; align-items: center; justify-content: center; gap: 10px; border: 1px dashed var(--seam); background: none; border-radius: 14px; padding: 13px 14px; color: var(--bone); font: 500 16px/1.2 var(--ui); cursor: pointer; }
 .oh-make:hover { border-color: #c9963a; }
@@ -1047,14 +1045,12 @@ html[data-mode=own] .own-spine-h { display: none; }   /* the creator's sections 
 .oh-actions .danger { color: #f0a46b; }
 .oh-empty { border: 1px dashed var(--seam); border-radius: 14px; padding: 16px; color: var(--dust); font-size: 15.5px; margin: 0; }
 @media (max-width: 860px) {
-  .ol-hero, .oh-readyrow, .oh-new { grid-template-columns: 1fr; }
+  .ol-hero, .oh-covers, .oh-new { grid-template-columns: 1fr; }
   .ol-steps { grid-template-columns: 1fr; }
   .oh-top, .ol-hero, .oh-band { padding-inline: 16px; }
   .oh-nav { margin-left: 0; order: 3; width: 100%; }
   .oh-homelink .faber-wm { font-size: 17px; }
-  .oh-cover-link { grid-template-columns: 1fr; }
-  .oh-cover .oh-actions { position: static; padding: 0 24px 18px; }
-  .oh-cover .oh-ccc { position: static; display: block; margin: -6px 24px 18px auto; width: 104px; }
+  .oh-cover .oh-ccc { width: 104px; }
   .oh-tile { flex-wrap: wrap; }
 }
 /* the sidebar's foot: the admin's pill beside How it works */
