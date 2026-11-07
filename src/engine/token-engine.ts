@@ -2149,7 +2149,8 @@ const cardFrameWidth = (spec: TokenSpec) => Math.min(Math.max(spec.frameWidth, 0
 /**
  * A card's frame as filled shapes: a line inside the edge ("rim", or any design: a card's frame is a
  * line), or "corners", only its corners: an L along each corner of that line, the frame's width,
- * with a dot inside it, like old playing cards. None for "none".
+ * with a dot inside it, like old playing cards; or "laurel", the line with a sprig of laurel inside
+ * each corner, following it. None for "none".
  */
 function cardFrameShapes(spec: TokenSpec): THREE.Shape[] | null {
   if (spec.frame === "none") return null;
@@ -2157,7 +2158,46 @@ function cardFrameShapes(spec: TokenSpec): THREE.Shape[] | null {
   if (spec.frame === "corners") return cardCorners(fw);
   const outer = roundedRect(CARD.w - 2 * i, CARD.h - 2 * i, CARD.r - i);
   outer.holes.push(roundedRect(CARD.w - 2 * (i + fw), CARD.h - 2 * (i + fw), Math.max(0.5, CARD.r - i - fw)));
-  return [outer];
+  return spec.frame === "laurel" ? [outer, ...cardLaurels()] : [outer];
+}
+/**
+ * Four laurel sprigs, one inside each corner of the card's line: a stem 12 mm along the long side,
+ * round the corner and 10 mm down the short one, leaves in pairs (the coin laurel's, 3 × 1.35 mm,
+ * smaller towards the tip) and a leaf at its end; clear of the text (CARD_PAD).
+ */
+function cardLaurels(): THREE.Shape[] {
+  const X = CARD.w / 2 - CARD_FRAME_INSET - 3.4, Y = CARD.h / 2 - CARD_FRAME_INSET - 3.4, r = 3, out: THREE.Shape[] = [];
+  for (const [sx, sy] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) {
+    // the stem's path, from along the long side, round the corner, down the short one
+    const pts: [number, number][] = [[sx * (X - 12), sy * Y], [sx * (X - r), sy * Y]];
+    const a0 = sy > 0 ? Math.PI / 2 : -Math.PI / 2, a1 = sx > 0 ? 0 : sy > 0 ? Math.PI : -Math.PI;
+    for (let k = 1; k <= 6; k++) { const a = a0 + ((a1 - a0) * k) / 6; pts.push([sx * (X - r) + r * Math.cos(a), sy * (Y - r) + r * Math.sin(a)]); }
+    pts.push([sx * X, sy * (Y - 10)]);
+    out.push(...sprig(pts));
+  }
+  return out.map(ccw);   // one winding, so leaves and stem merge (2D and 3D)
+}
+/** A sprig along a polyline: its stem (0.5 mm) and a pair of leaves every 2.2 mm, then its end leaf. */
+function sprig(pts: [number, number][]): THREE.Shape[] {
+  const out: THREE.Shape[] = [], step = 2.2, half = 0.25;
+  // the stem, a band along the path
+  const norm = pts.map((p, i) => { const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)], d = Math.atan2(b[1] - a[1], b[0] - a[0]); return [-Math.sin(d), Math.cos(d)]; });
+  out.push(polygon([...pts.map((p, i) => new THREE.Vector2(p[0] + norm[i][0] * half, p[1] + norm[i][1] * half)), ...pts.map((p, i) => new THREE.Vector2(p[0] - norm[i][0] * half, p[1] - norm[i][1] * half)).reverse()]));
+  // leaf pairs along it
+  const at: [number, number, number][] = [];
+  let carry = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const [x0, y0] = pts[i - 1], [x1, y1] = pts[i], L = Math.hypot(x1 - x0, y1 - y0), dir = Math.atan2(y1 - y0, x1 - x0);
+    for (let d = carry; d < L; d += step) at.push([x0 + ((x1 - x0) * d) / L, y0 + ((y1 - y0) * d) / L, dir]);
+    carry = (((carry - L) % step) + step) % step;
+  }
+  at.slice(1).forEach(([x, y, dir], i, all) => {
+    const k = 1 - 0.3 * (i / Math.max(1, all.length - 1));
+    out.push(leaf(x, y, dir - 0.62, 3 * k, 1.35 * k), leaf(x, y, dir + 0.62, 3 * k, 1.35 * k));
+  });
+  const [tx, ty] = pts[pts.length - 1], [px, py] = pts[pts.length - 2];
+  out.push(leaf(tx, ty, Math.atan2(ty - py, tx - px), 2.4, 1.1));
+  return out;
 }
 function cardCorners(fw: number): THREE.Shape[] {
   const i = CARD_FRAME_INSET, X = CARD.w / 2 - i, Y = CARD.h / 2 - i, ro = CARD.r - i, ri = Math.max(0.5, ro - fw), L = CARD_CORNER_ARM;
@@ -2211,7 +2251,8 @@ function cardSvg(lib: Library, role: Role, input: SpecInput | undefined, side: "
     }
     const fw = cardFrameWidth(spec), i = CARD_FRAME_INSET + fw / 2;
     if (spec.frame === "corners") body += `<path fill="${c.frame}" d="${shapesToPath(cardCorners(fw), 0, 0, 16)}"/>`;
-    else if (spec.frame !== "none") body += `<rect x="${-w / 2 + i}" y="${-h / 2 + i}" width="${w - 2 * i}" height="${h - 2 * i}" rx="${Math.max(0.5, r - i)}" fill="none" stroke="${c.frame}" stroke-width="${fw}"/>`;
+    if (spec.frame === "laurel") body += `<path fill="${c.frame}" d="${shapesToPath(cardLaurels(), 0, 0, 8)}"/>`;
+    if (spec.frame !== "none" && spec.frame !== "corners") body += `<rect x="${-w / 2 + i}" y="${-h / 2 + i}" width="${w - 2 * i}" height="${h - 2 * i}" rx="${Math.max(0.5, r - i)}" fill="none" stroke="${c.frame}" stroke-width="${fw}"/>`;
   }
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${-w / 2 - 0.5} ${-h / 2 - 0.5} ${w + 1} ${h + 1}" role="img" aria-label="${esc(label)}"><rect x="${-w / 2}" y="${-h / 2}" width="${w}" height="${h}" rx="${r}" fill="${c.base}"/>${body}</svg>`;
 }

@@ -110,6 +110,11 @@ export const CARD_DESIGNS = {
     help: { es: "Negra, la frase en blanco y un marco de oro, como un libro antiguo: la misma sea cual sea el grupo.", en: "Black, the phrase in white and a gold frame, like an old book's: the same whatever the group." },
     spec: { frame: "rim", frameWidth: 1.2, height: 2, depth: 0.4, colours: { base: black, front: white, frame: gold } },
   },
+  laureles: {
+    id: "laureles", name: { es: "Laureles", en: "Laurels" },
+    help: { es: "La tarjeta del color del grupo, la frase en negro y una línea fina con una ramita de laurel en cada esquina, también en negro.", en: "The card in the group colour, the phrase in black and a fine line with a sprig of laurel in each corner, black too." },
+    spec: { frame: "laurel", frameWidth: 0.6, height: 2, depth: 0.4, colours: { base: "team", front: black, frame: black } },
+  },
   contraste: {
     id: "contraste", name: { es: "Contraste", en: "Contrast" },
     help: { es: "Negra, la frase en blanco y una línea fina del color del grupo: la frase, lo más legible; el grupo, en el marco.", en: "Black, the phrase in white and a fine line in the group colour: the phrase as legible as it gets, the group in the frame." },
@@ -136,7 +141,7 @@ export const baseDesigns = (...ids: (keyof typeof BASE_DESIGNS)[]): StyleDef[] =
 export const APP_DESIGNS: Record<TokenShape, StyleDef[]> = {
   coin: Object.values(COIN_DESIGNS).map((d) => structuredClone(d) as StyleDef),
   ring: ringDesigns("aro-color", "relieve-alto", "filos", "rapida"),
-  card: cardDesigns("contraste", "placa", "pergamino", "filete", "esquinas", "rapida"),
+  card: cardDesigns("contraste", "placa", "laureles", "pergamino", "filete", "esquinas", "rapida"),
   base: baseDesigns("bandeja-color", "bandeja-negra", "bandeja-relieve"),
 };
 /** A look as text that doesn't depend on the order its fields were written in. */

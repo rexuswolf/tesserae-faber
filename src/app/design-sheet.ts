@@ -339,8 +339,8 @@ function renderFrameTiles(face: { role: Role; text: string }, spec: TokenSpec) {
   const s = { ...spec, diameter: 45, back: "none", backMode: "design" as const, frontPattern: null }, shape = shapeOf(face.role), { role, text } = face;   // the pattern left out, as in the layouts
   if (SHAPE_FEATURES[shape].frame === "line") {
     // "with" keeps whatever design the spec has, so choosing it changes nothing else
-    const line = s.frame === "none" || s.frame === "corners" ? "rim" : s.frame;
-    const tiles = [["none", t("frame.none")], [line, t(`frame.line.${shape}`)], ...(SHAPE_FEATURES[shape].corners ? [["corners", t("frame.corners")]] : [])];
+    const line = s.frame === "none" || s.frame === "corners" || s.frame === "laurel" ? "rim" : s.frame;
+    const tiles = [["none", t("frame.none")], [line, t(`frame.line.${shape}`)], ...(SHAPE_FEATURES[shape].corners ? [["corners", t("frame.corners")], ["laurel", t("frame.laurelCard")]] : [])];
     $("[data-choice=frame]").innerHTML = tiles.map(([v, label]) =>
       `<button class="back-tile frame-tile" type="button" data-v="${v}" aria-pressed="${s.frame === v}">${tokenSvg(state.lib!, role, { ...s, frame: v }, { text })}<span>${esc(label)}</span></button>`).join("");
     return;

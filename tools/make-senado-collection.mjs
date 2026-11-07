@@ -75,7 +75,7 @@ const styles = {
       spec: { style: "classic", frame: "laurel", frameWidth: 0.8, back: "escudo", backText: "collection", depth: 0.4, relief: { text: true, frame: true, icon: true }, reliefHeight: 0.8, reliefBevel: 0.3, edge: "reeded", colours: { base: FILAMENTS.gold, front: FILAMENTS.gold, frame: FILAMENTS.gold, back: FILAMENTS.black } } },
   ],
   // the laws: the whole card in its side's colour (a marble law, a red decree), then black with the side's line
-  card: cardDesigns("placa", "contraste"),
+  card: cardDesigns("laureles", "placa", "contraste"),
 };
 const collection = {
   format: "midnight-mint/collection", version: 1,
