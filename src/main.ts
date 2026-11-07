@@ -51,8 +51,8 @@ const fold = (s: string) => String(s).toLowerCase().normalize("NFD").replace(/\p
 type Fields = Record<string, unknown>;
 
 /** The sliders: each field's decimals and unit. */
-type RangeKey = "diameter" | "height" | "depth" | "reliefHeight" | "iconScale" | "textSize" | "spacing" | "maxArc" | "frameWidth";
-const RANGES: Record<RangeKey, [number, string]> = { diameter: [0, " mm"], height: [1, " mm"], depth: [1, " mm"], reliefHeight: [1, " mm"], iconScale: [2, "×"], textSize: [1, " mm"], spacing: [2, "×"], maxArc: [0, "°"], frameWidth: [1, " mm"] };
+type RangeKey = "diameter" | "height" | "depth" | "reliefHeight" | "reliefBevel" | "iconScale" | "textSize" | "spacing" | "maxArc" | "frameWidth";
+const RANGES: Record<RangeKey, [number, string]> = { diameter: [0, " mm"], height: [1, " mm"], depth: [1, " mm"], reliefHeight: [1, " mm"], reliefBevel: [1, " mm"], iconScale: [2, "×"], textSize: [1, " mm"], spacing: [2, "×"], maxArc: [0, "°"], frameWidth: [1, " mm"] };
 const MAX_SVG = 300000;
 // The source code. Its links (sidebar footer and credits) stay hidden while the repository
 // is private, so nobody lands on GitHub's 404: set REPO_PUBLIC to true once it is published.
@@ -304,7 +304,7 @@ function printedLook(shape: TokenShape, spec: SpecInput): Fields {
   const raised: string[] = f.relief, relief = Object.fromEntries(Object.entries(reliefOf(u)).filter(([k]) => raised.includes(k)));
   s.relief = relief;
   const backRaised = (s.backMode === "match" || s.backMode === "own") && hasRelief(s.backFace as SpecInput | undefined);
-  if (!Object.values(relief).some(Boolean) && !backRaised) delete s.reliefHeight;
+  if (!Object.values(relief).some(Boolean) && !backRaised) { delete s.reliefHeight; delete s.reliefBevel; }
   s.colours = c;
   return s;
 }
@@ -2324,7 +2324,7 @@ function syncControls(role: Role, spec: TokenSpec, token: Token) {
   const dec = uiLang() === "es" ? "," : ".";
   const FACE_RANGES = new Set<string>(FACE_FIELDS);
   for (const [id, [dp, unit]] of Object.entries(RANGES) as [RangeKey, [number, string]][]) {
-    const v = (FACE_RANGES.has(id) ? face : s)[id];
+    const v = (FACE_RANGES.has(id) ? face : s)[id] ?? 0;   // a bevel unset is none
     $<HTMLInputElement>("#" + id).value = String(v);
     $(`output[data-for=${id}]`).textContent = (+v).toFixed(dp).replace(".", dec) + unit;
   }
@@ -2748,7 +2748,8 @@ function wire() {
     else if (box.closest("[data-panel=text], [data-panel=frame]")) changeFace(editSide(), mutate);
     else changeLook(mutate);
   };
-  for (const id of Object.keys(RANGES) as RangeKey[]) $("#" + id).oninput = (e) => change(id, (s) => { s[id] = +input(e).value; });
+  // a bevel of 0 is none: left unset, as in a design without one
+  for (const id of Object.keys(RANGES) as RangeKey[]) $("#" + id).oninput = (e) => change(id, (s) => { if (id === "reliefBevel" && !+input(e).value) delete s.reliefBevel; else s[id] = +input(e).value; });
   $("#colourWarn").addEventListener("click", (e) => { if (hit(e, "[data-deepen]")) deepen(); });
   // A reset button for every field: in a slider's row, after a group of choices or colours.
   const resetBtn = () => Object.assign(document.createElement("button"), { type: "button", className: "reset-f", hidden: true, textContent: "↺" });

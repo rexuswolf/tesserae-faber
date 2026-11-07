@@ -125,6 +125,8 @@ export interface TokenSpec {
   style: TokenStyle;
   relief: Relief;
   reliefHeight: number;
+  /** Raised parts' walls slope in by this much at the top (mm; unset or 0: straight walls). */
+  reliefBevel?: number;
   magnet: MagnetKind;
   /** "<diameter>x<thickness>", mm. */
   magnetSize: string;

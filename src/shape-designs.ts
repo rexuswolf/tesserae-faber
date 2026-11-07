@@ -41,12 +41,12 @@ export const COIN_DESIGNS = {
   acunada: {
     id: "acunada", name: { es: "Moneda acuñada", en: "Struck coin" },
     help: { es: "Toda de oro, con el icono, el marco acuñado y el nombre en relieve y el canto estriado: un solo filamento.", en: "All gold, with the icon, the milled frame and the name raised and a reeded edge: a single filament." },
-    spec: { style: "classic", frame: "acunado", frameWidth: 0.8, back: "none", depth: 0.4, relief: { text: true, frame: true, icon: true }, reliefHeight: 0.8, edge: "reeded", colours: { base: gold, front: gold, frame: gold, back: gold } },
+    spec: { style: "classic", frame: "acunado", frameWidth: 0.8, back: "none", depth: 0.4, relief: { text: true, frame: true, icon: true }, reliefHeight: 0.8, reliefBevel: 0.3, edge: "reeded", colours: { base: gold, front: gold, frame: gold, back: gold } },
   },
   bicolor: {
     id: "bicolor", name: { es: "Moneda bicolor", en: "Two-tone coin" },
     help: { es: "Negra, con el icono, el marco acuñado y el nombre en relieve de oro, el nombre de la colección en oro al reverso y el canto segmentado.", en: "Black, with the icon, the milled frame and the name raised in gold, the collection's name in gold on the back and a segmented edge." },
-    spec: { style: "classic", frame: "acunado", frameWidth: 0.8, back: "edition", depth: 0.4, relief: { text: true, frame: true, icon: true }, reliefHeight: 0.8, edge: "segmented", colours: { base: black, front: gold, frame: gold, back: gold } },
+    spec: { style: "classic", frame: "acunado", frameWidth: 0.8, back: "edition", depth: 0.4, relief: { text: true, frame: true, icon: true }, reliefHeight: 0.8, reliefBevel: 0.3, edge: "segmented", colours: { base: black, front: gold, frame: gold, back: gold } },
   },
 } satisfies Record<string, StyleDef>;
 

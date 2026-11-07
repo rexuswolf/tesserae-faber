@@ -271,7 +271,10 @@ function flipWinding(geom: THREE.BufferGeometry) {
 
 const merge = (list: (THREE.BufferGeometry | null | undefined)[]) => {
   const parts = list.filter((g): g is THREE.BufferGeometry => !!g);
-  return parts.length ? mergeGeometries(parts) : null;
+  const g = parts.length ? mergeGeometries(parts) : null;
+  // bevelled relief: what stands out of the face, summed (see partExtrude)
+  if (g && parts.every((p) => aboveOf.has(p))) aboveOf.set(g, parts.reduce((s, p) => s + aboveOf.get(p)!, 0));
+  return g;
 };
 
 const M = () => new THREE.Matrix4();
@@ -676,16 +679,16 @@ function buildFront(lib: Library, role: Role, text: string, spec: TokenSpec, fac
   let icon;
   if (fitsIcon(spec)) {
     const f = fittedIcon(lib, role, spec, text);
-    icon = extrude(f.shapes, faceHeight(spec, "icon", face), onFace(face, chain(T(0, f.dy, iconZ), S(f.k, -f.k, 1), T(-f.cx, -f.cy, 0))));
+    icon = partExtrude(f.shapes, spec, "icon", face, onFace(face, chain(T(0, f.dy, iconZ), S(f.k, -f.k, 1), T(-f.cx, -f.cy, 0))));
   } else {
-    icon = extrude(iconShapes(lib, role, spec), faceHeight(spec, "icon", face), onFace(face, tracedMatrix(spec.diameter * spec.iconScale, iconZ, false, spec.iconOffsetY || 0)));
+    icon = partExtrude(iconShapes(lib, role, spec), spec, "icon", face, onFace(face, tracedMatrix(spec.diameter * spec.iconScale, iconZ, false, spec.iconOffsetY || 0)));
   }
   const L = arcName(lib, text, spec);
   const letters = L ? nameTurns(spec).flatMap((turn) => L.chars.map((c, i) => {
     if (c === " ") return null;
     const g = glyph(lib, c);
     const a = THREE.MathUtils.degToRad(L.angles[i]);
-    return extrude(g.shapes, faceHeight(spec, "text", face), onFace(face, chain(RZ(turn),
+    return partExtrude(g.shapes, spec, "text", face, onFace(face, chain(RZ(turn),
       T(L.radius * Math.cos(a), L.radius * Math.sin(a), top),
       RZ(a + Math.PI / 2), S(L.em, L.em, 1), T(-g.center, 0, 0))), 4);
   })) : [];
@@ -696,7 +699,7 @@ function buildFront(lib: Library, role: Role, text: string, spec: TokenSpec, fac
 function buildFrame(spec: TokenSpec, face = topFace(spec)) {
   const design = frameDesign(spec);
   if (!design) return null;
-  return extrude(design.shapes, faceHeight(spec, "frame", face), onFace(face, T(0, 0, partZ(spec, "frame", face))), 24);
+  return partExtrude(design.shapes, spec, "frame", face, onFace(face, T(0, 0, partZ(spec, "frame", face))), 24);
 }
 
 /** Fits arbitrary shapes into a circle of radius r (used for uploaded SVGs). */
@@ -895,11 +898,11 @@ function buildWindowFace(lib: Library, role: Role, text: string, spec: TokenSpec
   const letters = W.lines.map((line) => {
     const shapes = lib.font.generateShapes(line.text, W.em);
     const box = boundsOf(shapes);
-    return extrude(shapes, faceHeight(spec, "text", face), onFace(face, T(-(box.min.x + box.max.x) / 2, line.y, partZ(spec, "text", face))), 4);
+    return partExtrude(shapes, spec, "text", face, onFace(face, T(-(box.min.x + box.max.x) / 2, line.y, partZ(spec, "text", face))), 4);
   });
   return {
     window, letters: merge(letters),
-    icon: extrude(I.shapes, faceHeight(spec, "icon", face), onFace(face, I.m), 5),
+    icon: partExtrude(I.shapes, spec, "icon", face, onFace(face, I.m), 5),
     name: { letterHeight: W.cap, scale: W.cap / spec.textSize, total: null, lines: W.lines.length },
   };
 }
@@ -1032,8 +1035,17 @@ function edgeRing(rOut: number, rIn: number, n: number) {
   return sh;
 }
 
-/** Filled shapes for the front frame and its inner edge, or null for none. */
+const frameDesigns = new Map<string, { shapes: THREE.Shape[]; inner: number } | null>();
+/** Filled shapes for the front frame and its inner edge, or null for none (the same ones for the same frame). */
 export function frameDesign(spec: TokenSpec): { shapes: THREE.Shape[]; inner: number } | null {
+  const key = `${spec.frame}|${spec.frameWidth}|${faceRadius(spec)}`;
+  if (!frameDesigns.has(key)) {
+    frameDesigns.set(key, makeFrameDesign(spec));
+    if (frameDesigns.size > 100) frameDesigns.delete(frameDesigns.keys().next().value!);
+  }
+  return frameDesigns.get(key)!;
+}
+function makeFrameDesign(spec: TokenSpec): { shapes: THREE.Shape[]; inner: number } | null {
   const w = spec.frameWidth, out = faceRadius(spec) - FRAME_INSET, edge = out - w;
   const rim = edgeRing(out, edge, coinSegments());
   let sh: THREE.Shape[] = [rim], inner = edge;
@@ -1436,7 +1448,7 @@ function simplifyLoop(p: Poly, tol: number): Poly {
 }
 
 /** Marching squares: the outlines where the grid's field crosses 0, as outlines with their holes (mm). */
-function traceField(F: Float32Array, W: number, H: number, x0: number, y0: number, px: number): Ring[] {
+function traceField(F: Float32Array, W: number, H: number, x0: number, y0: number, px: number, tol = 0.008): Ring[] {
   const adj = new Int32Array(2 * W * H * 2).fill(-1);
   const link = (e1: number, e2: number) => { adj[2 * e1 + (adj[2 * e1] < 0 ? 0 : 1)] = e2; adj[2 * e2 + (adj[2 * e2] < 0 ? 0 : 1)] = e1; };
   const Hid = (i: number, j: number) => 2 * (j * W + i), Vid = (i: number, j: number) => 2 * (j * W + i) + 1;
@@ -1471,7 +1483,7 @@ function traceField(F: Float32Array, W: number, H: number, x0: number, y0: numbe
       prev = cur; cur = next;
       if (cur < 0) break;
     }
-    if (loop.length >= 3) loops.push(simplifyLoop(loop, 0.008));
+    if (loop.length >= 3) loops.push(simplifyLoop(loop, tol));
   }
   // even depth: an outline; odd: a hole in the smallest outline round it
   const info = loops.map((l) => ({ l, box: boxOf(l), area: Math.abs(polyArea(l)) }));
@@ -1671,6 +1683,131 @@ const v2 = (q: Poly) => q.map(([x, y]) => new THREE.Vector2(x, y));
 const cutShapes = (cut: PatternCut) => cut.rings.map((r) => { const sh = new THREE.Shape(v2(r.outer)); sh.holes = r.holes.map((h) => new THREE.Path(v2(h))); return sh; });
 /** SVG path data for a pattern (fill-rule evenodd), flipped to SVG's y-down. */
 const cutPath = (cut: PatternCut) => cut.rings.flatMap((r) => [r.outer, ...r.holes]).map((q) => q.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(3)} ${(-y).toFixed(3)}`).join("") + "Z").join("");
+
+// ---------------------------------------------------------------- bevelled relief
+//
+// A raised part with a bevel (spec.reliefBevel, mm) has sloped walls, like a struck coin's: above
+// the face it is a stack of thin layers, each its outline grown inward a little more, up to the
+// bevel at the top. Gaps inside it keep their width at the face and open upward. No layer
+// overhangs the one under it, so it prints face-up without supports. A stroke never narrows past
+// BEVEL_MIN_TOP: where the part is narrower than twice the bevel plus that, its top keeps that
+// width (the bevel there is less), and what is narrower than that already keeps its straight walls.
+
+/** The least width (mm) a bevel leaves on top of a raised stroke. */
+export const BEVEL_MIN_TOP = 0.4;
+/** The bevel's layers (mm), a print layer each (the relief starts on one: the coin is whole
+ *  layers); the grid its outlines are worked out on, and how far they may stray from it once
+ *  simplified (a tenth of a nozzle: the frame's milling alone is thousands of corners a layer). */
+const BEVEL_STEP = 0.2, BEVEL_GRID = 0.05, BEVEL_TOL = 0.04;
+/** How far a raised part's top is inset (mm): 0 for straight walls (unset), on a face that is raised. */
+const bevelOf = (spec: TokenSpec, part: ReliefPart, face: Face) =>
+  face.flush || !reliefOf(spec)[part] || !reliefTop(spec) ? 0 : Math.max(0, spec.reliefBevel || 0);
+/** The volume of a bevelled part out of its face (mm³); a straight one's is its share of the prism. */
+const aboveOf = new WeakMap<THREE.BufferGeometry, number>();
+
+/**
+ * A face part's inlay: `shapes` placed by `m` (a similarity: scale, turn, mirror) and extruded
+ * through its face; when raised with a bevel, its relief in layers (bevelLayers).
+ */
+function partExtrude(shapes: THREE.Shape[], spec: TokenSpec, part: ReliefPart, face: Face, m: THREE.Matrix4, curveSegments = 5) {
+  const h = faceHeight(spec, part, face), b = bevelOf(spec, part, face);
+  if (!b || !shapes.length) return extrude(shapes, h, m, curveSegments);
+  const r = reliefTop(spec), d = h - r, e = m.elements, k = Math.sqrt(Math.abs(e[0] * e[5] - e[4] * e[1])) || 1;
+  const n = Math.max(1, Math.round(r / BEVEL_STEP)), step = r / n;
+  const layers = bevelLayers(shapes, b / k, BEVEL_MIN_TOP / k, BEVEL_GRID / k, n, curveSegments);
+  // the relief is local z [d, h] on the top face, [0, r] on the bottom one (its outside at 0)
+  const up = layers.map((l) => extrude(l.shapes, (l.to - l.from) * step, chain(m, T(0, 0, face.bottom ? r - l.to * step : d + l.from * step)), curveSegments));
+  const g = merge([extrude(shapes, d, face.bottom ? chain(m, T(0, 0, r)) : m, curveSegments), ...up]);
+  if (g) aboveOf.set(g, up.reduce((s, l) => s + geometryVolume(l), 0));
+  return g;
+}
+
+/** One block of a bevelled part's relief: its outline, from layer `from` up to (not with) `to`. */
+interface BevelLayer { shapes: THREE.Shape[]; from: number; to: number }
+const bevelCache = new WeakMap<THREE.Shape[], Map<string, BevelLayer[]>>();
+/**
+ * The outlines of a bevelled part's `n` layers (in its shapes' units: `b` the bevel, `minTop`
+ * the least top width, `px` the grid), each grown inward by its share of the bevel, i.e. where
+ * the signed distance to the part's edge is at least that inset, but never more than the part's
+ * local half-width less half of minTop: its half-width there being the largest disc inside the
+ * part that covers the point (worked out up to what can matter, the bevel plus half of minTop).
+ */
+function bevelLayers(shapes: THREE.Shape[], b: number, minTop: number, px: number, n: number, div: number): BevelLayer[] {
+  const key = [b, minTop, px, n, div].map((v) => v.toPrecision(6)).join("|");
+  let per = bevelCache.get(shapes);
+  if (!per) bevelCache.set(shapes, (per = new Map()));
+  if (per.has(key)) return per.get(key)!;
+  const rings = ringsOf(shapes, undefined, div);
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const r of rings) { const [a, c, e, f] = boxOf(r.outer); x0 = Math.min(x0, a); y0 = Math.min(y0, c); x1 = Math.max(x1, e); y1 = Math.max(y1, f); }
+  x0 -= 3 * px; y0 -= 3 * px;
+  const W = Math.ceil((x1 + 3 * px - x0) / px) + 1, H = Math.ceil((y1 + 3 * px - y0) / px) + 1, N = W * H;
+  const set = new Uint8Array(N), out = new Uint8Array(N);
+  rasterise(rings, set, W, H, x0, y0, px);
+  for (let q = 0; q < N; q++) out[q] = set[q] ? 0 : 1;
+  // signed distance to the edge (units): inside positive, the edge half a cell off a cell centre
+  const dIn = distanceTransform(out, W, H), dOut = distanceTransform(set, W, H), sd = new Float32Array(N);
+  for (let q = 0; q < N; q++) sd[q] = set[q] ? (dIn[q] - 0.5) * px : -(dOut[q] - 0.5) * px;
+  // local half-width, capped at rho: rho where a disc that wide fits (the part opened by rho)...
+  const rho = b + minTop / 2, hw = new Float32Array(N), core = new Uint8Array(N);
+  for (let q = 0; q < N; q++) if (sd[q] >= rho) core[q] = 1;
+  const dCore = distanceTransform(core, W, H);
+  for (let q = 0; q < N; q++) if (set[q] && dCore[q] * px <= rho + px / 2) hw[q] = rho;
+  // ...elsewhere the largest disc of a cell's own (one inside a neighbour's adds nothing)
+  for (let j = 1; j < H - 1; j++) for (let i = 1; i < W - 1; i++) {
+    const q = j * W + i, rq = sd[q];
+    if (rq <= 0 || rq >= rho) continue;
+    if (sd[q - 1] >= rq + px || sd[q + 1] >= rq + px || sd[q - W] >= rq + px || sd[q + W] >= rq + px
+      || sd[q - W - 1] >= rq + px * Math.SQRT2 || sd[q - W + 1] >= rq + px * Math.SQRT2 || sd[q + W - 1] >= rq + px * Math.SQRT2 || sd[q + W + 1] >= rq + px * Math.SQRT2) continue;
+    const c = rq / px + 0.5, ci = Math.ceil(c), c2 = c * c;
+    for (let dj = -ci; dj <= ci; dj++) {
+      const jj = j + dj; if (jj < 0 || jj >= H) continue;
+      for (let di = -ci; di <= ci; di++) {
+        const ii = i + di; if (ii < 0 || ii >= W || di * di + dj * dj > c2) continue;
+        const p = jj * W + ii; if (hw[p] < rq) hw[p] = rq;
+      }
+    }
+  }
+  const cap = new Float32Array(N);
+  for (let q = 0; q < N; q++) cap[q] = Math.max(0, Math.min(b, hw[q] - minTop / 2));
+  // Each piece stops changing at the layer that reaches its largest inset: from there up it is
+  // one block (a thin piece, one block from the face up), not a pile of the same outline.
+  const comp = new Int32Array(N).fill(-1), last: number[] = [], stack = new Int32Array(N);
+  for (let q0 = 0; q0 < N; q0++) {
+    if (!set[q0] || comp[q0] >= 0) continue;
+    const c = last.length;
+    let top = 0, most = 0;
+    comp[q0] = c; stack[top++] = q0;
+    while (top) {
+      const q = stack[--top], i = q % W;
+      if (cap[q] > most) most = cap[q];
+      for (const dq of [-1, 1, -W, W, -W - 1, -W + 1, W - 1, W + 1]) {
+        const o = q + dq;
+        if (o < 0 || o >= N || Math.abs((o % W) - i) > 1 || !set[o] || comp[o] >= 0) continue;
+        comp[o] = c; stack[top++] = o;
+      }
+    }
+    last.push(Math.min(n - 1, Math.max(0, Math.ceil((most * n) / b - 1e-6) - 1)));
+  }
+  // outlines anticlockwise, holes clockwise: ExtrudeGeometry only puts the holes right with that
+  const turn = (q: Poly, ccw: boolean) => (polyArea(q) > 0 === ccw ? q : [...q].reverse());
+  const F = new Float32Array(N), layers: BevelLayer[] = [];
+  for (let i = 0; i < n; i++) {
+    const s = (b * (i + 1)) / n;
+    // the pieces still sloping past this layer (one layer tall), and those whose top it is (to the top)
+    for (const top of [false, true]) {
+      if (!last.some((e) => (top ? e === i : e > i))) continue;
+      for (let q = 0; q < N; q++) {
+        const c = comp[q];
+        F[q] = c < 0 ? sd[q] : (top ? last[c] === i : last[c] > i) ? sd[q] - Math.min(s, cap[q]) : -px;
+      }
+      const shapes = traceField(F, W, H, x0, y0, px, (px * BEVEL_TOL) / BEVEL_GRID).map((r) => { const sh = new THREE.Shape(v2(turn(r.outer, true))); sh.holes = r.holes.map((h) => new THREE.Path(v2(turn(h, false)))); return sh; });
+      if (shapes.length) layers.push({ shapes, from: i, to: top ? n : i + 1 });
+    }
+  }
+  per.set(key, layers);
+  return layers;
+}
 
 /**
  * Medallion back: a fine rim, and a medallion in the centre (its own fine ring) with a crescent
@@ -2135,13 +2272,13 @@ function buildRing(lib: Library, role: Role, input: SpecInput | undefined, text?
   const L = ringLayout(lib, text, spec), H = spec.height, top = H - spec.depth;
   const letters = L.letters.map(({ ch, a }) => {
     const g = glyph(lib, ch), r = THREE.MathUtils.degToRad(a);
-    return extrude(g.shapes, inlayHeight(spec, "text"), chain(T(L.base * Math.cos(r), L.base * Math.sin(r), top), RZ(r - Math.PI / 2), S(L.em, L.em, 1), T(-g.center, 0, 0)), 4);
+    return partExtrude(g.shapes, spec, "text", topFace(spec), chain(T(L.base * Math.cos(r), L.base * Math.sin(r), top), RZ(r - Math.PI / 2), S(L.em, L.em, 1), T(-g.center, 0, 0)), 4);
   });
-  const dots = L.sep === "dot" ? extrude(L.dots.map((a) => disc(L.dot, ...ptXY(L.mid, THREE.MathUtils.degToRad(a)))), inlayHeight(spec, "text"), T(0, 0, top), 8)
-    : L.sep === "none" ? null : extrude(ringMarks(L), inlayHeight(spec, "text"), T(0, 0, top), 1);
+  const dots = L.sep === "dot" ? partExtrude(L.dots.map((a) => disc(L.dot, ...ptXY(L.mid, THREE.MathUtils.degToRad(a)))), spec, "text", topFace(spec), T(0, 0, top), 8)
+    : L.sep === "none" ? null : partExtrude(ringMarks(L), spec, "text", topFace(spec), T(0, 0, top), 1);
   const front = merge([...letters, dots]);
-  const frame = L.line ? extrude(ringLines(L), inlayHeight(spec, "frame"), T(0, 0, top), 64) : null;
-  const R = reliefOf(spec), r = reliefTop(spec), above = (g: THREE.BufferGeometry | null) => (g && r ? geometryVolume(g) * r / (spec.depth + r) : 0);
+  const frame = L.line ? partExtrude(ringLines(L), spec, "frame", topFace(spec), T(0, 0, top), 64) : null;
+  const R = reliefOf(spec), r = reliefTop(spec), above = (g: THREE.BufferGeometry | null) => (g && r ? aboveOf.get(g) ?? geometryVolume(g) * r / (spec.depth + r) : 0);
   return {
     parts: { base: extrude([annulus(L.outer, L.inner)], H, T(0, 0, 0), 64), front, icon: null, frame, back: null },
     colours: { ...partColours(role, spec), hole: "#0b090c" },
@@ -2351,7 +2488,7 @@ export function buildToken(lib: Library, role: Role, input: SpecInput | undefine
   // Background patterns join the part whose colour they are (patternPart; the back's on the back).
   const fp = frontPattern(lib, role, spec, text), fpPart = fp ? patternPart(role, spec) : null;
   const fpRelief: ReliefPart = fpPart === "frame" ? "frame" : "text";
-  const fpGeom = fp ? extrude(cutShapes(fp), faceHeight(spec, fpRelief, topFace(spec)), T(0, 0, partZ(spec, fpRelief, topFace(spec))), 1) : null;
+  const fpGeom = fp ? partExtrude(cutShapes(fp), spec, fpRelief, topFace(spec), T(0, 0, partZ(spec, fpRelief, topFace(spec))), 1) : null;
   const frontName = fpPart === "front" ? merge([front.name, fpGeom]) : front.name;
   const frameAll = fpPart === "frame" ? merge([frame, fpGeom]) : frame;
   // A back that is a face is drawn like a front on the bottom face (backFaceOf: the front again,
@@ -2362,7 +2499,7 @@ export function buildToken(lib: Library, role: Role, input: SpecInput | undefine
   const backFrame = backSpec ? buildFrame(backSpec, bottomFace(backUp)) : null;
   // The relief out of each face, per part (mm³): each raised element is a prism standing
   // `depth` into the coin and `relief` out of it, so that share of its volume.
-  const R = reliefOf(spec), B = reliefOf(backSpec), r = reliefTop(spec), above = (g: THREE.BufferGeometry | null | undefined) => (g && r ? geometryVolume(g) * r / (spec.depth + r) : 0);
+  const R = reliefOf(spec), B = reliefOf(backSpec), r = reliefTop(spec), above = (g: THREE.BufferGeometry | null | undefined) => (g && r ? aboveOf.get(g) ?? geometryVolume(g) * r / (spec.depth + r) : 0);
   // The window's icon is in the coin colour, over the window; the classic one in the team
   // colour like the name. Either is its own part, raised or not; on a back face likewise.
   const iconColour = window ? colours.icon : colours.front;
@@ -2403,8 +2540,9 @@ function coinSvg(spec: TokenSpec, fill: string) {
   if (!o) return `<circle r="${spec.diameter / 2}" fill="${fill}"/>`;
   return `<path fill="${fill}" d="M${o.map(([x, y]) => `${x.toFixed(2)} ${(-y).toFixed(2)}`).join("L")}Z"/>`;
 }
-function reliefFilter(id: string) {
+function reliefFilter(id: string, bevel = 0) {
   const s = 0.32, sh = 0.42;
+  if (bevel > 0) return bevelFilter(id, bevel, sh);
   return `<defs><filter id="${id}" x="-10%" y="-10%" width="120%" height="120%" color-interpolation-filters="sRGB">`
     + `<feOffset in="SourceAlpha" dx="${sh}" dy="${sh}" result="o"/><feGaussianBlur in="o" stdDeviation="0.18" result="ob"/>`
     + `<feFlood flood-color="#000" flood-opacity=".6"/><feComposite in2="ob" operator="in" result="cast"/>`
@@ -2412,6 +2550,31 @@ function reliefFilter(id: string) {
     + `<feFlood flood-color="#fff" flood-opacity=".55"/><feComposite in2="ul" operator="in" result="hi"/>`
     + `<feOffset in="SourceAlpha" dx="${-s}" dy="${-s}" result="ur"/><feComposite in="SourceAlpha" in2="ur" operator="out" result="lr"/>`
     + `<feFlood flood-color="#000" flood-opacity=".4"/><feComposite in2="lr" operator="in" result="lo"/>`
+    + `<feMerge><feMergeNode in="cast"/><feMergeNode in="SourceGraphic"/><feMergeNode in="hi"/><feMergeNode in="lo"/></feMerge></filter></defs>`;
+}
+
+/**
+ * The relief shading of a bevelled relief: its sloped walls a soft band, lit up-left and shaded
+ * down-right, as wide as the bevel (the slope of the part's blurred silhouette, so a stroke too
+ * thin for a flat top shows rounded), and the same cast shadow. The flat top stays its colour.
+ */
+function bevelFilter(id: string, bevel: number, sh: number) {
+  const blur = Math.max(0.12, bevel * 0.5), o = Math.max(0.1, bevel * 0.45), k = 2, s = 0.32;
+  return `<defs><filter id="${id}" x="-10%" y="-10%" width="120%" height="120%" color-interpolation-filters="sRGB">`
+    + `<feOffset in="SourceAlpha" dx="${sh}" dy="${sh}" result="o"/><feGaussianBlur in="o" stdDeviation="0.18" result="ob"/>`
+    + `<feFlood flood-color="#000" flood-opacity=".6"/><feComposite in2="ob" operator="in" result="cast"/>`
+    // the slope: where the blurred silhouette rises toward the light, and where it falls away
+    + `<feGaussianBlur in="SourceAlpha" stdDeviation="${blur.toFixed(3)}" result="b"/>`
+    + `<feOffset in="b" dx="${(-o).toFixed(3)}" dy="${(-o).toFixed(3)}" result="bu"/><feOffset in="b" dx="${o.toFixed(3)}" dy="${o.toFixed(3)}" result="bd"/>`
+    + `<feComposite in="bu" in2="b" operator="arithmetic" k2="${k}" k3="${-k}" result="u"/>`
+    + `<feComposite in="bd" in2="b" operator="arithmetic" k2="${k}" k3="${-k}" result="d"/>`
+    // and a fine rim at the foot, so the outline stays crisp
+    + `<feOffset in="SourceAlpha" dx="${s}" dy="${s}" result="dr"/><feComposite in="SourceAlpha" in2="dr" operator="out" result="ru"/>`
+    + `<feOffset in="SourceAlpha" dx="${-s}" dy="${-s}" result="ur"/><feComposite in="SourceAlpha" in2="ur" operator="out" result="rd"/>`
+    + `<feMerge result="up"><feMergeNode in="u"/><feMergeNode in="ru"/></feMerge><feComposite in="up" in2="SourceAlpha" operator="in" result="ul"/>`
+    + `<feMerge result="dn"><feMergeNode in="d"/><feMergeNode in="rd"/></feMerge><feComposite in="dn" in2="SourceAlpha" operator="in" result="lr"/>`
+    + `<feFlood flood-color="#fff" flood-opacity=".65"/><feComposite in2="ul" operator="in" result="hi"/>`
+    + `<feFlood flood-color="#000" flood-opacity=".45"/><feComposite in2="lr" operator="in" result="lo"/>`
     + `<feMerge><feMergeNode in="cast"/><feMergeNode in="SourceGraphic"/><feMergeNode in="hi"/><feMergeNode in="lo"/></feMerge></filter></defs>`;
 }
 
@@ -2490,7 +2653,7 @@ export function tokenSvg(lib: Library, role: Role, input: SpecInput | undefined,
     if (spec.back === "seal" && lib.sealSvg) body += `<g fill="${c.back}" transform="scale(${spec.diameter / TRACE_VIEW}) translate(${-TRACE_VIEW / 2} ${-TRACE_VIEW / 2})">${lib.sealSvg.replace(/^[\s\S]*?<g /, "<g ").replace(/fill="#000000"/, "").replace(/<\/svg>\s*$/, "")}</g>`;
     else if (back && !designed) body += `<text y="1.5" text-anchor="middle" font-size="5" fill="${c.back}" font-family="${LETTERING.family}">${esc(back === "Name" ? label.toUpperCase() : back.toUpperCase())}</text>`;
   }
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${-R - 0.5} ${-R - 0.5} ${spec.diameter + 1} ${spec.diameter + 1}" role="img" aria-label="${esc(label)} token">${raised ? reliefFilter(rid) : ""}${coinSvg(spec, c.base)}${body}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${-R - 0.5} ${-R - 0.5} ${spec.diameter + 1} ${spec.diameter + 1}" role="img" aria-label="${esc(label)} token">${raised ? reliefFilter(rid, spec.reliefBevel) : ""}${coinSvg(spec, c.base)}${body}</svg>`;
 }
 
 /** Offers a file to the viewer: claude.ai's downloads capability, or a plain download. */

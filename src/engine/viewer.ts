@@ -132,6 +132,8 @@ export function createViewer(canvas: HTMLCanvasElement, { background = null }: {
     setXray(on: boolean) { xray = on; applyXray(); },
     setView,
     controls,
+    /** The scene, for a page that lights it its own way (the prototypes' raking light). */
+    scene,
     dispose() { running = false; renderer.dispose(); },
   };
 }
