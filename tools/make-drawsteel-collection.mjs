@@ -103,6 +103,19 @@ const styles = {
       spec: { style: "classic", frame: "acunado", frameWidth: 0.8, back: "escudo", backText: "collection", depth: 0.4, colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.silver },
         frontPattern: { id: "escamas", scale: 4.4, line: 0.6, halo: 0.8, colour: "frame" },
         backPattern: { id: "escamas-relleno", scale: 3.4, line: 0.7, halo: 0.8 } } },
+    // Quartered: two opposite quarters of the face in the group colour, the icon and name in white
+    // over them (halo); on the back, quartered in white round a small shield and the collection's name
+    { id: "blason-cuartelado", name: { es: "Blasón cuartelado", en: "Quartered blazon" },
+      help: { es: "Negra, cuartelada: dos cuarteles del color del grupo con el icono y el nombre en blanco; al reverso, cuartelada en blanco con un escudete y «Draw Steel».", en: "Black, quartered: two quarters in the group colour with the icon and name in white; on the back, quartered in white with a small shield and «Draw Steel»." },
+      spec: { style: "classic", frame: "rim", frameWidth: 0.8, back: "escudete", backText: "collection", depth: 0.4, colours: { base: FILAMENTS.black, front: FILAMENTS.white, frame: "team", back: FILAMENTS.white },
+        frontPattern: { id: "cuartelado", line: 0.7, halo: 0.8, colour: "frame" },
+        backPattern: { id: "cuartelado", line: 0.7, halo: 0.8 } } },
+    // Checkered: a checkerboard in the group colour behind the face (icon and name in white); silver on the back
+    { id: "blason-damero", name: { es: "Blasón damero", en: "Checkered blazon" },
+      help: { es: "Negra, con un damero del color del grupo detrás del icono y el nombre en blanco; al reverso, damero de plata con un escudete y «Draw Steel».", en: "Black, with a checkerboard in the group colour behind the icon and the name in white; on the back, a silver checkerboard with a small shield and «Draw Steel»." },
+      spec: { style: "classic", frame: "rim", frameWidth: 0.8, back: "escudete", backText: "collection", depth: 0.4, colours: { base: FILAMENTS.black, front: FILAMENTS.white, frame: "team", back: FILAMENTS.silver },
+        frontPattern: { id: "damero", scale: 5, line: 0.7, halo: 0.8, colour: "frame" },
+        backPattern: { id: "damero", scale: 5, line: 0.7, halo: 0.8 } } },
     { id: "legible", name: { es: "Legible", en: "Legible" }, help: { es: "Ventana del color del grupo con el icono y el nombre grande debajo.", en: "A window in the group colour with the icon, and the name large below." },
       spec: { style: "window", textSize: 6, frame: "none", back: "edition", depth: 0.4, colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } }, hidden: true },
   ],
