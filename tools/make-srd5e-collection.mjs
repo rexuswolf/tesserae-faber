@@ -48,7 +48,7 @@ const CONDITIONS = [
   ["paralyzed", { en: "Paralyzed", es: "Paralizado" }, "frozen-body", C.blue],
   ["petrified", { en: "Petrified", es: "Petrificado" }, "stone-bust", C.silver],
   ["poisoned", { en: "Poisoned", es: "Envenenado" }, "poison-bottle", C.green],
-  ["prone", { en: "Prone", es: "Derribado" }, "falling", C.bronze],
+  ["prone", { en: "Prone", es: "Tumbado" }, "falling", C.bronze],
   ["restrained", { en: "Restrained", es: "Apresado" }, "spider-web", C.bronze],
   ["stunned", { en: "Stunned", es: "Aturdido" }, "knocked-out-stars", C.yellow],
   ["unconscious", { en: "Unconscious", es: "Inconsciente" }, "night-sleep", C.blue],
@@ -70,17 +70,17 @@ const TWO_STATE = [
 ];
 // in the fight: each with its colour, over the group's red
 const COMBAT = [
-  ["bloodied", { en: "Bloodied", es: "Malherido" }, "bleeding-heart", C.red],
+  ["bloodied", { en: "Bloodied", es: "Ensangrentado" }, "bleeding-heart", C.red],
   ["dead", { en: "Dead", es: "Muerto" }, "dead-head", C.bone],
-  ["hidden", { en: "Hidden", es: "Escondido" }, "cowled", C.purple],
-  ["dodging", { en: "Dodging", es: "Esquivando" }, "dodging", C.blue],
+  ["hidden", { en: "Hidden", es: "Esconderse" }, "cowled", C.purple],
+  ["dodging", { en: "Dodging", es: "Esquivar" }, "dodging", C.blue],
   ["flying", { en: "Flying", es: "Volando" }, "feathered-wing", C.bone],
 ];
 // spells' effects on a creature: the ones that help (green) and the ones that hinder (purple)
 const BOONS = [
-  ["bless", { en: "Bless", es: "Bendición" }, "holy-symbol"],
+  ["bless", { en: "Bless", es: "Bendecir" }, "holy-symbol"],
   ["haste", { en: "Haste", es: "Acelerar" }, "wingfoot"],
-  ["shield-of-faith", { en: "Shield of Faith", es: "Escudo de fe" }, "templar-shield"],
+  ["shield-of-faith", { en: "Shield of Faith", es: "Escudo de la fe" }, "templar-shield"],
   ["sanctuary", { en: "Sanctuary", es: "Santuario" }, "angel-wings"],
 ];
 const BANES = [
