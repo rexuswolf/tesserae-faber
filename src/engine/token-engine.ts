@@ -65,6 +65,7 @@ export const BACK_STYLES = [
   { id: "eclipse", label: "Eclipse" },
   { id: "orbitas", label: "Orbits" },
   { id: "edition", label: "Edition" },
+  { id: "medallon", label: "Medallion" },
   { id: "custom", label: "Your SVG" },
 ];
 
@@ -1261,15 +1262,18 @@ const boxOf = (p: Poly) => {
   return [x0, y0, x1, y1];
 };
 
+/** What a pattern's fields are when it leaves them out: a rhombus's width, the line (the gap between cells) and the halo (mm). */
+export const patternDefaults = (id: PatternId) => (id === "damero-rombos" ? { scale: 3, line: 0.7, halo: PATTERN_HALO } : { scale: 3.2, line: PATTERN_MIN, halo: PATTERN_HALO });
+
 /**
  * A pattern as a signed distance (mm, positive inside), centred on the coin, and how wide its
  * lines (or cells) and the gaps between them come out. `scale` is a rhombus's width, its height
  * HARLEQUIN times that.
  */
 function patternField(p: PatternSpec) {
-  const cells = p.id === "damero-rombos";
-  const a = Math.max(1.5, p.scale ?? (cells ? 3 : 3.2)), b = a * HARLEQUIN, s = Math.hypot(a / 2, b / 2), h = (a * b) / (4 * s);
-  const line = Math.max(PATTERN_MIN, p.line ?? (cells ? 0.7 : PATTERN_MIN));
+  const cells = p.id === "damero-rombos", d = patternDefaults(p.id);
+  const a = Math.max(1.5, p.scale ?? d.scale), b = a * HARLEQUIN, s = Math.hypot(a / 2, b / 2), h = (a * b) / (4 * s);
+  const line = Math.max(PATTERN_MIN, p.line ?? d.line);
   if (cells) {
     // a checkerboard of rhombi a wide and b tall: the filled ones on a grid (a, b), each shrunk so
     // that where two meet at a corner `line` of coin shows between them (more at the taller corners)
@@ -1406,15 +1410,41 @@ function rasterise(rings: Ring[], set: Uint8Array, W: number, H: number, x0: num
 interface PatternCut { rings: Ring[]; line: number; width: number; gap: number; halo: number; minPiece: number; ink: Ring[] }
 
 /**
- * A pattern over a coin of radius R, behind `ink` (what sits on it): the pattern where it is at
- * least the halo away from the ink and PATTERN_EDGE inside the coin's edge, opened so nothing in it
- * is thinner than PATTERN_MIN, pieces smaller than that left out.
+ * Fills `solid` into the grid as its silhouette: each outline without its holes, and whatever it
+ * walls in once grown by the halo (a gap between wings and a tail, say) — the cells more than the
+ * halo from it that can't be reached from the grid's edge without coming nearer.
  */
-function cutPattern(p: PatternSpec, R: number, ink: Ring[]): PatternCut {
+function fillSolid(solid: Ring[], set: Uint8Array, W: number, H: number, x0: number, px: number, halo: number) {
+  const N = W * H, s = new Uint8Array(N);
+  rasterise(solid.map((r) => ({ outer: r.outer, holes: [] })), s, W, H, x0, x0, px);
+  const d = distanceTransform(s, W, H), open = (k: number) => d[k] * px > halo + px;
+  const out = new Uint8Array(N), stack = new Int32Array(N);
+  let top = 0;
+  const push = (k: number) => { if (!out[k] && open(k)) { out[k] = 1; stack[top++] = k; } };
+  for (let i = 0; i < W; i++) { push(i); push((H - 1) * W + i); }
+  for (let j = 0; j < H; j++) { push(j * W); push(j * W + W - 1); }
+  while (top) {
+    const k = stack[--top], i = k % W;
+    if (i > 0) push(k - 1);
+    if (i < W - 1) push(k + 1);
+    if (k >= W) push(k - W);
+    if (k < N - W) push(k + W);
+  }
+  for (let k = 0; k < N; k++) if (s[k] || (!out[k] && open(k))) set[k] = 1;
+}
+
+/**
+ * A pattern over a coin of radius R, behind `ink` (what sits on it) and `solid` (what sits on it
+ * as a silhouette: the icon, its holes and what it walls in filled; see fillSolid): the pattern
+ * where it is at least the halo away from them and PATTERN_EDGE inside the coin's edge, opened so
+ * nothing in it is thinner than PATTERN_MIN, pieces smaller than that left out.
+ */
+function cutPattern(p: PatternSpec, R: number, ink: Ring[], solid: Ring[] = []): PatternCut {
   const P = patternField(p), halo = Math.max(PATTERN_MIN, p.halo ?? PATTERN_HALO), px = PATTERN_GRID, rho = PATTERN_MIN / 2;
   const x0 = -R - 2 * px, W = Math.ceil((2 * R + 4 * px) / px) + 1, H = W, N = W * H;
   const inkSet = new Uint8Array(N);
   rasterise(ink, inkSet, W, H, x0, x0, px);
+  if (solid.length) fillSolid(solid, inkSet, W, H, x0, px, halo);
   const dInk = distanceTransform(inkSet, W, H);
   const F = new Float32Array(N), core = new Uint8Array(N), rOut = R - PATTERN_EDGE;
   for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
@@ -1446,7 +1476,7 @@ function cutPattern(p: PatternSpec, R: number, ink: Ring[]): PatternCut {
     if (2 * peak < PATTERN_MIN - 0.03) for (const k of members) F[k] = -px;
     else minPiece = Math.min(minPiece, 2 * peak);
   }
-  return { rings: traceField(F, W, H, x0, x0, px), line: P.line, width: P.width, gap: P.gap, halo, minPiece, ink };
+  return { rings: traceField(F, W, H, x0, x0, px), line: P.line, width: P.width, gap: P.gap, halo, minPiece, ink: [...ink, ...solid] };
 }
 
 const patternCuts = new Map<string, PatternCut | null>();
@@ -1462,16 +1492,12 @@ const cached = (key: string, make: () => PatternCut | null) => {
 const ringsOf = (shapes: THREE.Shape[], m: (x: number, y: number) => Pt = (x, y) => [x, y], div = 8): Ring[] =>
   shapes.map((sh) => ({ outer: sh.getPoints(div).map((q) => m(q.x, q.y)), holes: sh.holes.map((hp) => hp.getPoints(div).map((q) => m(q.x, q.y))) }));
 
-/** What the front draws over its pattern: the icon, the name (each, if twice) and the frame (mm). */
-function frontInk(lib: Library, role: Role, spec: TokenSpec, text: string): Ring[] {
+/** What the front draws over its pattern: the name (each, if twice) and the frame, and the icon as a silhouette (mm). */
+function frontInk(lib: Library, role: Role, spec: TokenSpec, text: string): { ink: Ring[]; solid: Ring[] } {
   const shapes = iconShapes(lib, role, spec), ink: Ring[] = [];
-  if (fitsIcon(spec)) {
-    const f = fittedIcon(lib, role, spec, text);
-    ink.push(...ringsOf(shapes, (x, y) => [(x - f.cx) * f.k, -(y - f.cy) * f.k + f.dy], 4));
-  } else {
-    const k = (spec.diameter * spec.iconScale) / TRACE_VIEW, off = spec.iconOffsetY || 0;
-    ink.push(...ringsOf(shapes, (x, y) => [k * (x - TRACE_VIEW / 2), -k * (y - TRACE_VIEW / 2) + off], 4));
-  }
+  const solid = fitsIcon(spec)
+    ? ((f) => ringsOf(shapes, (x, y) => [(x - f.cx) * f.k, -(y - f.cy) * f.k + f.dy], 4))(fittedIcon(lib, role, spec, text))
+    : ((k, off) => ringsOf(shapes, (x, y) => [k * (x - TRACE_VIEW / 2), -k * (y - TRACE_VIEW / 2) + off], 4))((spec.diameter * spec.iconScale) / TRACE_VIEW, spec.iconOffsetY || 0);
   const L = arcName(lib, text, spec);
   if (L) for (const turn of nameTurns(spec)) L.chars.forEach((ch, i) => {
     if (ch === " ") return;
@@ -1483,28 +1509,35 @@ function frontInk(lib: Library, role: Role, spec: TokenSpec, text: string): Ring
   });
   const fd = frameDesign(spec);
   if (fd) ink.push(...ringsOf(fd.shapes, undefined, 24));
-  return ink;
+  return { ink, solid };
 }
 
-/** What a back design draws over the back's pattern (mm, as seen with the coin turned over). */
+/**
+ * What a back design draws over the back's pattern (mm, as seen with the coin turned over), each
+ * shape's holes filled but for a ring's (a hole most of its outline: the pattern runs inside a
+ * medallion's ring, not inside a letter or a moon).
+ */
 function backInk(lib: Library, role: Role, spec: TokenSpec): Ring[] {
   const shapes = spec.back === "medallon" ? medallionBack(lib, role, spec) : spec.back === "edition" ? editionBack(lib, role, spec) : backDesign(spec.back, spec.diameter / 2);
-  return ringsOf(shapes ?? [], undefined, 24);
+  return ringsOf(shapes ?? [], undefined, 24).map((r) => {
+    const a = Math.abs(polyArea(r.outer));
+    return { outer: r.outer, holes: r.holes.filter((h) => Math.abs(polyArea(h)) > 0.6 * a) };
+  });
 }
 
 /** The front's pattern, behind the icon, the name and the frame; null for none (or the window layout). */
 function frontPattern(lib: Library, role: Role, spec: TokenSpec, text: string): PatternCut | null {
   const p = spec.frontPattern;
-  if (!p || !PATTERN_IDS.has(p.id) || spec.style === "window") return null;
+  if (!p || !PATTERN_IDS.has(p.id) || spec.style === "window" || !SHAPE_FEATURES[shapeOf(role)].pattern) return null;
   const key = ["front", JSON.stringify({ ...p, colour: null }), iconOf(role, spec).key, text, spec.style, spec.diameter, spec.textSize, spec.spacing, spec.margin, spec.maxArc,
     spec.frame, spec.frameWidth, spec.iconScale, spec.iconOffsetY, JSON.stringify(spec.autoText ?? null)].join("|");
-  return cached(key, () => cutPattern(p, spec.diameter / 2, frontInk(lib, role, spec, text)));
+  return cached(key, () => { const { ink, solid } = frontInk(lib, role, spec, text); return cutPattern(p, spec.diameter / 2, ink, solid); });
 }
 
 /** The back's pattern, behind its design; null for none (or a back that is a face). */
 function backPattern(lib: Library, role: Role, spec: TokenSpec): PatternCut | null {
   const p = spec.backPattern;
-  if (!p || !PATTERN_IDS.has(p.id) || spec.back === FACE_BACK) return null;
+  if (!p || !PATTERN_IDS.has(p.id) || spec.back === FACE_BACK || !SHAPE_FEATURES[shapeOf(role)].pattern) return null;
   const ed = EDITIONS[role.edition] ? role.edition : role.editionName ?? "";
   const key = ["back", JSON.stringify(p), spec.back, spec.back === "custom" ? spec.customSvg : "", ed, spec.lang, spec.diameter].join("|");
   return cached(key, () => cutPattern(p, spec.diameter / 2, backInk(lib, role, spec)));
@@ -1975,17 +2008,19 @@ export interface ShapeFeatures {
   separator: boolean;
   /** Its frame can be only its corners ("corners", a card's). */
   corners: boolean;
+  /** A background pattern behind its faces (frontPattern, backPattern). */
+  pattern: boolean;
 }
 export const SHAPE_FEATURES: Record<TokenShape, ShapeFeatures> = {
   // A coin has everything the workshop offers (some layouts leave a control out: see main.ts).
-  coin: { layout: true, icon: true, textSize: true, spacing: true, maxArc: true, frame: "designs", relief: ["text", "frame", "icon"], back: true, magnet: true, diameter: true, ringBase: false, flip: true, separator: false, corners: false },
+  coin: { layout: true, icon: true, textSize: true, spacing: true, maxArc: true, frame: "designs", relief: ["text", "frame", "icon"], back: true, magnet: true, diameter: true, ringBase: false, flip: true, separator: false, corners: false, pattern: true },
   // A card (85 × 55 mm, Clocktower's Grimoire): the phrase as large as fits, the frame a line
   // inside the edge, both flush (cardSpec); no icon, back or magnet.
-  card: { layout: false, icon: false, textSize: false, spacing: false, maxArc: false, frame: "line", relief: [], back: false, magnet: false, diameter: false, ringBase: false, flip: false, separator: false, corners: true },
+  card: { layout: false, icon: false, textSize: false, spacing: false, maxArc: false, frame: "line", relief: [], back: false, magnet: false, diameter: false, ringBase: false, flip: false, separator: false, corners: true, pattern: false },
   // A condition ring: the name round and round at the height asked for (as far as its band
   // allows, ringBand), a fine line along each edge, either raised (ringSpec); no icon, back or
   // magnet, and sized by its base.
-  ring: { layout: false, icon: false, textSize: true, spacing: true, maxArc: false, frame: "line", relief: ["text", "frame"], back: false, magnet: false, diameter: false, ringBase: true, flip: false, separator: true, corners: false },
+  ring: { layout: false, icon: false, textSize: true, spacing: true, maxArc: false, frame: "line", relief: ["text", "frame"], back: false, magnet: false, diameter: false, ringBase: true, flip: false, separator: true, corners: false, pattern: false },
 };
 export const shapeOf = (role: Role | null | undefined): TokenShape => (isCard(role) ? "card" : isRing(role) ? "ring" : "coin");
 

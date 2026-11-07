@@ -3,7 +3,7 @@ import {
   loadLibrary, buildToken, geometryVolume, magnetLayout, MAGNET_SIZES, tokenSvg, roleName, saveFile, reminderSpec, layoutName, nameLetterHeight, SMALL_LETTERS_MM,
   TEAMS, EDITIONS, FRAME_STYLES, BACK_STYLES, TOKEN_STYLES, FILAMENTS, DEFAULT_SPEC, CARD, isCard, ringSize, ringBand, RING_BASES, RING_SEPARATORS,
   SHAPE_FEATURES, shapeOf, shapeSpec, flipFace, FACE_FIELDS, backFaceOf, partColours,
-  normalizeSpec, reliefOf, hasRelief,
+  normalizeSpec, reliefOf, hasRelief, PATTERNS, patternDefaults, PATTERN_MIN,
 } from "./engine/token-engine.ts";
 /** The face parts that can be raised, in the order a back that matches the front lists them. */
 const RELIEF_PARTS: ReliefPart[] = ["text", "frame", "icon"];
@@ -34,7 +34,7 @@ import type { PaperSize, SheetSlot } from "./pdf/layout.ts";
 import type { Viewer, ViewKind } from "./engine/viewer.ts";
 import type { User } from "firebase/auth";
 import type {
-  BackFace, BackMode, ColourRef, Hex, Library, MagnetLayout, PartName, PlanToken, PlateItem, PlatePlan, QueueEntry, ReliefPart, Role, SpecColours,
+  BackFace, BackMode, ColourRef, Hex, Library, MagnetLayout, PartName, PatternSpec, PlanToken, PlateItem, PlatePlan, QueueEntry, ReliefPart, Role, SpecColours,
   LookChanges, MyDesign, SpecInput, Style, Team, Token, TokenIcon, TokenOverride, TokenShape, TokenSpec, TokenStyle, Volumes,
 } from "./types.ts";
 
@@ -99,7 +99,7 @@ interface Selection { key: string; role: Role; reminder: number | null }
 interface SavedDesign { id: string; roleId: string; text: string | null; fem: boolean; spec: TokenSpec; title: string; updatedAt: number; shape?: TokenShape }
 /** The workshop's tabs: level 1, the token's parts ("body" is the coin, ring or card itself); level 2, a face's. */
 type Part = "front" | "back" | "body" | "magnet";
-type FaceTab = "layout" | "text" | "icon" | "frame";
+type FaceTab = "layout" | "text" | "icon" | "frame" | "pattern";
 type Side = "front" | "back";
 
 /** A token being made (own collections): a draft of it, the shape chosen, its catalogs. */
@@ -1665,9 +1665,10 @@ const partsOf = (shape: TokenShape): Part[] => {
   return ["front", ...(f.back ? ["back" as const] : []), "body", ...(f.magnet ? ["magnet" as const] : [])];
 };
 /** A face's tabs (level 2): the layout only where there's more than one, the icon where the shape has one. */
-const faceTabsOf = (shape: TokenShape): FaceTab[] => {
+const faceTabsOf = (shape: TokenShape, side: Side = "front"): FaceTab[] => {
   const f = SHAPE_FEATURES[shape];
-  return [...(f.layout ? ["layout" as const] : []), "text", ...(f.icon ? ["icon" as const] : []), "frame"];
+  // the background pattern: the front's (a back face has none; a back design's is in BACK)
+  return [...(f.layout ? ["layout" as const] : []), "text", ...(f.icon ? ["icon" as const] : []), "frame", ...(f.pattern && side === "front" ? ["pattern" as const] : [])];
 };
 /** The open level-1 tab of the type being edited (one it has). */
 function openPart(): Part {
@@ -1681,7 +1682,7 @@ const editSide = (): Side => (openPart() === "back" ? "back" : "front");
 function openPanel(): string {
   const part = openPart(), shape = editShape();
   if (part === "front" || (part === "back" && editLook().backMode === "own")) {
-    const side = part === "back" ? "back" : "front", tabs = faceTabsOf(shape);
+    const side = part === "back" ? "back" : "front", tabs = faceTabsOf(shape, side);
     if (!tabs.includes(state.faceTab[side])) state.faceTab[side] = tabs[0];
     return state.faceTab[side];
   }
@@ -2019,7 +2020,7 @@ function renderTabs(role: Role, spec: TokenSpec) {
   $("#parts").innerHTML = partsOf(shape).map((p) => `<button type="button" role="tab" data-part="${p}" aria-selected="${p === part}">${esc(p === "body" ? t(`part.body.${shape}`) : t(`part.${p}`))}</button>`).join("");
   const faceOpen = part === "front" || (part === "back" && spec.backMode === "own");
   $("#faceTabs").hidden = !faceOpen;
-  if (faceOpen) $("#faceTabs").innerHTML = faceTabsOf(shape).map((f) => `<button type="button" role="tab" data-face="${f}" aria-selected="${f === panel}">${esc(t(`face.${f}`))}</button>`).join("");
+  if (faceOpen) $("#faceTabs").innerHTML = faceTabsOf(shape, part === "back" ? "back" : "front").map((f) => `<button type="button" role="tab" data-face="${f}" aria-selected="${f === panel}">${esc(t(`face.${f}`))}</button>`).join("");
   renderBackModes(role, spec, part === "back");
   $$(".ws-panel").forEach((p) => { p.hidden = p.dataset.panel !== panel; });
 }
@@ -2127,7 +2128,8 @@ function deepenAll() {
 
 /** The layouts, each drawn on the token (the back's: on what its back shows) in the face's current colours. */
 function renderStyleTiles(face: { role: Role; text: string }, spec: TokenSpec) {
-  const s = { ...spec, diameter: 45, back: "none", backMode: "design" as const };
+  // without the background pattern: each would be cut anew (a tenth of a second each), and the tiles show the layout
+  const s = { ...spec, diameter: 45, back: "none", backMode: "design" as const, frontPattern: null };
   $("[data-choice=style]").innerHTML = TOKEN_STYLES.map((st) =>
     `<button class="back-tile" type="button" data-v="${st.id}" aria-pressed="${s.style === st.id}">${
       tokenSvg(state.lib!, face.role, { ...s, style: st.id, ...(st.id !== s.style ? { textSize: LAYOUT_TEXT[st.id] } : {}) }, { text: face.text })
@@ -2138,7 +2140,7 @@ function renderStyleTiles(face: { role: Role; text: string }, spec: TokenSpec) {
  *  (whose shape has frames only as a line) gets two tiles, without and with, drawn on itself; a
  *  card a third, only its corners. */
 function renderFrameTiles(face: { role: Role; text: string }, spec: TokenSpec) {
-  const s = { ...spec, diameter: 45, back: "none", backMode: "design" as const }, shape = shapeOf(face.role), { role, text } = face;
+  const s = { ...spec, diameter: 45, back: "none", backMode: "design" as const, frontPattern: null }, shape = shapeOf(face.role), { role, text } = face;   // the pattern left out, as in the layouts
   if (SHAPE_FEATURES[shape].frame === "line") {
     // "with" keeps whatever design the spec has, so choosing it changes nothing else
     const line = s.frame === "none" || s.frame === "corners" ? "rim" : s.frame;
@@ -2165,6 +2167,78 @@ function renderBackTiles(role: Role, spec: TokenSpec) {
       b.id === "custom" && !s.customSvg ? `<span class="upload-tile">SVG</span>` : tokenSvg(state.lib!, plain, { ...s, back: b.id }, { side: "back" })
     }<span>${esc(t(`back.${b.id}`))}</span></button>`).join("");
 }
+
+// A background pattern (the front's in its own tab, the back's under the back design): which one,
+// drawn as small swatches in the token's colours, how big its rhombi are, how thick its lines (the
+// gap between its cells), how far it keeps from what sits on it, and (the front's) whose colour it
+// takes: the frame's or the name's, never a filament of its own.
+type PatSide = "front" | "back";
+const patKey = (side: PatSide) => (side === "front" ? "frontPattern" : "backPattern") as "frontPattern" | "backPattern";
+/** A pattern as a small coin swatch: `fg` rhombi (lines or a checkerboard) on `bg`. */
+function patternSwatch(id: string, bg: string, fg: string, clip: string) {
+  const a = 6, b = 9.6, out: string[] = [];
+  const rh = (cx: number, cy: number, k = 1) => `M${cx - (a / 2) * k} ${cy}L${cx} ${cy - (b / 2) * k}L${cx + (a / 2) * k} ${cy}L${cx} ${cy + (b / 2) * k}Z`;
+  if (id === "rombos-lineas") for (let m = -3; m <= 3; m++) for (let n = -2; n <= 2; n++) out.push(rh(m * a, n * b), rh(m * a + a / 2, n * b + b / 2));
+  if (id === "damero-rombos") for (let m = -3; m <= 3; m++) for (let n = -2; n <= 2; n++) out.push(rh(m * a, n * b, 0.82));
+  const body = !out.length ? "" : id === "rombos-lineas" ? `<path d="${out.join("")}" fill="none" stroke="${fg}" stroke-width="0.8"/>` : `<path d="${out.join("")}" fill="${fg}"/>`;
+  return `<svg viewBox="-10 -10 20 20" aria-hidden="true"><defs><clipPath id="${clip}"><circle r="9.2"/></clipPath></defs><circle r="10" fill="${bg}" stroke="rgba(239,230,214,.25)" stroke-width="0.3"/><g clip-path="url(#${clip})">${body}</g></svg>`;
+}
+/** The pattern group's controls, once (buildChoices): its tiles, its three sliders and the front's colours. */
+function patternGroupHtml(side: PatSide) {
+  const range = (k: string, label: string, min: number, max: number, step: number) =>
+    `<div class="row"><label for="pat-${side}-${k}" ${k === "line" ? "data-pat-line-label" : ""}>${esc(label)}</label><output data-pat-out="${k}"></output><input type="range" id="pat-${side}-${k}" data-pat-range="${k}" min="${min}" max="${max}" step="${step}"></div>`;
+  return (side === "back" ? `<p class="metal-label">${esc(t("pattern.title"))}</p>` : "")
+    + `<div class="choices pat-tiles" data-pat-choice role="group" aria-label="${esc(t("pattern.title"))}"></div>`
+    + `<button type="button" class="reset-f group" hidden data-reset="${patKey(side)}">↺</button>`
+    + `<div class="pat-opts">`
+    + range("scale", t("pattern.scale"), 2.4, 8, 0.1)
+    + range("line", t("pattern.line"), PATTERN_MIN, 1.2, 0.05)
+    + range("halo", t("pattern.halo"), PATTERN_MIN, 1.2, 0.05)
+    + (side === "front" ? `<p class="metal-label">${esc(t("pattern.colour"))}</p><div class="choices" data-pat-colour></div>` : "")
+    + `<p class="hint" data-pat-hint></p></div>`;
+}
+/** Puts a face's pattern into its group: the swatches, the sliders' values, the colours and a line on what it does. */
+function renderPattern(side: PatSide, role: Role, s: TokenSpec) {
+  const box = $(`[data-pat-side=${side}]`), p = s[patKey(side)] ?? null, pc = partColours(role, shapeSpec(role, s));
+  const colour = side === "back" ? pc.back : (p?.colour ?? "frame") === "front" ? pc.front : pc.frame;
+  const dec = uiLang() === "es" ? "," : ".";
+  const tiles: [string, string][] = [["none", t("pattern.none")], ...PATTERNS.map((x) => [x.id, t(`pattern.${x.id}`)] as [string, string])];
+  $("[data-pat-choice]", box).innerHTML = tiles.map(([id, label]) =>
+    `<button class="back-tile" type="button" data-pat="${id}" aria-pressed="${(p?.id ?? "none") === id}">${patternSwatch(id, pc.base, colour, `patclip-${side}-${id}`)}<span>${esc(label)}</span></button>`).join("");
+  $(".pat-opts", box).hidden = !p;
+  if (!p) return;
+  const d = patternDefaults(p.id), v = { scale: p.scale ?? d.scale, line: p.line ?? d.line, halo: p.halo ?? d.halo };
+  for (const k of ["scale", "line", "halo"] as const) {
+    const el = $<HTMLInputElement>(`[data-pat-range=${k}]`, box);
+    if (document.activeElement !== el) el.value = String(v[k]);
+    $(`[data-pat-out=${k}]`, box).textContent = v[k].toFixed(k === "scale" ? 1 : 2).replace(".", dec) + " mm";
+  }
+  $("[data-pat-line-label]", box).textContent = t(p.id === "damero-rombos" ? "pattern.gap" : "pattern.line");
+  const colours = $("[data-pat-colour]", box);
+  if (colours) colours.innerHTML = (["frame", "front"] as const).map((c) =>
+    `<button class="pill group-pill" type="button" data-pat-col="${c}" aria-pressed="${(p.colour ?? "frame") === c}" style="--c: ${pc[c]}"><i></i>${esc(t(`pattern.colour.${c}`))}</button>`).join("");
+  $("[data-pat-hint]", box).textContent = side === "front" && s.style === "window" ? t("pattern.window")
+    : t(side === "front" ? "pattern.help" : "pattern.helpBack");
+}
+/** A change to a face's pattern: another one (keeping its size, thickness, halo and colour; from none, its defaults) or one of its fields. */
+function changePattern(side: PatSide, change: { id?: string; field?: "scale" | "line" | "halo" | "colour"; value?: number | string }) {
+  changeLook((s) => {
+    const key = patKey(side), now = s[key] ?? null;
+    if (change.id === "none") { delete s[key]; return; }
+    if (change.id) {
+      const id = change.id as PatternSpec["id"];
+      s[key] = now ? { ...now, id } : { id, ...STARTING_PATTERN[side][id] };
+      return;
+    }
+    if (!now || !change.field) return;
+    s[key] = { ...now, [change.field]: change.value };
+  });
+}
+/** A pattern chosen where there was none starts as Midnight Harlequin's. */
+const STARTING_PATTERN: Record<PatSide, Record<PatternSpec["id"], Omit<PatternSpec, "id">>> = {
+  front: { "rombos-lineas": { scale: 5.1, line: 0.6, halo: 0.8, colour: "frame" }, "damero-rombos": { scale: 4.2, line: 0.7, halo: 0.8, colour: "frame" } },
+  back: { "rombos-lineas": { scale: 5.1, line: 0.6, halo: 0.8 }, "damero-rombos": { scale: 4.2, line: 0.7, halo: 0.8 } },
+};
 
 /** The selected token's other state, if it has one (a reminder, a token of its own, never does). */
 const selFlip = (role: Role) => flipFace(role, { linked: state.sel!.reminder != null });
@@ -2260,10 +2334,13 @@ function syncControls(role: Role, spec: TokenSpec, token: Token) {
   if (panel === "frame") renderFrameTiles(who, face);
   // Back: a design (and its colour) or the front again in a colour of its own. The designs are the
   // style's, for its tokens without another state: one with another state shows that instead (the note says so).
+  if (panel === "pattern") renderPattern("front", role, s);
   if (panel === "back") {
     const design = s.backMode !== "match";
     $("#backDesign").hidden = !design; $("#backMatch").hidden = design;
     if (design) renderBackTiles(role, s);
+    $("[data-pat-side=back]").hidden = !design || !f.pattern;
+    if (design && f.pattern) renderPattern("back", role, s);
     $("#matchColourLabel").textContent = t(s.style === "window" ? "back.faceColourWindow" : "back.faceColour");
   }
   // Body: its colour, size (a coin's diameter, a ring's base, a card's fixed), thickness and colour depth
@@ -2438,6 +2515,7 @@ function buildChoices() {
   $("[data-choice=ringBase]").innerHTML = RING_BASES.map((v) => `<button class="pill" type="button" data-v="${v}">${v} mm</button>`).join("");
   // Frames are drawn as coin tiles by renderFrameTiles().
   // Backs are drawn as coin tiles by renderBackTiles().
+  for (const side of ["front", "back"] as const) $(`[data-pat-side=${side}]`).innerHTML = patternGroupHtml(side);
   for (const box of $$(".metal")) {
     // Every filament the Bambu export knows. The name and icon and the frame can take the team
     // colour; on the coin or the back it would show the team from behind.
@@ -2655,6 +2733,24 @@ function wire() {
     const v = hit(e, "[data-relief] [data-v]"), seg = hit(e, "[data-relief]");
     if (v && seg) setRelief(seg.dataset.side as Side, seg.dataset.relief as ReliefPart, v.dataset.v === "raised");
   });
+  // a pattern: its tiles and colours on a click, its sliders when let go (each cut takes a moment), their value as they move
+  for (const side of ["front", "back"] as const) {
+    const box = $(`[data-pat-side=${side}]`);
+    box.addEventListener("click", (e) => {
+      const tile = hit(e, "[data-pat]"), col = hit(e, "[data-pat-col]");
+      if (tile) changePattern(side, { id: tile.dataset.pat });
+      else if (col) changePattern(side, { field: "colour", value: col.dataset.patCol });
+    });
+    box.addEventListener("input", (e) => {
+      const el = (e.target as HTMLElement).closest<HTMLInputElement>("[data-pat-range]"); if (!el) return;
+      const k = el.dataset.patRange!;
+      $(`[data-pat-out=${k}]`, box).textContent = (+el.value).toFixed(k === "scale" ? 1 : 2).replace(".", uiLang() === "es" ? "," : ".") + " mm";
+    });
+    box.addEventListener("change", (e) => {
+      const el = (e.target as HTMLElement).closest<HTMLInputElement>("[data-pat-range]"); if (!el) return;
+      changePattern(side, { field: el.dataset.patRange as "scale" | "line" | "halo", value: Math.max(PATTERN_MIN, +el.value) });
+    });
+  }
   $("#upload").onchange = async (e) => {
     const f = input(e).files![0]; input(e).value = "";
     if (!f) return;

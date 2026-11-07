@@ -24,6 +24,12 @@ export const BOTC_STYLES: Record<TokenShape, StyleDef[]> = {
     // the gold midnight clock on the back is light on a dark coin: 0.4 mm covers it
     { id: "medianoche", name: { es: "Medianoche", en: "Midnight" }, help: { es: "Negra, con estrellas en el marco y el reloj de medianoche en oro al reverso.", en: "Black, with stars round the rim and the midnight clock in gold on the back." },
       spec: { style: "classic", frame: "firmamento", frameWidth: 0.8, back: "medianoche", depth: 0.4, colours: dark } },
+    // harlequin rhombi behind everything: fine lines in the team colour (with the frame) on the
+    // front, a gold checkerboard behind the medallion on the back; no filament of their own
+    { id: "arlequin", name: { es: "Arlequín de medianoche", en: "Midnight Harlequin" }, help: { es: "Negra, con una rejilla fina de rombos del color del equipo detrás del icono y el nombre, y un damero de rombos en oro alrededor de un medallón con la luna y la edición al reverso.", en: "Black, with a fine harlequin grid in the team colour behind the icon and the name, and a gold harlequin checkerboard round a medallion with the moon and the edition on the back." },
+      spec: { style: "classic", frame: "rim", frameWidth: 0.6, back: "medallon", depth: 0.4, colours: dark,
+        frontPattern: { id: "rombos-lineas", scale: 5.1, line: 0.6, halo: 0.8, colour: "frame" },
+        backPattern: { id: "damero-rombos", scale: 4.2, line: 0.7, halo: 0.8 } } },
   ],
   // rings and cards: none of its own; its default the app's (Clocktower's cards are all of one group,
   // gold: Gold trim, like the grimoire's)

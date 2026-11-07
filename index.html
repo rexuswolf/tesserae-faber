@@ -224,6 +224,10 @@
         <div class="metal" data-colour="frame" data-i18n-attr="aria-label:frame.aria"></div>
         <div class="relief-slot" data-relief-part="frame"></div>
       </section>
+      <!-- the front's background pattern (patternGroupHtml) -->
+      <section class="ws-panel" data-panel="pattern" role="tabpanel" hidden>
+        <div class="pattern-group" data-pat-side="front"></div>
+      </section>
       <!-- the back when it isn't a face of its own: a design and its colour, or the front again in a colour of its own -->
       <section class="ws-panel" data-panel="back" role="tabpanel" hidden>
         <div class="back-design" id="backDesign">
@@ -232,6 +236,7 @@
           <p class="hint" id="uploadHint" hidden></p>
           <p class="metal-label" data-i18n="back.colour"></p>
           <div class="metal" data-colour="back" data-i18n-attr="aria-label:back.aria"></div>
+          <div class="pattern-group" data-pat-side="back"></div>
         </div>
         <div class="back-match" id="backMatch">
           <p class="metal-label" id="matchColourLabel"></p>
