@@ -163,9 +163,9 @@ export interface TokenSpec {
   /** The collection's style (StyleDef) a style is, or started from: what it resets to. */
   preset?: string;
   fromPreset?: string;
-  /** A background pattern on the front, round the icon and the name (see PatternSpec); none when unset. */
+  /** A background pattern on the front, behind the icon, the name and the frame (see PatternSpec); none when unset. */
   frontPattern?: PatternSpec | null;
-  /** A background pattern on the back, under a back design, round a plain medallion in the centre. */
+  /** A background pattern on the back, behind its design. */
   backPattern?: PatternSpec | null;
   /** Older window designs (normalizeSpec turns them into relief). */
   windowFinish?: string;
@@ -175,14 +175,15 @@ export interface TokenSpec {
 /** A background pattern's id (the engine's PATTERNS): thin lines in a harlequin grid, or a checkerboard of filled rhombi. */
 export type PatternId = "rombos-lineas" | "damero-rombos";
 /**
- * A background pattern: a flush inlay like the rest of the face, in a colour the token already
- * has (it goes into that part: never a filament of its own). `scale` is a cell's width (mm), `line`
- * the line's width ("rombos-lineas") or the gap between cells ("damero-rombos"), at least 0.6 mm.
- * `colour` picks the part: "frame", "front" (the name's), "team" (whichever is the team colour) or
- * a hex that one of them has; a back pattern is always the back's colour. `edge` outlines the
- * pattern's area with a line (its cut ends then join it).
+ * A background pattern: it runs behind everything on the face, continuous, and the icon, the name
+ * and the frame (on the back, its design) sit on it, each with a halo of coin colour round it
+ * (`halo`, mm, at least 0.6) so they read. It is a flush inlay like the rest of the face, in a colour
+ * the token already has (it goes into that part: never a filament of its own). `scale` is a rhombus's
+ * width (mm), `line` the line's width ("rombos-lineas") or the gap between cells ("damero-rombos"),
+ * at least 0.6 mm. `colour` picks the front's part: "frame", "front" (the name's), "team" (whichever
+ * is the team colour) or a hex one of them has; a back pattern is always the back's colour.
  */
-export interface PatternSpec { id: PatternId; scale?: number; line?: number; colour?: ColourRef | "frame" | "front" | "back"; edge?: boolean }
+export interface PatternSpec { id: PatternId; scale?: number; line?: number; halo?: number; colour?: ColourRef | "frame" | "front" | "back" }
 
 /** Auto text (see AUTO_TEXT in the engine): the word's tallest (mm, by its ink), the arc a short word
  *  fills (°), the icon's largest (as iconScale) and, if given, the widest arc for a long word (°). */

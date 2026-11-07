@@ -1202,18 +1202,24 @@ function backShapes(id: string, R: number): THREE.Shape[] | null {
 
 // ---------------------------------------------------------------- background patterns
 //
-// A pattern fills part of a face with thin lines or small cells: a flush inlay like the rest of
-// the face, in a colour the token already has (it joins that part's geometry, so it never needs a
-// filament of its own). Its tiles are cut to the area it may cover with plain polygon clipping
-// (Sutherland–Hodgman against the outer circle, Greiner–Hormann to take out the plain areas), and
-// a piece too small to print (under PATTERN_MIN across) is left out, so the 3D model and the SVG
-// get the same printable outlines. On the front it fills the ring between the frame and a plain
-// disc round the icon, cut back round the name; on the back, the coin round a plain medallion.
+// A pattern fills a face behind everything on it: thin lines or small cells, continuous, with the
+// icon, the name and the frame (on the back, its design) on top. Everything is a flush inlay, so
+// "on top" means the pattern is taken away round each of them, a halo of coin colour (at least
+// PATTERN_MIN) that keeps them readable. It's a flush inlay too, in a colour the token already
+// has: it joins that part's geometry, so it never needs a filament of its own.
+//
+// The cut is worked out on a fine grid (PATTERN_GRID): the pattern's own signed distance, the
+// distance to the face's ink (rasterised, then a Euclidean distance transform) less the halo, and
+// the coin's edge, the least of them; then anything thinner than PATTERN_MIN is opened away
+// (eroded and grown back) and pieces under PATTERN_MIN across left out; the outline is traced
+// (marching squares) and simplified. The 3D model and the SVG use the same outlines.
 
 type Pt = [number, number];
 type Poly = Pt[];
+/** An outline with its holes (mm, y up). */
+interface Ring { outer: Poly; holes: Poly[] }
 
-/** The patterns, by id. More can follow (stripes, dots, scales, hexagons): each is a set of tiles. */
+/** The patterns, by id. More can follow (stripes, dots, scales, hexagons): each is a signed distance. */
 export const PATTERNS: { id: PatternId; label: string }[] = [
   { id: "rombos-lineas", label: "Harlequin lines" },
   { id: "damero-rombos", label: "Harlequin checks" },
@@ -1221,23 +1227,16 @@ export const PATTERNS: { id: PatternId; label: string }[] = [
 const PATTERN_IDS = new Set(PATTERNS.map((p) => p.id));
 /** The thinnest line, gap or piece a pattern prints (mm): about a nozzle's width and a half. */
 export const PATTERN_MIN = 0.6;
+/** The halo of coin colour round what sits on a pattern (mm), unless the pattern sets its own. */
+export const PATTERN_HALO = 0.8;
 /** A harlequin rhombus's height to its width. */
 const HARLEQUIN = 1.6;
-/** Plain margin kept round the icon and the name (mm), and from the frame and the back's rings. */
-const PATTERN_CLEAR = 1.2, PATTERN_FRAME_GAP = 0.7, PATTERN_RING_GAP = 0.8;
-/** The back's plain medallion, as a share of the coin's radius (its ring's outer edge). */
+/** The grid the cut is worked out on (mm), and how far inside the coin's edge a pattern stops. */
+const PATTERN_GRID = 0.05, PATTERN_EDGE = 0.7;
+/** The back medallion's ring, as a share of the coin's radius (its outer edge). */
 export const MEDALLION = 0.5;
 
 const polyArea = (p: Poly) => { let s = 0; for (let i = 0, j = p.length - 1; i < p.length; j = i++) s += p[j][0] * p[i][1] - p[i][0] * p[j][1]; return s / 2; };
-const ccwPoly = (p: Poly) => (polyArea(p) < 0 ? p.slice().reverse() : p);
-const ringPoly = (r: number, n = 192): Poly => Array.from({ length: n }, (_, i): Pt => [r * Math.cos((i * TAU) / n), r * Math.sin((i * TAU) / n)]);
-/** A band between two radii from angle a0 to a1 (radians), counter-clockwise. */
-function bandPoly(rOut: number, rIn: number, a0: number, a1: number): Poly {
-  const n = Math.max(2, Math.ceil((a1 - a0) / (TAU / 192))), out: Poly = [];
-  for (let i = 0; i <= n; i++) { const a = a0 + ((a1 - a0) * i) / n; out.push([rOut * Math.cos(a), rOut * Math.sin(a)]); }
-  for (let i = n; i >= 0; i--) { const a = a0 + ((a1 - a0) * i) / n; out.push([rIn * Math.cos(a), rIn * Math.sin(a)]); }
-  return out;
-}
 function inPoly(x: number, y: number, p: Poly) {
   let c = false;
   for (let i = 0, j = p.length - 1; i < p.length; j = i++) {
@@ -1261,240 +1260,254 @@ const boxOf = (p: Poly) => {
   for (const [x, y] of p) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
   return [x0, y0, x1, y1];
 };
-const boxesMeet = (a: number[], b: number[], m = 0) => a[0] <= b[2] + m && b[0] <= a[2] + m && a[1] <= b[3] + m && b[1] <= a[3] + m;
 
-/** Sutherland–Hodgman: a convex polygon's part inside a convex counter-clockwise one. */
-function clipConvex(subject: Poly, clip: Poly): Poly {
-  let out = subject;
-  for (let i = 0; i < clip.length && out.length; i++) {
-    const a = clip[i], b = clip[(i + 1) % clip.length];
-    const side = (q: Pt) => (b[0] - a[0]) * (q[1] - a[1]) - (b[1] - a[1]) * (q[0] - a[0]);
-    const prev = out; out = [];
-    for (let k = 0; k < prev.length; k++) {
-      const p = prev[k], q = prev[(k + 1) % prev.length], sp = side(p), sq = side(q);
-      if (sp >= 0) out.push(p);
-      if ((sp >= 0) !== (sq >= 0)) { const t = sp / (sp - sq); out.push([p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t]); }
-    }
-  }
-  return out;
-}
-
-interface GNode { p: Pt; alpha: number; inter: boolean; next: GNode; prev: GNode; other: GNode | null; entry: boolean; seen: boolean }
 /**
- * Greiner–Hormann: polygon a less polygon b (both simple, counter-clockwise), as the pieces left.
- * A vertex lying on the other's edge is nudged off it (by a micron's thousandth) and tried again.
- * b wholly inside a (a hole) can't happen in the uses here, and leaves a as it is.
+ * A pattern as a signed distance (mm, positive inside), centred on the coin, and how wide its
+ * lines (or cells) and the gaps between them come out. `scale` is a rhombus's width, its height
+ * HARLEQUIN times that.
  */
-function subtract(a: Poly, b: Poly, tries = 0): Poly[] {
-  const node = (p: Pt, alpha = 0, inter = false) => ({ p, alpha, inter, other: null, entry: false, seen: false }) as unknown as GNode;
-  const insA: GNode[][] = a.map(() => []), insB: GNode[][] = b.map(() => []);
-  let bad = false;
-  for (let i = 0; i < a.length && !bad; i++) {
-    const p1 = a[i], p2 = a[(i + 1) % a.length], rx = p2[0] - p1[0], ry = p2[1] - p1[1];
-    for (let j = 0; j < b.length; j++) {
-      const q1 = b[j], q2 = b[(j + 1) % b.length], sx = q2[0] - q1[0], sy = q2[1] - q1[1];
-      const d = rx * sy - ry * sx;
-      if (Math.abs(d) < 1e-14) continue;
-      const qx = q1[0] - p1[0], qy = q1[1] - p1[1], t = (qx * sy - qy * sx) / d, u = (qx * ry - qy * rx) / d;
-      if (t < -1e-9 || t > 1 + 1e-9 || u < -1e-9 || u > 1 + 1e-9) continue;
-      if (t < 1e-9 || t > 1 - 1e-9 || u < 1e-9 || u > 1 - 1e-9) { bad = true; break; }
-      const na = node([p1[0] + rx * t, p1[1] + ry * t], t, true), nb = node(na.p, u, true);
-      na.other = nb; nb.other = na; insA[i].push(na); insB[j].push(nb);
-    }
-  }
-  if (bad) {
-    if (tries > 4) return [a];
-    const e = 1e-6 * (tries + 1);
-    return subtract(a, b.map(([x, y]): Pt => [x + e, y + 0.7 * e]), tries + 1);
-  }
-  const link = (pts: Poly, ins: GNode[][]) => {
-    const list: GNode[] = [];
-    pts.forEach((p, i) => { list.push(node(p)); list.push(...ins[i].sort((x, y) => x.alpha - y.alpha)); });
-    list.forEach((n, i) => { n.next = list[(i + 1) % list.length]; n.prev = list[(i - 1 + list.length) % list.length]; });
-    return list;
-  };
-  const A = link(a, insA);
-  link(b, insB);
-  const crossings = A.filter((n) => n.inter);
-  if (!crossings.length) return inPoly(a[0][0], a[0][1], b) ? [] : [a];
-  let inside = inPoly(a[0][0], a[0][1], b);
-  for (const n of crossings) { n.entry = !inside; inside = !inside; }
-  const out: Poly[] = [];
-  for (const s of crossings) {
-    if (s.seen || s.entry) continue;
-    // from where a leaves b: along a (outside b) to where it enters, then back along b (inside a)
-    const poly: Poly = [];
-    let cur = s, guard = 0;
-    do {
-      cur.seen = cur.other!.seen = true;
-      poly.push(cur.p);
-      let n = cur.next;
-      while (!n.inter) { poly.push(n.p); n = n.next; }
-      n.seen = n.other!.seen = true;
-      poly.push(n.p);
-      let m = n.other!.prev;
-      while (!m.inter) { poly.push(m.p); m = m.prev; }
-      cur = m.other!;
-    } while (cur !== s && ++guard < 10000);
-    if (poly.length >= 3) out.push(poly);
-  }
-  return out;
-}
-
-/** A polygon's part inside the convex `out` (none: all of it) and outside every hole but `skip`. */
-function clipToRegion(p: Poly, out: Poly | null, holes: Poly[], skip: Poly | null = null): Poly[] {
-  let parts = [ccwPoly(out ? clipConvex(p, out) : p)];
-  for (const h of holes) {
-    if (h === skip) continue;
-    const hb = boxOf(h);
-    parts = parts.flatMap((q) => (q.length >= 3 && boxesMeet(boxOf(q), hb) ? subtract(q, h) : [q]));
-  }
-  return parts.map((q) => q.filter((v, i) => Math.hypot(v[0] - q[(i + 1) % q.length][0], v[1] - q[(i + 1) % q.length][1]) > 1e-6))
-    .filter((q) => q.length >= 3 && Math.abs(polyArea(q)) > 1e-3).map(ccwPoly);
-}
-
-/** The widest circle that fits in a polygon (mm across): a grid, then a finer search round the best. */
-function inscribed(p: Poly) {
-  const [x0, y0, x1, y1] = boxOf(p);
-  const f = (x: number, y: number) => (inPoly(x, y, p) ? edgeDist(x, y, p) : 0);
-  let step = Math.min(0.25, Math.max(0.05, Math.sqrt((x1 - x0) * (y1 - y0)) / 30)), best = 0, bx = (x0 + x1) / 2, by = (y0 + y1) / 2;
-  for (let x = x0 + step / 2; x < x1; x += step) for (let y = y0 + step / 2; y < y1; y += step) { const d = f(x, y); if (d > best) { best = d; bx = x; by = y; } }
-  for (let r = 0; r < 7; r++) {
-    step /= 2;
-    for (let moved = true, it = 0; moved && it < 40; it++) {
-      moved = false;
-      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
-        const d = f(bx + dx * step, by + dy * step);
-        if (d > best + 1e-9) { best = d; bx += dx * step; by += dy * step; moved = true; }
-      }
-    }
-  }
-  return 2 * best;
-}
-
-/** A pattern's tiles over a coin of radius R, centred on it, and how wide its lines (or cells) and gaps come out. */
-function patternTiles(p: PatternSpec, R: number) {
+function patternField(p: PatternSpec) {
   const cells = p.id === "damero-rombos";
   const a = Math.max(1.5, p.scale ?? (cells ? 3 : 3.2)), b = a * HARLEQUIN, s = Math.hypot(a / 2, b / 2), h = (a * b) / (4 * s);
   const line = Math.max(PATTERN_MIN, p.line ?? (cells ? 0.7 : PATTERN_MIN));
-  const tiles: Poly[] = [];
   if (cells) {
     // a checkerboard of rhombi a wide and b tall: the filled ones on a grid (a, b), each shrunk so
     // that where two meet at a corner `line` of coin shows between them (more at the taller corners)
-    const f = 1 - line / a, mx = Math.ceil(R / a) + 1, my = Math.ceil(R / b) + 1;
-    for (let m = -mx; m <= mx; m++) for (let n = -my; n <= my; n++) {
-      const cx = m * a, cy = n * b;
-      if (Math.hypot(cx, cy) > R + b) continue;
-      tiles.push([[cx + (a / 2) * f, cy], [cx, cy + (b / 2) * f], [cx - (a / 2) * f, cy], [cx, cy - (b / 2) * f]]);
-    }
-    return { tiles, line, width: 2 * h * f, gap: line, a, b };
+    const f = 1 - line / a, A = (a / 2) * f, B = (b / 2) * f, k = 1 / Math.hypot(1 / A, 1 / B);
+    const sdf = (x: number, y: number) => {
+      const m0 = Math.floor(x / a), n0 = Math.floor(y / b);
+      let best = -Infinity;
+      for (const m of [m0, m0 + 1]) for (const n of [n0, n0 + 1]) best = Math.max(best, (1 - Math.abs(x - m * a) / A - Math.abs(y - n * b) / B) * k);
+      return best;
+    };
+    return { sdf, line, width: 2 * h * f, gap: line };
   }
   // lines along the sides of rhombi a wide and b tall, a rhombus centred on the coin: two families
   // of parallel lines, `line` wide, 2h apart (h the rhombus's apothem)
-  const L = R + 2, w = line / 2, k = Math.ceil(R / (2 * h)) + 1;
-  for (const [dx, dy] of [[-a / 2, b / 2], [a / 2, b / 2]]) {
-    const ux = dx / s, uy = dy / s, nx = -uy, ny = ux;
-    for (let i = -k; i <= k; i++) {
-      const off = (2 * i + 1) * h;
-      if (Math.abs(off) > R + line) continue;
-      const cx = nx * off, cy = ny * off;
-      tiles.push(ccwPoly([[cx - ux * L - nx * w, cy - uy * L - ny * w], [cx + ux * L - nx * w, cy + uy * L - ny * w],
-        [cx + ux * L + nx * w, cy + uy * L + ny * w], [cx - ux * L + nx * w, cy - uy * L + ny * w]]));
-    }
-  }
-  return { tiles, line, width: line, gap: 2 * h - line, a, b };
-}
-
-/** Where a pattern may go: inside `out` (a circle of radius rOut), outside the holes (the plain disc of radius rIn, the name's bands). */
-interface PatternRegion { out: Poly; holes: Poly[]; rOut: number; rIn: number; inner: Poly | null; sectors: { rc: number; a0: number; a1: number; poly: Poly }[] }
-interface PatternCut { polys: Poly[]; line: number; width: number; gap: number; minPiece: number; edge: boolean; region: PatternRegion }
-
-/** The front's pattern area: the ring between the frame and a plain disc round the icon, less a band round each name. */
-function frontRegion(lib: Library, role: Role, spec: TokenSpec, text: string): PatternRegion | null {
-  if (spec.style === "window") return null;
-  const R = spec.diameter / 2, rOut = frameInner(spec) - PATTERN_FRAME_GAP;
-  const pts = iconPoints(lib, role, spec, text);
-  const rIcon = pts.reduce((m, [x, y]) => Math.max(m, Math.hypot(x, y)), 0);
-  const rIn = rIcon ? rIcon + PATTERN_CLEAR : 0;
-  const inner = rIn ? ringPoly(rIn) : null, holes: Poly[] = inner ? [inner] : [], sectors: PatternRegion["sectors"] = [];
-  const L = arcName(lib, text, spec), sc = L && nameSector(lib, L);
-  if (sc) for (const turn of nameTurns(spec)) {
-    const rc = Math.max(sc.rIn - PATTERN_CLEAR, 0.5), m = PATTERN_CLEAR / rc;
-    const a0 = (sc.lo * Math.PI) / 180 + turn - m, a1 = (sc.hi * Math.PI) / 180 + turn + m, poly = bandPoly(R + 1, rc, a0, a1);
-    holes.push(poly); sectors.push({ rc, a0, a1, poly });
-  }
-  return { out: ringPoly(rOut), holes, rOut, rIn, inner, sectors };
-}
-
-/** The icon's outline points where the front draws it (mm, y up). */
-function iconPoints(lib: Library, role: Role, spec: TokenSpec, text: string): Poly {
-  const o = iconOutline(iconShapes(lib, role, spec));
-  if (fitsIcon(spec)) { const f = fittedIcon(lib, role, spec, text); return o.rel.map(([ux, uy]): Pt => [ux * f.k, uy * f.k + f.dy]); }
-  const k = (spec.diameter * spec.iconScale) / TRACE_VIEW, dx = k * (o.cx - TRACE_VIEW / 2), dy = -k * (o.cy - TRACE_VIEW / 2) + (spec.iconOffsetY || 0);
-  return o.rel.map(([ux, uy]): Pt => [ux * k + dx, uy * k + dy]);
-}
-
-/** A line `w` wide along the inside of the region's edges (the frame's side, round the plain disc, round each name), cut where they meet. */
-function regionEdge(reg: PatternRegion, w: number): Poly[] {
-  const out: Poly[] = [], n = 24, seg = TAU / n, ov = 0.004;
-  const ring = (r1: number, r0: number, skip: Poly | null) => {
-    for (let i = 0; i < n; i++) out.push(...clipToRegion(bandPoly(r1, r0, i * seg - ov, (i + 1) * seg + ov), null, reg.holes, skip));
+  const normals = [[-a / 2, b / 2], [a / 2, b / 2]].map(([dx, dy]) => [-dy / s, dx / s]);
+  const sdf = (x: number, y: number) => {
+    let best = -Infinity;
+    for (const [nx, ny] of normals) { const t = nx * x + ny * y - h; best = Math.max(best, line / 2 - Math.abs(t - 2 * h * Math.round(t / (2 * h)))); }
+    return best;
   };
-  ring(reg.rOut, reg.rOut - w, null);
-  if (reg.inner) ring(reg.rIn + w, reg.rIn, reg.inner);
-  for (const sc of reg.sectors) {
-    out.push(...clipToRegion(bandPoly(sc.rc, sc.rc - w, sc.a0, sc.a1), null, reg.holes, sc.poly));
-    const r0 = sc.rc - w, r1 = reg.rOut - w / 2;
-    for (const [a, side] of [[sc.a0, -1], [sc.a1, 1]]) {
-      const ux = Math.cos(a), uy = Math.sin(a), vx = -uy * side * w, vy = ux * side * w;
-      out.push(...clipToRegion(ccwPoly([[ux * r0, uy * r0], [ux * r1, uy * r1], [ux * r1 + vx, uy * r1 + vy], [ux * r0 + vx, uy * r0 + vy]]), null, reg.holes, sc.poly));
+  return { sdf, line, width: line, gap: 2 * h - line };
+}
+
+/** Euclidean distance transform (Felzenszwalb–Huttenlocher): each cell's distance (cells) to the nearest set one. */
+function distanceTransform(set: Uint8Array, W: number, H: number) {
+  const n = Math.max(W, H), f = new Float64Array(n), d = new Float64Array(n), v = new Int32Array(n), z = new Float64Array(n + 1), out = new Float32Array(W * H);
+  const pass = (len: number) => {
+    let k = 0; v[0] = 0; z[0] = -Infinity; z[1] = Infinity;
+    for (let q = 1; q < len; q++) {
+      let s = (f[q] + q * q - (f[v[k]] + v[k] * v[k])) / (2 * q - 2 * v[k]);
+      while (s <= z[k]) { k--; s = (f[q] + q * q - (f[v[k]] + v[k] * v[k])) / (2 * q - 2 * v[k]); }
+      k++; v[k] = q; z[k] = s; z[k + 1] = Infinity;
     }
-  }
+    k = 0;
+    for (let q = 0; q < len; q++) { while (z[k + 1] < q) k++; d[q] = (q - v[k]) ** 2 + f[v[k]]; }
+  };
+  for (let x = 0; x < W; x++) { for (let y = 0; y < H; y++) f[y] = set[y * W + x] ? 0 : 1e20; pass(H); for (let y = 0; y < H; y++) out[y * W + x] = d[y]; }
+  for (let y = 0; y < H; y++) { for (let x = 0; x < W; x++) f[x] = out[y * W + x]; pass(W); for (let x = 0; x < W; x++) out[y * W + x] = Math.sqrt(d[x]); }
   return out;
 }
 
-const patternCuts = new Map<string, PatternCut | null>();
-/** A pattern's tiles cut to a region: with `edge` joined by the outline, else without the pieces too small to print. */
-function cutPattern(p: PatternSpec, R: number, reg: PatternRegion): PatternCut {
-  const T = patternTiles(p, R);
-  let polys = T.tiles.flatMap((t) => clipToRegion(t, reg.out, reg.holes)), minPiece = NaN;
-  if (p.edge) polys.push(...regionEdge(reg, T.line));
-  else {
-    const sizes = polys.map(inscribed);
-    polys = polys.filter((_, i) => sizes[i] >= PATTERN_MIN - 0.02);
-    minPiece = Math.min(...sizes.filter((d) => d >= PATTERN_MIN - 0.02));
+/** Douglas–Peucker on a closed outline. */
+function simplifyLoop(p: Poly, tol: number): Poly {
+  if (p.length < 8) return p;
+  let far = 0, fd = -1;
+  for (let i = 1; i < p.length; i++) { const d = Math.hypot(p[i][0] - p[0][0], p[i][1] - p[0][1]); if (d > fd) { fd = d; far = i; } }
+  const keep = new Uint8Array(p.length); keep[0] = keep[far] = 1;
+  const stack: [number, number][] = [[0, far], [far, p.length]];
+  while (stack.length) {
+    const [i, j] = stack.pop()!, b = p[j % p.length];
+    let m = -1, md = tol;
+    for (let k = i + 1; k < j; k++) { const d = segDist(p[k][0], p[k][1], p[i], b); if (d > md) { md = d; m = k; } }
+    if (m >= 0) { keep[m] = 1; stack.push([i, m], [m, j]); }
   }
-  return { polys, line: T.line, width: T.width, gap: T.gap, minPiece, edge: !!p.edge, region: reg };
+  return p.filter((_, i) => keep[i]);
 }
+
+/** Marching squares: the outlines where the grid's field crosses 0, as outlines with their holes (mm). */
+function traceField(F: Float32Array, W: number, H: number, x0: number, y0: number, px: number): Ring[] {
+  const adj = new Int32Array(2 * W * H * 2).fill(-1);
+  const link = (e1: number, e2: number) => { adj[2 * e1 + (adj[2 * e1] < 0 ? 0 : 1)] = e2; adj[2 * e2 + (adj[2 * e2] < 0 ? 0 : 1)] = e1; };
+  const Hid = (i: number, j: number) => 2 * (j * W + i), Vid = (i: number, j: number) => 2 * (j * W + i) + 1;
+  for (let j = 0; j < H - 1; j++) for (let i = 0; i < W - 1; i++) {
+    const f0 = F[j * W + i], f1 = F[j * W + i + 1], f2 = F[(j + 1) * W + i + 1], f3 = F[(j + 1) * W + i];
+    const c = (f0 > 0 ? 1 : 0) | (f1 > 0 ? 2 : 0) | (f2 > 0 ? 4 : 0) | (f3 > 0 ? 8 : 0);
+    if (c === 0 || c === 15) continue;
+    const e0 = Hid(i, j), e1 = Vid(i + 1, j), e2 = Hid(i, j + 1), e3 = Vid(i, j), mid = f0 + f1 + f2 + f3 > 0;
+    switch (c) {
+      case 1: case 14: link(e3, e0); break;
+      case 2: case 13: link(e0, e1); break;
+      case 3: case 12: link(e3, e1); break;
+      case 4: case 11: link(e1, e2); break;
+      case 6: case 9: link(e0, e2); break;
+      case 7: case 8: link(e3, e2); break;
+      case 5: if (mid) { link(e0, e1); link(e2, e3); } else { link(e3, e0); link(e1, e2); } break;
+      case 10: if (mid) { link(e3, e0); link(e1, e2); } else { link(e0, e1); link(e2, e3); } break;
+    }
+  }
+  const point = (e: number): Pt => {
+    const k = e >> 1, i = k % W, j = (k - i) / W, va = F[k], vb = e & 1 ? F[k + W] : F[k + 1], t = va / (va - vb);
+    return e & 1 ? [x0 + i * px, y0 + (j + t) * px] : [x0 + (i + t) * px, y0 + j * px];
+  };
+  const seen = new Uint8Array(2 * W * H), loops: Poly[] = [];
+  for (let e = 0; e < 2 * W * H; e++) {
+    if (seen[e] || adj[2 * e] < 0) continue;
+    const loop: Poly = [];
+    let prev = -1, cur = e;
+    while (!seen[cur]) {
+      seen[cur] = 1; loop.push(point(cur));
+      const a = adj[2 * cur], b = adj[2 * cur + 1], next = a !== prev && !seen[a] ? a : b;
+      prev = cur; cur = next;
+      if (cur < 0) break;
+    }
+    if (loop.length >= 3) loops.push(simplifyLoop(loop, 0.008));
+  }
+  // even depth: an outline; odd: a hole in the smallest outline round it
+  const info = loops.map((l) => ({ l, box: boxOf(l), area: Math.abs(polyArea(l)) }));
+  const inside = (a: typeof info[0], b: typeof info[0]) => a !== b && b.area > a.area && a.box[0] >= b.box[0] && a.box[2] <= b.box[2] && a.box[1] >= b.box[1] && a.box[3] <= b.box[3] && inPoly(a.l[0][0], a.l[0][1], b.l);
+  const rings = new Map<typeof info[0], Ring>(), holes: [typeof info[0], typeof info[0]][] = [];
+  for (const a of info) {
+    const around = info.filter((b) => inside(a, b));
+    if (around.length % 2 === 0) rings.set(a, { outer: a.l, holes: [] });
+    else holes.push([a, around.reduce((m, b) => (b.area < m.area ? b : m))]);
+  }
+  for (const [hole, parent] of holes) rings.get(parent)?.holes.push(hole.l);
+  return [...rings.values()];
+}
+
+/** Fills outlines (each with its holes) into the grid's cells (even-odd), by rows. */
+function rasterise(rings: Ring[], set: Uint8Array, W: number, H: number, x0: number, y0: number, px: number) {
+  for (const r of rings) {
+    const all = [r.outer, ...r.holes], [, by0, , by1] = boxOf(r.outer);
+    for (let j = Math.max(0, Math.ceil((by0 - y0) / px)); j <= Math.min(H - 1, Math.floor((by1 - y0) / px)); j++) {
+      const y = y0 + j * px, xs: number[] = [];
+      for (const p of all) for (let i = 0, k = p.length - 1; i < p.length; k = i++) {
+        const [xi, yi] = p[i], [xk, yk] = p[k];
+        if ((yi > y) !== (yk > y)) xs.push(xi + ((y - yi) * (xk - xi)) / (yk - yi));
+      }
+      xs.sort((a, b) => a - b);
+      for (let q = 0; q + 1 < xs.length; q += 2)
+        for (let i = Math.max(0, Math.ceil((xs[q] - x0) / px)); i <= Math.min(W - 1, Math.floor((xs[q + 1] - x0) / px)); i++) set[j * W + i] = 1;
+    }
+    // the outlines too, so a tip or a stroke thinner than a cell isn't lost between cell centres
+    for (const p of all) for (let i = 0, k = p.length - 1; i < p.length; k = i++) {
+      const [xa, ya] = p[k], [xb, yb] = p[i], n = Math.ceil(Math.hypot(xb - xa, yb - ya) / (px / 2));
+      for (let t = 0; t <= n; t++) {
+        const ci = Math.round((xa + ((xb - xa) * t) / n - x0) / px), cj = Math.round((ya + ((yb - ya) * t) / n - y0) / px);
+        if (ci >= 0 && ci < W && cj >= 0 && cj < H) set[cj * W + ci] = 1;
+      }
+    }
+  }
+}
+
+interface PatternCut { rings: Ring[]; line: number; width: number; gap: number; halo: number; minPiece: number; ink: Ring[] }
+
+/**
+ * A pattern over a coin of radius R, behind `ink` (what sits on it): the pattern where it is at
+ * least the halo away from the ink and PATTERN_EDGE inside the coin's edge, opened so nothing in it
+ * is thinner than PATTERN_MIN, pieces smaller than that left out.
+ */
+function cutPattern(p: PatternSpec, R: number, ink: Ring[]): PatternCut {
+  const P = patternField(p), halo = Math.max(PATTERN_MIN, p.halo ?? PATTERN_HALO), px = PATTERN_GRID, rho = PATTERN_MIN / 2;
+  const x0 = -R - 2 * px, W = Math.ceil((2 * R + 4 * px) / px) + 1, H = W, N = W * H;
+  const inkSet = new Uint8Array(N);
+  rasterise(ink, inkSet, W, H, x0, x0, px);
+  const dInk = distanceTransform(inkSet, W, H);
+  const F = new Float32Array(N), core = new Uint8Array(N), rOut = R - PATTERN_EDGE;
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+    const x = x0 + i * px, y = x0 + j * px, k = j * W + i;
+    const f = Math.min(P.sdf(x, y), dInk[k] * px - halo - px, rOut - Math.hypot(x, y));   // less a cell: the ink may reach that far past a cell centre
+    F[k] = f;
+    if (f > rho - px / 2) core[k] = 1;                 // eroded by half the least width
+  }
+  // grown back: what's left is the pattern without anything thinner than PATTERN_MIN
+  const dCore = distanceTransform(core, W, H);
+  for (let k = 0; k < N; k++) F[k] = Math.min(F[k], rho + px - dCore[k] * px);
+  // pieces: each one's widest point (the field is a distance inside); the small ones go
+  const label = new Int32Array(N).fill(-1), stack = new Int32Array(N);
+  let minPiece = Infinity;
+  for (let s = 0; s < N; s++) {
+    if (F[s] <= 0 || label[s] >= 0) continue;
+    let top = 0, peak = 0;
+    const members: number[] = [];
+    stack[top++] = s; label[s] = s;
+    while (top) {
+      const k = stack[--top], i = k % W;
+      members.push(k); peak = Math.max(peak, F[k]);
+      for (const d of [-1, 1, -W, W, -W - 1, -W + 1, W - 1, W + 1]) {
+        const q = k + d;
+        if (q < 0 || q >= N || Math.abs((q % W) - i) > 1 || F[q] <= 0 || label[q] >= 0) continue;
+        label[q] = s; stack[top++] = q;
+      }
+    }
+    if (2 * peak < PATTERN_MIN - 0.03) for (const k of members) F[k] = -px;
+    else minPiece = Math.min(minPiece, 2 * peak);
+  }
+  return { rings: traceField(F, W, H, x0, x0, px), line: P.line, width: P.width, gap: P.gap, halo, minPiece, ink };
+}
+
+const patternCuts = new Map<string, PatternCut | null>();
 const cached = (key: string, make: () => PatternCut | null) => {
   if (!patternCuts.has(key)) {
     patternCuts.set(key, make());
-    if (patternCuts.size > 400) patternCuts.delete(patternCuts.keys().next().value!);
+    if (patternCuts.size > 200) patternCuts.delete(patternCuts.keys().next().value!);
   }
   return patternCuts.get(key)!;
 };
 
-/** The front's pattern, cut round the icon, the name and the frame; null for none. */
-function frontPattern(lib: Library, role: Role, spec: TokenSpec, text: string): PatternCut | null {
-  const p = spec.frontPattern;
-  if (!p || !PATTERN_IDS.has(p.id)) return null;
-  const key = ["front", JSON.stringify(p), iconOf(role, spec).key, text, spec.style, spec.diameter, spec.textSize, spec.spacing, spec.margin, spec.maxArc,
-    spec.frame, spec.frameWidth, spec.iconScale, spec.iconOffsetY, JSON.stringify(spec.autoText ?? null)].join("|");
-  return cached(key, () => {
-    const reg = frontRegion(lib, role, spec, text);
-    return reg && reg.rOut > reg.rIn + PATTERN_MIN ? cutPattern(p, spec.diameter / 2, reg) : null;
+/** Shapes (with holes) as outlines in mm, y up. */
+const ringsOf = (shapes: THREE.Shape[], m: (x: number, y: number) => Pt = (x, y) => [x, y], div = 8): Ring[] =>
+  shapes.map((sh) => ({ outer: sh.getPoints(div).map((q) => m(q.x, q.y)), holes: sh.holes.map((hp) => hp.getPoints(div).map((q) => m(q.x, q.y))) }));
+
+/** What the front draws over its pattern: the icon, the name (each, if twice) and the frame (mm). */
+function frontInk(lib: Library, role: Role, spec: TokenSpec, text: string): Ring[] {
+  const shapes = iconShapes(lib, role, spec), ink: Ring[] = [];
+  if (fitsIcon(spec)) {
+    const f = fittedIcon(lib, role, spec, text);
+    ink.push(...ringsOf(shapes, (x, y) => [(x - f.cx) * f.k, -(y - f.cy) * f.k + f.dy], 4));
+  } else {
+    const k = (spec.diameter * spec.iconScale) / TRACE_VIEW, off = spec.iconOffsetY || 0;
+    ink.push(...ringsOf(shapes, (x, y) => [k * (x - TRACE_VIEW / 2), -k * (y - TRACE_VIEW / 2) + off], 4));
+  }
+  const L = arcName(lib, text, spec);
+  if (L) for (const turn of nameTurns(spec)) L.chars.forEach((ch, i) => {
+    if (ch === " ") return;
+    const g = glyph(lib, ch), a = (L.angles[i] * Math.PI) / 180, c = Math.cos(a + Math.PI / 2), s = Math.sin(a + Math.PI / 2), ct = Math.cos(turn), st = Math.sin(turn);
+    ink.push(...ringsOf(g.shapes, (gx, gy) => {
+      const x = (gx - g.center) * L.em, y = gy * L.em, px = L.radius * Math.cos(a) + x * c - y * s, py = L.radius * Math.sin(a) + x * s + y * c;
+      return [px * ct - py * st, px * st + py * ct];
+    }, 6));
   });
+  const fd = frameDesign(spec);
+  if (fd) ink.push(...ringsOf(fd.shapes, undefined, 24));
+  return ink;
 }
 
-/** The back's pattern (under a back design), round the plain medallion and inside the rim; null for none. */
-function backPattern(spec: TokenSpec): PatternCut | null {
+/** What a back design draws over the back's pattern (mm, as seen with the coin turned over). */
+function backInk(lib: Library, role: Role, spec: TokenSpec): Ring[] {
+  const shapes = spec.back === "medallon" ? medallionBack(lib, role, spec) : spec.back === "edition" ? editionBack(lib, role, spec) : backDesign(spec.back, spec.diameter / 2);
+  return ringsOf(shapes ?? [], undefined, 24);
+}
+
+/** The front's pattern, behind the icon, the name and the frame; null for none (or the window layout). */
+function frontPattern(lib: Library, role: Role, spec: TokenSpec, text: string): PatternCut | null {
+  const p = spec.frontPattern;
+  if (!p || !PATTERN_IDS.has(p.id) || spec.style === "window") return null;
+  const key = ["front", JSON.stringify({ ...p, colour: null }), iconOf(role, spec).key, text, spec.style, spec.diameter, spec.textSize, spec.spacing, spec.margin, spec.maxArc,
+    spec.frame, spec.frameWidth, spec.iconScale, spec.iconOffsetY, JSON.stringify(spec.autoText ?? null)].join("|");
+  return cached(key, () => cutPattern(p, spec.diameter / 2, frontInk(lib, role, spec, text)));
+}
+
+/** The back's pattern, behind its design; null for none (or a back that is a face). */
+function backPattern(lib: Library, role: Role, spec: TokenSpec): PatternCut | null {
   const p = spec.backPattern;
   if (!p || !PATTERN_IDS.has(p.id) || spec.back === FACE_BACK) return null;
-  const R = spec.diameter / 2;
-  return cached(["back", JSON.stringify(p), spec.diameter].join("|"), () => {
-    const rOut = R - 0.7 - 0.6 - PATTERN_RING_GAP, rIn = R * MEDALLION + PATTERN_RING_GAP, inner = ringPoly(rIn);
-    return cutPattern(p, R, { out: ringPoly(rOut), holes: [inner], rOut, rIn, inner, sectors: [] });
-  });
+  const ed = EDITIONS[role.edition] ? role.edition : role.editionName ?? "";
+  const key = ["back", JSON.stringify(p), spec.back, spec.back === "custom" ? spec.customSvg : "", ed, spec.lang, spec.diameter].join("|");
+  return cached(key, () => cutPattern(p, spec.diameter / 2, backInk(lib, role, spec)));
 }
 
 /** The front part the pattern joins: the frame's or the name's, whichever has its colour (the frame's if neither). */
@@ -1505,14 +1518,14 @@ function patternPart(role: Role, spec: TokenSpec): "frame" | "front" {
   return pc.frame === want ? "frame" : pc.front === want ? "front" : "frame";
 }
 
-const polyShapes = (polys: Poly[]) => polys.map((q) => new THREE.Shape(q.map(([x, y]) => new THREE.Vector2(x, y))));
-/** SVG path data for pattern pieces (mm, y up), flipped to SVG's y-down; pieces may overlap (nonzero). */
-const polysPath = (polys: Poly[]) => polys.map((q) => q.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(3)} ${(-y).toFixed(3)}`).join("") + "Z").join("");
+const v2 = (q: Poly) => q.map(([x, y]) => new THREE.Vector2(x, y));
+const cutShapes = (cut: PatternCut) => cut.rings.map((r) => { const sh = new THREE.Shape(v2(r.outer)); sh.holes = r.holes.map((h) => new THREE.Path(v2(h))); return sh; });
+/** SVG path data for a pattern (fill-rule evenodd), flipped to SVG's y-down. */
+const cutPath = (cut: PatternCut) => cut.rings.flatMap((r) => [r.outer, ...r.holes]).map((q) => q.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(3)} ${(-y).toFixed(3)}`).join("") + "Z").join("");
 
 /**
- * Medallion back: a fine rim, and a plain medallion in the centre (its own fine ring) with a crescent
- * moon and the edition's name (a homebrew character's: its script's) along its lower edge. Made to
- * sit inside a back pattern (backPattern keeps clear of both rings).
+ * Medallion back: a fine rim, and a medallion in the centre (its own fine ring) with a crescent
+ * moon and the edition's name (a homebrew character's: its script's) along its lower edge.
  */
 function medallionBack(lib: Library, role: Role, spec: TokenSpec) {
   const R = spec.diameter / 2, out = R - 0.7, rm = R * MEDALLION;
@@ -1537,52 +1550,24 @@ function medallionBack(lib: Library, role: Role, spec: TokenSpec) {
 
 /**
  * What a token's pattern on one side came out as, measured on its outlines: how many pieces, the
- * line's width (the cells' across), the gap between lines (cells), the smallest piece kept (mm
- * across; NaN when they join an outline), and the least room (mm) between the pattern and the rest
- * of that face (the icon, the name and the frame; on the back its design). Null with no pattern.
+ * line's width (the cells' across), the gap between lines (cells), the halo, the smallest piece
+ * kept (mm across) and the least room (mm) between the pattern and what sits on it. Null with none.
  */
 export function patternReport(lib: Library, role: Role, input: SpecInput | undefined, side: "front" | "back" = "front") {
   if (shapeOf(role) !== "coin") return null;
   const spec = windowFrame(shapeSpec(role, input)), text = roleName(role, spec.lang);
-  const cut = side === "front" ? frontPattern(lib, role, spec, text) : backPattern(spec);
+  const cut = side === "front" ? frontPattern(lib, role, spec, text) : backPattern(lib, role, spec);
   if (!cut) return null;
-  // the rest of the face as outline points (mm)
-  let others: Pt[] = [];
-  const outline = (shapes: THREE.Shape[]) => shapes.flatMap((sh) => [sh, ...sh.holes].flatMap((c) => c.getPoints(8).map((q): Pt => [q.x, q.y])));
-  if (side === "front") {
-    others = iconPoints(lib, role, spec, text);
-    const L = arcName(lib, text, spec);
-    if (L) for (const turn of nameTurns(spec)) L.chars.forEach((ch, i) => {
-      if (ch === " ") return;
-      const a = (L.angles[i] * Math.PI) / 180, c = Math.cos(a + Math.PI / 2), s = Math.sin(a + Math.PI / 2), ct = Math.cos(turn), st = Math.sin(turn);
-      for (const [gx, gy] of glyphPoints(lib, ch)) {
-        const x = gx * L.em, y = gy * L.em, px = L.radius * Math.cos(a) + x * c - y * s, py = L.radius * Math.sin(a) + x * s + y * c;
-        others.push([px * ct - py * st, px * st + py * ct]);
-      }
-    });
-    const fd = frameDesign(spec);
-    if (fd) others.push(...outline(fd.shapes));
-  } else if (spec.back === "medallon") others = outline(medallionBack(lib, role, spec));
-  else others = outline(backDesign(spec.back, spec.diameter / 2) ?? []);
+  const boxes = cut.rings.map((r) => boxOf(r.outer));
   let clear = Infinity;
-  const boxes = cut.polys.map(boxOf);
-  for (const [x, y] of others) cut.polys.forEach((q, i) => {
+  for (const ir of cut.ink) for (const q of [ir.outer, ...ir.holes]) for (const [x, y] of q) cut.rings.forEach((r, i) => {
     const b = boxes[i];
     if (x < b[0] - clear || x > b[2] + clear || y < b[1] - clear || y > b[3] + clear) return;
-    clear = Math.min(clear, inPoly(x, y, q) ? 0 : edgeDist(x, y, q));
+    if (inPoly(x, y, r.outer) && !r.holes.some((h) => inPoly(x, y, h))) { clear = 0; return; }
+    for (const e of [r.outer, ...r.holes]) clear = Math.min(clear, edgeDist(x, y, e));
   });
-  // the least coin between two separate pieces (cells; lines cross each other)
-  let gap = cut.gap;
-  if (!cut.edge && boxes.length > 1 && cut.polys.every((q, i) => cut.polys.every((r, j) => j <= i || !boxesMeet(boxes[i], boxes[j], -1e-6) || !q.some(([x, y]) => inPoly(x, y, r))))) {
-    gap = Infinity;
-    cut.polys.forEach((q, i) => cut.polys.forEach((r, j) => {
-      if (j <= i || !boxesMeet(boxes[i], boxes[j], gap)) return;
-      for (const [x, y] of q) gap = Math.min(gap, edgeDist(x, y, r));
-      for (const [x, y] of r) gap = Math.min(gap, edgeDist(x, y, q));
-    }));
-  }
-  return { pieces: cut.polys.length, line: cut.line, width: cut.width, gap, minPiece: cut.minPiece, clear: Number.isFinite(clear) ? clear : null,
-    part: side === "front" ? patternPart(role, spec) : "back" as PartName };
+  return { pieces: cut.rings.length, line: cut.line, width: cut.width, gap: cut.gap, halo: cut.halo, minPiece: cut.minPiece,
+    clear: Number.isFinite(clear) ? clear : null, part: (side === "front" ? patternPart(role, spec) : "back") as PartName };
 }
 
 function buildBase(spec: TokenSpec) {
@@ -2084,9 +2069,9 @@ function windowFrame(spec: TokenSpec) {
 }
 
 /** A back design with the back's pattern (backPattern) added, in its colour. */
-function withBackPattern(geom: THREE.BufferGeometry | null, spec: TokenSpec) {
-  const bp = backPattern(spec);
-  return bp ? merge([geom, extrude(polyShapes(bp.polys), spec.depth, S(-1, 1, 1), 1)]) : geom;
+function withBackPattern(lib: Library, role: Role, geom: THREE.BufferGeometry | null, spec: TokenSpec) {
+  const bp = backPattern(lib, role, spec);
+  return bp ? merge([geom, extrude(cutShapes(bp), spec.depth, S(-1, 1, 1), 1)]) : geom;
 }
 
 export function buildToken(lib: Library, role: Role, input: SpecInput | undefined, text?: string | null): Token {
@@ -2132,7 +2117,7 @@ export function buildToken(lib: Library, role: Role, input: SpecInput | undefine
   // Background patterns join the part whose colour they are (patternPart; the back's on the back).
   const fp = frontPattern(lib, role, spec, text), fpPart = fp ? patternPart(role, spec) : null;
   const fpRelief: ReliefPart = fpPart === "frame" ? "frame" : "text";
-  const fpGeom = fp ? extrude(polyShapes(fp.polys), faceHeight(spec, fpRelief, topFace(spec)), T(0, 0, partZ(spec, fpRelief, topFace(spec))), 1) : null;
+  const fpGeom = fp ? extrude(cutShapes(fp), faceHeight(spec, fpRelief, topFace(spec)), T(0, 0, partZ(spec, fpRelief, topFace(spec))), 1) : null;
   const frontName = fpPart === "front" ? merge([front.name, fpGeom]) : front.name;
   const frameAll = fpPart === "frame" ? merge([frame, fpGeom]) : frame;
   // A back that is a face is drawn like a front on the bottom face (backFaceOf: the front again,
@@ -2151,7 +2136,7 @@ export function buildToken(lib: Library, role: Role, input: SpecInput | undefine
   return {
     parts: {
       base: buildBase(spec), front: frontName, icon: front.icon || null, frame: frameAll,
-      back: back ? back.name : withBackPattern(buildBack(lib, role, text, spec), spec),
+      back: back ? back.name : withBackPattern(lib, role, buildBack(lib, role, text, spec), spec),
       ...(back ? { backIcon: back.icon || null, backFrame } : {}),
       ...extras,
     },
@@ -2224,7 +2209,7 @@ export function tokenSvg(lib: Library, role: Role, input: SpecInput | undefined,
     const fd = frameDesign(spec);
     if (fd) body += `<path fill="${c.frame}" fill-rule="nonzero" d="${shapesToPath(fd.shapes, 0, 0, 48)}"/>`;
     const fp = frontPattern(lib, role, spec, label);
-    if (fp) body += `<path fill="${c[patternPart(role, spec)]}" fill-rule="nonzero" d="${polysPath(fp.polys)}"/>`;
+    if (fp) body += `<path fill="${c[patternPart(role, spec)]}" fill-rule="evenodd" d="${cutPath(fp)}"/>`;
   } else {
     const back = ({ seal: "Seal", clock: "Clock", rings: "Rings", name: "Name", custom: "Custom" } as Record<string, string | undefined>)[spec.back];
     const designed = backDesign(spec.back, R);
@@ -2234,8 +2219,8 @@ export function tokenSvg(lib: Library, role: Role, input: SpecInput | undefined,
     if (pocket?.kind === "pocket") body += `<circle r="${pocket.radius.toFixed(2)}" fill="#0b090c" opacity=".85"/>`;
     if (ed) body += `<path fill="${c.back}" fill-rule="evenodd" d="${shapesToPath(ed, 0, 0, 48)}"/>`;
     if (spec.back === "medallon") body += `<path fill="${c.back}" fill-rule="evenodd" d="${shapesToPath(medallionBack(lib, role, spec), 0, 0, 48)}"/>`;
-    const bp = backPattern(spec);
-    if (bp) body += `<path fill="${c.back}" fill-rule="nonzero" d="${polysPath(bp.polys)}"/>`;
+    const bp = backPattern(lib, role, spec);
+    if (bp) body += `<path fill="${c.back}" fill-rule="evenodd" d="${cutPath(bp)}"/>`;
     if (spec.back === "seal" && lib.sealSvg) body += `<g fill="${c.back}" transform="scale(${spec.diameter / TRACE_VIEW}) translate(${-TRACE_VIEW / 2} ${-TRACE_VIEW / 2})">${lib.sealSvg.replace(/^[\s\S]*?<g /, "<g ").replace(/fill="#000000"/, "").replace(/<\/svg>\s*$/, "")}</g>`;
     else if (back && !designed) body += `<text y="1.5" text-anchor="middle" font-size="5" fill="${c.back}" font-family="${LETTERING.family}">${esc(back === "Name" ? label.toUpperCase() : back.toUpperCase())}</text>`;
   }
