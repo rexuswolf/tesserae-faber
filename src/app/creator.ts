@@ -684,6 +684,8 @@ function showOwnPage(id: string) {
 /** The front page (/): what the app is, the ways in, and back to the last collection you had open. */
 export async function renderOwnLanding() {
   showOwnPage("ownLanding");
+  // the walk through what the app does, below the fold: its own module (three.js, the collections' tokens)
+  void import("./landing-tour.ts").then((m) => m.startTour());
   // the honeycomb of tokens, drawn once by the engine (tools/make-crear-art.mjs); inline, so its cells can be laid in turn
   fetch("/crear-hero.svg").then((r) => (r.ok ? r.text() : "")).then((svg) => { $("#ownComb").innerHTML = svg; $("#ownComb").classList.add("play"); }).catch(() => {});
   const last = lastCollection(), lang = uiLang();

@@ -179,3 +179,23 @@ test("cards with a back: the Senate's laws to the Bambu project and the paper, b
   }
   expect(errors).toEqual([]);
 });
+
+test("the front page walks through the app: its chapters draw as they come near, and answer", async ({ page }) => {
+  const errors = await open(page, "/");
+  await page.locator("[data-tour-go]").first().click();
+  await expect(page.locator("#tourCovers .tour-cover")).toHaveCount(3);
+  await expect(page.locator("#tourShapes figure svg")).toHaveCount(4);
+  await page.locator("#tourDesign").scrollIntoViewIfNeeded();
+  const token = page.locator("#tourDesigned svg");
+  await expect(token).toBeAttached();
+  const before = await token.innerHTML();
+  await page.locator("#tourOpts [data-v='window']").click();
+  await expect.poll(() => token.innerHTML()).not.toBe(before);
+  const turn = page.locator(".tour-turn").first();
+  await turn.click();
+  await expect(turn).toHaveAttribute("aria-pressed", "true");
+  await page.locator("#tourSheets").scrollIntoViewIfNeeded();
+  await expect(page.locator("#tourSheets .tour-sheet").last().locator("svg")).toHaveCount(9);
+  await expect(page.locator("#tourLegend li")).not.toHaveCount(0);
+  expect(errors).toEqual([]);
+});

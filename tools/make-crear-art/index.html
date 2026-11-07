@@ -41,9 +41,9 @@ const botc = (en, spec = base) => tokenSvg(lib, role(en), spec);
 const logo = await (await fetch("/tesserae-faber.svg")).text();
 
 const COMB = [
-  botc("Imp", D.edicion), await own("Vidente", "lorc/crystal-ball", "#2f86e0"), botc("Fortune Teller", D.marfil), await own("Lobo", "lorc/wolf-head", "#b3191e", D.noche),
-  await own("Oro", "delapouite/gold-stack", "#d4a72c", D.marfil), botc("Empath", D.noche), logo, await own("Envenenado", "lorc/poison-bottle", "#3f9651", D.solo), botc("Poisoner", D.medianoche),
-  await own("Jugador inicial", "lorc/crown", "#c9a227", D.doble), botc("Washerwoman", D.ventana), await own("Protegido", "lorc/eye-shield", "#8a3d9e", D.medianoche), await own("Ronda", "lorc/sands-of-time", "#2f86e0", D.ventana),
+  await own("Dragón", "lorc/dragon-head", "#b3191e"), await own("Vidente", "lorc/crystal-ball", "#2f86e0"), await own("Mapa", "lorc/treasure-map", "#9a6a3a", D.marfil), await own("Lobo", "lorc/wolf-head", "#b3191e", D.noche),
+  await own("Oro", "delapouite/gold-stack", "#d4a72c", D.marfil), await own("Senador", "delapouite/greek-temple", "#ece9e2", { ...D.edicion, frame: "laurel" }), logo, await own("Envenenado", "lorc/poison-bottle", "#3f9651", D.solo), await own("Fuego", "lorc/fire-ring", "#e07a2f", D.medianoche),
+  await own("Jugador inicial", "lorc/crown", "#c9a227", D.doble), await own("Pócima", "lorc/potion-ball", "#8a3d9e", D.ventana), await own("Protegido", "lorc/eye-shield", "#8a3d9e", D.medianoche), await own("Ronda", "lorc/sands-of-time", "#2f86e0", D.ventana),
 ];
 /** A token's SVG placed as a cell of a bigger one (its own viewBox kept). */
 const place = (svg, x, y, s, cls, i) => `<g class="${cls}" style="--i:${i}" filter="url(#lift)">${svg.replace(/<title>[\s\S]*?<\/title>/, "").replace(/<svg[^>]*?viewBox="([^"]+)"[^>]*>/, (_, vb) => `<svg x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${s}" height="${s}" viewBox="${vb}">`)}</g>`;

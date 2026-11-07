@@ -39,6 +39,7 @@ export function setLang(lang: string) {
   }
   else if (state.lib) { buildChoices(); emit("all"); if ($<HTMLDialogElement>("#scriptInvite").open) renderInvite(); }
   else if (OWN && !$("#ownHome").hidden) void renderOwnHome();   // the collections page draws its covers in the language
+  else if (OWN && !$("#ownLanding").hidden) void import("./landing-tour.ts").then((m) => m.redrawTour());   // the front page's tokens, in the language
   else if (gateState) gate(gateState());
   if ($<HTMLDialogElement>("#tlangDialog").open) drawLangDialog();
 }
