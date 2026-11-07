@@ -2,7 +2,7 @@
 // logo; the strip of tokens on its cover is tools/make-crear-art.mjs. Tokens to play the hidden-role
 // game of Secret Hitler (Goat, Wolf & Cabbage, CC BY-NC-SA 4.0: its attribution is in the
 // collection's About, src/builtins.ts), rethemed to the Roman Senate: the theme and the names are
-// ours, none of the game's on the tokens; game-icons.net icons. tools/senado-protos/ shows them.
+// ours, none of the game's on the tokens; game-icons.net icons.
 //   node tools/make-senado-collection.mjs
 // Types: sides (who you are), government (Consul and Tribune, two-sided: turned over when their
 // term ends), the vote (two-sided), unrest (the election tracker, for playing without the board) as

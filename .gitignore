@@ -12,3 +12,16 @@ playwright-report/
 # Clocktower's own collection file: private until TPI says otherwise (tools/make-botc-collection.mjs)
 public/collections/botc.json
 out/
+
+# Prototypes and one-off design pages: kept locally, not in the repo
+tools/*-protos/
+tools/promo/
+tools/back-designs/
+tools/brand/
+tools/coin-presets/
+tools/frame-designs/
+tools/icon-compare/
+tools/icon-review/
+tools/logo-options/
+tools/phone/
+tools/print-pdf/

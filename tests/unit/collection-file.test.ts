@@ -75,11 +75,11 @@ describe("a collection file", () => {
 
 describe("readTokenList", () => {
   const c: Collection = { ...starterCollection(), tokens: [
-    { id: "t1", type: "fichas", group: "g1", name: { es: "Lavandera", en: "Washerwoman" }, icon: null, linked: [] },
-    { id: "t2", type: "fichas", group: "g1", name: "Diablillo", icon: null, linked: [], flip: { name: "Imp", icon: null } },
+    { id: "t1", type: "fichas", group: "g1", name: { es: "Panadera", en: "Baker" }, icon: null, linked: [] },
+    { id: "t2", type: "fichas", group: "g1", name: "Caudillo", icon: null, linked: [], flip: { name: "Warlord", icon: null } },
   ] };
   it("matches a Script Tool script by id or name, ignoring case and accents", () => {
-    expect(readTokenList(c, JSON.stringify([{ id: "_meta", name: "Mine" }, "washerwoman", { id: "IMP" }, "nobody"]))).toEqual({ name: "Mine", ids: ["t1", "t2"], missing: ["nobody"] });
+    expect(readTokenList(c, JSON.stringify([{ id: "_meta", name: "Mine" }, "baker", { id: "WARLORD" }, "nobody"]))).toEqual({ name: "Mine", ids: ["t1", "t2"], missing: ["nobody"] });
   });
-  it("reads names one per line", () => expect(readTokenList(c, "Lavandera\ndiablillo\n").ids).toEqual(["t1", "t2"]));
+  it("reads names one per line", () => expect(readTokenList(c, "Panadera\ncaudillo\n").ids).toEqual(["t1", "t2"]));
 });

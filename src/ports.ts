@@ -3,7 +3,7 @@
 import type { Role } from "./types.ts";
 
 /** Who is signed in, as far as the app cares. */
-export interface AppUser { email: string | null; photoURL: string | null }
+export interface AppUser { uid: string; email: string | null; photoURL: string | null }
 
 /** Signing in (only the admin does, to upload the library). */
 export interface AuthPort {

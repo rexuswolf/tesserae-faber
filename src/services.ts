@@ -31,8 +31,9 @@ const rolesAdapter = (): Promise<RoleLibraryPort> => import("./adapters/firebase
 
 // ------------------------------------------------------------ the admin
 
-export const ADMIN_EMAIL = "admin@example.invalid";
-export const isAdmin = (user: AppUser | null | undefined) => user?.email?.toLowerCase() === ADMIN_EMAIL;
+/** The admin: its Firebase account id (firestore.rules says the same). */
+export const ADMIN_UID = "ZF6TRxFCPNh6Bjvg7rbv5mAD0x83";
+export const isAdmin = (user: AppUser | null | undefined) => user?.uid === ADMIN_UID;
 
 // Whether this browser has a sign-in to restore: then (or on ?admin) the sign-in adapter loads;
 // otherwise no one is signed in, and nothing is downloaded to find that out.

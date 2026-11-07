@@ -6,7 +6,7 @@ import type { AuthPort } from "../ports.ts";
 const auth = getAuth(app);
 
 export const firebaseAuth: AuthPort = {
-  onUser: (fn) => { onAuthStateChanged(auth, (u) => fn(u && { email: u.email, photoURL: u.photoURL })); },
+  onUser: (fn) => { onAuthStateChanged(auth, (u) => fn(u && { uid: u.uid, email: u.email, photoURL: u.photoURL })); },
   signIn: () => signInWithPopup(auth, new GoogleAuthProvider()).then(
     () => "ok" as const,
     (e) => { if (e?.code === "auth/popup-closed-by-user" || e?.code === "auth/cancelled-popup-request") return "cancelled" as const; throw e; }),
