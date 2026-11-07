@@ -65,11 +65,11 @@ const styles = {
     { id: "senado", name: { es: "Senado", en: "Senate" },
       help: { es: "Negra, con una corona de laurel, el icono y el nombre del color del bando; al reverso, un medallón y «El Senado» en oro.", en: "Black, with a laurel wreath, the icon and the name in the side's colour; on the back, a medallion and «The Senate» in gold." },
       spec: { style: "classic", frame: "laurel", frameWidth: 0.8, back: "medallon", backText: "collection", depth: 0.4, colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } } },
-    // a tessera: the coin in the side's colour (the Republic's marble, the conspiracy's red, Caesar's
-    // purple), its icon, name and rim raised in black
+    // a tessera: grey stone for every coin (a role dealt face-down shows nothing by its edge or back),
+    // its icon and name raised in the side's colour, its rim in black
     { id: "tesera", name: { es: "Tésera", en: "Tessera" },
-      help: { es: "Del color del bando —mármol, rojo, púrpura—, con el icono, el nombre y el borde en relieve negro; al reverso, un sol en negro.", en: "In the side's colour (marble, red, purple), with the icon, the name and the rim raised in black; on the back, a black sunburst." },
-      spec: { style: "classic", frame: "rim", frameWidth: 0.8, back: "sol", depth: 0.4, relief: { text: true, frame: true, icon: true }, reliefHeight: 0.6, colours: { base: "team", front: FILAMENTS.black, frame: FILAMENTS.black, back: FILAMENTS.black } } },
+      help: { es: "De piedra gris, igual para todas: el icono y el nombre en relieve del color del bando, el borde en relieve negro; al reverso, un sol en negro. De canto y por detrás no se distinguen.", en: "Grey stone, the same for all: the icon and the name raised in the side's colour, the rim raised in black; on the back, a black sunburst. Edge-on and from behind, you can't tell them apart." },
+      spec: { style: "classic", frame: "rim", frameWidth: 0.8, back: "sol", depth: 0.4, relief: { text: true, frame: true, icon: true }, reliefHeight: 0.6, colours: { base: FILAMENTS.silver, front: "team", frame: FILAMENTS.black, back: FILAMENTS.black } } },
     // an aureus: struck gold, the laurel raised and bevelled, a reeded edge; the shield and the name in black behind
     { id: "aureo", name: { es: "Áureo", en: "Aureus" },
       help: { es: "De oro, como la moneda de Roma: el icono, el nombre y la corona de laurel en relieve biselado y el canto estriado; al reverso, el escudo y «El Senado» en negro.", en: "Gold, like Rome's coin: the icon, the name and the laurel wreath in bevelled relief and a reeded edge; on the back, the shield and «The Senate» in black." },
@@ -107,8 +107,8 @@ const collection = {
     { id: "republica", name: { es: "La República", en: "Republic" }, colour: C.bone, iconBody: bare("greek-temple") },
     { id: "conjura", name: { es: "La Conjura", en: "Conspiracy" }, colour: C.red, iconBody: bare("plain-dagger") },
     { id: "gobierno", name: { es: "Gobierno", en: "Government" }, colour: C.silver, iconBody: bare("laurel-crown") },
-    { id: "votos", name: { es: "Votos", en: "Votes" }, colour: C.bronze, iconBody: bare("thumb-up") },
-    { id: "tumultos", name: { es: "Tumultos", en: "Unrest" }, colour: C.yellow, iconBody: bare("torch") },
+    { id: "votos", name: { es: "Votos", en: "Votes" }, colour: "#2f86e0", iconBody: bare("thumb-up") },
+    { id: "tumultos", name: { es: "Tumultos", en: "Unrest" }, colour: C.bronze, iconBody: bare("torch") },
   ],
   tokens,
   sections: [
