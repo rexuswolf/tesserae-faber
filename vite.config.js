@@ -50,7 +50,12 @@ const pwa = VitePWA({
   },
 });
 
+import { execSync } from "node:child_process";
+// the version a page runs, shown at the foot of About (which build a phone is on)
+let BUILD = "dev";
+try { BUILD = `${execSync("git rev-parse --short HEAD").toString().trim()} · ${new Date().toISOString().slice(0, 16).replace("T", " ")}`; } catch { /* no git */ }
 export default {
+  define: { __BUILD__: JSON.stringify(BUILD) },
   resolve: { alias: [threeBySource] },
   plugins: [pwa],
 };

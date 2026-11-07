@@ -7,3 +7,5 @@ declare module "imagetracerjs" {
   };
   export default ImageTracer;
 }
+
+declare const __BUILD__: string;

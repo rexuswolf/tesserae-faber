@@ -181,6 +181,7 @@ if ("serviceWorker" in navigator && import.meta.env.PROD) {
   // a new version took over: everything you do is kept as you do it, so load it straight away
   navigator.serviceWorker.addEventListener("controllerchange", () => { if (hadOne) location.reload(); });
 }
+$("#buildTag").textContent = `v ${__BUILD__}`;
 window.addEventListener("vite:preloadError", (e) => {
   if (sessionStorage.getItem("mm-reloaded")) return;   // don't loop if it really is broken
   e.preventDefault();
