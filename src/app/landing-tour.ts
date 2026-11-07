@@ -146,6 +146,10 @@ function design(sen: Kit | null, d5: Kit | null, ds: Kit | null) {
     ];
     const box = $("#tourFaces");
     box.innerHTML = faces.map(([a, b, cap]) => `<button class="tour-turn" type="button" aria-pressed="false" aria-label="${esc(t("tour.turn"))}: ${esc(t(cap))}"><span class="in tour-tok"><span>${a}</span><span>${b}</span></span><span class="cap">${esc(t(cap))}</span></button>`).join("");
+    // with a mouse a token turns over while the pointer is on it; on a touch screen, a tap turns it
+    const hover = matchMedia("(hover: hover) and (pointer: fine)").matches;
+    const note = $("#tourTurnNote"); note.dataset.i18n = hover ? "tour.backsNoteHover" : "tour.backsNote"; note.textContent = t(note.dataset.i18n);
+    box.classList.toggle("by-hover", hover);
     box.onclick = (e) => { const b = (e.target as Element).closest(".tour-turn"); if (b) b.setAttribute("aria-pressed", String(b.getAttribute("aria-pressed") !== "true")); };
   }
 }

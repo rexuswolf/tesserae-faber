@@ -1601,3 +1601,18 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 .own-landing .ol-resume b { font-size: 15px; font-weight: 600; }
 .own-landing .ol-resume:hover b { color: #c9963a; }
 .own-landing .ol-resume .arrow { font-size: 18px; margin-left: 0; }
+/* a mouse turns the backs' tokens over while on them; the 3D stretch carries its chapter's head */
+.tour-faces.by-hover .tour-turn:hover .in { transform: rotateY(180deg); }
+.tour-faces.by-hover .tour-turn[aria-pressed=true]:hover .in { transform: none; }
+#tourPrint { padding-top: 0; }
+.tour-stick { align-content: center; row-gap: 0; }
+.tour-headbox { grid-column: 1 / -1; padding-top: 24px; }
+.tour-headbox .tour-lead { margin-bottom: 0; }
+.tour-stick canvas { height: min(64svh, 600px); }
+@media (max-width: 860px) {
+  .tour-headbox { padding-top: 0; }
+  .tour-headbox .tour-lead { font-size: 16px; margin-bottom: 8px; }
+  .tour-stick canvas { height: 38svh; }
+  .tour-head .n { width: 38px; height: 33px; font-size: 18px; }
+}
+@media (max-width: 860px) { .tour-stick .tour-txt h3 { margin-top: 10px; } }
