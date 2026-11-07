@@ -1,4 +1,5 @@
 // Loading: the gate (loading screen), starting the app and the admin's sign-in.
+import { emit } from "./events.ts";
 import { $, coll, READONLY, state, loadViewer, loadJSON, VIEW_KEY, setGateState, setColl } from "./context.ts";
 import { signIn, loadRoles, isAdmin, signOut as signOutUser, onUser } from "../services.ts";
 import { t, uiLang } from "../i18n.ts";
@@ -13,10 +14,10 @@ import { syncHomebrew, scriptOf, openSharedScript, resumeHomebrew } from "./scri
 import { openAdmin } from "./admin.ts";
 import { wire } from "./wiring.ts";
 import { charKey } from "./tokens.ts";
-import { buildChoices, renderWorkshop } from "./workshop.ts";
+import { buildChoices } from "./workshop.ts";
 import { loadPicks, persistPicks, goStep, isPicked } from "./queue.ts";
 import { takeReturn } from "./design-sheet.ts";
-import { selectToken, renderSpine, renderSheet } from "./sheet.ts";
+import { selectToken } from "./sheet.ts";
 import { guide, wireGuide } from "./guide.ts";
 
 // ------------------------------------------------------------ gate
@@ -128,7 +129,7 @@ function startApp() {
   loadDesigns();
   state.pick = loadPicks();
   persistPicks();
-  renderAll();
+  emit("all");
   goStep(1);
   // back from the Taller: where it was opened from (the design step, on the same token)
   const back = takeReturn();
@@ -145,4 +146,3 @@ function renderAccount() {
   if (admin) { $<HTMLImageElement>("#avatar").src = state.user!.photoURL || ""; $("#meEmail").textContent = state.user!.email ?? ""; }
 }
 
-export function renderAll() { renderSpine(); renderSheet(); renderWorkshop(); }

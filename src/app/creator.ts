@@ -1,19 +1,19 @@
 // Collections of your own: the creator, a token's panel, the collection's look and the list.
+import { emit } from "./events.ts";
 import { OWN, catalogsOf, nameIn, storeCollection, OWN_ID, builtIn, tallerUrl, readTokenList, newId, withName, copyBuiltIn, collectionUrl, collectionFile, readCollectionFile, addCollection, GROUP_COLOURS, SHAPES, collectionRoles, tokenRole as ownRole, isLocked, THEMES, APP_LOGO, APP_LOGO_SMALL, APP_ICON, APP_NAME, hasCcc, THEME_FONTS, okLogo, builtInCollections, listCollections, lastCollection, openUrl, OWN_VIEW, LIST_URL, starterCollection, loadCollection, deleteCollection } from "../collection.ts";
 import type { OwnCatalog, OwnSection, OwnToken, OwnTheme, CollectionEntry } from "../collection.ts";
 import { coll, TEAM_ORDER, TEAM_PLURAL, PLATE_LABEL, PLATE_GROUP, $$, stickyNotice, state, $, esc, READONLY, hit, input, BUILT, COLOUR_CHOICES } from "./context.ts";
 import type { Creating } from "./context.ts";
 import type { Role, Team, Hex, TokenShape, TokenIcon } from "../types.ts";
 import { uiLang, t } from "../i18n.ts";
-import { PRINT_GROUPS, persistPicks, renderQueue, renderDesignStage, setPick, picksChanged, goStep } from "./queue.ts";
+import { PRINT_GROUPS, persistPicks, renderDesignStage, setPick, goStep } from "./queue.ts";
 import { TEAMS, saveFile, SHAPE_FEATURES, tokenSvg, shapeOf } from "../engine/token-engine.ts";
 import { UI_ICONS, TEAM_ICONS, uiIcon, SHAPE_ICONS } from "../ui-icons.ts";
 import { renderLangButtons, closeOnBackdrop, tokenLang } from "./token-language.ts";
 import { storeOverrides, designOf, defaultRef, designFor, designOverridden } from "./designs.ts";
 import { roleById } from "./wiring.ts";
 import { charKey, remindersOf, specFor, remKey, sortKeys } from "./tokens.ts";
-import { renderAll } from "./boot.ts";
-import { searchQuery, pickedBadge, renderSheet, renderSpine, selectToken } from "./sheet.ts";
+import { searchQuery, pickedBadge, selectToken } from "./sheet.ts";
 import { rememberReturn, toast } from "./design-sheet.ts";
 import { drawer, PHONE } from "./scripts-ui.ts";
 import { renderWorkshop } from "./workshop.ts";
@@ -81,7 +81,7 @@ function collectionChanged() {
   const sel = state.sel && roleById(state.sel.role.id);
   state.sel = sel && alive(state.sel!.key) ? { ...state.sel!, role: sel } : { key: charKey(state.lib!.roles[0]), role: state.lib!.roles[0], reminder: null };
   syncOwnChrome();
-  renderAll(); renderQueue();
+  emit("all");
 }
 
 export function renderOwnSpine() {
@@ -340,7 +340,7 @@ function closeTokenPanel() {
   state.editing = null;
   const d = $<HTMLDialogElement>("#tokenPanel"); if (d.open) d.close();
   if (was) { clearTimeout(ownTimer); collectionChanged(); }
-  else if (made) { renderSheet(); renderSpine(); }
+  else if (made) emit("looks");
 }
 /** Choosing the shape of the token being made: its type follows. */
 function chooseShape(shape: TokenShape) {
@@ -370,7 +370,7 @@ function createToken(more: boolean) {
   state.creating = null;
   collectionChanged();
   setPick(key, true); tk.linked.forEach((_, i) => setPick(`r:${tk.id}:${i}`, true));
-  picksChanged();
+  emit("picks");
   if (more) { startCreate({ shape: c.shape, type: type.id, group: tk.group, cats: c.cats }); $("#tpFlash").textContent = t("create.doneMore", { name }); return; }
   closeTokenPanel();
   toast(t("create.done", { name }));

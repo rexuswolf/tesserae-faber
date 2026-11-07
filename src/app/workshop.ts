@@ -1,4 +1,5 @@
 // The workshop: a token's preview, its parts and faces, and its own icon.
+import { on } from "./events.ts";
 import type { TokenShape, TokenSpec, BackFace, TokenStyle, SpecInput, SpecColours, TokenIcon, TokenOverride } from "../types.ts";
 import { shapeOf, SHAPE_FEATURES, DEFAULT_SPEC, FACE_FIELDS, reliefOf, buildToken, TEAMS, tokenSvg, MAGNET_SIZES, RING_SEPARATORS, RING_BASES } from "../engine/token-engine.ts";
 import { state, LAYOUT_TEXT, defSpec, STYLE_KEEPS, knownStyles, $, view3d, esc, input, hit, $$, SEPARATOR_MARKS, COLOUR_CHOICES } from "./context.ts";
@@ -141,6 +142,8 @@ export function viewTab() {
 }
 
 let raf = 0;
+on("all", () => renderWorkshop());
+
 export function renderWorkshop() {
   cancelAnimationFrame(raf);
   raf = requestAnimationFrame(() => {

@@ -101,3 +101,18 @@ test("switching the interface to Spanish", async ({ page }) => {
   await expect(page.locator("html")).toHaveAttribute("lang", "es");
   expect(errors).toEqual([]);
 });
+
+test("a change redraws everything that shows it", async ({ page }) => {
+  const errors = await open(page, "/botc");
+  // picking: the queue's count follows
+  const count = () => page.locator("#queueToggle").innerText();
+  const before = await count();
+  await pick(page, 2, '#rows [data-pick^="c:"]');
+  await expect.poll(count).not.toBe(before);
+  // the interface in Spanish: the sheet's names follow (tokens print in the interface's language by default)
+  const names = () => page.locator('#rows [data-pick^="c:"]').first().getAttribute("aria-label");
+  const english = await names();
+  await page.locator('[data-lang="es"]').first().evaluate((b) => (b as HTMLElement).click());
+  await expect.poll(names).not.toBe(english);
+  expect(errors).toEqual([]);
+});

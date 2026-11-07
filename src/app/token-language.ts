@@ -1,4 +1,5 @@
 // The language the tokens' names print in, and its dialog.
+import { emit } from "./events.ts";
 import { local } from "../services.ts";
 import { TOKEN_LANG_KEY, coll, $$, esc, state, $, hit } from "./context.ts";
 import { TRANSLATIONS, VILLACUERVOS_URL } from "../translations.ts";
@@ -6,8 +7,6 @@ import type { Translation } from "../translations.ts";
 import { uiLang, t, LANGUAGES, tIn } from "../i18n.ts";
 import { OWN, hasCcc, OWN_VIEW } from "../collection.ts";
 import { uiLanguage, CHEVRON, setLang } from "./language.ts";
-import { renderAll } from "./boot.ts";
-import { renderQueue } from "./queue.ts";
 import { renderInvite, drawer } from "./scripts-ui.ts";
 import type { Role } from "../types.ts";
 import { charKey, remKey, specFor, charName, remindersOf } from "./tokens.ts";
@@ -90,7 +89,7 @@ export function renderLangButtons() {
 function setTokenLang(choice: string) {
   local.set(TOKEN_LANG_KEY, choice);
   renderLangButtons();
-  if (state.lib) { renderAll(); renderQueue(); if ($<HTMLDialogElement>("#scriptInvite").open) renderInvite(); }
+  if (state.lib) { emit("all"); if ($<HTMLDialogElement>("#scriptInvite").open) renderInvite(); }
 }
 
 // The Language dialog, two tabs. Interface: a pick applies at once (the whole app and this dialog redraw

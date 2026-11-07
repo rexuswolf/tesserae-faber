@@ -1,4 +1,5 @@
 // The sheet of tokens: the spine (editions, filters), the add menu and the sheet itself.
+import { on, emit } from "./events.ts";
 import { state, esc, $, EDITION_ORDER, TEAM_PLURAL, fold, coll, TEAM_ORDER, storeJSON, VIEW_KEY, hit, READONLY, view3d } from "./context.ts";
 import { isCard, EDITIONS, TEAMS, roleName, shapeOf, reminderSpec, DEFAULT_SPEC, SHAPE_FEATURES, tokenSvg, flipFace } from "../engine/token-engine.ts";
 import { OWN, catalogsOf, nameIn, SHAPES, isLocked } from "../collection.ts";
@@ -9,7 +10,7 @@ import { uiIcon, TEAM_ICONS } from "../ui-icons.ts";
 import { remindersOf, charKey, remKey, textFor, collator, catalogText, specFor, catalogSpec } from "./tokens.ts";
 import { loadScripts } from "../scripts.ts";
 import { scriptRoles, scriptOf, scriptHasOwn, PHONE, editionName } from "./scripts-ui.ts";
-import { isPicked, setPick, changePicks, picksChanged, tokenRole, tokenRem } from "./queue.ts";
+import { isPicked, setPick, changePicks, tokenRole, tokenRem } from "./queue.ts";
 import { roleById } from "./wiring.ts";
 import { tokenLang } from "./token-language.ts";
 import { renderDesignBar, setBarShapes } from "./design-sheet.ts";
@@ -21,6 +22,11 @@ import { syncView } from "./workshop.ts";
 
 /** Every official character, in every edition: the "All characters" view. */
 const allCharacters = () => state.lib!.roles.filter((r) => !isCard(r) && r.kind !== "homebrew");
+// the spine and the sheet show what's picked and each token's look
+on("picks", () => { renderSpine(); renderSheet(); });
+on("looks", () => { renderSheet(); renderSpine(); });
+on("all", () => { renderSpine(); renderSheet(); });
+
 export function renderSpine() {
   if (OWN) return renderOwnSpine();
   const lang = uiLang();
@@ -94,7 +100,7 @@ export function addShown(how: string) {
       if (how !== "chars") rems.forEach((k) => setPick(k, true));
     }
   };
-  if (how === "none") changePicks(apply, t("pick.cleared")); else { apply(); picksChanged(); }
+  if (how === "none") changePicks(apply, t("pick.cleared")); else { apply(); emit("picks"); }
 }
 
 // ------------------------------------------------------------ sheet
@@ -179,7 +185,7 @@ export function onCopyStep(e: Event) {
   if (more) { const k = more.dataset.more!; state.pick.set(k, (state.pick.get(k) || 0) + 1); }
   else if (less) { const k = less.dataset.less!, n = state.pick.get(k) || 0; if (n > 1) state.pick.set(k, n - 1); else state.pick.delete(k); }
   else return false;
-  picksChanged();
+  emit("picks");
   return true;
 }
 
@@ -204,7 +210,7 @@ export function toggleCharacter(key: string) {
   setPick(key, on);
   if (on) openRows.add(key); else openRows.delete(key);   // picked, its row opens; dropped, it folds
   if (key.startsWith("c:")) remindersOf(role).forEach((_, i) => setPick(remKey(role, i), on));
-  picksChanged();
+  emit("picks");
 }
 function rowHtml(r: Role, q: string, remHits: Set<number> | undefined) {
   const lang = uiLang(), ck = charKey(r);

@@ -1,12 +1,12 @@
 // The interface language.
+import { emit } from "./events.ts";
 import { $$, esc, $, state, gateState, hit } from "./context.ts";
 import { t, LANGUAGES, uiLang, setUiLang } from "../i18n.ts";
 import { renderLangButtons, drawLangDialog } from "./token-language.ts";
 import { taller, renderTaller } from "./taller.ts";
 import { APP_NAME, OWN } from "../collection.ts";
 import { buildChoices } from "./workshop.ts";
-import { renderAll, gate } from "./boot.ts";
-import { renderQueue } from "./queue.ts";
+import { gate } from "./boot.ts";
 import { renderInvite } from "./scripts-ui.ts";
 import { renderOwnHome } from "./creator.ts";
 import { local } from "../services.ts";
@@ -37,7 +37,7 @@ export function setLang(lang: string) {
     document.title = `${t("taller.title")} · ${APP_NAME}`;
     buildChoices(); renderTaller();
   }
-  else if (state.lib) { buildChoices(); renderAll(); renderQueue(); if ($<HTMLDialogElement>("#scriptInvite").open) renderInvite(); }
+  else if (state.lib) { buildChoices(); emit("all"); if ($<HTMLDialogElement>("#scriptInvite").open) renderInvite(); }
   else if (OWN && !$("#ownHome").hidden) void renderOwnHome();   // the collections page draws its covers in the language
   else if (gateState) gate(gateState());
   if ($<HTMLDialogElement>("#tlangDialog").open) drawLangDialog();

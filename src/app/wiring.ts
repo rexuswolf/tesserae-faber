@@ -1,4 +1,5 @@
 // Wiring: the page's event handlers, set once when the app starts.
+import { emit } from "./events.ts";
 import { $, hit, input, state, MY_DESIGNS_KEY, $$, storeJSON, view3d, LAYOUT_TEXT, RANGES, MAX_SVG } from "./context.ts";
 import type { Part, FaceTab, Fields, RangeKey, Side } from "./context.ts";
 import { openScriptDialog, goEdition, drawer, saveFromDialog, scriptCustomizes, shareScript, scriptOf, scriptJsonWithOwn, syncHomebrew, openSharedScript, PHONE } from "./scripts-ui.ts";
@@ -6,14 +7,14 @@ import { saveFile, shapeOf, FACE_FIELDS, DEFAULT_SPEC, PATTERN_MIN } from "../en
 import { t, uiLang } from "../i18n.ts";
 import { storeScripts, loadScripts } from "../scripts.ts";
 import { roleIdOf, charKey, textFor } from "./tokens.ts";
-import { persistPicks, editToken, isPicked, setPick, picksChanged, renderQueue, goStep, flow, downloadPdf, downloadBambu, dropFromDesign, designToken, PAPER_BACKS_KEY, testQ, PRINT_WAY_KEY, PRINTER_KEY, NOZZLE_KEY, openQueue, onQueueClick, undoPicks, changePicks } from "./queue.ts";
+import { persistPicks, editToken, isPicked, setPick, renderQueue, goStep, flow, downloadPdf, downloadBambu, dropFromDesign, designToken, PAPER_BACKS_KEY, testQ, PRINT_WAY_KEY, PRINTER_KEY, NOZZLE_KEY, openQueue, onQueueClick, undoPicks, changePicks } from "./queue.ts";
 import { renderSpine, renderSheet, onCopyStep, openRows, toggleCharacter, openAddMenu, addShown } from "./sheet.ts";
 import { openTokenPanel, wireCollSwitch, wireOwn } from "./creator.ts";
 import { wireDesignBar, deepenAll, openDesignSheet, wireDesignSheet, saveLookAsDesign, setOwn, rememberReturn, renderSays, setBackMode, changeLook, deepen, resetField, swapRelief, setRelief, changePattern } from "./design-sheet.ts";
 import { OWN } from "../collection.ts";
 import { TALLER } from "./taller.ts";
 import { designFor, rereadMyDesigns } from "./designs.ts";
-import { renderAll, adminSignIn } from "./boot.ts";
+import { adminSignIn } from "./boot.ts";
 import { printerOf, nozzleOf } from "../bambu/plates.ts";
 import type { ViewKind } from "../engine/viewer.ts";
 import { syncView, editShape, openPart, showTab, renderWorkshop, viewTab, changeFace, editSide, editLook, wireIcons } from "./workshop.ts";
@@ -80,13 +81,13 @@ export function wire() {
     if (pick) { toggleCharacter(pick.dataset.pick!); return; }
     // a reminder chip: all its reminders in, or (when they're all in already) all out
     const chip = hit(e, "[data-pick-rems]");
-    if (chip) { const keys = chip.dataset.pickRems!.split(" "), on = !keys.every(isPicked); keys.forEach((k) => setPick(k, on)); picksChanged(); return; }
+    if (chip) { const keys = chip.dataset.pickRems!.split(" "), on = !keys.every(isPicked); keys.forEach((k) => setPick(k, on)); emit("picks"); return; }
     // anywhere else in a character's row adds or drops the character
     const row = !team && hit(e, "[data-row]");
     if (row && !hit(e, "a, button, input")) { toggleCharacter(row.dataset.row!); return; }
     if (team) {
       const list = (state.shown || []).filter((r) => r.team === team.dataset.pickTeam), on = !list.every((r) => isPicked(charKey(r)));
-      list.forEach((r) => setPick(charKey(r), on)); picksChanged();
+      list.forEach((r) => setPick(charKey(r), on)); emit("picks");
     }
   };
   wireCollSwitch();
@@ -96,7 +97,7 @@ export function wire() {
   window.addEventListener("storage", (e) => {
     if (e.key !== MY_DESIGNS_KEY || TALLER || !state.lib) return;
     rereadMyDesigns();
-    renderAll(); renderQueue();
+    emit("all");
   });
   // "Add to queue": a menu of what to add (see renderAddMenu)
   $("#addBtn").onclick = (e) => { openAddMenu($("#addMenu").hidden, e.detail === 0); };

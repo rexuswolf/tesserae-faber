@@ -1,4 +1,5 @@
 // Choosing a design (the design sheet), and each shape's default design.
+import { emit } from "./events.ts";
 import type { TokenShape, TokenSpec, MyDesign, TokenOverride, Role, BackMode, PatternSpec, ReliefPart, Token, TokenStyle, SpecColours, SpecInput } from "../types.ts";
 import { DEFAULT_SPEC, reminderSpec, tokenSvg, SHAPE_FEATURES, shapeOf, roleName, shapeSpec, TOKEN_STYLES, FRAME_STYLES, FILAMENTS, BACK_STYLES, PATTERN_MIN, partColours, PATTERNS, patternDefaults, patternFilled, patternFixed, flipFace, reliefOf, hasRelief, FACE_FIELDS, ringBand, ringSize, magnetLayout } from "../engine/token-engine.ts";
 import { tokenLang } from "./token-language.ts";
@@ -12,14 +13,13 @@ import type { Side, RangeKey } from "./context.ts";
 import { t, uiLang } from "../i18n.ts";
 import type { Vars } from "../i18n.ts";
 import { applyLook, prunedLook, withLookField, sameValue, lookFields, withoutLookField, setField, lookDiff, fieldOf } from "./looks.ts";
-import { tokenRole, queueEntry, tokenRem, queueLabel, itemSpec, renderQueue, smallLetters, nozzleMm, renderDesignStage, toastTimer, setToastTimer } from "./queue.ts";
+import { tokenRole, queueEntry, tokenRem, queueLabel, itemSpec, smallLetters, nozzleMm, renderDesignStage, toastTimer, setToastTimer } from "./queue.ts";
 import { CHEVRON } from "./language.ts";
 import { renderIconField, openPart, openPanel, partsOf, faceTabsOf, faceOf, hasOwnLook, ownStart, syncView, renderWorkshop, editLook, changeFace, editSide, designSwatch } from "./workshop.ts";
 import { TALLER, tallerMine, renderTaller } from "./taller.ts";
 import { colourIssues, LIGHT_DEPTH } from "../colour-checks.ts";
 import type { InlayPart } from "../colour-checks.ts";
 import { roleById } from "./wiring.ts";
-import { renderSheet, renderSpine } from "./sheet.ts";
 import { writeJSON, session, readJSON } from "../services.ts";
 
 // ------------------------------------------------------------ choosing a design (the sheet)
@@ -319,7 +319,7 @@ export function deepenAll() {
   }
   storeOverrides();
   if (state.sel) renderWorkshop();
-  renderSheet(); renderSpine(); renderQueue();
+  emit("looks");
 }
 
 /** The layouts, each drawn on the token (the back's: on what its back shows) in the face's current colours. */
@@ -664,7 +664,7 @@ export function changeLook(mutate: (s: TokenSpec) => void) {
   setOwn(key, own);
 }
 let sheetTimer: ReturnType<typeof setTimeout> | number = 0;
-export function scheduleSheet() { clearTimeout(sheetTimer); sheetTimer = setTimeout(() => { renderSheet(); renderSpine(); renderQueue(); }, 180); }
+export function scheduleSheet() { clearTimeout(sheetTimer); sheetTimer = setTimeout(() => emit("looks"), 180); }
 /** A token's own text, feminine name, icon, design or look changes; with none left, it simply has its default design. */
 export function setOwn(key: string, own: TokenOverride) {
   if (!own.text && !own.fem && !own.icon && !own.style && !own.look) state.overrides.delete(key); else state.overrides.set(key, own);
@@ -716,7 +716,7 @@ async function setDefaults(next: Partial<Record<TokenShape, string>>) {
   if (clear) for (const k of touched) { const o = { ...state.overrides.get(k) }; delete o.style; delete o.look; if (Object.keys(o).length) state.overrides.set(k, o); else state.overrides.delete(k); }
   storeDefaults(); storeOverrides();
   toast(shapes.length === 1 ? t("bar.done", { shape: t(`type.${shapes[0]}.many`).toLowerCase(), name: designOf(shapes[0], defaultRef(shapes[0]))!.name }) : t("bar.doneOriginal"));
-  renderSheet(); renderSpine(); renderQueue();
+  emit("looks");
   if (state.step === 2) { renderWorkshop(); renderDesignStage(); }
 }
 export function wireDesignBar() {

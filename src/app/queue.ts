@@ -1,8 +1,9 @@
 // What's picked and the print queue: selection, steps, the drawer and steps 2 and 3.
+import { on, emit } from "./events.ts";
 import { loadJSON, PICK_KEY, QUEUE_KEY, storeJSON, state, PLATE_LABEL, PLATE_GROUP, $, esc, hit, TEAM_ORDER, TEAM_PLURAL, $$ } from "./context.ts";
 import { roleById } from "./wiring.ts";
 import { remKey, charKey, textFor, ownIcon, sortKeys, specFor, filamentName } from "./tokens.ts";
-import { renderSpine, renderSheet, hasOwn, selectToken, ownPen, BIN } from "./sheet.ts";
+import { renderSheet, hasOwn, selectToken, ownPen, BIN } from "./sheet.ts";
 import type { QueueEntry, Role, TokenSpec, PlateItem, PlanToken, PartName, Hex, PlatePlan, Volumes, MagnetLayout, Token } from "../types.ts";
 import { lookOf } from "./designs.ts";
 import { tokenLang } from "./token-language.ts";
@@ -46,7 +47,11 @@ export function setPick(key: string, on: boolean) {
   else state.pick.delete(key);
 }
 /** After any change to the selection: save it and redraw what shows it. */
-export function picksChanged() { persistPicks(); renderSpine(); renderSheet(); renderQueue(); }
+// what's picked is kept, and the queue shows it (the sheet and spine listen too)
+on("picks", persistPicks);
+on("picks", renderQueue);
+on("looks", renderQueue);
+on("all", renderQueue);
 
 /** The selection as queue entries, one per copy, in the current language and design. */
 function queueNow() {
@@ -207,7 +212,7 @@ export const setToastTimer = (t: ReturnType<typeof setTimeout> | undefined) => {
 export function changePicks(mutate: () => void, message: string) {
   const before = new Map(state.pick);
   mutate();
-  picksChanged();
+  emit("picks");
   flow.undo = before;
   const toast = $<HTMLDialogElement>("#queueDrawer").open ? $("#queueToast") : $("#appToast");   // a modal drawer hides the page
   $("span", toast).textContent = message;
@@ -218,18 +223,18 @@ export function changePicks(mutate: () => void, message: string) {
   toastTimer = setTimeout(() => { toast.hidden = true; flow.undo = null; }, 5000);
 }
 export function undoPicks() {
-  if (flow.undo) { state.pick = flow.undo; picksChanged(); }
+  if (flow.undo) { state.pick = flow.undo; emit("picks"); }
   flow.undo = null; $("#queueToast").hidden = $("#appToast").hidden = true;
 }
 export function onQueueClick(e: Event) {
   const pen = hit(e, "[data-edit]");
   if (pen) { editToken(pen.dataset.edit!); return; }
   const plus = hit(e, "[data-plus]"), minus = hit(e, "[data-minus]"), rm = hit(e, "[data-unpick]");
-  if (plus) { const k = plus.dataset.plus!; state.pick.set(k, (state.pick.get(k) || 0) + 1); picksChanged(); }
+  if (plus) { const k = plus.dataset.plus!; state.pick.set(k, (state.pick.get(k) || 0) + 1); emit("picks"); }
   else if (minus) {
     const k = minus.dataset.minus!, n = state.pick.get(k) || 0, role = tokenRole(k);
     const ri = tokenRem(k), name = ri != null ? `${textFor(charKey(role), role, null)}: ${textFor(k, role, ri)}` : textFor(k, role, null);
-    if (n > 1) { state.pick.set(k, n - 1); picksChanged(); }
+    if (n > 1) { state.pick.set(k, n - 1); emit("picks"); }
     else changePicks(() => state.pick.delete(k), t("queue.removed", { name }));
   } else if (rm) {
     const k = rm.dataset.unpick!, role = tokenRole(k);
@@ -297,7 +302,7 @@ export function designToken(key: string) {
 function revealPicked() { $("#designGrid .ds-cell[aria-current=true]")?.scrollIntoView({ inline: "nearest", block: "nearest" }); }
 /** The pen on a token with its own changes: to step 2, showing it. Step 2 only holds picked tokens, so it picks it first. */
 export function editToken(key: string) {
-  if (!isPicked(key)) { setPick(key, true); picksChanged(); }
+  if (!isPicked(key)) { setPick(key, true); emit("picks"); }
   if ($<HTMLDialogElement>("#queueDrawer").open) $<HTMLDialogElement>("#queueDrawer").close();
   selectToken(key);
   showTab({ part: "front" });
