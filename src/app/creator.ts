@@ -709,10 +709,10 @@ export async function renderOwnHome() {
       <a class="oh-cover-link" href="${b.href ?? collectionUrl(b.id)}">
         <span class="who"><img src="${esc(b.logo ?? APP_LOGO)}" alt=""><span><h3>${esc(nameIn(b.name, lang))}</h3><p>${esc(nameIn(b.text, lang))}</p></span></span>
         ${b.preview ? `<img class="strip" src="${esc(b.preview)}" alt="">` : ""}
-        <span class="go"><span class="forge">${esc(t("own.open"))}</span></span>
+        <span class="go"><span class="forge">${esc(t("own.open"))}</span>
+          ${b.ccc ? `<img class="oh-ccc" src="/ccc-sleeve.png" alt="Community Created Content" width="172" height="68">` : ""}
+          ${b.mark ? `<img class="oh-ccc oh-mark${b.mark.invert ? " invert" : ""}" src="${esc(b.mark.src)}" alt="${esc(b.mark.alt)}">` : ""}</span>
       </a>
-      ${b.ccc ? `<img class="oh-ccc" src="/ccc-sleeve.png" alt="Community Created Content" width="172" height="68">` : ""}
-      ${b.mark ? `<img class="oh-ccc oh-mark${b.mark.invert ? " invert" : ""}" src="${esc(b.mark.src)}" alt="${esc(b.mark.alt)}">` : ""}
     </article>`).join("");
   $("#ownHomeBuiltH").hidden = !built.length;
   $("#ownHomeList").innerHTML = mine.map((c: CollectionEntry) => `<article class="oh-tile" style="--acc:${esc(c.accent ?? "#c9963a")}">
