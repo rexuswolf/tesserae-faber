@@ -2375,6 +2375,7 @@ function syncControls(role: Role, spec: TokenSpec, token: Token) {
   $("#ringBaseRow").hidden = !f.ringBase;
   $("#separatorRow").hidden = !f.separator;
   $("#cardSizeHint").hidden = shape !== "card";
+  $("#edgeRow").hidden = shape !== "coin";
   const rs = ringSize(s);
   $("#ringBaseHint").textContent = t("ring.baseHelp", { inner: dec1(2 * rs.inner), outer: dec1(2 * rs.outer) });
   $("#baseColourLabel").textContent = shapeText("coin.colour", shape);
@@ -2394,7 +2395,7 @@ function syncControls(role: Role, spec: TokenSpec, token: Token) {
   // pressed: the face's choices in a face's tabs, the token's elsewhere; the magnet as it prints
   for (const b of $$("[data-choice] button")) {
     const key = b.parentElement!.dataset.choice as keyof TokenSpec, from = key === "style" || key === "frame" ? face : s;
-    const v = key === "magnet" && faceBack && s.magnet === "pocket" ? "hidden" : from[key] ?? DEFAULT_SPEC[key];
+    const v = key === "magnet" && faceBack && s.magnet === "pocket" ? "hidden" : from[key] ?? DEFAULT_SPEC[key] ?? (key === "edge" ? "smooth" : undefined);
     b.setAttribute("aria-pressed", String(v === b.dataset.v));
   }
   $("[data-choice=magnet] [data-v=pocket]").hidden = faceBack;
@@ -2536,6 +2537,7 @@ function buildChoices() {
   };
   // Layouts are drawn as coin tiles by renderStyleTiles().
   make("magnet", [{ id: "none" }, { id: "pocket" }, { id: "hidden" }]);
+  make("edge", [{ id: "smooth" }, { id: "reeded" }, { id: "segmented" }]);
   $("[data-choice=magnetSize]").innerHTML = MAGNET_SIZES.map((v) => `<button class="pill" type="button" data-v="${v}">${v.replace("x", " × ")} mm</button>`).join("");
   // a ring's mark between repeats: each drawn as itself, with its name
   $("[data-choice=separator]").innerHTML = RING_SEPARATORS.map((id) => `<button class="pill" type="button" data-v="${id}">${SEPARATOR_MARKS[id]}${esc(t(`separator.${id}`))}</button>`).join("");
@@ -2725,14 +2727,15 @@ function wire() {
   // A face's choices and sliders go to the face being edited (the front, or a back of its own); the rest to the token.
   const FACE_KEYS = new Set<string>(FACE_FIELDS);
   const change = (key: string, mutate: (s: TokenSpec) => void) => (FACE_KEYS.has(key) ? changeFace(editSide(), mutate) : changeLook(mutate));
-  for (const key of ["style", "frame", "back", "magnet", "magnetSize", "ringBase", "separator"]) {
+  for (const key of ["style", "frame", "back", "magnet", "magnetSize", "ringBase", "separator", "edge"]) {
     $(`[data-choice=${key}]`).onclick = (e) => {
       const b = hit(e, "button"); if (!b) return;
       if (key === "back" && b.dataset.v === "custom" && !editLook().customSvg) { $("#upload").click(); return; }
       change(key, (s) => {
         // a name size doesn't carry over between layouts: each starts from its own
         if (key === "style" && (s.style ?? DEFAULT_SPEC.style) !== b.dataset.v) s.textSize = LAYOUT_TEXT[b.dataset.v as TokenStyle];
-        (s as unknown as Fields)[key] = b.dataset.v;
+        if (key === "edge" && b.dataset.v === "smooth") delete s.edge;   // smooth is unset: the coin as always
+        else (s as unknown as Fields)[key] = b.dataset.v;
       });
       if (key === "back") { view3d("setView", "back"); syncView("back"); }
     };

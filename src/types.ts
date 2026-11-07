@@ -86,6 +86,8 @@ export interface RoleFlip {
 /** A token's shape: a coin, a card (Clocktower's Grimoire) or a condition ring (see SHAPE_FEATURES). */
 export type TokenShape = "coin" | "card" | "ring";
 export type TokenStyle = "classic" | "window" | "solo" | "double";
+/** A coin's side edge. */
+export type CoinEdge = "smooth" | "reeded" | "segmented";
 export type MagnetKind = "none" | "pocket" | "hidden";
 /** The face parts that can stand out of the coin. */
 export type ReliefPart = "text" | "frame" | "icon";
@@ -169,6 +171,9 @@ export interface TokenSpec {
   frontPattern?: PatternSpec | null;
   /** A background pattern on the back, behind its design. */
   backPattern?: PatternSpec | null;
+  /** A coin's side edge (canto): smooth when unset; "reeded", ridges all round like a real coin;
+   *  "segmented", reeded sections alternating with smooth ones. See COIN_EDGES. */
+  edge?: CoinEdge;
   /** The name a back design prints (Edition, medallion, shield): unset, the edition's (a collection's
    *  token: its catalog's); "collection", the collection's own name (a token outside one: as unset). */
   backText?: "collection";

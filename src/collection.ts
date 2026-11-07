@@ -399,6 +399,7 @@ function readSpec(v: unknown): SpecInput | null {
     else if (k === "customSvg") { if (typeof x === "string" && x.length < 300000) out[k] = x; }
     else if (k === "frontPattern" || k === "backPattern") { const p = readPattern(x); if (p) out[k] = p; }
     else if (k === "backText") { if (x === "collection") out[k] = x; }
+    else if (k === "edge") { if (x === "smooth" || x === "reeded" || x === "segmented") out[k] = x; }
     else if (k in d && k !== "lang" && typeof x === typeof d[k]) out[k] = x;
   }
   return out as SpecInput;

@@ -18,7 +18,7 @@ import { TTFLoader } from "three/addons/loaders/TTFLoader.js";
 import { Font } from "three/addons/loaders/FontLoader.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import type {
-  Role, Team, Hex, ColourRef, TokenSpec, SpecInput, TokenStyle, Relief, ReliefPart, Library, Glyph,
+  Role, Team, Hex, CoinEdge, ColourRef, TokenSpec, SpecInput, TokenStyle, Relief, ReliefPart, Library, Glyph,
   PartColours, TokenParts, Token, MagnetLayout, TokenIcon, TokenShape, FaceField, BackFace, RingSeparator, AutoText,
   PatternId, PatternSpec, PartName,
 } from "../types.ts";
@@ -39,6 +39,32 @@ export const TEAMS: Record<Team, { label: Record<string, string>; colour: Hex; f
   // The grimoire's info tokens (cards): their "team colour" is gold, a filament the export knows.
   info: { label: { en: "Info tokens", es: "Fichas de información" }, colour: "#c9a227", file: "yellow" },
 };
+
+/** A coin's side edge (spec.edge; unset is smooth). */
+export const COIN_EDGES: { id: CoinEdge; label: string }[] = [{ id: "smooth", label: "Smooth" }, { id: "reeded", label: "Reeded" }, { id: "segmented", label: "Segmented" }];
+/** How deep a reeded edge's grooves cut into the coin (mm), and their pitch along the edge. */
+export const EDGE_DEPTH = 0.4, EDGE_PITCH = 1.15;
+const edged = (spec: Pick<TokenSpec, "edge">) => spec.edge === "reeded" || spec.edge === "segmented";
+/** The face's edge: the coin's, or inside a reeded edge's grooves (frames and patterns stay in the solid coin). */
+const faceRadius = (spec: Pick<TokenSpec, "diameter" | "edge">) => spec.diameter / 2 - (edged(spec) ? EDGE_DEPTH : 0);
+/**
+ * A reeded coin's outline (mm, y up): teeth `EDGE_DEPTH` deep every EDGE_PITCH, flat tops and
+ * floors (each over 0.4 mm) and steep flanks, so each layer prints as one toothed loop. A
+ * segmented edge alternates 12 sections, reeded and smooth. Null for a smooth coin.
+ */
+export function coinOutline(spec: Pick<TokenSpec, "diameter" | "edge">): [number, number][] | null {
+  if (!edged(spec)) return null;
+  const R = spec.diameter / 2, r = R - EDGE_DEPTH, n = Math.round((TAU * R) / EDGE_PITCH / 12) * 12, da = TAU / n;
+  const P = (rad: number, a: number): [number, number] => [rad * Math.cos(a), rad * Math.sin(a)];
+  const out: [number, number][] = [];
+  for (let i = 0; i < n; i++) {
+    const a = i * da;
+    if (spec.edge === "segmented" && Math.floor((i * 12) / n) % 2) { out.push(P(R, a), P(R, a + da / 2)); continue; }
+    // top 46 % of the pitch, floor 38 %, flanks 8 % each
+    out.push(P(R, a), P(R, a + da * 0.46), P(r, a + da * 0.54), P(r, a + da * 0.92));
+  }
+  return out;
+}
 
 export const FRAME_STYLES = [
   { id: "none", label: "None" },
@@ -1008,7 +1034,7 @@ function edgeRing(rOut: number, rIn: number, n: number) {
 
 /** Filled shapes for the front frame and its inner edge, or null for none. */
 export function frameDesign(spec: TokenSpec): { shapes: THREE.Shape[]; inner: number } | null {
-  const R = spec.diameter / 2, w = spec.frameWidth, out = R - FRAME_INSET, edge = out - w;
+  const w = spec.frameWidth, out = faceRadius(spec) - FRAME_INSET, edge = out - w;
   const rim = edgeRing(out, edge, coinSegments());
   let sh: THREE.Shape[] = [rim], inner = edge;
   switch (spec.frame) {
@@ -1620,8 +1646,8 @@ function frontPattern(lib: Library, role: Role, spec: TokenSpec, text: string): 
   const p = spec.frontPattern;
   if (!p || !PATTERN_IDS.has(p.id) || spec.style === "window" || !SHAPE_FEATURES[shapeOf(role)].pattern) return null;
   const key = ["front", JSON.stringify({ ...p, colour: null }), iconOf(role, spec).key, text, spec.style, spec.diameter, spec.textSize, spec.spacing, spec.margin, spec.maxArc,
-    spec.frame, spec.frameWidth, spec.iconScale, spec.iconOffsetY, JSON.stringify(spec.autoText ?? null)].join("|");
-  return cached(key, () => { const { ink, solid } = frontInk(lib, role, spec, text); return cutPattern(p, spec.diameter / 2, ink, solid); });
+    spec.frame, spec.frameWidth, spec.iconScale, spec.iconOffsetY, JSON.stringify(spec.autoText ?? null), faceRadius(spec)].join("|");
+  return cached(key, () => { const { ink, solid } = frontInk(lib, role, spec, text); return cutPattern(p, faceRadius(spec), ink, solid); });
 }
 
 /** The back's pattern, behind its design; null for none (or a back that is a face). */
@@ -1629,8 +1655,8 @@ function backPattern(lib: Library, role: Role, spec: TokenSpec): PatternCut | nu
   const p = spec.backPattern;
   if (!p || !PATTERN_IDS.has(p.id) || spec.back === FACE_BACK || !SHAPE_FEATURES[shapeOf(role)].pattern) return null;
   const ed = backEdition(role, spec)?.name.en ?? "";
-  const key = ["back", JSON.stringify(p), spec.back, spec.back === "custom" ? spec.customSvg : "", ed, spec.lang, spec.diameter].join("|");
-  return cached(key, () => cutPattern(p, spec.diameter / 2, backInk(lib, role, spec)));
+  const key = ["back", JSON.stringify(p), spec.back, spec.back === "custom" ? spec.customSvg : "", ed, spec.lang, spec.diameter, faceRadius(spec)].join("|");
+  return cached(key, () => cutPattern(p, faceRadius(spec), backInk(lib, role, spec)));
 }
 
 /** The front part the pattern joins: the frame's or the name's, whichever has its colour (the frame's if neither). */
@@ -1774,6 +1800,9 @@ export function patternReport(lib: Library, role: Role, input: SpecInput | undef
 }
 
 function buildBase(spec: TokenSpec) {
+  // a reeded edge: the toothed outline straight up the coin's height
+  const outline = coinOutline(spec);
+  if (outline) return extrude([new THREE.Shape(outline.map(([x, y]) => new THREE.Vector2(x, y)))], spec.height, T(0, 0, 0), 1)!;
   const g = new THREE.CylinderGeometry(spec.diameter / 2, spec.diameter / 2, spec.height, 160);
   g.rotateX(Math.PI / 2);
   g.translate(0, 0, spec.height / 2);
@@ -2360,6 +2389,32 @@ export function buildToken(lib: Library, role: Role, input: SpecInput | undefine
 
 // ---------------------------------------------------------------- 2D thumbnails
 
+/**
+ * Relief shading for the 2D picture: raised parts get a bevel (a light rim up-left, a dark rim
+ * down-right) and cast a soft shadow down-right on the field, so relief in the coin's own colour
+ * still reads, and two-tone relief looks raised. One filter per picture, only when something is
+ * raised; its offsets are in mm (the picture's units). Each picture its own id, so a hidden one
+ * never takes another's filter with it.
+ */
+let reliefIds = 0;
+/** The coin's disc in the picture: a circle, or its toothed outline for a reeded edge. */
+function coinSvg(spec: TokenSpec, fill: string) {
+  const o = coinOutline(spec);
+  if (!o) return `<circle r="${spec.diameter / 2}" fill="${fill}"/>`;
+  return `<path fill="${fill}" d="M${o.map(([x, y]) => `${x.toFixed(2)} ${(-y).toFixed(2)}`).join("L")}Z"/>`;
+}
+function reliefFilter(id: string) {
+  const s = 0.32, sh = 0.42;
+  return `<defs><filter id="${id}" x="-10%" y="-10%" width="120%" height="120%" color-interpolation-filters="sRGB">`
+    + `<feOffset in="SourceAlpha" dx="${sh}" dy="${sh}" result="o"/><feGaussianBlur in="o" stdDeviation="0.18" result="ob"/>`
+    + `<feFlood flood-color="#000" flood-opacity=".6"/><feComposite in2="ob" operator="in" result="cast"/>`
+    + `<feOffset in="SourceAlpha" dx="${s}" dy="${s}" result="dr"/><feComposite in="SourceAlpha" in2="dr" operator="out" result="ul"/>`
+    + `<feFlood flood-color="#fff" flood-opacity=".55"/><feComposite in2="ul" operator="in" result="hi"/>`
+    + `<feOffset in="SourceAlpha" dx="${-s}" dy="${-s}" result="ur"/><feComposite in="SourceAlpha" in2="ur" operator="out" result="lr"/>`
+    + `<feFlood flood-color="#000" flood-opacity=".4"/><feComposite in2="lr" operator="in" result="lo"/>`
+    + `<feMerge><feMergeNode in="cast"/><feMergeNode in="SourceGraphic"/><feMergeNode in="hi"/><feMergeNode in="lo"/></feMerge></filter></defs>`;
+}
+
 const esc = (s: unknown) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" } as Record<string, string>)[c]);
 
 /**
@@ -2377,27 +2432,32 @@ export function tokenSvg(lib: Library, role: Role, input: SpecInput | undefined,
   const R = spec.diameter / 2;
   const label = text ?? roleName(role, spec.lang);
   const k = spec.diameter * spec.iconScale / TRACE_VIEW;
+  // raised parts drawn with relief shading (reliefFilter); flat ones as they are
+  const raised = side === "front" && hasRelief(spec) ? reliefOf(spec) : null, rid = raised ? `tfr${++reliefIds}` : "";
+  const up = (part: ReliefPart, svg: string) => (raised?.[part] && svg ? `<g filter="url(#${rid})">${svg}</g>` : svg);
   let body = "";
   if (side === "front" && spec.style === "window") {
     const W = windowLayout(lib, label, spec);
     const I = windowIconMatrix(lib, role, W, 0, spec);
     const d = windowPoints(W.Rw, W.cutY).map((pt, i) => `${i ? "L" : "M"}${pt.x.toFixed(2)} ${(-pt.y).toFixed(2)}`).join("") + "Z";
     body += `<path d="${d}" fill="${c.front}"/>`;
-    body += `<g fill="${c.base}" transform="translate(0 ${(-I.cy).toFixed(3)}) scale(${I.k.toFixed(5)}) translate(${(-I.bcx).toFixed(3)} ${(-I.bcy).toFixed(3)})"><g transform="${iconOf(role, spec).g}">${iconOf(role, spec).body}</g></g>`;
+    body += up("icon", `<g fill="${c.base}" transform="translate(0 ${(-I.cy).toFixed(3)}) scale(${I.k.toFixed(5)}) translate(${(-I.bcx).toFixed(3)} ${(-I.bcy).toFixed(3)})"><g transform="${iconOf(role, spec).g}">${iconOf(role, spec).body}</g></g>`);
     // The name as outlines from the same font as the 3D model, so both always match.
+    let name = "";
     for (const line of W.lines) {
       const shapes = lib.font.generateShapes(line.text, W.em);
       const box = boundsOf(shapes), dx = -(box.min.x + box.max.x) / 2;
-      body += `<path fill="${c.front}" fill-rule="evenodd" d="${shapesToPath(shapes, dx, line.y)}"/>`;
+      name += `<path fill="${c.front}" fill-rule="evenodd" d="${shapesToPath(shapes, dx, line.y)}"/>`;
     }
-    if (spec.frame !== "none") body += `<circle r="${(R - FRAME_INSET - spec.frameWidth / 2).toFixed(2)}" fill="none" stroke="${c.frame}" stroke-width="${spec.frameWidth}"/>`;
+    body += up("text", name);
+    if (spec.frame !== "none") body += up("frame", `<circle r="${(faceRadius(spec) - FRAME_INSET - spec.frameWidth / 2).toFixed(2)}" fill="none" stroke="${c.frame}" stroke-width="${spec.frameWidth}"/>`);
   } else if (side === "front") {
     const icon = iconOf(role, spec);
     if (fitsIcon(spec)) {
       const f = fittedIcon(lib, role, spec, label);
-      body += `<g fill="${c.front}" transform="${f.dy ? `translate(0 ${(-f.dy).toFixed(3)}) ` : ""}scale(${f.k.toFixed(5)}) translate(${(-f.cx).toFixed(3)} ${(-f.cy).toFixed(3)})"><g transform="${icon.g}">${icon.body}</g></g>`;
+      body += up("icon", `<g fill="${c.front}" transform="${f.dy ? `translate(0 ${(-f.dy).toFixed(3)}) ` : ""}scale(${f.k.toFixed(5)}) translate(${(-f.cx).toFixed(3)} ${(-f.cy).toFixed(3)})"><g transform="${icon.g}">${icon.body}</g></g>`);
     } else {
-      body += `<g fill="${c.front}" transform="translate(0 ${-(spec.iconOffsetY || 0)}) scale(${k}) translate(${-TRACE_VIEW / 2} ${-TRACE_VIEW / 2})"><g transform="${icon.g}">${icon.body}</g></g>`;
+      body += up("icon", `<g fill="${c.front}" transform="translate(0 ${-(spec.iconOffsetY || 0)}) scale(${k}) translate(${-TRACE_VIEW / 2} ${-TRACE_VIEW / 2})"><g transform="${icon.g}">${icon.body}</g></g>`);
     }
     const L = arcName(lib, label, spec);
     // SVG y points down: angle a in engine space is -a on screen.
@@ -2409,10 +2469,10 @@ export function tokenSvg(lib: Library, role: Role, input: SpecInput | undefined,
         const x = L.radius * Math.cos((a * Math.PI) / 180), y = -L.radius * Math.sin((a * Math.PI) / 180);
         letters += letterSvg(lib, ch, x, y, -(a + 90), L.em, c.front);
       });
-      body += turn ? `<g transform="rotate(180)">${letters}</g>` : letters;
+      body += up("text", turn ? `<g transform="rotate(180)">${letters}</g>` : letters);
     }
     const fd = frameDesign(spec);
-    if (fd) body += `<path fill="${c.frame}" fill-rule="nonzero" d="${shapesToPath(fd.shapes, 0, 0, 48)}"/>`;
+    if (fd) body += up("frame", `<path fill="${c.frame}" fill-rule="nonzero" d="${shapesToPath(fd.shapes, 0, 0, 48)}"/>`);
     const fp = frontPattern(lib, role, spec, label);
     if (fp) body += `<path fill="${c[patternPart(role, spec)]}" fill-rule="evenodd" d="${cutPath(fp)}"/>`;
   } else {
@@ -2430,7 +2490,7 @@ export function tokenSvg(lib: Library, role: Role, input: SpecInput | undefined,
     if (spec.back === "seal" && lib.sealSvg) body += `<g fill="${c.back}" transform="scale(${spec.diameter / TRACE_VIEW}) translate(${-TRACE_VIEW / 2} ${-TRACE_VIEW / 2})">${lib.sealSvg.replace(/^[\s\S]*?<g /, "<g ").replace(/fill="#000000"/, "").replace(/<\/svg>\s*$/, "")}</g>`;
     else if (back && !designed) body += `<text y="1.5" text-anchor="middle" font-size="5" fill="${c.back}" font-family="${LETTERING.family}">${esc(back === "Name" ? label.toUpperCase() : back.toUpperCase())}</text>`;
   }
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${-R - 0.5} ${-R - 0.5} ${spec.diameter + 1} ${spec.diameter + 1}" role="img" aria-label="${esc(label)} token"><circle r="${R}" fill="${c.base}"/>${body}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${-R - 0.5} ${-R - 0.5} ${spec.diameter + 1} ${spec.diameter + 1}" role="img" aria-label="${esc(label)} token">${raised ? reliefFilter(rid) : ""}${coinSvg(spec, c.base)}${body}</svg>`;
 }
 
 /** Offers a file to the viewer: claude.ai's downloads capability, or a plain download. */
