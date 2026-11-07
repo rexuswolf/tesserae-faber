@@ -27,12 +27,6 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Designs saved to accounts before the app went sign-in free: their owner can
-    // still read and delete them (the app moves them into the browser), never add more.
-    match /users/{uid}/designs/{designId} {
-      allow read, delete: if signedIn() && request.auth.uid == uid;
-    }
-
     match /{document=**} {
       allow read, write: if false;
     }

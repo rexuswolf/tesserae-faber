@@ -18,7 +18,6 @@ export async function loadRoles() {
   return roles.map((r) => ({ id: roleId(r.en), ...r }));
 }
 export const uploadRoles = async () => 0;
-export const listAccountDesigns = async () => [], deleteAccountDesign = async () => {};
 
 // Test-only scripted clicks, chosen by the URL hash, e.g. #search=envenen,select=c:poisoner,token,own,frame=clock,add
 setTimeout(() => {

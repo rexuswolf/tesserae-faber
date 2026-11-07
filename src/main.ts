@@ -11,7 +11,7 @@ const RELIEF_PARTS: ReliefPart[] = ["text", "frame", "icon"];
 const LAYOUT_TEXT: Record<TokenStyle, number> = { classic: DEFAULT_SPEC.textSize, window: 6, solo: DEFAULT_SPEC.textSize, double: DEFAULT_SPEC.textSize };
 import { infoRoles } from "./info-tokens.ts";
 import {
-  onUser, signIn, signOutUser, isAdmin, loadRoles, uploadRoles, listAccountDesigns, deleteAccountDesign,
+  onUser, signIn, signOutUser, isAdmin, loadRoles, uploadRoles,
 } from "./firebase.ts";
 import { planPlates, FILAMENT_SLOTS, PRINTERS, printerOf, NOZZLES, nozzleOf } from "./bambu/plates.ts";
 import { colourIssues, LIGHT_DEPTH } from "./colour-checks.ts";
@@ -1085,8 +1085,7 @@ let firstAuth = true;
 onUser(async (user) => {
   state.user = user;
   if (user && !isAdmin(user)) {
-    // An account from when the app needed sign-in: bring its saved designs into this browser, then sign out.
-    await importAccountDesigns(user).catch(() => {});
+    // a session left from when the app needed sign-in: only the admin signs in now
     signOutUser();
     return;
   }
@@ -3322,22 +3321,6 @@ declare global {
   interface Window { __mm: { goStep: (step: number) => void; designToken: (key: string) => void; estimates: () => ReturnType<typeof plateEstimates> } }
 }
 window.__mm = { goStep, designToken, estimates: () => plateEstimates(queuePlan()) };
-
-// ------------------------------------------------------------ designs saved to an account
-
-/** Moves designs saved to an account (before sign-in was dropped) into this browser, as designs of yours of their type. */
-async function importAccountDesigns(user: User) {
-  const remote = await listAccountDesigns(user.uid);
-  if (!remote.length) return;
-  myDesigns = readMyDesigns();
-  for (const d of remote) {
-    const role = state.lib && roleById(d.roleId), shape = (d.shape as TokenShape | undefined) ?? (role ? shapeOf(role) : "coin"), { lang: _lang, ...spec } = upgradeSpec(d.spec as TokenSpec);
-    if (!myDesigns[shape].some((x) => x.id === d.id || sameLook(x.spec, spec))) myDesigns[shape].push({ id: d.id, name: uniqueDesignName(shape, d.title || t("style.mine")), spec: spec as TokenSpec });
-  }
-  if (!storeMyDesigns()) return;   // not kept here (storage full or blocked): the account keeps them for next time
-  if (state.lib && !TALLER) { renderAll(); renderQueue(); }
-  await Promise.all(remote.map((d) => deleteAccountDesign(user.uid, d.id)));
-}
 
 // ------------------------------------------------------------ credits
 

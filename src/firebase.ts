@@ -4,9 +4,8 @@ import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signO
 import type { User } from "firebase/auth";
 import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
-  collection, doc, getDocs, deleteDoc, writeBatch,
+  collection, doc, getDocs, writeBatch,
 } from "firebase/firestore";
-import type { DocumentData } from "firebase/firestore";
 import config from "./firebase-config.json";
 import type { Role } from "./types.ts";
 
@@ -53,15 +52,3 @@ export async function uploadRoles(roles: Partial<Role>[], onProgress: (done: num
   }
   return valid.length;
 }
-
-
-
-
-// ------------------------------------------------------------ old saved designs
-
-/** Designs saved to an account before the app went sign-in free: read once, to move them to the browser. */
-export async function listAccountDesigns(uid: string): Promise<({ id: string } & DocumentData)[]> {
-  const snap = await getDocs(collection(db, "users", uid, "designs"));
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-}
-export const deleteAccountDesign = (uid: string, id: string) => deleteDoc(doc(db, "users", uid, "designs", id));
