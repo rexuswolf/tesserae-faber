@@ -217,7 +217,7 @@ character (`Role`), a token's design (`TokenSpec`), a built `Token`, queue entri
   and purges what Bambu Studio's own auto-calculation gives for each pair of colours plus 20 %
   (`src/bambu/flush.json`, from `tools/make_flush_table.py`).
 - `src/pdf/print-pdf.ts`: the double-sided A4 PDF, loaded only when you ask for it.
-- `src/main.ts`, `src/i18n.ts`, `src/style.css`: the app, its Spanish and English text, and its look. One app serves
+- `src/main.ts` and `src/app/`, `src/i18n.ts`, `src/style.css`: the app (one module per part: `context.ts` the shared state and page helpers, `boot.ts` loading, `sheet.ts`, `workshop.ts`, `design-sheet.ts`, `queue.ts` the three steps, `taller.ts`, `creator.ts` collections of your own, …), its Spanish and English text, and its look. One app serves
   both: Midnight Mint at `/botc`, Tesserae Faber everywhere else (`MODE` in `src/collection.ts`).
 - `src/collection.ts`: Tesserae Faber's collections: their shape, their JSON file, and where they're kept.
   `public/collections/` holds the ones that come with the app.
