@@ -35,33 +35,31 @@ export const BUILT_INS: BuiltInEntry[] = [
     },
   },
   {
-    id: "drawsteel",
-    name: "Draw Steel",
-    logo: "/collections/drawsteel-logo.svg",
-    accent: "#d4a017",
-    tokens: 39,
-    preview: "/collections/drawsteel-preview.svg",   // tools/make-drawsteel-collection.mjs
-    file: "/collections/drawsteel.json",   // tools/make-drawsteel-collection.mjs
-    cover: "radial-gradient(120% 140% at 0% 0%, #3a3f47 0%, #23262b 55%, #141619 100%)",
-    theme: { accent: "#d4a017", background: "#16181b", surface: "#202328", text: "#e8e6e1", muted: "#a3a7ad", glow: "#2b2f36", font: "Bricolage Grotesque" },
-    loader: { text: { es: "Desenvainando…", en: "Drawing steel…" } },
-    facts: { es: "15 recursos · 2 fichas de dos caras · 11 condiciones · 11 aros · 2 idiomas", en: "15 resources · 2 two-sided tokens · 11 conditions · 11 rings · 2 languages" },
-    text: { es: "Recursos heroicos, Malicia, Victorias, fichas de turno de dos caras, condiciones y aros de condición.", en: "Heroic resources, Malice, Victories, two-sided turn tokens, conditions and condition rings." },
+    // the hidden-role game of Secret Hitler (Goat, Wolf & Cabbage, CC BY-NC-SA 4.0), rethemed to
+    // the Roman Senate: the theme and every name on the tokens are ours; its attribution below,
+    // and this adaptation under the same licence (non-commercial)
+    id: "senado",
+    name: { es: "El Senado", en: "The Senate" },
+    logo: "/collections/senado-logo.svg",
+    accent: "#d4a72c",
+    tokens: 11,
+    preview: "/collections/senado-preview.svg",   // tools/make-crear-art.mjs
+    file: "/collections/senado.json",   // tools/make-senado-collection.mjs
+    cover: "radial-gradient(120% 140% at 0% 0%, #5c1d15 0%, #2e110d 55%, #160a08 100%)",
+    theme: { accent: "#d4a72c", background: "#1b0c0a", surface: "#2a1411", text: "#f3e8dc", muted: "#c4a99c", glow: "#7a1e16", font: "Marcellus" },
+    loader: { text: { es: "Convocando al Senado…", en: "Convening the Senate…" } },
+    facts: { es: "3 bandos · 2 cargos de dos caras · el voto · 3 tumultos · 2 leyes · 2 idiomas", en: "3 sides · 2 two-sided offices · the vote · 3 unrest · 2 laws · 2 languages" },
+    text: { es: "Un juego de roles ocultos en el Senado de Roma: bandos, Cónsul y Tribuno, Placet / Non placet, Tumultos y las leyes.", en: "A hidden-role game in the Roman Senate: sides, Consul and Tribune, Placet / Non placet, Unrest and the laws." },
     about: {
       text: {
-        es: "Fichas para jugar a Draw Steel: el recurso heroico de cada clase (y uno genérico), Impulso, Victorias, Recuperaciones, fichas de héroe, la Malicia del Director, dos fichas de dos caras para llevar el turno (Por actuar / Ya actuó, Reacción / Reacción usada: se les da la vuelta) y las condiciones, con su duración como fichas asociadas, y un aro por condición para ponerlo en la peana de la miniatura.",
-        en: "Tokens to play Draw Steel: each class's heroic resource (and a generic one), Surges, Victories, Recoveries, Hero Tokens, the Director's Malice, two two-sided tokens to keep track of the turn (Ready / Acted, Triggered Action / Used: turn them over) and the conditions, with their duration as linked tokens, and a ring per condition to slip over a miniature's base.",
+        es: "Fichas para jugar a un juego de roles ocultos en el Senado de Roma. La mayoría son Republicanos y no saben quién es quién; los Conspiradores se conocen entre ellos; el Aspirante a César, su líder, se esconde. El Cónsul nombra a un Tribuno y todos votan a la vez (Placet / Non placet); si sale adelante, entre los dos aprueban una ley; con tres gobiernos fallidos estallan los Tumultos y se aprueba la ley de arriba del mazo. Al acabar su mandato, el Cónsul y el Tribuno se dan la vuelta (Excónsul, Extribuno). Ganan los Republicanos con 5 Leyes de la República o ejecutando al Aspirante a César; los Conspiradores, con 6 Decretos del Tirano o si el Aspirante a César es nombrado Tribuno con 3 decretos ya aprobados. El mazo: 6 Leyes y 11 Decretos, en tarjetas.",
+        en: "Tokens to play a hidden-role game in the Roman Senate. Most players are Republicans and don't know who is who; the Conspirators know each other; the Aspiring Caesar, their leader, stays hidden. The Consul names a Tribune and everyone votes at once (Placet / Non placet); if it passes, the two of them enact a law; three failed governments spark Unrest and the top law of the deck passes. When their term ends, the Consul and the Tribune turn over (Ex-Consul, Ex-Tribune). The Republicans win with 5 Laws of the Republic or by executing the Aspiring Caesar; the Conspirators, with 6 Tyrant's Decrees, or if the Aspiring Caesar is named Tribune once 3 decrees have passed. The deck: 6 Laws and 11 Decrees, as cards.",
       },
       credits: {
-        es: "Una colección hecha por fans: los nombres de las mecánicas son de Draw Steel; los iconos, de game-icons.net. No lleva arte de MCDM.",
-        en: "A fan-made collection: the mechanics' names are Draw Steel's; the icons, game-icons.net's. It carries no MCDM art.",
+        es: "Basado en Secret Hitler, de Goat, Wolf & Cabbage (Max Temkin, Mike Boxleiter y Tommy Maranges), con licencia CC BY-NC-SA 4.0. Esta adaptación, con la temática del Senado de Roma y nombres propios, se comparte con la misma licencia y sin fines comerciales. No es oficial ni está afiliada a Goat, Wolf & Cabbage ni respaldada por ellos. Iconos de game-icons.net (CC BY 3.0).",
+        en: "Based on Secret Hitler by Goat, Wolf & Cabbage (Max Temkin, Mike Boxleiter and Tommy Maranges), licensed CC BY-NC-SA 4.0. This adaptation, rethemed to the Roman Senate with names of its own, is shared under the same licence, for non-commercial use. It is unofficial, and not affiliated with or endorsed by Goat, Wolf & Cabbage. Icons from game-icons.net (CC BY 3.0).",
       },
-      links: [{ label: "Draw Steel Creator License", url: "https://www.mcdmproductions.com/draw-steel-creator-license" }],
-    },
-    // the licence's compatibility mark, and its notice word for word (it must appear where the product is shown)
-    mark: {
-      src: "/collections/powered-by-draw-steel.png", alt: "Powered by Draw Steel", invert: true,
-      notice: "Tesserae Faber is an independent product published under the DRAW STEEL Creator License and is not affiliated with MCDM Productions, LLC. DRAW STEEL © 2026 MCDM Productions, LLC.",
+      links: [{ label: "Secret Hitler", url: "https://www.secrethitler.com" }, { label: "CC BY-NC-SA 4.0", url: "https://creativecommons.org/licenses/by-nc-sa/4.0/" }, { label: "game-icons.net", url: "https://game-icons.net" }],
     },
   },
   {
@@ -92,31 +90,33 @@ export const BUILT_INS: BuiltInEntry[] = [
     },
   },
   {
-    // the hidden-role game of Secret Hitler (Goat, Wolf & Cabbage, CC BY-NC-SA 4.0), rethemed to
-    // the Roman Senate: the theme and every name on the tokens are ours; its attribution below,
-    // and this adaptation under the same licence (non-commercial)
-    id: "senado",
-    name: { es: "El Senado", en: "The Senate" },
-    logo: "/collections/senado-logo.svg",
-    accent: "#d4a72c",
-    tokens: 11,
-    preview: "/collections/senado-preview.svg",   // tools/make-crear-art.mjs
-    file: "/collections/senado.json",   // tools/make-senado-collection.mjs
-    cover: "radial-gradient(120% 140% at 0% 0%, #5c1d15 0%, #2e110d 55%, #160a08 100%)",
-    theme: { accent: "#d4a72c", background: "#1b0c0a", surface: "#2a1411", text: "#f3e8dc", muted: "#c4a99c", glow: "#7a1e16", font: "Marcellus" },
-    loader: { text: { es: "Convocando al Senado…", en: "Convening the Senate…" } },
-    facts: { es: "3 bandos · 2 cargos de dos caras · el voto · 3 tumultos · 2 leyes · 2 idiomas", en: "3 sides · 2 two-sided offices · the vote · 3 unrest · 2 laws · 2 languages" },
-    text: { es: "Un juego de roles ocultos en el Senado de Roma: bandos, Cónsul y Tribuno, Placet / Non placet, Tumultos y las leyes.", en: "A hidden-role game in the Roman Senate: sides, Consul and Tribune, Placet / Non placet, Unrest and the laws." },
+    id: "drawsteel",
+    name: "Draw Steel",
+    logo: "/collections/drawsteel-logo.svg",
+    accent: "#d4a017",
+    tokens: 39,
+    preview: "/collections/drawsteel-preview.svg",   // tools/make-drawsteel-collection.mjs
+    file: "/collections/drawsteel.json",   // tools/make-drawsteel-collection.mjs
+    cover: "radial-gradient(120% 140% at 0% 0%, #3a3f47 0%, #23262b 55%, #141619 100%)",
+    theme: { accent: "#d4a017", background: "#16181b", surface: "#202328", text: "#e8e6e1", muted: "#a3a7ad", glow: "#2b2f36", font: "Bricolage Grotesque" },
+    loader: { text: { es: "Desenvainando…", en: "Drawing steel…" } },
+    facts: { es: "15 recursos · 2 fichas de dos caras · 11 condiciones · 11 aros · 2 idiomas", en: "15 resources · 2 two-sided tokens · 11 conditions · 11 rings · 2 languages" },
+    text: { es: "Recursos heroicos, Malicia, Victorias, fichas de turno de dos caras, condiciones y aros de condición.", en: "Heroic resources, Malice, Victories, two-sided turn tokens, conditions and condition rings." },
     about: {
       text: {
-        es: "Fichas para jugar a un juego de roles ocultos en el Senado de Roma. La mayoría son Republicanos y no saben quién es quién; los Conspiradores se conocen entre ellos; el Aspirante a César, su líder, se esconde. El Cónsul nombra a un Tribuno y todos votan a la vez (Placet / Non placet); si sale adelante, entre los dos aprueban una ley; con tres gobiernos fallidos estallan los Tumultos y se aprueba la ley de arriba del mazo. Al acabar su mandato, el Cónsul y el Tribuno se dan la vuelta (Excónsul, Extribuno). Ganan los Republicanos con 5 Leyes de la República o ejecutando al Aspirante a César; los Conspiradores, con 6 Decretos del Tirano o si el Aspirante a César es nombrado Tribuno con 3 decretos ya aprobados. El mazo: 6 Leyes y 11 Decretos, en tarjetas.",
-        en: "Tokens to play a hidden-role game in the Roman Senate. Most players are Republicans and don't know who is who; the Conspirators know each other; the Aspiring Caesar, their leader, stays hidden. The Consul names a Tribune and everyone votes at once (Placet / Non placet); if it passes, the two of them enact a law; three failed governments spark Unrest and the top law of the deck passes. When their term ends, the Consul and the Tribune turn over (Ex-Consul, Ex-Tribune). The Republicans win with 5 Laws of the Republic or by executing the Aspiring Caesar; the Conspirators, with 6 Tyrant's Decrees, or if the Aspiring Caesar is named Tribune once 3 decrees have passed. The deck: 6 Laws and 11 Decrees, as cards.",
+        es: "Fichas para jugar a Draw Steel: el recurso heroico de cada clase (y uno genérico), Impulso, Victorias, Recuperaciones, fichas de héroe, la Malicia del Director, dos fichas de dos caras para llevar el turno (Por actuar / Ya actuó, Reacción / Reacción usada: se les da la vuelta) y las condiciones, con su duración como fichas asociadas, y un aro por condición para ponerlo en la peana de la miniatura.",
+        en: "Tokens to play Draw Steel: each class's heroic resource (and a generic one), Surges, Victories, Recoveries, Hero Tokens, the Director's Malice, two two-sided tokens to keep track of the turn (Ready / Acted, Triggered Action / Used: turn them over) and the conditions, with their duration as linked tokens, and a ring per condition to slip over a miniature's base.",
       },
       credits: {
-        es: "Basado en Secret Hitler, de Goat, Wolf & Cabbage (Max Temkin, Mike Boxleiter y Tommy Maranges), con licencia CC BY-NC-SA 4.0. Esta adaptación, con la temática del Senado de Roma y nombres propios, se comparte con la misma licencia y sin fines comerciales. No es oficial ni está afiliada a Goat, Wolf & Cabbage ni respaldada por ellos. Iconos de game-icons.net (CC BY 3.0).",
-        en: "Based on Secret Hitler by Goat, Wolf & Cabbage (Max Temkin, Mike Boxleiter and Tommy Maranges), licensed CC BY-NC-SA 4.0. This adaptation, rethemed to the Roman Senate with names of its own, is shared under the same licence, for non-commercial use. It is unofficial, and not affiliated with or endorsed by Goat, Wolf & Cabbage. Icons from game-icons.net (CC BY 3.0).",
+        es: "Una colección hecha por fans: los nombres de las mecánicas son de Draw Steel; los iconos, de game-icons.net. No lleva arte de MCDM.",
+        en: "A fan-made collection: the mechanics' names are Draw Steel's; the icons, game-icons.net's. It carries no MCDM art.",
       },
-      links: [{ label: "Secret Hitler", url: "https://www.secrethitler.com" }, { label: "CC BY-NC-SA 4.0", url: "https://creativecommons.org/licenses/by-nc-sa/4.0/" }, { label: "game-icons.net", url: "https://game-icons.net" }],
+      links: [{ label: "Draw Steel Creator License", url: "https://www.mcdmproductions.com/draw-steel-creator-license" }],
+    },
+    // the licence's compatibility mark, and its notice word for word (it must appear where the product is shown)
+    mark: {
+      src: "/collections/powered-by-draw-steel.png", alt: "Powered by Draw Steel", invert: true,
+      notice: "Tesserae Faber is an independent product published under the DRAW STEEL Creator License and is not affiliated with MCDM Productions, LLC. DRAW STEEL © 2026 MCDM Productions, LLC.",
     },
   },
 ];
