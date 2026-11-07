@@ -12,7 +12,7 @@
 <p align="center">
   <a href="https://tesserae-faber.web.app"><strong>Open the app</strong></a>
   ·
-  <a href="https://tesserae-faber.web.app/botc">Blood on the Clocktower</a>
+  <a href="https://tesserae-faber.web.app/c/senado">El Senado</a>
   ·
   <a href="#license-and-credits">License and credits</a>
 </p>
@@ -26,8 +26,13 @@
 Tokens come in **collections**. Open one, pick its tokens, design them, print them.
 
 - **Ready to use**: collections that come with the app, read-only (*Make a copy* gives you one to change):
-  ***Blood on the Clocktower***, as [Midnight Mint](#midnight-mint-blood-on-the-clocktower), at `/botc`, and
-  ***Draw Steel*** (heroic resources, Malice, Victories, conditions and condition rings), at `/c/drawsteel`.
+  - ***Blood on the Clocktower***, as [Midnight Mint](#midnight-mint-blood-on-the-clocktower), at `/botc`: **private for now**
+    (see below);
+  - ***El Senado*** (*The Senate*), at `/c/senado`: a hidden-role game in the Roman Senate (sides, Consul and Tribune,
+    *Placet* / *Non placet*, Unrest and the laws as cards), adapted from Secret Hitler;
+  - ***5e Fantasy***, at `/c/srd5e`: the fifteen conditions as coins and rings, table markers and spell effects, from the
+    System Reference Document 5.2;
+  - ***Draw Steel*** (heroic resources, Malice, Victories, conditions and condition rings), at `/c/drawsteel`.
 - **Your own**: make one from scratch, or import one. You create and edit its tokens (a name, an icon from
   game-icons.net or an SVG, a colour group) and their **linked tokens**, which come and go with them, as a
   character's reminders do: *+ Token* and each token's *Edit* open its panel over the sheet, with the token
@@ -37,9 +42,14 @@ Tokens come in **collections**. Open one, pick its tokens, design them, print th
 
 A collection is laid out like this:
 
-- **Types**: the fixed entries at the top of the sidebar ("All characters", "Grimoire"). A type also says its
-  tokens' shape: coins, cards, or condition rings (a flat ring that slips over a miniature's base, its name
-  repeated all the way round; for 25, 32 or 40 mm bases, chosen in the design's Coin section).
+- **Types**: the fixed entries at the top of the sidebar ("All characters", "Grimoire"); a collection of more than one
+  type also gets **Everything**, all its tokens together, to queue at once. A type also says its tokens' shape:
+  - coins;
+  - cards (85 × 55 mm, with a back of their own);
+  - condition rings: a flat ring that slips over a miniature's base, its name repeated all the way round;
+  - base trays: a tray the miniature's own base sits in, with a tab in front carrying a number or a name
+    (the tab grows with its text, its sides parallel, its outer corners rounded; it prints face-up).
+  Rings and trays are for 25, 32, 40 or 50 mm bases, chosen in the design's body section.
 - **Groups**: the colours, and the filters and order of the sheet (Clocktower's teams).
 - **Tokens**: each of one type and one group, with its linked tokens. Names can come in several languages. A token can
   have a colour of its own (`colour`, in its panel: *Colour*), worn instead of its group's wherever its design says the group's colour
@@ -63,6 +73,11 @@ A whole collection goes in and out as one JSON file (`"format": "midnight-mint/c
 ![The design step: the token's editor on the left, a big 3D token, and your tokens in a strip beneath it](docs/screenshots/app.png)
 
 <p align="center"><img src="public/ccc-sleeve.png" alt="Community Created Content" width="172"></p>
+
+> **Private for now.** While The Pandemonium Institute considers the request to publish it, `/botc` asks for a key
+> and its character library is read only with it (a shared Firebase account) or by the admin, enforced by
+> `firestore.rules`. Without the key the collection isn't listed anywhere, and its collection file is kept out of
+> the site and this repo (`node tools/make-botc-collection.mjs` writes it to `out/`).
 
 <p align="center">
   Midnight Mint is Tesserae Faber's <em>Blood on the Clocktower</em> collection, a free, community-made tool.<br>
@@ -94,9 +109,10 @@ The same for every collection.
 
 **Design them**
 - Your own icons: give any character another icon from game-icons.net (searched in the workshop, credited in *About the tool*) or an SVG of your own; its reminders share it. A script can bring its own names and icons in the Script Tool's `image` (a game-icons.net link, an SVG, or a picture to trace), and *Download JSON* keeps them.
-- Four layouts: the name in an arc under the icon (the classic token); a coloured window over the top half with
-  the name straight and large below; the symbol alone, as large as it fits; or the name twice, at the bottom and
-  turned round at the top, so it reads right way up from both sides of the table.
+- Five layouts: the name in an arc under the icon (the classic token); a coloured window over the top half with
+  the name straight and large below; the symbol alone, as large as it fits; the name twice, at the bottom and
+  turned round at the top, so it reads right way up from both sides of the table; or the text alone, straight in
+  the middle on one line or two (votes, numbers, markers: «+1», «PLACET»).
 - Relief, part by part: the name, the frame and the icon each flush with the coin or raised (0.4 to 1.2 mm).
   Flush, nobody can feel which token it is and it prints face-down; with anything raised it prints face-up.
 - Designs in three places:
@@ -116,7 +132,8 @@ The same for every collection.
 - Rings and cards have designs made for them (`src/shape-designs.ts`), each collection listing the ones that suit it, its default first.
   Rings: *Colour ring* (the ring in the group colour), *High relief* (the name as large as fits, raised 0.8 mm), *Bold edges* (thick raised
   lines in the group colour) and *Express* (1.2 mm, two filaments). Cards: *Contrast*, *Colour plate*, *Parchment*, *Gold trim*, *Corners*
-  (a bracket at each corner instead of a whole frame) and *Express*. Draw Steel's rings start on *High relief*; Clocktower's on *Colour ring*,
+  (a bracket at each corner instead of a whole frame), *Laurels* (the line with a sprig of laurel in each corner) and *Express*.
+  Base trays: *Colour tray*, *Black tray* and *Raised text*. Draw Steel's rings start on *High relief*; Clocktower's on *Colour ring*,
   its cards on *Gold trim*; *Basic* (your own collections) on *Colour ring* and *Contrast*.
 - A card's face: its phrase alone, or with the token's icon on the left or the right, or the icon alone (Front → Icon); beside the
   phrase, the icon at the card's side with the phrase centred in the rest, with a thin line between them and the phrase against it,
@@ -180,29 +197,36 @@ It also works on phones: the sidebar becomes a menu, with *How it works*, the ap
 
 ```bash
 npm install
+npx playwright install chromium   # once: the browser the end-to-end tests run in
 npm run dev        # local dev server (needs the Firebase project)
 npm run typecheck  # TypeScript check (tsc, no output files)
+npm run lint       # ESLint
+npm test           # unit tests (Vitest)
+npm run test:e2e   # end-to-end tests (Playwright, on the test server below)
+npm run check      # all four
 npm run build      # production build in dist/
-npm run deploy     # typecheck and build, then deploy to tesserae-faber (hosting and Firestore rules)
+npm run deploy     # check, build, then deploy to tesserae-faber (hosting and Firestore rules); stops if a check fails
 npm run deploy:legacy   # the old address (midnight-mint.web.app): its one page, which redirects to /botc
 ```
 
 The app lives in the Firebase project `tesserae-faber`: Tesserae Faber at `/`, `/colecciones` and `/c/<id>`,
 Midnight Mint at `/botc`. The old project `midnight-mint` only serves `legacy/index.html`.
 
-To work on the interface without Firebase, run the test server. It uses a mocked sign-in
-and the character library in `admin-data/`:
+To work on the interface without Firebase, run the test server. It swaps the Firebase adapters for local
+ones: signed in as the admin with `?admin`, Clocktower's key is `test-key`, and the character library is read
+from `admin-data/` (not in git; without it Clocktower is empty, the rest works):
 
 ```bash
-npx vite --config tools/ui-test/vite.config.js   # http://localhost:5198 (Clocktower at /botc)
+npx vite --config tools/ui-test/vite.config.js   # http://localhost:5198 (Clocktower at /botc?admin)
 ```
 
 The character library lives in Firestore. `admin-data/` (not in git) holds the source files;
 `node tools/fetch-translations.mjs` adds the Villacuervos translations to `admin-data/roles_game_icons.json`,
 and `node tools/upload-library.mjs` replaces the library with it (or, signed in as the admin,
 upload it from `/botc?admin`). The art the app draws once comes from tools too:
-`node tools/make-botc-collection.mjs` writes the Clocktower collection in `public/collections/` (and its numbers,
+`node tools/make-botc-collection.mjs` writes the Clocktower collection to `out/` (private, see above; and its numbers,
 `src/builtins-facts.ts`), `node tools/make-drawsteel-collection.mjs` the Draw Steel one with its logo and cover,
+`make-srd5e-collection.mjs` and `make-senado-collection.mjs` the 5e Fantasy and El Senado ones,
 `node tools/make-faber-logo.mjs` the Tesserae Faber logos in `public/`, and `node tools/make-crear-art.mjs` the
 front page's honeycomb and the Clocktower cover's tokens (it needs the test server running).
 
@@ -211,7 +235,7 @@ front page's honeycomb and the Clocktower cover's tokens (it needs the test serv
 The app is TypeScript, served and bundled by Vite. `src/types.ts` has the shapes the parts share: a
 character (`Role`), a token's design (`TokenSpec`), a built `Token`, queue entries, plates and estimates.
 
-- `src/engine/token-engine.ts`: the token geometry (three.js), the 3D viewer, 2D thumbnails and STL export.
+- `src/engine/token-engine.ts`: the token geometry (three.js) for every shape (coins, cards, rings, base trays), 2D thumbnails and STL export; `src/engine/viewer.ts` the 3D view.
   A token is a coin plus coloured inlays (name, icon, frame, back), so each colour is its own part; a raised
   inlay simply stands above the face, and the token is then laid face-up on the plate.
 - `src/bambu/bambu3mf.ts`: the Bambu Studio project writer (plates, filaments, prime tower, magnet pauses).
@@ -229,10 +253,12 @@ character (`Role`), a token's design (`TokenSpec`), a built `Token`, queue entri
   `public/collections/` holds the ones that come with the app.
 - `src/handoff.ts`, `legacy/`: the way over from midnight-mint.web.app, with what each browser kept there.
 - `src/translations.ts`: the languages tokens can be printed in, and who translated each one.
-- `src/ports.ts`, `src/services.ts`, `src/adapters/`: what the app needs from outside (the public character library, the admin's sign-in, what this browser keeps) as interfaces of its own; everything kept in the browser goes through `services.ts` (`local`, `session`, `readJSON`, `writeJSON`), never `localStorage` directly; `services.ts` picks the adapters (Firebase today, loaded only when needed) and the test server swaps in local ones (`tools/ui-test/mock-*.js`). With `firestore.rules`. Only the admin signs in (open the app with `?admin`) to upload the library.
+- `src/ports.ts`, `src/services.ts`, `src/adapters/`: what the app needs from outside (the character library, sign-in: the admin's and Clocktower's key, what this browser keeps) as interfaces of its own; everything kept in the browser goes through `services.ts` (`local`, `session`, `readJSON`, `writeJSON`), never `localStorage` directly; `services.ts` picks the adapters (Firebase today, loaded only when needed) and the test server swaps in local ones (`tools/ui-test/mock-*.js`). With `firestore.rules`. Only the admin signs in (open the app with `?admin`) to upload the library.
 - `src/icons.ts`: a token's own icon: an SVG, a game-icons.net icon, or a script's picture traced into shapes.
-- `tools/`: test pages and helpers (UI test server, design sheets, icon review, Bambu template, and
-  `tools/guide/`, which takes the guide's and this README's pictures).
+- `tests/`: unit tests (`tests/unit`, Vitest) and end-to-end tests (`tests/e2e`, Playwright: every page, printing on
+  paper and in 3D, designing, the Taller, collections, Clocktower's key).
+- `tools/`: the collections' generators, the UI test server, the Bambu template and `tools/guide/`, which takes the
+  guide's and this README's pictures. Design prototypes (`tools/*-protos/`) are kept locally, not in the repo.
 
 ## License and credits
 
@@ -247,6 +273,14 @@ and keeps its own terms:
 - ***Blood on the Clocktower*** and its character names, editions and rules belong to
   [The Pandemonium Institute](https://bloodontheclocktower.com). Midnight Mint, its collection here, is an unofficial fan tool,
   not affiliated with or endorsed by them. It uses none of the game's original artwork.
+- ***El Senado*** is based on [Secret Hitler](https://www.secrethitler.com) by Goat, Wolf & Cabbage (Max Temkin, Mike Boxleiter
+  and Tommy Maranges), licensed [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/). The adaptation (its Roman
+  theme and names, `public/collections/senado.json`) is shared under the same licence, noncommercial; it is unofficial and not
+  affiliated with or endorsed by Goat, Wolf & Cabbage.
+- ***5e Fantasy*** includes material from the System Reference Document 5.2 ("SRD 5.2") by Wizards of the Coast LLC, available at
+  <https://www.dndbeyond.com/srd>. The SRD 5.2 is licensed under the
+  [Creative Commons Attribution 4.0 International License](https://creativecommons.org/licenses/by/4.0/legalcode).
+  The collection is unofficial and not affiliated with or endorsed by Wizards of the Coast.
 - ***Draw Steel*** and its rules belong to [MCDM Productions](https://www.mcdmproductions.com). <img src="public/collections/powered-by-draw-steel.png" alt="Powered by Draw Steel" height="28" align="right">
   Tesserae Faber is an independent product published under the DRAW STEEL Creator License and is not affiliated
   with MCDM Productions, LLC. DRAW STEEL © 2026 MCDM Productions, LLC.
