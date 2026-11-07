@@ -261,6 +261,8 @@
         <span class="seg2 cb-on" role="group" id="cbOn" data-i18n-attr="aria-label:cardBack.label"><button type="button" data-v="off" data-i18n="cardBack.off"></button><button type="button" data-v="on" data-i18n="cardBack.on"></button></span>
         <p class="hint" data-i18n="cardBack.help"></p>
         <div id="cbFields">
+          <div class="cb-group">
+          <h4 class="cb-h" data-i18n="cardBack.groupContent"></h4>
           <label class="field"><span data-i18n="cardBack.text"></span><input class="text" type="text" id="cbText" autocomplete="off" maxlength="60"></label>
           <label class="check" id="cbNameRow"><input type="checkbox" id="cbName"> <span data-i18n="cardBack.name"></span></label>
           <div class="field icon-field">
@@ -277,6 +279,9 @@
               <div class="icon-results" id="cbIconResults"></div>
             </div>
           </div>
+          </div>
+          <div class="cb-group">
+          <h4 class="cb-h" data-i18n="cardBack.groupLayout"></h4>
           <p class="metal-label" data-i18n="cardIcon.label"></p>
           <div class="choices card-tiles" data-cb-choice="cardIcon" data-i18n-attr="aria-label:cardIcon.label"></div>
           <div id="cbJoinBox">
@@ -284,9 +289,14 @@
             <div class="choices card-tiles" data-cb-choice="cardJoin" data-i18n-attr="aria-label:cardJoin.label"></div>
           </div>
           <div class="row" id="cbSizeRow"><label for="cbIconSize" data-i18n="range.cardIconSize"></label><output id="cbIconSizeOut"></output><input type="range" id="cbIconSize" min="12" max="40" step="1" value="30"></div>
-          <p class="metal-label" data-i18n="face.frame"></p>
+          </div>
+          <div class="cb-group">
+          <h4 class="cb-h" data-i18n="face.frame"></h4>
           <div class="choices" data-cb-choice="frame" data-i18n-attr="aria-label:face.frame"></div>
           <div class="row" id="cbFrameWidthRow"><label for="cbFrameWidth" data-i18n="range.frameWidth"></label><output id="cbFrameWidthOut"></output><input type="range" id="cbFrameWidth" min="0.4" max="2" step="0.1" value="0.8"></div>
+          </div>
+          <div class="cb-group">
+          <h4 class="cb-h" data-i18n="cardBack.groupColours"></h4>
           <p class="metal-label" data-i18n="cardBack.textColour"></p>
           <div class="metal" data-colour="front" data-side="cardback" data-cb-colour="text" data-i18n-attr="aria-label:cardBack.textColour"></div>
           <p class="metal-label" data-i18n="cardBack.frameColour"></p>
@@ -294,6 +304,7 @@
           <p class="metal-label" data-i18n="back.baseColour"></p>
           <div class="metal" data-colour="backBase" data-i18n-attr="aria-label:back.baseColour"></div>
           <p class="hint" data-i18n="back.baseHelp"></p>
+          </div>
         </div>
       </section>
       <section class="ws-panel" data-panel="body" role="tabpanel" hidden>

@@ -557,9 +557,14 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .upload-tile { display: grid; place-items: center; border-radius: 50%; border: 1px dashed var(--seam); font-size: 12px; }
 .back-tile:hover { background: rgba(239, 230, 214, .05); }
 .back-tile[aria-pressed=true] { border-color: var(--brass); color: var(--bone); background: rgba(201, 162, 39, .08); }
-/* a card's icon places and joins: drawn on the card, two to a row, large enough to read the layout */
-.card-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-.card-tiles .back-tile svg { width: 100%; max-width: 132px; height: auto; }
+/* a card's icon places and joins: drawn on the card, four to a row like the frames */
+.card-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.card-tiles .back-tile svg { width: 100%; max-width: 76px; height: auto; }
+/* a card's back, in titled groups: what's on it, how it's laid out, its frame, its colours */
+#cbFields { display: flex; flex-direction: column; gap: 18px; }
+#cbFields[hidden] { display: none; }
+.cb-group { display: flex; flex-direction: column; gap: 10px; padding-top: 14px; border-top: 1px solid var(--seam); }
+.cb-h { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--dust); }
 .cb-on { align-self: flex-start; width: max-content; margin-bottom: 4px; }
 .metal { display: flex; flex-wrap: wrap; gap: 6px; }
 .metal-label { margin: 0 0 -4px; font-size: 13px; color: var(--dust); }
