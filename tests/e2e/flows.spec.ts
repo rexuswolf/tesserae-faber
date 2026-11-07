@@ -152,3 +152,29 @@ test("a collection of bases: the tray in the sheet and the Bambu project", async
   expect((await download).suggestedFilename()).toMatch(/\.3mf$/);
   expect(errors).toEqual([]);
 });
+
+test("cards with a back: the Senate's laws to the Bambu project and the paper, both sides", async ({ page }) => {
+  const errors = await open(page, "/c/senado");
+  await page.locator('[data-ed="t:leyes"]').first().evaluate((b) => (b as HTMLElement).click());
+  await pick(page, 2);
+  await next(page); await next(page);
+  for (const [way, ext] of [["3d", /\.3mf$/], ["paper", /\.pdf$/]] as const) {
+    await expect(async () => {
+      await page.locator(`#printPage [data-way="${way}"]`).click();
+      await expect(page.locator(`#printPage [data-way="${way}"]`)).toHaveAttribute("aria-checked", "true", { timeout: 1000 });
+    }).toPass();
+    await expect(page.locator("#flowNext")).toBeEnabled();
+    const download = page.waitForEvent("download", { timeout: 60_000 });
+    await next(page);
+    const file = await download;
+    expect(file.suggestedFilename()).toMatch(ext);
+    if (way === "3d") {
+      // each law carries its back: the plate and the design under it
+      const zip = await (await import("jszip")).default.loadAsync(await (await import("node:fs/promises")).readFile((await file.path())!));
+      const config = await zip.file("Metadata/model_settings.config")!.async("string");
+      expect(config).toContain('value="back"');
+      expect(config).toContain('value="backIcon"');
+    }
+  }
+  expect(errors).toEqual([]);
+});

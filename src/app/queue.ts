@@ -99,17 +99,25 @@ export function queuePlan() {
     const hasBack = has.back && spec.back !== "none" && (spec.back !== "custom" || spec.customSvg) && (spec.back !== "seal" || state.lib!.sealSvg) && (spec.back !== "edition" || role.edition);
     // a back that is a face (itemSpec says so) is drawn like a front: its name, icon and frame
     const face = backFaceOf(role, spec, "")?.spec, iconColour = has.icon && spec.style !== "window" ? c.front : c.base;
+    const cardBack = shape === "card" && hasBack, bb = spec.colours.backBase;
+    const plate = cardBack && bb && bb !== spec.colours.base ? partColours(role, { ...spec, colours: { ...spec.colours, front: bb } }).front : null;
     return {
       q, title: queueLabel(q, role), group: queueGroup(q, role),
       token: {
         spec,
         // a card's footprint is its own; a ring takes up its outer diameter but has no body in its hole
         ...(shape === "card" ? { foot: { w: CARD.w, h: CARD.h } } : shape === "ring" ? { hole: 2 * ringSize(spec).inner } : {}),
-        parts: { base: 1, front: 1, icon: has.icon ? 1 : null, frame: spec.frame !== "none" ? 1 : null, back: hasBack ? 1 : null,
-          backIcon: face && has.icon ? 1 : null, backFrame: face && face.frame !== "none" ? 1 : null },
-        // the window's icon is in the coin colour; the classic one in the name's (on a back face, in the back's)
-        colours: { base: c.base, front: c.front, icon: iconColour, frame: c.frame, back: c.back,
-          backIcon: face ? (face.style === "window" ? c.base : c.back) : iconColour, backFrame: c.backFrame },
+        ...(cardBack ? {
+          // a card's back (buildCard): its plate (a colour of its own, when it has one) and its design in the back colour
+          parts: { base: 1, front: 1, icon: null, frame: spec.frame !== "none" ? 1 : null, back: plate ? 1 : null, backIcon: 1, backFrame: null },
+          colours: { base: c.base, front: c.front, icon: c.base, frame: c.frame, back: plate ?? c.base, backIcon: c.back, backFrame: c.frame },
+        } : {
+          parts: { base: 1, front: 1, icon: has.icon ? 1 : null, frame: spec.frame !== "none" ? 1 : null, back: hasBack ? 1 : null,
+            backIcon: face && has.icon ? 1 : null, backFrame: face && face.frame !== "none" ? 1 : null },
+          // the window's icon is in the coin colour; the classic one in the name's (on a back face, in the back's)
+          colours: { base: c.base, front: c.front, icon: iconColour, frame: c.frame, back: c.back,
+            backIcon: face ? (face.style === "window" ? c.base : c.back) : iconColour, backFrame: c.backFrame },
+        }),
       },
     };
   });

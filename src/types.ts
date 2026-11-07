@@ -115,6 +115,8 @@ export interface SpecColours {
   front: ColourRef;
   frame: ColourRef;
   back: ColourRef;
+  /** A card's back, behind its design: unset, the card's own colour (so every card of a deck can share one back). */
+  backBase?: ColourRef;
 }
 
 /** The mark between repeats of a condition ring's name. */

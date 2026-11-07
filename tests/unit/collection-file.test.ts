@@ -32,14 +32,14 @@ describe("a collection file", () => {
     const c = await readCollectionFile(file({
       styles: { coin: [{ id: "d", name: "D", spec: {
         diameter: 40, lang: "xx", nonsense: 1, depth: "deep",
-        colours: { base: "#ffffff", front: "team", frame: "red" },
+        colours: { base: "#ffffff", front: "team", frame: "red", backBase: "#1d1c21", nonsense: "#000000" },
         relief: { text: true, icon: "yes", evil: true },
         backFace: { frame: "rim", backFace: { frame: "x" } },
         edge: "spiky", reliefBevel: 2,
       } }] },
       languages: ["en", "es-ES", "../x", "EN"],
     }));
-    expect(c.styles!.coin![0].spec).toEqual({ diameter: 40, colours: { base: "#ffffff", front: "team" }, relief: { text: true }, backFace: { frame: "rim" } });
+    expect(c.styles!.coin![0].spec).toEqual({ diameter: 40, colours: { base: "#ffffff", front: "team", backBase: "#1d1c21" }, relief: { text: true }, backFace: { frame: "rim" } });
     expect(c.languages).toEqual(["en"]);
   });
   it("keeps an icon's shapes only", async () => {

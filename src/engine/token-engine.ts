@@ -2107,7 +2107,7 @@ export const isCard = (role: Role | null | undefined) => role?.kind === "info";
 export function cardSpec(spec: SpecInput | undefined): TokenSpec {
   const s = { ...DEFAULT_SPEC, ...spec, colours: { ...DEFAULT_SPEC.colours, ...spec?.colours } };
   // `diameter` is the card's long side, so the 3D view frames it like a coin that size.
-  return { ...s, style: "classic", relief: DEFAULT_SPEC.relief, back: "none", magnet: "none", diameter: CARD.w, depth: Math.min(s.depth, s.height - 0.4) };
+  return { ...s, style: "classic", relief: DEFAULT_SPEC.relief, back: CARD_BACKS.includes(s.back) ? s.back : "none", backMode: "design", magnet: "none", diameter: CARD.w, depth: Math.min(s.depth, s.height - 0.4) };
 }
 
 function roundedRect(w: number, h: number, r: number) {
@@ -2220,6 +2220,34 @@ function cardCorners(fw: number): THREE.Shape[] {
   return out;
 }
 
+/**
+ * A card's back, styled like its face: the face's frame and, where the face has its words, an
+ * emblem in the middle (a coin back's design, 19 mm across the circle it fills, or an uploaded
+ * SVG): in the back colour, on the card's own colour or on a colour of its own (backBase), so the
+ * cards of a deck can share one back and not show, face-down, which card is which.
+ */
+let cardBacks: string[] | null = null;
+/** The back designs a card offers: none, the coin backs that are a drawing of their own (not those
+ *  built round the collection's words, the edition's or the seal) and an uploaded SVG. */
+export const CARD_BACKS = { includes: (id: string) => (cardBacks ??= BACK_STYLES.map((b) => b.id).filter((id) => id === "none" || id === "custom" || !!backDesign(id, CARD_EMBLEM_R))).includes(id) };
+const CARD_EMBLEM_R = 19, CARD_ICON_R = 13;
+/** The back's design as shapes, each with the matrix that places it (seen from the back). */
+function cardBackInk(spec: TokenSpec): { shapes: THREE.Shape[]; m: THREE.Matrix4 }[] {
+  if (spec.back === "none") return [];
+  const out: { shapes: THREE.Shape[]; m: THREE.Matrix4 }[] = [];
+  const frame = cardFrameShapes(spec);
+  if (frame) out.push({ shapes: frame, m: M() });
+  if (spec.back === "custom") {
+    if (spec.customSvg) try { const sh = parseSvgShapes(spec.customSvg); if (sh.length) out.push({ shapes: sh, m: fitShapes(sh, CARD_ICON_R) }); } catch { /* an SVG that won't parse: no emblem */ }
+  } else {
+    const sh = backDesign(spec.back, CARD_EMBLEM_R);
+    if (sh) out.push({ shapes: sh, m: M() });
+  }
+  return out;
+}
+/** The colour behind a card's back design, when it isn't the card's own. */
+const cardBackBase = (spec: TokenSpec) => (spec.back !== "none" && spec.colours.backBase && spec.colours.backBase !== spec.colours.base ? spec.colours.backBase : null);
+
 function buildCard(lib: Library, role: Role, input: SpecInput | undefined, text?: string | null): Token {
   const spec = cardSpec(input);
   text ??= roleName(role, spec.lang);
@@ -2230,9 +2258,15 @@ function buildCard(lib: Library, role: Role, input: SpecInput | undefined, text?
     return extrude(shapes, d, T(-(box.min.x + box.max.x) / 2, line.y, H - d), 4);
   });
   const frame = cardFrameShapes(spec);
+  // the back, seen from below: mirrored to read right when the card is turned over; its plate
+  // (a colour of its own) under it, its design drawn over the plate (backIcon, later, wins)
+  const mirror = S(-1, 1, 1), plate = cardBackBase(spec);
+  const ink = merge(cardBackInk(spec).map(({ shapes, m }) => extrude(shapes, d, chain(mirror, m), 16)));
+  const team = role.colour ?? TEAMS[role.team].colour, pick = (v: ColourRef): Hex => (v === "team" ? team : v);
   return {
-    parts: { base: extrude([roundedRect(CARD.w, CARD.h, CARD.r)], H, T(0, 0, 0), 16), front: merge(letters), frame: frame ? extrude(frame, d, T(0, 0, H - d), 16) : null, back: null },
-    colours: { ...partColours(role, spec), hole: "#0b090c" },
+    parts: { base: extrude([roundedRect(CARD.w, CARD.h, CARD.r)], H, T(0, 0, 0), 16), front: merge(letters), frame: frame ? extrude(frame, d, T(0, 0, H - d), 16) : null,
+      back: plate ? extrude([roundedRect(CARD.w, CARD.h, CARD.r)], d, T(0, 0, 0), 16) : null, backIcon: ink },
+    colours: { ...partColours(role, spec), back: pick(plate ?? spec.colours.base), backIcon: pick(spec.colours.back), hole: "#0b090c" },
     name: { letterHeight: L.cap, scale: 1, total: null, lines: L.lines.length },
     spec, magnet: null, depthClamped: null, card: true, foot: { w: CARD.w, h: CARD.h },
   };
@@ -2253,6 +2287,14 @@ function cardSvg(lib: Library, role: Role, input: SpecInput | undefined, side: "
     if (spec.frame === "corners") body += `<path fill="${c.frame}" d="${shapesToPath(cardCorners(fw), 0, 0, 16)}"/>`;
     if (spec.frame === "laurel") body += `<path fill="${c.frame}" d="${shapesToPath(cardLaurels(), 0, 0, 8)}"/>`;
     if (spec.frame !== "none" && spec.frame !== "corners") body += `<rect x="${-w / 2 + i}" y="${-h / 2 + i}" width="${w - 2 * i}" height="${h - 2 * i}" rx="${Math.max(0.5, r - i)}" fill="none" stroke="${c.frame}" stroke-width="${fw}"/>`;
+  } else if (spec.back !== "none") {
+    // the back as it's seen: its plate, then its frame and emblem in the back colour
+    const team = role.colour ?? TEAMS[role.team].colour, pick = (v: ColourRef): Hex => (v === "team" ? team : v), ink = pick(spec.colours.back), plate = cardBackBase(spec);
+    if (plate) body += `<rect x="${-w / 2}" y="${-h / 2}" width="${w}" height="${h}" rx="${r}" fill="${pick(plate)}"/>`;
+    const frame = cardFrameShapes(spec);
+    if (frame) body += `<path fill="${ink}" fill-rule="evenodd" d="${shapesToPath(frame, 0, 0, 8)}"/>`;
+    if (spec.back === "custom") body += `<path fill="${ink}" fill-rule="evenodd" d="${customBackPath({ ...spec, diameter: 2 * (CARD_ICON_R + 1.2) })}"/>`;
+    else { const sh = backDesign(spec.back, CARD_EMBLEM_R); if (sh) body += `<path fill="${ink}" d="${shapesToPath(sh, 0, 0, 12)}"/>`; }
   }
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${-w / 2 - 0.5} ${-h / 2 - 0.5} ${w + 1} ${h + 1}" role="img" aria-label="${esc(label)}"><rect x="${-w / 2}" y="${-h / 2}" width="${w}" height="${h}" rx="${r}" fill="${c.base}"/>${body}</svg>`;
 }
@@ -2562,8 +2604,8 @@ export const SHAPE_FEATURES: Record<TokenShape, ShapeFeatures> = {
   // A coin has everything the workshop offers (some layouts leave a control out: see main.ts).
   coin: { layout: true, icon: true, textSize: true, spacing: true, maxArc: true, frame: "designs", relief: ["text", "frame", "icon"], back: true, magnet: true, diameter: true, ringBase: false, flip: true, separator: false, corners: false, pattern: true },
   // A card (85 × 55 mm, Clocktower's Grimoire): the phrase as large as fits, the frame a line
-  // inside the edge, both flush (cardSpec); no icon, back or magnet.
-  card: { layout: false, icon: false, textSize: false, spacing: false, maxArc: false, frame: "line", relief: [], back: false, magnet: false, diameter: false, ringBase: false, flip: false, separator: false, corners: true, pattern: false },
+  // inside the edge, both flush (cardSpec); no icon or magnet; a back styled like the face (cardBackInk).
+  card: { layout: false, icon: false, textSize: false, spacing: false, maxArc: false, frame: "line", relief: [], back: true, magnet: false, diameter: false, ringBase: false, flip: false, separator: false, corners: true, pattern: false },
   // A condition ring: the name round and round at the height asked for (as far as its band
   // allows, ringBand), a fine line along each edge, either raised (ringSpec); no icon, back or
   // magnet, and sized by its base.

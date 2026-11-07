@@ -1,7 +1,7 @@
 // Choosing a design (the design sheet), and each shape's default design.
 import { emit } from "./events.ts";
 import type { TokenShape, TokenSpec, MyDesign, TokenOverride, Role, BackMode, PatternSpec, ReliefPart, Token, TokenStyle, SpecColours, SpecInput } from "../types.ts";
-import { DEFAULT_SPEC, reminderSpec, tokenSvg, SHAPE_FEATURES, shapeOf, roleName, shapeSpec, TOKEN_STYLES, FRAME_STYLES, FILAMENTS, BACK_STYLES, PATTERN_MIN, partColours, PATTERNS, patternDefaults, patternFilled, patternFixed, flipFace, reliefOf, hasRelief, FACE_FIELDS, ringBand, ringSize, baseSize, magnetLayout } from "../engine/token-engine.ts";
+import { DEFAULT_SPEC, reminderSpec, tokenSvg, SHAPE_FEATURES, shapeOf, roleName, shapeSpec, TOKEN_STYLES, FRAME_STYLES, FILAMENTS, BACK_STYLES, CARD_BACKS, PATTERN_MIN, partColours, PATTERNS, patternDefaults, patternFilled, patternFixed, flipFace, reliefOf, hasRelief, FACE_FIELDS, ringBand, ringSize, baseSize, magnetLayout } from "../engine/token-engine.ts";
 import { tokenLang } from "./token-language.ts";
 import { ownIcon, roleIdOf, charKey, textFor, remindersOf, charName } from "./tokens.ts";
 import { myDesigns, myEntry, collEntry, inheritedRef, refOf, originalRef, defaultRef, designOf, collLabel, designFor, uniqueDesignName, lookOf, storeMyDesigns, storeOverrides, shapesHere, tokensOf, designOverridden, defaults, storeDefaults } from "./designs.ts";
@@ -217,7 +217,7 @@ export function renderTabs(role: Role, spec: TokenSpec) {
   const faceOpen = part === "front" || (part === "back" && spec.backMode === "own");
   $("#faceTabs").hidden = !faceOpen;
   if (faceOpen) $("#faceTabs").innerHTML = faceTabsOf(shape, part === "back" ? "back" : "front").map((f) => `<button type="button" role="tab" data-face="${f}" aria-selected="${f === panel}">${esc(t(`face.${f}`))}</button>`).join("");
-  renderBackModes(role, spec, part === "back");
+  renderBackModes(role, spec, part === "back" && shapeOf(role) !== "card");   // a card's back is always a design
   $$(".ws-panel").forEach((p) => { p.hidden = p.dataset.panel !== panel; });
 }
 
@@ -358,7 +358,9 @@ function renderBackTiles(role: Role, spec: TokenSpec) {
   if (s.colours.back === "team") s.colours.back = FILAMENTS.gold;
   // on an ordinary coin's back: a two-state token's would show its other state
   const plain = { ...role, flip: undefined };
-  $("[data-choice=back]").innerHTML = BACK_STYLES.filter((b) => b.id !== "seal").map((b) =>
+  const card = shapeOf(role) === "card";
+  $("#backBaseRow").hidden = !card;
+  $("[data-choice=back]").innerHTML = BACK_STYLES.filter((b) => b.id !== "seal" && (!card || CARD_BACKS.includes(b.id))).map((b) =>
     `<button class="back-tile" type="button" data-v="${b.id}" aria-pressed="${s.back === b.id}">${
       b.id === "custom" && !s.customSvg ? `<span class="upload-tile">SVG</span>` : tokenSvg(state.lib!, plain, { ...s, back: b.id }, { side: "back" })
     }<span>${esc(t(`back.${b.id}`))}</span></button>`).join("");
