@@ -14,7 +14,7 @@ async function open(page: Page, path: string) {
 const tokens = (page: Page) => page.locator("svg[aria-label$='token']");
 
 for (const [path, adapters, minTokens] of [
-  ["/botc", ["roles"], 100],
+  ["/botc?admin", ["auth", "roles"], 100],
   ["/c/drawsteel", [], 10],
   ["/c/srd5e", [], 10],
   ["/c/senado", [], 3],
@@ -36,7 +36,7 @@ test("?admin signs the admin in", async ({ page }) => {
 });
 
 test.describe("with the browser's storage blocked", () => {
-  for (const path of ["/botc", "/c/drawsteel", "/c/srd5e", "/c/senado", "/taller"]) {
+  for (const path of ["/c/drawsteel", "/c/srd5e", "/c/senado", "/taller"]) {
     test(`${path} still opens`, async ({ page }) => {
       await page.addInitScript(() => {
         for (const n of ["localStorage", "sessionStorage"]) Object.defineProperty(window, n, { get() { throw new DOMException("blocked", "SecurityError"); } });
@@ -73,4 +73,25 @@ test("a collection that doesn't fit says so, until a save fits again", async ({ 
     (document.querySelector("#osSave") as HTMLElement).click();
   });
   await expect(notice).toHaveCount(0);
+});
+
+test("Clocktower is private: its key first, and nothing of its library without it", async ({ page }) => {
+  const adapters = new Set<string>();
+  page.on("request", (r) => { const m = r.url().match(/mock-(auth|roles)/); if (m) adapters.add(m[1]); });
+  await page.goto("/botc");
+  await expect(page.locator("#gateKey")).toBeVisible({ timeout: 30_000 });
+  expect([...adapters]).not.toContain("roles");
+  // and it isn't among the collections
+  await page.goto("/colecciones");
+  await expect(page.locator("#ownHomeBuilt .oh-cover")).not.toHaveCount(0);
+  expect(await page.locator('#ownHomeBuilt a[href="/botc"]').count()).toBe(0);
+  // a wrong key says so; the right one opens it
+  await page.goto("/botc");
+  await page.locator("#gateKey").fill("nope");
+  await page.locator("#gateAction").click();
+  await expect(page.locator("#gateText")).not.toBeEmpty();
+  await page.locator("#gateKey").fill("test-key");
+  await page.locator("#gateAction").click();
+  await expect(page.locator("#gate")).toBeHidden({ timeout: 30_000 });
+  await expect(page.locator("svg[aria-label$='token']").nth(99)).toBeAttached();
 });

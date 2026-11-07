@@ -18,7 +18,6 @@ export const BUILT_INS: BuiltInEntry[] = [
     tokens: botc.tokens,
     preview: "/collections/botc-preview.svg",   // tools/make-crear-art.mjs
     href: "/botc",   // it opens as Midnight Mint, the Clocktower app
-    file: "/collections/botc.json",   // the same, as a collection file: to start one of your own from
     facts: { es: `${botc.characters} personajes · ${botc.reminders} recordatorios · ${botc.languages} idiomas`, en: `${botc.characters} characters · ${botc.reminders} reminders · ${botc.languages} languages` },
     text: { es: "Todas las ediciones, el Grimorio y tus guiones.", en: "Every edition, the Grimoire and your scripts." },
     ccc: true,   // Community Created Content: its mark in About

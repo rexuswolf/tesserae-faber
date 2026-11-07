@@ -1476,3 +1476,7 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 .ol-taller.wide { max-width: none; margin-top: 0; }
 .ol-taller.wide b { display: none; }
 .build-tag { margin: 14px 0 0; color: var(--dust); font-size: 11.5px; opacity: .7; }
+/* a private collection's key, on the loading screen */
+#gateKeyForm { margin: 14px 0 4px; }
+#gateKeyForm[hidden] { display: none; }
+.gate-key { width: 220px; max-width: 100%; text-align: center; letter-spacing: .12em; font-size: 18px; text-transform: uppercase; }

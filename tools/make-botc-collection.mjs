@@ -18,7 +18,7 @@ const BOTC = BUILT_INS.find((b) => b.id === "botc");
 
 const root = path.resolve(import.meta.dirname, "..");
 const builtIn = !process.argv[2];
-const out = path.resolve(process.argv[2] ?? path.join(root, "public/collections/botc.json"));
+const out = path.resolve(process.argv[2] ?? path.join(root, "out/botc.json"));   // private: never on the public site or in the repo
 const roleId = (en) => en.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");   // as firebase.ts
 const roles = JSON.parse(fs.readFileSync(path.join(root, "admin-data/roles_game_icons.json"), "utf8")).map((r) => ({ id: roleId(r.en), ...r }));
 const EDITION_ORDER = ["tb", "bmr", "snv", "carousel", "fabled", "loric"];

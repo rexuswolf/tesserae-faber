@@ -27,7 +27,7 @@ async function pick(page: Page, n: number, which = "#rows [data-pick]") {
 const next = (page: Page) => page.locator("#flowNext").evaluate((b) => (b as HTMLElement).click());
 
 test("Clocktower: pick characters, see them designed, print them on paper", async ({ page }) => {
-  const errors = await open(page, "/botc");
+  const errors = await open(page, "/botc?admin");
   await pick(page, 3, '#rows [data-pick^="c:"]');
   await next(page);
   await expect(page.locator("#app")).toHaveAttribute("data-step", "2");
@@ -45,7 +45,7 @@ test("Clocktower: pick characters, see them designed, print them on paper", asyn
 });
 
 test("printing in 3D: the Bambu project", async ({ page }) => {
-  const errors = await open(page, "/botc");
+  const errors = await open(page, "/botc?admin");
   await pick(page, 2, '#rows [data-pick^="c:"]');
   await next(page); await next(page);
   // the way chosen and the button ready before asking for the file
@@ -61,7 +61,7 @@ test("printing in 3D: the Bambu project", async ({ page }) => {
 });
 
 test("designing a token: another frame changes its preview", async ({ page }) => {
-  const errors = await open(page, "/botc");
+  const errors = await open(page, "/botc?admin");
   await pick(page, 1, '#rows [data-pick^="c:"]');
   const key = await page.locator('#rows [data-pick^="c:"]').first().getAttribute("data-pick");
   await page.evaluate((k) => { const mm = (window as unknown as { __mm: { goStep(n: number): void; designToken(k: string): void } }).__mm; mm.goStep(2); mm.designToken(k!); }, key);
@@ -106,14 +106,14 @@ test("a collection of your own: make one and export it", async ({ page }) => {
 });
 
 test("switching the interface to Spanish", async ({ page }) => {
-  const errors = await open(page, "/botc");
+  const errors = await open(page, "/botc?admin");
   await page.locator('[data-lang="es"]').first().evaluate((b) => (b as HTMLElement).click());
   await expect(page.locator("html")).toHaveAttribute("lang", "es");
   expect(errors).toEqual([]);
 });
 
 test("a change redraws everything that shows it", async ({ page }) => {
-  const errors = await open(page, "/botc");
+  const errors = await open(page, "/botc?admin");
   // picking: the queue's count follows
   const count = () => page.locator("#queueToggle").innerText();
   const before = await count();

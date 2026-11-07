@@ -10,7 +10,7 @@
 // Each token is a character to the rest of the app (team = group, reminders = linked tokens),
 // so designing and printing are Clocktower's own. A whole collection goes in and out as one
 // JSON file ("midnight-mint/collection", see CollectionFile). Kept in this browser.
-import { local, readJSON, writeJSON } from "./services.ts";
+import { local, readJSON, writeJSON , botcUnlocked} from "./services.ts";
 import type { CardBack, CardIcon, CardJoin, Hex, PatternSpec, Role, SpecInput, Team, TokenIcon, TokenShape } from "./types.ts";
 import { gameIcon } from "./icons.ts";
 import { safeIconMarkup, safeTransform } from "./engine/safe-svg.ts";
@@ -208,7 +208,8 @@ export interface BuiltInEntry { id: string; file?: string; name: Names; logo?: s
   theme?: OwnTheme; loader?: OwnLoader }
 /** Where a collection opens: its own app's address for one that has it, else /c/<id>. */
 export const openUrl = (id: string, built: { id: string; href?: string }[]) => built.find((b) => b.id === id)?.href ?? collectionUrl(id);
-export const builtInCollections = (): Promise<BuiltInEntry[]> => Promise.resolve(BUILT_INS);
+/** The collections that come with the app; Clocktower only where its key has been given (services.ts). */
+export const builtInCollections = (): Promise<BuiltInEntry[]> => Promise.resolve(BUILT_INS.filter((b) => b.id !== "botc" || botcUnlocked()));
 /** One of them, by id. */
 export const builtIn = (id: string) => BUILT_INS.find((b) => b.id === id);
 /** A built-in collection, read from the app's own file each time: it isn't kept, and it can't be changed. */

@@ -42,13 +42,27 @@ const markSession = (on: boolean) => { if (on) local.set(SESSION_KEY, "1"); else
 
 export function onUser(fn: (user: AppUser | null) => void, wanted = false) {
   if (!wanted && !hasSession()) { setTimeout(() => fn(null), 0); return; }
-  authAdapter().then((a) => a.onUser((u) => { markSession(!!u); fn(u); }), () => fn(null));
+  authAdapter().then((a) => a.onUser((u) => { markSession(!!u); if (canSeeBotc(u)) local.set(BOTC_KEY, "1"); else local.remove(BOTC_KEY); fn(u); }), () => fn(null));
 }
 export async function signIn() {
   const r = await (await authAdapter()).signIn();
   if (r === "ok") markSession(true);
   return r;
 }
+// Clocktower is private until The Pandemonium Institute says otherwise: its library is read only by
+// the admin and by a shared account whose key is given to whoever may use it. This browser
+// remembers that it has it, so the collection shows in the lists (the data stays behind the rules).
+export const BOTC_EMAIL = "clocktower@tesserae-faber.web.app";
+const BOTC_KEY = "tesserae-botc-access";
+export const canSeeBotc = (user: AppUser | null | undefined) => isAdmin(user) || user?.email?.toLowerCase() === BOTC_EMAIL;
+export const botcUnlocked = () => local.get(BOTC_KEY) === "1";
+/** Opens Clocktower with its key; false when the key is wrong. */
+export async function unlockBotc(key: string) {
+  const ok = await (await authAdapter()).signInWithKey(BOTC_EMAIL, key.trim().toUpperCase());
+  if (ok) { markSession(true); local.set(BOTC_KEY, "1"); }
+  return ok;
+}
+
 export async function signOut() {
   markSession(false);
   await (await authAdapter()).signOut();

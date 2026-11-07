@@ -1,7 +1,7 @@
 // Loading: the gate (loading screen), starting the app and the admin's sign-in.
 import { emit } from "./events.ts";
 import { $, coll, READONLY, state, loadViewer, loadJSON, VIEW_KEY, setGateState, setColl } from "./context.ts";
-import { signIn, loadRoles, isAdmin, signOut as signOutUser, onUser } from "../services.ts";
+import { signIn, loadRoles, isAdmin, signOut as signOutUser, onUser , canSeeBotc, unlockBotc} from "../services.ts";
 import { t, uiLang } from "../i18n.ts";
 import { handingOver } from "../handoff.ts";
 import { OWN, nameIn, hasCcc, OWN_ID, builtInCollections, readBuiltIn, OWN_VIEW, rememberCollection, collectionRoles } from "../collection.ts";
@@ -24,10 +24,12 @@ import { guide, wireGuide } from "./guide.ts";
 
 /** What the gate (the screen before the app) says, and the buttons it offers. */
 interface GateAction { label: string; run: () => unknown }
-export interface GateConfig { title: string; text?: string; action?: GateAction; secondary?: GateAction }
+export interface GateConfig { title: string; text?: string; action?: GateAction; secondary?: GateAction; /** A field for a key, its action the Enter key too. */ key?: boolean }
 
 export function gate(cfg: GateConfig | (() => GateConfig)) {
-  const { title, text = "", action, secondary } = typeof cfg === "function" ? cfg() : cfg;
+  const { title, text = "", action, secondary, key } = typeof cfg === "function" ? cfg() : cfg;
+  $("#gateKeyForm").hidden = !key;
+  $<HTMLFormElement>("#gateKeyForm").onsubmit = (e) => { e.preventDefault(); action?.run(); };
   $("#app").hidden = true;
   $("#gate").hidden = false;
   $("#gateTitle").textContent = title;
@@ -70,6 +72,7 @@ async function boot() {
       startApp();
       return;
     }
+    if (!canSeeBotc(state.user)) return botcGate();   // private until TPI says otherwise: its key first
     const roles = await loadRoles();
     const broken = !roles.length ? "empty" : roles.some((r) => !r.body) ? "oldLibrary" : null;
     if (broken) return libraryGate(broken);
@@ -81,6 +84,20 @@ async function boot() {
   } catch (err) {
     showGate(() => ({ title: t("gate.error.title"), text: t("gate.error.text", { message: (err as Error).message }), action: { label: t("gate.reload"), run: () => location.reload() } }));
   }
+}
+/** Clocktower is private: whoever has its key types it here, and the page opens. */
+function botcGate() {
+  const tryKey = async () => {
+    const field = $<HTMLInputElement>("#gateKey"), key = field.value.trim();
+    if (!key) { field.focus(); return; }
+    $<HTMLButtonElement>("#gateAction").disabled = true;
+    const ok = await unlockBotc(key).catch(() => false);
+    if (ok) { location.reload(); return; }
+    $("#gateText").textContent = t("botc.wrongKey");
+    $<HTMLButtonElement>("#gateAction").disabled = false; field.select();
+  };
+  showGate(() => ({ title: t("botc.lockedTitle"), text: t("botc.lockedText"), key: true, action: { label: t("botc.unlock"), run: () => void tryKey() } }));
+  $<HTMLInputElement>("#gateKey").focus();
 }
 /** The library is missing or out of date: the admin can fix it, everyone else waits. */
 function libraryGate(kind: string) {
@@ -94,7 +111,7 @@ function libraryGate(kind: string) {
 let firstAuth = true;
 onUser((user) => {
   state.user = user;
-  if (user && !isAdmin(user)) {
+  if (user && !canSeeBotc(user)) {
     // a session left from when the app needed sign-in: only the admin signs in now
     signOutUser();
     return;

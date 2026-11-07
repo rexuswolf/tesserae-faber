@@ -1,7 +1,7 @@
 rules_version = '2';
 
-// Midnight Mint needs no sign-in: anyone can read the character library.
-// Only the admin account can write to it. Saved designs live in each browser.
+// Clocktower's character library: read with its key (a shared account) or by the admin, who alone
+// writes it. Saved designs live in each browser.
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -15,15 +15,21 @@ service cloud.firestore {
       return signedIn() && email() == 'admin@example.invalid';
     }
 
-    // The character library: names, team and traced icon paths.
+    // Clocktower is private until The Pandemonium Institute says otherwise: its library is read
+    // by the admin and by the shared account whose key is given to whoever may use it.
+    function canSeeBotc() {
+      return isAdmin() || (request.auth != null && request.auth.token.email == 'clocktower@tesserae-faber.web.app');
+    }
+
+    // The character library: names, team and icons.
     match /roles/{roleId} {
-      allow read: if true;
+      allow read: if canSeeBotc();
       allow write: if isAdmin();
     }
 
     // Other library artwork, such as the seal used on token backs.
     match /library/{assetId} {
-      allow read: if true;
+      allow read: if canSeeBotc();
       allow write: if isAdmin();
     }
 

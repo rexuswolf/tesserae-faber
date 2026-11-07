@@ -9,3 +9,6 @@ admin-data/
 .claude/
 test-results/
 playwright-report/
+# Clocktower's own collection file: private until TPI says otherwise (tools/make-botc-collection.mjs)
+public/collections/botc.json
+out/

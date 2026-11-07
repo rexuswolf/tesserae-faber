@@ -11,6 +11,8 @@ export interface AuthPort {
   onUser(fn: (user: AppUser | null) => void): void;
   /** "cancelled" when the person closed the sign-in window; other failures throw. */
   signIn(): Promise<"ok" | "cancelled">;
+  /** Signs into a shared account with its key (a private collection's): false for a wrong key. */
+  signInWithKey(email: string, key: string): Promise<boolean>;
   signOut(): Promise<void>;
 }
 

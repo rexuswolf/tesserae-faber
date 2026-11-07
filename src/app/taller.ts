@@ -19,7 +19,7 @@ import { wire } from "./wiring.ts";
 import { buildChoices, renderWorkshop, designSwatch } from "./workshop.ts";
 import { filled } from "./looks.ts";
 import { CHEVRON } from "./language.ts";
-import { local } from "../services.ts";
+import { local , botcUnlocked} from "../services.ts";
 import { toast, ask } from "./design-sheet.ts";
 import { PHONE } from "./scripts-ui.ts";
 
@@ -115,7 +115,7 @@ export async function openTaller() {
   const basic = basicStyles(), own = (styles: CollectionStyles | undefined) => Object.fromEntries(SHAPES.map((sh) => [sh, styles?.[sh]?.length ? ownStylesOf({ styles }, sh) : []]));
   const groups: TallerGroup[] = [{ kind: "blank", name: APP_NAME, designs: Object.fromEntries(SHAPES.map((sh) => [sh, [{ ...basic[sh][0], name: { es: "Básico", en: "Basic" } }]])) }];
   if (c?.styles) groups.push({ kind: "from", name: label(c), designs: own(c.styles), look: lookOfCollection(id, c) });
-  if (id !== "botc") groups.push({ kind: "other", name: "Blood on the Clocktower", designs: own(BOTC_STYLES), look: lookOfCollection("botc") });
+  if (id !== "botc" && botcUnlocked()) groups.push({ kind: "other", name: "Blood on the Clocktower", designs: own(BOTC_STYLES), look: lookOfCollection("botc") });
   for (const b of BUILT_INS) {
     if (b.id === "botc" || b.id === id || !b.file) continue;
     const styles = await builtInStyles(b.id);
