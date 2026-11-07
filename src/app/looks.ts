@@ -1,6 +1,6 @@
 // A design's look, field by field: reading, comparing and changing one field.
 import type { SpecInput, TokenSpec, TokenShape, LookChanges, ColourRef, SpecColours } from "../types.ts";
-import { DEFAULT_SPEC, SHAPE_FEATURES, normalizeSpec, reliefOf, hasRelief } from "../engine/token-engine.ts";
+import { DEFAULT_SPEC, SHAPE_FEATURES, normalizeSpec, reliefOf, hasRelief, cardBackOf } from "../engine/token-engine.ts";
 import type { Fields } from "./context.ts";
 
 // ------------------------------------------------------------ looks, field by field
@@ -40,8 +40,16 @@ function printedLook(shape: TokenShape, spec: SpecInput): Fields {
   if (!f.ringBase) delete s.ringBase;
   if (!f.separator) delete s.separator;
   if (!f.magnet) { delete s.magnet; delete s.magnetSize; } else if (s.magnet === "none") delete s.magnetSize;
-  if (!f.back) { delete s.back; delete s.backMode; delete s.backFace; delete s.customSvg; delete c.back; }
+  // a card's icon and back are its own (cardIcon…, cardBack): no other shape has them, and a card no coin back
+  if (shape !== "card") { delete s.cardIcon; delete s.cardIconSize; delete s.cardJoin; delete s.cardBack; }
   else {
+    if (s.cardIcon === "none") { delete s.cardIconSize; delete s.cardJoin; } else if (s.cardIcon === "only") delete s.cardJoin;
+    if ((s.cardBack as SpecInput["cardBack"])?.on) s.cardBack = cardBackOf(u);
+    else { delete s.cardBack; delete c.backBase; }
+    delete s.back; delete s.backMode; delete s.backFace; delete s.customSvg; delete c.back;
+  }
+  if (!f.back) { delete s.back; delete s.backMode; delete s.backFace; delete s.customSvg; delete c.back; }
+  else if (shape !== "card") {
     if (s.back !== "custom") delete s.customSvg;
     if (s.backMode !== "match" && s.backMode !== "own") delete s.backFace;
   }

@@ -1,11 +1,11 @@
 // The workshop: a token's preview, its parts and faces, and its own icon.
 import { on } from "./events.ts";
 import type { TokenShape, TokenSpec, BackFace, TokenStyle, SpecInput, SpecColours, TokenIcon, TokenOverride } from "../types.ts";
-import { shapeOf, SHAPE_FEATURES, DEFAULT_SPEC, FACE_FIELDS, reliefOf, buildToken, TEAMS, tokenSvg, MAGNET_SIZES, RING_SEPARATORS, RING_BASES } from "../engine/token-engine.ts";
+import { shapeOf, SHAPE_FEATURES, DEFAULT_SPEC, FACE_FIELDS, reliefOf, buildToken, TEAMS, tokenSvg, MAGNET_SIZES, RING_SEPARATORS, RING_BASES, cardBackOf } from "../engine/token-engine.ts";
 import { state, LAYOUT_TEXT, defSpec, STYLE_KEEPS, knownStyles, $, view3d, esc, input, hit, $$, SEPARATOR_MARKS, COLOUR_CHOICES } from "./context.ts";
 import type { Part, Side, FaceTab, Fields } from "./context.ts";
 import { lookOf, designFor, ownChanged, designOf, inheritedRef, collLabel } from "./designs.ts";
-import { changeLook, renderSays, renderTabs, syncControls, renderColourWarn, dz, renderDesignSheet, setOwn, patternGroupHtml } from "./design-sheet.ts";
+import { changeLook, renderSays, renderTabs, syncControls, renderColourWarn, dz, renderDesignSheet, setOwn, patternGroupHtml, setCardBack, changeCardBack, setCardBackIcon } from "./design-sheet.ts";
 import { APP_NAME, tallerUrl } from "../collection.ts";
 import type { StyleDef } from "../collection.ts";
 import { BOTC_STYLES } from "../botc-styles.ts";
@@ -52,6 +52,7 @@ export const editSide = (): Side => (openPart() === "back" ? "back" : "front");
 /** The open panel: a face's tab, the back's choices, the body or the magnet. */
 export function openPanel(): string {
   const part = openPart(), shape = editShape();
+  if (part === "back" && shape === "card") return "cardBack";   // a card's back: a face of its own, in one panel
   if (part === "front" || (part === "back" && editLook().backMode === "own")) {
     const side = part === "back" ? "back" : "front", tabs = faceTabsOf(shape, side);
     if (!tabs.includes(state.faceTab[side])) state.faceTab[side] = tabs[0];
@@ -107,8 +108,10 @@ function shapeLook(shape: TokenShape, spec: SpecInput) {
   const look = { base: c.base, front: c.front, frame: line ? c.frame : null, frameWidth: line ? f("frameWidth") : null, height: f("height"), depth: f("depth"),
     // a card's frame only at its corners; a ring's mark between repeats other than the dot (only when set: older looks compare as they did)
     ...(shape === "card" && f("frame") === "corners" ? { corners: true } : {}), ...(shape === "card" && f("frame") === "laurel" ? { laurel: true } : {}),
-    // a card's back: its design, its colour and the colour behind it
-    ...(shape === "card" && f("back") !== "none" ? { back: f("back"), backColour: c.back, backBase: c.backBase ?? null, ...(f("back") === "custom" ? { customSvg: f("customSvg") } : {}) } : {}) };
+    // a card's icon, where it has one: its place, its size and how it sits with the phrase
+    ...(shape === "card" && f("cardIcon") !== "none" ? { cardIcon: f("cardIcon"), cardIconSize: f("cardIconSize"), ...(f("cardIcon") !== "only" ? { cardJoin: f("cardJoin") } : {}) } : {}),
+    // a card's back of its own, filled in (so one kept whole and one kept in part compare alike), and the colour behind it
+    ...(shape === "card" && spec.cardBack?.on ? { cardBack: cardBackOf(spec), backBase: c.backBase ?? null } : {}) };
   if (shape === "base") return { ...look, spacing: f("spacing"), relief: reliefOf(spec) };
   return shape === "ring" ? { ...look, textSize: f("textSize"), spacing: f("spacing"), relief: reliefOf(spec), ...(f("separator") !== "dot" ? { separator: f("separator") } : {}) } : look;
 }
@@ -254,6 +257,53 @@ export function wireIcons() {
     const b = hit(e, "[data-gi]"); if (!b) return;
     try { setIcon(await gameIcon(b.dataset.gi!)); $("#iconSearch").hidden = true; }
     catch { $("#iconHint").className = "hint warn"; $("#iconHint").textContent = t("icon.fetchFailed"); }
+  };
+}
+
+/**
+ * A card's back (REVERSO): on or off, its phrase or the collection's name, its icon (searched on
+ * game-icons.net or an SVG of yours, like a token's), its icon's place and join, its frame, sizes and colours.
+ */
+export function wireCardBack() {
+  $("#cbOn").onclick = (e) => { const b = hit(e, "[data-v]"); if (b) setCardBack(b.dataset.v === "on"); };
+  $("#cbText").oninput = (e) => changeCardBack((b) => { b.text = input(e).value; });
+  $("#cbName").onchange = (e) => changeCardBack((b) => { if (input(e).checked) b.name = "collection"; else delete b.name; });
+  for (const key of ["cardIcon", "cardJoin", "frame"] as const) {
+    $(`[data-cb-choice=${key}]`).onclick = (e) => { const x = hit(e, "button"); if (x) changeCardBack((b) => { (b as unknown as Fields)[key] = x.dataset.v; }); };
+  }
+  // the sliders: their value as they move, the back drawn again when let go
+  for (const [id, key] of [["cbIconSize", "cardIconSize"], ["cbFrameWidth", "frameWidth"]] as const) {
+    $(`#${id}`).oninput = (e) => { $(`#${id}Out`).textContent = `${(+input(e).value).toFixed(key === "frameWidth" ? 1 : 0).replace(".", uiLang() === "es" ? "," : ".")} mm`; };
+    $(`#${id}`).onchange = (e) => changeCardBack((b) => { b[key] = +input(e).value; });
+  }
+  const hint = (key: string) => { $("#cbIconHint").className = "hint warn"; $("#cbIconHint").textContent = t(key); };
+  const choose = (icon: TokenIcon | null) => { $("#cbIconHint").className = "hint"; setCardBackIcon(icon); };
+  $("#cbIconUpload").onclick = () => $("#cbIconFile").click();
+  $("#cbIconFile").onchange = async (e) => {
+    const file = input(e).files![0]; input(e).value = "";
+    if (!file) return;
+    try { choose({ ...iconFromSvg(await file.text(), { source: "upload", name: file.name.replace(/\.svg$/i, "") }), id: `upload:${Date.now().toString(36)}` }); }
+    catch (err) { hint((err as Error).message === "no-shapes" ? "icon.noShapes" : "icon.notSvg"); }
+  };
+  $("#cbIconReset").onclick = () => choose(null);
+  $("#cbIconSearchOpen").onclick = () => { const box = $("#cbIconSearch"); box.hidden = !box.hidden; if (!box.hidden) $("#cbIconQuery").focus(); };
+  let timer: ReturnType<typeof setTimeout> | number = 0;
+  $("#cbIconQuery").oninput = (e) => {
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      const query = input(e).value;
+      let hits: string[];
+      try { hits = await searchGameIcons(query); } catch { $("#cbIconResults").innerHTML = `<p class="hint warn">${esc(t("icon.searchFailed"))}</p>`; return; }
+      if (input(e).value !== query) return;   // typed on meanwhile: that search shows instead
+      $("#cbIconResults").innerHTML = hits.length
+        ? hits.map((p) => `<button type="button" class="icon-hit" data-gi="${esc(p)}" title="${esc(p.replace("/", " · "))}"><img src="${gameIconPreview(p)}" alt="" loading="lazy"><span>${esc(p.split("/")[1])}</span></button>`).join("")
+        : `<p class="hint">${esc(t(input(e).value.trim() ? "icon.none" : "icon.type"))}</p>`;
+    }, 200);
+  };
+  $("#cbIconResults").onclick = async (e) => {
+    const b = hit(e, "[data-gi]"); if (!b) return;
+    try { choose(await gameIcon(b.dataset.gi!)); $("#cbIconSearch").hidden = true; }
+    catch { hint("icon.fetchFailed"); }
   };
 }
 

@@ -10,14 +10,14 @@ import { roleIdOf, charKey, textFor } from "./tokens.ts";
 import { persistPicks, editToken, isPicked, setPick, renderQueue, goStep, flow, downloadPdf, downloadBambu, dropFromDesign, designToken, PAPER_BACKS_KEY, testQ, PRINT_WAY_KEY, PRINTER_KEY, NOZZLE_KEY, openQueue, onQueueClick, undoPicks, changePicks } from "./queue.ts";
 import { renderSpine, renderSheet, onCopyStep, openRows, toggleCharacter, openAddMenu, addShown } from "./sheet.ts";
 import { openTokenPanel, wireCollSwitch, wireOwn } from "./creator.ts";
-import { wireDesignBar, deepenAll, openDesignSheet, wireDesignSheet, saveLookAsDesign, setOwn, rememberReturn, renderSays, setBackMode, changeLook, deepen, resetField, swapRelief, setRelief, changePattern } from "./design-sheet.ts";
+import { wireDesignBar, deepenAll, openDesignSheet, wireDesignSheet, saveLookAsDesign, setOwn, rememberReturn, renderSays, setBackMode, changeLook, deepen, resetField, swapRelief, setRelief, changePattern, changeCardBack } from "./design-sheet.ts";
 import { OWN } from "../collection.ts";
 import { TALLER } from "./taller.ts";
 import { designFor, rereadMyDesigns } from "./designs.ts";
 import { adminSignIn } from "./boot.ts";
 import { printerOf, nozzleOf } from "../bambu/plates.ts";
 import type { ViewKind } from "../engine/viewer.ts";
-import { syncView, editShape, openPart, showTab, renderWorkshop, viewTab, changeFace, editSide, editLook, wireIcons } from "./workshop.ts";
+import { syncView, editShape, openPart, showTab, renderWorkshop, viewTab, changeFace, editSide, editLook, wireIcons, wireCardBack } from "./workshop.ts";
 import type { TokenOverride, BackMode, TokenSpec, TokenStyle, ReliefPart } from "../types.ts";
 import { signOut as signOutUser } from "../services.ts";
 import { openAdmin } from "./admin.ts";
@@ -196,7 +196,7 @@ export function wire() {
   // A face's choices and sliders go to the face being edited (the front, or a back of its own); the rest to the token.
   const FACE_KEYS = new Set<string>(FACE_FIELDS);
   const change = (key: string, mutate: (s: TokenSpec) => void) => (FACE_KEYS.has(key) ? changeFace(editSide(), mutate) : changeLook(mutate));
-  for (const key of ["style", "frame", "back", "magnet", "magnetSize", "ringBase", "separator", "edge"]) {
+  for (const key of ["style", "frame", "back", "magnet", "magnetSize", "ringBase", "separator", "edge", "cardIcon", "cardJoin"]) {
     $(`[data-choice=${key}]`).onclick = (e) => {
       const b = hit(e, "button"); if (!b) return;
       if (key === "back" && b.dataset.v === "custom" && !editLook().customSvg) { $("#upload").click(); return; }
@@ -213,6 +213,8 @@ export function wire() {
   for (const box of $$(".metal")) box.onclick = (e) => {
     const b = hit(e, "button"); if (!b) return;
     const key = box.dataset.colour!, mutate = (s: TokenSpec) => { s.colours = { ...DEFAULT_SPEC.colours, ...s.colours, [key]: b.dataset.v! }; };
+    // a card back's phrase and frame: its own colours
+    if (box.dataset.side === "cardback") { const k = box.dataset.cbColour as "text" | "frame"; changeCardBack((cb) => { cb.colours = { ...cb.colours, [k]: b.dataset.v! }; }); return; }
     if (box.dataset.side === "back") changeFace("back", mutate);
     else if (box.closest("[data-panel=text], [data-panel=frame]")) changeFace(editSide(), mutate);
     else changeLook(mutate);
@@ -268,6 +270,7 @@ export function wire() {
     setOwn(state.sel!.key, own);
   };
   wireIcons();
+  wireCardBack();
   $("#fem").onchange = (e) => {
     const own: TokenOverride = { ...(state.overrides.get(state.sel!.key) || {}) };
     if (input(e).checked) own.fem = true; else delete own.fem;

@@ -11,10 +11,10 @@
 // so designing and printing are Clocktower's own. A whole collection goes in and out as one
 // JSON file ("midnight-mint/collection", see CollectionFile). Kept in this browser.
 import { local, readJSON, writeJSON } from "./services.ts";
-import type { Hex, PatternSpec, Role, SpecInput, Team, TokenIcon, TokenShape } from "./types.ts";
+import type { CardBack, CardIcon, CardJoin, Hex, PatternSpec, Role, SpecInput, Team, TokenIcon, TokenShape } from "./types.ts";
 import { gameIcon } from "./icons.ts";
 import { safeIconMarkup, safeTransform } from "./engine/safe-svg.ts";
-import { DEFAULT_SPEC, FILAMENTS, PATTERNS } from "./engine/token-engine.ts";
+import { DEFAULT_SPEC, FILAMENTS, PATTERNS, CARD_ICONS, CARD_JOINS, CARD_ICON_MM } from "./engine/token-engine.ts";
 import { BUILT_INS } from "./builtins.ts";
 import { ringDesigns, cardDesigns, baseDesigns, APP_DESIGNS, appTwin } from "./shape-designs.ts";
 
@@ -411,9 +411,39 @@ function readSpec(v: unknown): SpecInput | null {
     else if (k === "backText") { if (x === "collection") out[k] = x; }
     else if (k === "edge") { if (x === "smooth" || x === "reeded" || x === "segmented") out[k] = x; }
     else if (k === "reliefBevel") { if (typeof x === "number" && x >= 0 && x <= 0.4) out[k] = x; }
+    else if (k === "cardIcon") { if (CARD_ICONS.includes(x as CardIcon)) out[k] = x; }
+    else if (k === "cardJoin") { if (CARD_JOINS.includes(x as CardJoin)) out[k] = x; }
+    else if (k === "cardIconSize") { if (typeof x === "number" && x >= CARD_ICON_MM.min && x <= CARD_ICON_MM.max) out[k] = x; }
+    else if (k === "cardBack") { const b = readCardBack(x); if (b) out[k] = b; }
     else if (k in d && k !== "lang" && typeof x === typeof d[k]) out[k] = x;
   }
   return out as SpecInput;
+}
+/**
+ * A card's back from a file (CardBack): on or off, its phrase, its icon (only its shapes, as any
+ * icon from outside: safe-svg.ts), its layout, frame and colours; anything else is dropped.
+ */
+function readCardBack(v: unknown): CardBack | null {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return null;
+  const x = v as Record<string, unknown>, out: CardBack = { on: x.on === true };
+  if (typeof x.text === "string") out.text = x.text.slice(0, 120);
+  if (x.name === "collection") out.name = "collection";
+  const ic = x.icon as Record<string, unknown> | null | undefined;
+  if (ic && typeof ic === "object" && typeof ic.id === "string" && typeof ic.body === "string" && ic.body.length < 300000) {
+    const body = safeIconMarkup(ic.body), str = (k: string) => (typeof ic[k] === "string" ? { [k]: (ic[k] as string).slice(0, 200) } : {});
+    if (body) out.icon = { id: ic.id.slice(0, 200), ...str("source"), ...str("name"), ...str("author"), g: safeTransform(ic.g), body };
+  }
+  if (CARD_ICONS.includes(x.cardIcon as CardIcon)) out.cardIcon = x.cardIcon as CardIcon;
+  if (CARD_JOINS.includes(x.cardJoin as CardJoin)) out.cardJoin = x.cardJoin as CardJoin;
+  if (typeof x.cardIconSize === "number" && x.cardIconSize >= CARD_ICON_MM.min && x.cardIconSize <= CARD_ICON_MM.max) out.cardIconSize = x.cardIconSize;
+  if (typeof x.frame === "string" && x.frame.length < 40) out.frame = x.frame;
+  if (typeof x.frameWidth === "number" && x.frameWidth >= 0.4 && x.frameWidth <= 2) out.frameWidth = x.frameWidth;
+  const c = x.colours as Record<string, unknown> | undefined;
+  if (c && typeof c === "object") {
+    const colours = Object.fromEntries(["text", "frame"].filter((k) => c[k] === "team" || isHex(c[k])).map((k) => [k, c[k]]));
+    if (Object.keys(colours).length) out.colours = colours;
+  }
+  return out;
 }
 /** A background pattern from a file (PatternSpec): a known pattern, its numbers and its colour. */
 function readPattern(v: unknown): PatternSpec | null {

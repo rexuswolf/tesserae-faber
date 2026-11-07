@@ -1,7 +1,7 @@
 // The sheet of tokens: the spine (editions, filters), the add menu and the sheet itself.
 import { on, emit } from "./events.ts";
 import { state, esc, $, EDITION_ORDER, TEAM_PLURAL, fold, coll, TEAM_ORDER, storeJSON, VIEW_KEY, hit, READONLY, view3d } from "./context.ts";
-import { isCard, EDITIONS, TEAMS, roleName, shapeOf, reminderSpec, DEFAULT_SPEC, SHAPE_FEATURES, tokenSvg, flipFace } from "../engine/token-engine.ts";
+import { isCard, EDITIONS, TEAMS, roleName, shapeOf, reminderSpec, DEFAULT_SPEC, SHAPE_FEATURES, tokenSvg, flipFace, printsBack } from "../engine/token-engine.ts";
 import { OWN, catalogsOf, nameIn, SHAPES, isLocked } from "../collection.ts";
 import { renderOwnSpine, catalogOf, typeOfView, typeOfToken, ownHome, ownHomeCatalog } from "./creator.ts";
 import { uiLang, t } from "../i18n.ts";
@@ -229,7 +229,7 @@ function rowHtml(r: Role, q: string, remHits: Set<number> | undefined) {
     const two = !isRem && !!r.flip;
     // a one-sided token whose design prints a back turns over too: pointed at, or held down on a phone
     const full = specFor(key, false);
-    const backed = !isRem && !two && SHAPE_FEATURES[shapeOf(r)].back && full.back !== "none";
+    const backed = !isRem && !two && SHAPE_FEATURES[shapeOf(r)].back && printsBack(r, full);
     const face = tokenSvg(state.lib!, r, spec, { text: name });
     const art = two || backed ? `<span class="tok-turn">${face}${tokenSvg(state.lib!, r, { ...full, diameter: 45 }, { side: "back" })}</span>` : face;
     return `<span class="tok-w${two ? " two" : backed ? " backed" : ""}"><button class="tok${isCard(r) ? " card" : ""}${loading}" type="button" data-pick="${key}" aria-pressed="${copies > 0}" aria-label="${esc(name)}">${art}<span class="ck" aria-hidden="true">✓</span></button>${two ? `<button class="turn-btn" type="button" data-turn title="${esc(t("sheet.turn"))}" aria-label="${esc(t("sheet.turn"))}">⇄</button>` : ""}${own ? ownPen(key, name) : ""}</span>`;

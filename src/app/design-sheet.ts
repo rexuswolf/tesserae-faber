@@ -1,7 +1,7 @@
 // Choosing a design (the design sheet), and each shape's default design.
 import { emit } from "./events.ts";
-import type { TokenShape, TokenSpec, MyDesign, TokenOverride, Role, BackMode, PatternSpec, ReliefPart, Token, TokenStyle, SpecColours, SpecInput } from "../types.ts";
-import { DEFAULT_SPEC, reminderSpec, tokenSvg, SHAPE_FEATURES, shapeOf, roleName, shapeSpec, TOKEN_STYLES, FRAME_STYLES, FILAMENTS, BACK_STYLES, CARD_BACKS, PATTERN_MIN, partColours, PATTERNS, patternDefaults, patternFilled, patternFixed, flipFace, reliefOf, hasRelief, FACE_FIELDS, ringBand, ringSize, baseSize, magnetLayout } from "../engine/token-engine.ts";
+import type { TokenShape, TokenSpec, MyDesign, TokenOverride, Role, BackMode, PatternSpec, ReliefPart, Token, TokenStyle, SpecColours, SpecInput, CardBack, TokenIcon } from "../types.ts";
+import { DEFAULT_SPEC, reminderSpec, tokenSvg, SHAPE_FEATURES, shapeOf, roleName, shapeSpec, TOKEN_STYLES, FRAME_STYLES, FILAMENTS, BACK_STYLES, PATTERN_MIN, printsBack, cardBackOf, CARD_ICONS, CARD_JOINS, partColours, PATTERNS, patternDefaults, patternFilled, patternFixed, flipFace, reliefOf, hasRelief, FACE_FIELDS, ringBand, ringSize, baseSize, magnetLayout } from "../engine/token-engine.ts";
 import { tokenLang } from "./token-language.ts";
 import { ownIcon, roleIdOf, charKey, textFor, remindersOf, charName } from "./tokens.ts";
 import { myDesigns, myEntry, collEntry, inheritedRef, refOf, originalRef, defaultRef, designOf, collLabel, designFor, uniqueDesignName, lookOf, storeMyDesigns, storeOverrides, shapesHere, tokensOf, designOverridden, defaults, storeDefaults } from "./designs.ts";
@@ -85,7 +85,7 @@ export function renderDesignSheet() {
     + (() => {
       // the front, and beside it the back (what it shows when turned over), each named
       const spec = specWith(applyLook(d.spec, look), key, reminder != null), front = tokenSvg(state.lib!, role, spec, { text });
-      const backs = SHAPE_FEATURES[shapeOf(role)].back && reminder == null && spec.back !== "none";
+      const backs = SHAPE_FEATURES[shapeOf(role)].back && reminder == null && printsBack(role, spec);
       const badge = first ? `<i class="dz-badge">${esc(tag)}</i>` : "";
       if (!backs) return `<span class="dz-tok">${front}${badge}</span>`;
       return `<span class="dz-pair"><figure class="dz-tok">${front}<figcaption>${esc(t("part.front"))}</figcaption>${badge}</figure>`
@@ -214,7 +214,7 @@ export function renderSays() {
 export function renderTabs(role: Role, spec: TokenSpec) {
   const shape = shapeOf(role), part = openPart(), panel = openPanel();
   $("#parts").innerHTML = partsOf(shape).map((p) => `<button type="button" role="tab" data-part="${p}" aria-selected="${p === part}">${esc(p === "body" ? t(`part.body.${shape}`) : t(`part.${p}`))}</button>`).join("");
-  const faceOpen = part === "front" || (part === "back" && spec.backMode === "own");
+  const faceOpen = part === "front" || (part === "back" && spec.backMode === "own" && shape !== "card");
   $("#faceTabs").hidden = !faceOpen;
   if (faceOpen) $("#faceTabs").innerHTML = faceTabsOf(shape, part === "back" ? "back" : "front").map((f) => `<button type="button" role="tab" data-face="${f}" aria-selected="${f === panel}">${esc(t(`face.${f}`))}</button>`).join("");
   renderBackModes(role, spec, part === "back" && shapeOf(role) !== "card");   // a card's back is always a design
@@ -338,10 +338,7 @@ function renderStyleTiles(face: { role: Role; text: string }, spec: TokenSpec) {
 function renderFrameTiles(face: { role: Role; text: string }, spec: TokenSpec) {
   const s = { ...spec, diameter: 45, back: "none", backMode: "design" as const, frontPattern: null }, shape = shapeOf(face.role), { role, text } = face;   // the pattern left out, as in the layouts
   if (SHAPE_FEATURES[shape].frame === "line") {
-    // "with" keeps whatever design the spec has, so choosing it changes nothing else
-    const line = s.frame === "none" || s.frame === "corners" || s.frame === "laurel" ? "rim" : s.frame;
-    const tiles = [["none", t("frame.none")], [line, t(`frame.line.${shape}`)], ...(SHAPE_FEATURES[shape].corners ? [["corners", t("frame.corners")], ["laurel", t("frame.laurelCard")]] : [])];
-    $("[data-choice=frame]").innerHTML = tiles.map(([v, label]) =>
+    $("[data-choice=frame]").innerHTML = lineFrames(shape, s.frame).map(([v, label]) =>
       `<button class="back-tile frame-tile" type="button" data-v="${v}" aria-pressed="${s.frame === v}">${tokenSvg(state.lib!, role, { ...s, frame: v }, { text })}<span>${esc(label)}</span></button>`).join("");
     return;
   }
@@ -351,6 +348,72 @@ function renderFrameTiles(face: { role: Role; text: string }, spec: TokenSpec) {
       tokenSvg(state.lib!, role, { ...s, frame: f.id, frameWidth: f.id === "rim" || f.id === "double" ? Math.max(s.frameWidth, 0.8) : s.frameWidth }, { text })
     }<span>${esc(t(`frame.${f.id}`))}</span></button>`).join("");
 }
+/** A card's or a ring's frames (a line, or none; a card's also only its corners, or laurels), each with its name.
+ *  "With" keeps whatever line design the spec has, so choosing it changes nothing else. */
+function lineFrames(shape: TokenShape, frame: string): [string, string][] {
+  const line = frame === "none" || frame === "corners" || frame === "laurel" ? "rim" : frame;
+  return [["none", t("frame.none")], [line, t(`frame.line.${shape}`)], ...(SHAPE_FEATURES[shape].corners ? [["corners", t("frame.corners")], ["laurel", t("frame.laurelCard")]] as [string, string][] : [])];
+}
+
+/** A card's icon places and joins (in CARA's Icon tab), each drawn on the token as it would come out. */
+function renderCardIconTiles(role: Role, text: string, spec: TokenSpec, hasIcon: boolean) {
+  const tile = (key: "cardIcon" | "cardJoin", v: string) =>
+    `<button class="back-tile" type="button" data-v="${v}" aria-pressed="${spec[key] === v}">${tokenSvg(state.lib!, role, { ...spec, [key]: v, ...(key === "cardJoin" && spec.cardIcon === "none" ? { cardIcon: "left" } : {}) }, { text })}<span>${esc(t(`${key}.${v}`))}</span></button>`;
+  $("[data-choice=cardIcon]").innerHTML = CARD_ICONS.map((v) => tile("cardIcon", v)).join("");
+  $("[data-choice=cardJoin]").innerHTML = CARD_JOINS.map((v) => tile("cardJoin", v)).join("");
+  // the join for an icon beside the phrase, the size for any icon
+  $("#cardJoinBox").hidden = spec.cardIcon === "none" || spec.cardIcon === "only";
+  $("#cardIconSize").closest<HTMLElement>(".row")!.hidden = spec.cardIcon === "none";
+  $("#cardIconHint").textContent = !hasIcon ? t("cardIcon.noIcon") : spec.cardJoin === "together" && spec.cardIcon !== "none" && spec.cardIcon !== "only" ? t("cardJoin.together.help") : "";
+}
+
+/**
+ * A card's back (REVERSO), a face of its own: on or off, its phrase (or the collection's name), its
+ * icon, where that goes and how it sits with the phrase, its frame, and its colours and background.
+ * Its choices drawn on the back as it would come out.
+ */
+function renderCardBack(role: Role, text: string, spec: TokenSpec) {
+  const b = cardBackOf(spec), on = b.on;
+  $$("#cbOn button").forEach((x) => x.setAttribute("aria-pressed", String((x.dataset.v === "on") === on)));
+  $("#cbFields").hidden = !on;
+  if (!on) return;
+  const text$ = $<HTMLInputElement>("#cbText");
+  if (document.activeElement !== text$) text$.value = b.text;
+  text$.disabled = b.name === "collection" && !!role.collectionName;
+  $<HTMLInputElement>("#cbName").checked = b.name === "collection";
+  $("#cbNameRow").hidden = !role.collectionName && b.name !== "collection";
+  // its icon: which one, and the way to search, upload or take it away
+  $("#cbIconReset").hidden = !b.icon;
+  if (!$("#cbIconHint").classList.contains("warn")) $("#cbIconHint").textContent = b.icon ? t(b.icon.source === "game-icons" ? "icon.isGame" : "icon.isOwn", { name: b.icon.name || "SVG", author: b.icon.author || "" }) : t("cardBack.iconHelp");
+  // its tiles, on the back: the card in its colours with each choice
+  const back = (change: Partial<CardBack>) => tokenSvg(state.lib!, role, { ...spec, cardBack: { ...b, ...change } }, { side: "back", text });
+  const tile = (key: "cardIcon" | "cardJoin" | "frame", v: string, label: string) =>
+    `<button class="back-tile${key === "frame" ? " frame-tile" : ""}" type="button" data-v="${esc(v)}" aria-pressed="${b[key] === v}">${back({ [key]: v, ...(key === "cardJoin" && (b.cardIcon === "none" || b.cardIcon === "only") ? { cardIcon: "left" as const } : {}) })}<span>${esc(label)}</span></button>`;
+  $("[data-cb-choice=cardIcon]").innerHTML = CARD_ICONS.map((v) => tile("cardIcon", v, t(`cardIcon.${v}`))).join("");
+  $("[data-cb-choice=cardJoin]").innerHTML = CARD_JOINS.map((v) => tile("cardJoin", v, t(`cardJoin.${v}`))).join("");
+  $("[data-cb-choice=frame]").innerHTML = lineFrames("card", b.frame).map(([v, label]) => tile("frame", v, label)).join("");
+  $("#cbJoinBox").hidden = b.cardIcon === "none" || b.cardIcon === "only";
+  $("#cbSizeRow").hidden = b.cardIcon === "none";
+  $("#cbFrameWidthRow").hidden = b.frame === "none";
+  const dec = (v: number, dp: number) => v.toFixed(dp).replace(".", uiLang() === "es" ? "," : ".");
+  for (const [id, v, dp] of [["cbIconSize", b.cardIconSize, 0], ["cbFrameWidth", b.frameWidth, 1]] as const) {
+    if (document.activeElement !== $(`#${id}`)) $<HTMLInputElement>(`#${id}`).value = String(v);
+    $(`#${id}Out`).textContent = `${dec(v, dp)} mm`;
+  }
+  $$(".metal[data-side=cardback]").forEach((box) => {
+    const k = box.dataset.cbColour as "text" | "frame";
+    $$("button", box).forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.v === b.colours[k])));
+  });
+}
+/** A change to a card's back (in the Taller the design's; in the design step the token's own, as any change to its look). */
+export function changeCardBack(mutate: (b: ReturnType<typeof cardBackOf>) => void) {
+  changeLook((s) => { const b = structuredClone(cardBackOf(s)); mutate(b); s.cardBack = b; });
+  view3d("setView", "back"); syncView("back");
+}
+/** A card's back turned on (with what it had, or its defaults) or off (what it had kept, for turning it on again). */
+export function setCardBack(on: boolean) { changeCardBack((b) => { b.on = on; }); }
+/** A card back's own icon (null: none). */
+export function setCardBackIcon(icon: TokenIcon | null) { changeCardBack((b) => { b.icon = icon; if (icon && b.cardIcon === "none") b.cardIcon = "only"; }); }
 
 /** The back designs as small coin backs, in the colours of the design being edited. */
 function renderBackTiles(role: Role, spec: TokenSpec) {
@@ -358,9 +421,7 @@ function renderBackTiles(role: Role, spec: TokenSpec) {
   if (s.colours.back === "team") s.colours.back = FILAMENTS.gold;
   // on an ordinary coin's back: a two-state token's would show its other state
   const plain = { ...role, flip: undefined };
-  const card = shapeOf(role) === "card";
-  $("#backBaseRow").hidden = !card;
-  $("[data-choice=back]").innerHTML = BACK_STYLES.filter((b) => b.id !== "seal" && (!card || CARD_BACKS.includes(b.id))).map((b) =>
+  $("[data-choice=back]").innerHTML = BACK_STYLES.filter((b) => b.id !== "seal").map((b) =>
     `<button class="back-tile" type="button" data-v="${b.id}" aria-pressed="${s.back === b.id}">${
       b.id === "custom" && !s.customSvg ? `<span class="upload-tile">SVG</span>` : tokenSvg(state.lib!, plain, { ...s, back: b.id }, { side: "back" })
     }<span>${esc(t(`back.${b.id}`))}</span></button>`).join("");
@@ -550,7 +611,15 @@ export function syncControls(role: Role, spec: TokenSpec, token: Token) {
   $("#nameHint").className = "hint" + (names.some((x) => x && x.letterHeight < smallLetters()) ? " warn" : "");
   $("#nameHint").textContent = side === "back" && b ? (other ? `${t("name.flip", { name: roleName(other, tokenLang()) })} ` : `${t("name.back")} `) + hint(b)
     : hint(token.name) + (names[1] && other ? ` ${t("name.flip", { name: roleName(other, tokenLang()) })} ${hint(names[1])}` : "");
-  $("#iconColourHint").textContent = t(face.style === "window" ? "icon.colourWindow" : "icon.colourName");
+  $("#iconColourHint").textContent = t(shape === "card" ? "icon.colourCard" : face.style === "window" ? "icon.colourWindow" : "icon.colourName");
+  // Icon: a coin's size; a card's place, join and size, drawn on the card
+  row("iconScale").hidden = shape === "card";
+  $("#cardIconBox").hidden = shape !== "card";
+  if (panel === "icon" && shape === "card") {
+    const own = ownIcon(role.id), hasIcon = !!(own?.body || role.body || role.d?.length);
+    renderCardIconTiles(who.role, who.text, { ...face, icon: own }, hasIcon);
+  }
+  if (panel === "cardBack") renderCardBack(role, who.text, { ...s, icon: ownIcon(role.id) });
   // Frame: a coin's designs, or for a card or a ring only with or without (any design is a line there)
   if (panel === "frame") renderFrameTiles(who, face);
   // Back: a design (and its colour) or the front again in a colour of its own. The designs are the
@@ -593,7 +662,7 @@ export function syncControls(role: Role, spec: TokenSpec, token: Token) {
     b.setAttribute("aria-pressed", String(v === b.dataset.v));
   }
   $("[data-choice=magnet] [data-v=pocket]").hidden = faceBack;
-  $$(".metal").forEach((box) => {
+  $$(".metal:not([data-side=cardback])").forEach((box) => {   // a card back's are renderCardBack's
     const k = box.dataset.colour as keyof SpecColours, from = box.dataset.side === "back" || (box.closest("[data-panel=text], [data-panel=frame]") && side === "back") ? faceOf(spec, "back") : s;
     $$("button", box).forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === from.colours[k])));
   });
