@@ -79,11 +79,18 @@ for (const [name, path, colour] of SRD) srdTokens.push(await own(name, path, col
 const srdStrip = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${s + step * (SRD.length - 1) + 20} ${s + 24}" role="img" aria-label="Fichas de Fantasía 5e">${defs}${srdTokens.map((svg, j) => place(svg, 10 + j * step, 6, s, "cell", j)).join("")}</svg>`;
 document.querySelector("#strip").insertAdjacentHTML("afterend", `<div>${srdStrip}</div>`);
 
+// The Senate's cover strip: the three sides, the vote and the Consul, in their colours, in its laurel wreath
+const SEN = [["Republicano", "delapouite/greek-temple", "#ece9e2"], ["Conspirador", "lorc/cloak-dagger", "#b3191e"], ["Aspirante a César", "delapouite/caesar", "#8a3d9e"], ["Placet", "delapouite/thumb-up", "#9a6a3a"], ["Cónsul", "lorc/laurel-crown", "#a7adb4"]];
+const senTokens = [];
+for (const [name, path, colour] of SEN) senTokens.push(await own(name, path, colour, { ...base, frame: "laurel" }));
+const senStrip = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${s + step * (SEN.length - 1) + 20} ${s + 24}" role="img" aria-label="Fichas de El Senado">${defs}${senTokens.map((svg, j) => place(svg, 10 + j * step, 6, s, "cell", j)).join("")}</svg>`;
+document.querySelector("#strip").insertAdjacentHTML("afterend", `<div>${senStrip}</div>`);
+
 document.querySelector("#hero").innerHTML = hero;
 document.querySelector("#strip").innerHTML = strip;
 const link = (id, text) => { document.querySelector(id).href = URL.createObjectURL(new Blob([text], { type: "image/svg+xml" })); };
 link("#dlHero", hero); link("#dlStrip", strip);
-window.__art = { hero, strip, dsStrip, srdStrip };
+window.__art = { hero, strip, dsStrip, srdStrip, senStrip };
 document.body.dataset.done = "1";
 </script>
 </body>
