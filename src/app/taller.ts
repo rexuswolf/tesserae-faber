@@ -59,7 +59,7 @@ type TallerView = "shape" | "base" | "edit";
  * from, and each shape's sample tokens (token keys).
  */
 export const taller: { view: TallerView; shape: TokenShape; ref: string; pick: string; from: { path: string; id: string; name: string } | null; groups: TallerGroup[]; samples: Record<TokenShape, string[]>; focusName: boolean } =
-  { view: "shape", shape: "coin", ref: "", pick: "", from: null, groups: [], samples: { coin: [], ring: [], card: [] }, focusName: false };
+  { view: "shape", shape: "coin", ref: "", pick: "", from: null, groups: [], samples: { coin: [], ring: [], card: [], base: [] }, focusName: false };
 /** The design open in the Taller's editor (always one of yours). */
 export const tallerMine = () => (TALLER && taller.view === "edit" && taller.ref.startsWith("u:") ? myDesigns[taller.shape].find((x) => x.id === taller.ref.slice(2)) : undefined);
 /** A base of the second step by its reference ("g<n>:<id>"). */
@@ -89,6 +89,8 @@ function sampleTokens(groups: string[]): Collection {
       { id: "sample-r2", type: "sample-ring", group: g2, name: n("Sangrando", "Bleeding"), icon: null, linked: [] },
       { id: "sample-k1", type: "sample-card", group: g1, name: n("Eres", "You are"), icon: null, linked: [] },
       { id: "sample-k2", type: "sample-card", group: g2, name: n("Elige a un jugador", "Choose a player"), icon: null, linked: [] },
+      { id: "sample-b1", type: "sample-base", group: g1, name: n("3", "3"), icon: null, linked: [] },
+      { id: "sample-b2", type: "sample-base", group: g2, name: n("Orco 2", "Orc 2"), icon: null, linked: [] },
     ],
   };
 }
@@ -187,7 +189,7 @@ function tallerGo(next: Partial<Pick<typeof taller, "view" | "shape" | "ref" | "
   renderTaller();
 }
 /** The Taller's shapes, in the order the first step shows them. */
-const TALLER_SHAPES: TokenShape[] = ["coin", "ring", "card"];
+const TALLER_SHAPES: TokenShape[] = ["coin", "ring", "base", "card"];
 function startTaller() {
   setGateState(null);
   $("#gate").hidden = true; $("#app").hidden = false;

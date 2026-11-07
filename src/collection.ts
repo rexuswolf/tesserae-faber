@@ -16,7 +16,7 @@ import { gameIcon } from "./icons.ts";
 import { safeIconMarkup, safeTransform } from "./engine/safe-svg.ts";
 import { DEFAULT_SPEC, FILAMENTS, PATTERNS } from "./engine/token-engine.ts";
 import { BUILT_INS } from "./builtins.ts";
-import { ringDesigns, cardDesigns, APP_DESIGNS, appTwin } from "./shape-designs.ts";
+import { ringDesigns, cardDesigns, baseDesigns, APP_DESIGNS, appTwin } from "./shape-designs.ts";
 
 /** Which app this page is: Clocktower (/botc, once Midnight Mint), or Tesserae Faber, the generic creator (the rest). */
 export const MODE: "botc" | "own" = /^\/botc(\/|$)/.test(location.pathname) ? "botc" : "own";
@@ -41,7 +41,7 @@ export const collectionUrl = (id: string) => `/c/${id}`;
 
 /** A name: one text, or one per token language ("en", "es", "es-castelgard"…). */
 export type Names = string | Record<string, string>;
-export const SHAPES: TokenShape[] = ["coin", "card", "ring"];
+export const SHAPES: TokenShape[] = ["coin", "card", "ring", "base"];
 export interface OwnType { id: string; name: Names; title: Names; shape: TokenShape; icon?: string }
 export interface OwnGroup { id: string; name: Names; colour: Hex; icon?: string;
   /** Its own icon, as the paths of a 512-unit game-icons.net icon (for its filter and plate), when not one of the app's. */
@@ -118,6 +118,7 @@ export const basicStyles = (): Record<TokenShape, StyleDef[]> => ({
   coin: [structuredClone(BASIC)],
   ring: ringDesigns("aro-color"),
   card: cardDesigns("contraste"),
+  base: baseDesigns("bandeja-color"),
 });
 /**
  * A collection kept with the basic coin style for its rings and cards too (as every new one was
@@ -337,7 +338,7 @@ export function tokenRole(c: Collection, t: OwnToken, lang = "es"): Role {
     edition: "own", editionName: nameIn(home?.name ?? c.name, lang), collectionName: nameIn(c.name, lang),
     reminders: Object.fromEntries([...langs].map((l) => [l, t.linked.map((n) => nameIn(n, l))])),
     body: t.icon?.body ?? "", d: [], g: t.icon?.g ?? "",
-    ...(type?.shape === "card" ? { kind: "info" as const } : type?.shape === "ring" ? { kind: "ring" as const } : {}),
+    ...(type?.shape === "card" ? { kind: "info" as const } : type?.shape === "ring" ? { kind: "ring" as const } : type?.shape === "base" ? { kind: "base" as const } : {}),
     // credited like the library's icons, when it's from game-icons.net
     ...creditOf(t.icon),
     // the engine caches shapes by this: a new icon for the same token gets drawn afresh

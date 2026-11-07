@@ -2083,6 +2083,7 @@ export const SMALL_LETTERS_MM = 2.5;
 export function nameLetterHeight(lib: Library, input: SpecInput, text: string, role: Role | null = null): number {
   if (isCard(role)) return cardLayout(lib, text, cardSpec(input)).cap;
   if (isRing(role)) return ringLayout(lib, text, ringSpec(input)).letterHeight;
+  if (isBase(role)) return baseLayout(lib, text, baseSpec(input)).cap;
   const spec = windowFrame({ ...DEFAULT_SPEC, ...input, colours: { ...DEFAULT_SPEC.colours, ...input?.colours } });
   const front = spec.style === "window" ? windowLayout(lib, text, spec).cap
     : arcName(lib, text, spec)?.letterHeight ?? Infinity;   // "solo" has no name to be too small
@@ -2224,7 +2225,7 @@ function cardSvg(lib: Library, role: Role, input: SpecInput | undefined, side: "
  * does) when the design has a frame. They print like the coins: the body in the coin colour, the letters, dots
  * and lines as inlays (flush or raised); no icon, back or magnet. Roles with kind "ring".
  */
-export const RING_BASES = ["25", "32", "40"];
+export const RING_BASES = ["25", "32", "40", "50"];
 /** Play between the ring and the base on each side, the ring's width, and the coin colour kept
  *  between the letters and the lines or edges (mm): wider than the nozzle, so it prints. */
 const RING_PLAY = 0.6, RING_WIDTH = 6, RING_TEXT_GAP = 0.7;
@@ -2353,6 +2354,130 @@ function ringSvg(lib: Library, role: Role, input: SpecInput | undefined, side: "
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${-o - 0.5} ${-o - 0.5} ${2 * o + 1} ${2 * o + 1}" role="img" aria-label="${esc(label)}"><path fill="${c.base}" fill-rule="evenodd" d="${ring}"/>${body}</svg>`;
 }
 
+// ---------------------------------------------------------------- miniature bases
+
+/**
+ * A base tray: the tray a miniature's own base sits in (a floor and a rim round it), with a tab in
+ * front, a stretch of the rim grown outwards, that carries the token's text along it (a number, a
+ * name and its number…). The tab grows as wide as its text needs, its sides parallel and its outer
+ * corners rounded; a text too long for the widest tab (about the tray's) gets smaller letters.
+ * It prints face-up (the pocket can't be face-down), the text sunk flush into the top or raised.
+ */
+export const isBase = (role: Role | null | undefined) => role?.kind === "base";
+/** Play round the miniature's base, the rim's width and the floor's thickness (mm); the rim stands `height` above the floor. */
+const BASE_PLAY = 0.4, BASE_RIM = 3, BASE_FLOOR = 1;
+
+/** A tray's radii (mm) for the base its design is for: the pocket, and the rim's outer edge. */
+export function baseSize(spec: { ringBase?: string }) {
+  const base = Number(RING_BASES.includes(spec.ringBase ?? "") ? spec.ringBase : DEFAULT_SPEC.ringBase);
+  const ri = base / 2 + BASE_PLAY;
+  return { base, ri, ro: ri + BASE_RIM };
+}
+
+/** A tray's spec: `height` its rim above the floor (1.5 to 4 mm); `diameter` what it takes on the plate. */
+export function baseSpec(input: SpecInput | undefined): TokenSpec {
+  const s = normalizeSpec({ ...DEFAULT_SPEC, ...input, colours: { ...DEFAULT_SPEC.colours, ...input?.colours } });
+  const spec: TokenSpec = { ...s, style: "classic", relief: { ...reliefOf(s), icon: false }, back: "none", magnet: "none",
+    height: Math.min(4, Math.max(1.5, s.height)), diameter: 2 * (baseSize(s).ro + 6) };
+  return { ...spec, depth: fittingDepth(spec).depth };
+}
+
+/**
+ * Where the text goes on the tab: letters along a circle, feet near the tab's edge and tops towards
+ * the middle, centred on the front (-y), read from the front. Its size: 6 mm for a number of one or
+ * two figures, 4.5 mm for more, smaller (down to 3) when the tab would be wider than the tray.
+ */
+export function baseLayout(lib: Library, text: string | null | undefined, spec: TokenSpec) {
+  const { ri, ro } = baseSize(spec);
+  const chars = [...(text || "").toUpperCase().trim()];
+  const adv = chars.map((c) => (c === " " ? Math.max(glyph(lib, " ").advance, 0.45) : glyph(lib, c).advance) * spec.spacing);
+  const word = adv.reduce((a, b) => a + b, 0);
+  let cap = chars.length <= 2 ? 6 : 4.5;
+  for (;;) {
+    const ext = Math.max(4, cap - 0.4), R = ro + ext, foot = R - 1.3, mid = foot - cap / 2, em = cap / lib.capHeight;
+    const half = (word * em / 2 + 2) / mid;   // the tab's half-span (radians): the text and 2 mm past it each side
+    if (R * Math.sin(Math.min(half, Math.PI / 2)) < ro - 1 || cap <= 3) {
+      const letters: { ch: string; a: number }[] = [];
+      let at = -(word * em) / 2;
+      chars.forEach((ch, i) => { const w = adv[i] * em; if (ch !== " ") letters.push({ ch, a: -Math.PI / 2 + (at + w / 2) / mid }); at += w; });
+      const line = spec.frame === "none" ? null : Math.min(Math.max(spec.frameWidth * 0.55, 0.45), 0.8);
+      return { ri, ro, R, ext, cap, em, foot, half, letters, line };
+    }
+    cap = Math.max(3, cap - 0.25);
+  }
+}
+
+/** The tray's outline (the rim's circle and its tab), `inset` mm in: the edge line's inner side. */
+function baseOutline(L: ReturnType<typeof baseLayout>, inset = 0) {
+  const ro = L.ro - inset, R = L.R - inset, rc = Math.max(0.2, Math.min(2, L.ext / 2 - 0.2) - inset);
+  const s = new THREE.Shape(), xs = L.R * Math.sin(Math.min(L.half, Math.PI / 2)) - inset;
+  if (xs < L.ro - 1 - inset) {
+    // sides parallel, straight down to the rim; the outer corners rounded
+    const yc = -Math.sqrt((R - rc) ** 2 - (xs - rc) ** 2), yj = -Math.sqrt(ro * ro - xs * xs);
+    const fr = Math.atan2(yc, xs - rc), fl = Math.atan2(yc, -(xs - rc));
+    s.moveTo(xs, yj);
+    s.absarc(0, 0, ro, Math.atan2(yj, xs), Math.atan2(yj, -xs) + TAU, false);
+    s.lineTo(-xs, yc);
+    s.absarc(-xs + rc, yc, rc, Math.PI, fl + TAU, false);
+    s.absarc(0, 0, R, fl, fr, false);
+    s.absarc(xs - rc, yc, rc, fr, 0, false);
+    s.lineTo(xs, yj);
+    return s;
+  }
+  // a tab wrapping further round than the tray is wide (the shortest letters still too long): sides along the radius
+  const a0 = -Math.PI / 2 - L.half, a1 = -Math.PI / 2 + L.half, rr = R - rc, tilt = Math.asin(rc / rr), along = Math.sqrt(rr * rr - rc * rc);
+  const c0 = a0 + tilt, c1 = a1 - tilt;
+  s.moveTo(ro * Math.cos(a1), ro * Math.sin(a1));
+  s.absarc(0, 0, ro, a1, a0 + TAU, false);
+  s.lineTo(along * Math.cos(a0), along * Math.sin(a0));
+  s.absarc(rr * Math.cos(c0), rr * Math.sin(c0), rc, a0 - Math.PI / 2, c0, false);
+  s.absarc(0, 0, R, c0, c1, false);
+  s.absarc(rr * Math.cos(c1), rr * Math.sin(c1), rc, c1, a1 + Math.PI / 2, false);
+  s.lineTo(ro * Math.cos(a1), ro * Math.sin(a1));
+  return s;
+}
+const pocketHole = (r: number) => { const h = new THREE.Path(); h.absarc(0, 0, r, 0, TAU, true); return h; };
+/** The fine lines along the tray's outer edge and round its pocket, as filled shapes. */
+function baseLines(L: ReturnType<typeof baseLayout>): THREE.Shape[] {
+  if (!L.line) return [];
+  const edge = baseOutline(L); edge.holes.push(new THREE.Path(baseOutline(L, L.line).getPoints(24)));
+  return [edge, annulus(L.ri + L.line, L.ri)];
+}
+
+function buildTray(lib: Library, role: Role, input: SpecInput | undefined, text?: string | null): Token {
+  const s = baseSpec(input);
+  text ??= roleName(role, s.lang);
+  const L = baseLayout(lib, text, s), H = BASE_FLOOR + s.height, spec: TokenSpec = { ...s, height: H }, top = H - spec.depth;
+  const floor = extrude([baseOutline(L)], BASE_FLOOR, T(0, 0, 0), 24);
+  const rim = baseOutline(L); rim.holes.push(pocketHole(L.ri));
+  const wall = extrude([rim], H - BASE_FLOOR, T(0, 0, BASE_FLOOR), 24);
+  const front = merge(L.letters.map(({ ch, a }) => {
+    const g = glyph(lib, ch);
+    return partExtrude(g.shapes, spec, "text", topFace(spec), chain(T(L.foot * Math.cos(a), L.foot * Math.sin(a), top), RZ(a + Math.PI / 2), S(L.em, L.em, 1), T(-g.center, 0, 0)), 4);
+  }));
+  const frame = L.line ? partExtrude(baseLines(L), spec, "frame", topFace(spec), T(0, 0, top), 24) : null;
+  const R = reliefOf(spec), r = reliefTop(spec), above = (g: THREE.BufferGeometry | null) => (g && r ? aboveOf.get(g) ?? geometryVolume(g) * r / (spec.depth + r) : 0);
+  return {
+    parts: { base: merge([floor, wall]), front, icon: null, frame, back: null },
+    colours: partColours(role, spec),
+    name: { letterHeight: L.cap, scale: L.cap / ([...(text || "").trim()].length <= 2 ? 6 : 4.5), total: null, tab: true },
+    spec, magnet: null, depthClamped: null, faceUp: true,
+    above: { front: R.text ? above(front) : 0, frame: R.frame ? above(frame) : 0 },
+  };
+}
+
+function baseSvg(lib: Library, role: Role, input: SpecInput | undefined, side: "front" | "back", text?: string | null) {
+  const spec = baseSpec(input), c = partColours(role, spec), label = text ?? roleName(role, spec.lang);
+  const L = baseLayout(lib, label, spec), v = L.R + 0.5;
+  // the tray in the coin colour first (print-pdf.ts reads its colour from it), the pocket shaded
+  let body = `<path fill="${c.base}" d="${shapesToPath([baseOutline(L)], 0, 0, 24)}"/><circle r="${L.ri.toFixed(2)}" fill="#000" fill-opacity=".28"/>`;
+  if (side === "front") {
+    if (L.line) body += `<path fill="${c.frame}" fill-rule="evenodd" d="${shapesToPath(baseLines(L), 0, 0, 24)}"/>`;
+    for (const { ch, a } of L.letters) body += letterSvg(lib, ch, L.foot * Math.cos(a), -L.foot * Math.sin(a), -90 - (a * 180) / Math.PI, L.em, c.front);
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${-v} ${-v} ${2 * v} ${2 * v}" role="img" aria-label="${esc(label)}">${body}</svg>`;
+}
+
 // ---------------------------------------------------------------- what each shape has
 
 /**
@@ -2402,8 +2527,10 @@ export const SHAPE_FEATURES: Record<TokenShape, ShapeFeatures> = {
   // allows, ringBand), a fine line along each edge, either raised (ringSpec); no icon, back or
   // magnet, and sized by its base.
   ring: { layout: false, icon: false, textSize: true, spacing: true, maxArc: false, frame: "line", relief: ["text", "frame"], back: false, magnet: false, diameter: false, ringBase: true, flip: false, separator: true, corners: false, pattern: false },
+  // A base tray (baseSpec): its text along the tab, the edge lines its frame; the base it's for.
+  base: { layout: false, icon: false, textSize: false, spacing: true, maxArc: false, frame: "line", relief: ["text", "frame"], back: false, magnet: false, diameter: false, ringBase: true, flip: false, separator: false, corners: false, pattern: false },
 };
-export const shapeOf = (role: Role | null | undefined): TokenShape => (isCard(role) ? "card" : isRing(role) ? "ring" : "coin");
+export const shapeOf = (role: Role | null | undefined): TokenShape => (isCard(role) ? "card" : isRing(role) ? "ring" : isBase(role) ? "base" : "coin");
 
 /**
  * A back that is a face, in its spec (shapeSpec puts it there): the front again, a face of its
@@ -2458,6 +2585,7 @@ export function shapeSpec(role: Role | null | undefined, input: SpecInput | unde
   const shape = shapeOf(role);
   if (shape === "card") return cardSpec(input);
   if (shape === "ring") return ringSpec(input);
+  if (shape === "base") return baseSpec(input);
   const spec = { ...DEFAULT_SPEC, ...input, colours: { ...DEFAULT_SPEC.colours, ...input?.colours } };
   if (!backIsFace(role, spec)) return spec;
   return { ...spec, back: FACE_BACK, customSvg: null, magnet: spec.magnet === "pocket" ? "hidden" : spec.magnet };
@@ -2493,6 +2621,7 @@ function withBackPattern(lib: Library, role: Role, geom: THREE.BufferGeometry | 
 export function buildToken(lib: Library, role: Role, input: SpecInput | undefined, text?: string | null): Token {
   if (isCard(role)) return buildCard(lib, role, input, text);
   if (isRing(role)) return buildRing(lib, role, input, text);
+  if (isBase(role)) return buildTray(lib, role, input, text);
   let spec = windowFrame(shapeSpec(role, input));
   // A magnet may need a thicker coin.
   const need = magnetLayout(spec)?.minHeight ?? 0;
@@ -2632,6 +2761,7 @@ const esc = (s: unknown) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;",
 export function tokenSvg(lib: Library, role: Role, input: SpecInput | undefined, { side = "front", text }: { side?: "front" | "back"; text?: string | null } = {}) {
   if (isCard(role)) return cardSvg(lib, role, input, side, text);
   if (isRing(role)) return ringSvg(lib, role, input, side, text);
+  if (isBase(role)) return baseSvg(lib, role, input, side, text);
   const spec = windowFrame(shapeSpec(role, input));
   // a back that is a face: drawn as a front (a two-state token's other state with its own icon, not the token's)
   const bf = side === "back" ? backFaceOf(role, spec, text ?? roleName(role, spec.lang)) : null;

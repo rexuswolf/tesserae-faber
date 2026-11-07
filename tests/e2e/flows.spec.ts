@@ -126,3 +126,29 @@ test("a change redraws everything that shows it", async ({ page }) => {
   await expect.poll(names).not.toBe(english);
   expect(errors).toEqual([]);
 });
+
+test("a collection of bases: the tray in the sheet and the Bambu project", async ({ page }) => {
+  const errors = await open(page, "/");
+  const id = await page.evaluate(async () => {
+    const C = await import("/src/collection.ts");
+    const c = C.starterCollection();
+    c.types = [{ id: "peanas", name: "Peanas", title: "Peanas", shape: "base", icon: "metal-disc" }];
+    c.tokens = ["2", "ORCO 3"].map((n, i) => ({ id: `p${i}`, type: "peanas", group: "g1", name: n, icon: null, linked: [] }));
+    c.sections[0].catalogs[0].tokens = c.tokens.map((t) => t.id);
+    return C.addCollection(c);
+  });
+  await page.goto(`/c/${id}`);
+  await expect(page.locator("#gate")).toBeHidden({ timeout: 30_000 });
+  await page.evaluate(() => document.querySelectorAll("dialog[open]").forEach((d) => (d as HTMLDialogElement).close()));
+  await pick(page, 2);
+  await next(page); await next(page);
+  await expect(async () => {
+    await page.locator('#printPage [data-way="3d"]').click();
+    await expect(page.locator('#printPage [data-way="3d"]')).toHaveAttribute("aria-checked", "true", { timeout: 1000 });
+  }).toPass();
+  await expect(page.locator("#flowNext")).toBeEnabled();
+  const download = page.waitForEvent("download", { timeout: 60_000 });
+  await next(page);
+  expect((await download).suggestedFilename()).toMatch(/\.3mf$/);
+  expect(errors).toEqual([]);
+});

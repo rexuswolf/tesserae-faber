@@ -1,7 +1,7 @@
 // Choosing a design (the design sheet), and each shape's default design.
 import { emit } from "./events.ts";
 import type { TokenShape, TokenSpec, MyDesign, TokenOverride, Role, BackMode, PatternSpec, ReliefPart, Token, TokenStyle, SpecColours, SpecInput } from "../types.ts";
-import { DEFAULT_SPEC, reminderSpec, tokenSvg, SHAPE_FEATURES, shapeOf, roleName, shapeSpec, TOKEN_STYLES, FRAME_STYLES, FILAMENTS, BACK_STYLES, PATTERN_MIN, partColours, PATTERNS, patternDefaults, patternFilled, patternFixed, flipFace, reliefOf, hasRelief, FACE_FIELDS, ringBand, ringSize, magnetLayout } from "../engine/token-engine.ts";
+import { DEFAULT_SPEC, reminderSpec, tokenSvg, SHAPE_FEATURES, shapeOf, roleName, shapeSpec, TOKEN_STYLES, FRAME_STYLES, FILAMENTS, BACK_STYLES, PATTERN_MIN, partColours, PATTERNS, patternDefaults, patternFilled, patternFixed, flipFace, reliefOf, hasRelief, FACE_FIELDS, ringBand, ringSize, baseSize, magnetLayout } from "../engine/token-engine.ts";
 import { tokenLang } from "./token-language.ts";
 import { ownIcon, roleIdOf, charKey, textFor, remindersOf, charName } from "./tokens.ts";
 import { myDesigns, myEntry, collEntry, inheritedRef, refOf, originalRef, defaultRef, designOf, collLabel, designFor, uniqueDesignName, lookOf, storeMyDesigns, storeOverrides, shapesHere, tokensOf, designOverridden, defaults, storeDefaults } from "./designs.ts";
@@ -268,7 +268,7 @@ export function renderColourWarn(role: Role, spec: TokenSpec) {
   if (box.hidden) return;
   // Each part in the shape's words: a coin's "front" is its name and its icon (two words in the
   // list, "the name, the icon and the frame"); a ring's are letters, and its frame two lines.
-  const words = (p: InlayPart) => (p === "front" ? (shape === "ring" ? ["letters"] : SHAPE_FEATURES[shape].icon ? ["name", "icon"] : ["name"]) : [shape === "ring" && p === "frame" ? "lines" : p]);
+  const words = (p: InlayPart) => (p === "front" ? (shape === "ring" ? ["letters"] : SHAPE_FEATURES[shape].icon ? ["name", "icon"] : ["name"]) : [(shape === "ring" || shape === "base") && p === "frame" ? "lines" : p]);
   const parts = (list: InlayPart[]) => { const w = list.flatMap(words).map((x) => t(`colour.part.${x}`)); return w.length > 1 ? `${w.slice(0, -1).join(", ")}${t("colour.and")}${w.at(-1)}` : w[0]; };
   box.innerHTML = [
     clash.length ? `<p><span aria-hidden="true">⚠</span> ${esc(shapeText("colour.clash", shape, { parts: parts(clash), n: clash.length }))}</p>` : "",
@@ -538,6 +538,7 @@ export function syncControls(role: Role, spec: TokenSpec, token: Token) {
   const hint = (n: Token["name"]) => {
     const small = n.letterHeight < smallLetters(), mm = (Math.floor(n.letterHeight * 10) / 10).toFixed(1);
     return !Number.isFinite(n.letterHeight) ? t("name.hintSolo")
+      : n.tab ? t("name.hintBase", { mm, shrunk: n.scale < 1, small, nozzle: nozzleMm() })
       : n.repeats ? t("name.hintRing", { n: n.repeats, mm, shrunk: n.scale < 1, small, nozzle: nozzleMm() })
       : n.total == null ? t("name.hintWindow", { lines: n.lines, mm, small, nozzle: nozzleMm() })
       : t("name.hint", { arc: n.total.toFixed(0), mm, shrunk: n.scale < 1, small, nozzle: nozzleMm() });
@@ -567,8 +568,8 @@ export function syncControls(role: Role, spec: TokenSpec, token: Token) {
   $("#separatorRow").hidden = !f.separator;
   $("#cardSizeHint").hidden = shape !== "card";
   $("#edgeRow").hidden = shape !== "coin";
-  const rs = ringSize(s);
-  $("#ringBaseHint").textContent = t("ring.baseHelp", { inner: dec1(2 * rs.inner), outer: dec1(2 * rs.outer) });
+  if (shape === "base") { const bs = baseSize(s); $("#ringBaseHint").textContent = t("base.baseHelp", { inner: dec1(2 * bs.ri), outer: dec1(2 * bs.ro) }); }
+  else { const rs = ringSize(s); $("#ringBaseHint").textContent = t("ring.baseHelp", { inner: dec1(2 * rs.inner), outer: dec1(2 * rs.outer) }); }
   $("#baseColourLabel").textContent = shapeText("coin.colour", shape);
   $("label[for=height]").textContent = shapeText("range.height", shape);
   $("#depthHint").className = "hint" + (token.depthClamped ? " warn" : "");

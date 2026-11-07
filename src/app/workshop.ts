@@ -107,6 +107,7 @@ function shapeLook(shape: TokenShape, spec: SpecInput) {
   const look = { base: c.base, front: c.front, frame: line ? c.frame : null, frameWidth: line ? f("frameWidth") : null, height: f("height"), depth: f("depth"),
     // a card's frame only at its corners; a ring's mark between repeats other than the dot (only when set: older looks compare as they did)
     ...(shape === "card" && f("frame") === "corners" ? { corners: true } : {}) };
+  if (shape === "base") return { ...look, spacing: f("spacing"), relief: reliefOf(spec) };
   return shape === "ring" ? { ...look, textSize: f("textSize"), spacing: f("spacing"), relief: reliefOf(spec), ...(f("separator") !== "dot" ? { separator: f("separator") } : {}) } : look;
 }
 /** Whether a spec differs from a collection's style in anything the style sets for the shape (the magnet is a choice of its own). */

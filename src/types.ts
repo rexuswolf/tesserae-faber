@@ -53,7 +53,7 @@ export interface Role {
   /** The icon's name and author on game-icons.net (credited). */
   icon?: string;
   author?: string;
-  kind?: "homebrew" | "info" | "ring";
+  kind?: "homebrew" | "info" | "ring" | "base";
   /** A homebrew character's script name (its edition, on the Edition back). */
   editionName?: string;
   /** A collection's token: the collection's name, for a back that prints it (TokenSpec.backText). */
@@ -84,7 +84,7 @@ export interface RoleFlip {
 // ---------------------------------------------------------------- the design (spec)
 
 /** A token's shape: a coin, a card (Clocktower's Grimoire) or a condition ring (see SHAPE_FEATURES). */
-export type TokenShape = "coin" | "card" | "ring";
+export type TokenShape = "coin" | "card" | "ring" | "base";
 export type TokenStyle = "classic" | "window" | "solo" | "double";
 /** A coin's side edge. */
 export type CoinEdge = "smooth" | "reeded" | "segmented";
@@ -275,6 +275,8 @@ export interface NameInfo {
   lines?: number;
   /** A condition ring's: how many times the name goes round. */
   repeats?: number;
+  /** A base tray's: the text is on its tab. */
+  tab?: boolean;
 }
 
 /** A card's footprint (info tokens), mm. */
@@ -301,6 +303,8 @@ export interface Token {
   backName?: NameInfo;
   card?: boolean;
   foot?: Foot;
+  /** It prints face-up whatever its relief (a base tray: its pocket can't be on the plate). */
+  faceUp?: boolean;
 }
 
 // ---------------------------------------------------------------- the print queue and plates

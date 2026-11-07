@@ -52,7 +52,7 @@ export const OVERRIDES2_KEY = `${KEYS}design-tokens`;
 export const STYLES_KEY = `${KEYS}styles`;
 export const TOKENS_KEY = `${KEYS}tokens`;
 const STYLE_KEY = `${KEYS}style`;
-export const STYLE_KEYS: Record<TokenShape, string> = { coin: STYLE_KEY, ring: `${KEYS}style-ring`, card: `${KEYS}style-card` };
+export const STYLE_KEYS: Record<TokenShape, string> = { coin: STYLE_KEY, ring: `${KEYS}style-ring`, card: `${KEYS}style-card`, base: `${KEYS}style-base` };
 export const OVERRIDES_KEY = `${KEYS}overrides`;
 export const DESIGNS_KEY = `${KEYS}designs`;
 export const TOKEN_LANG_KEY = "midnight-mint-token-lang";
@@ -107,7 +107,7 @@ export const state: {
   user: null, lib: null,
   edition: "all", team: "all",   // the sheet opens on every character
   sel: null,              // { key, role, reminder: index | null }
-  part: { coin: "front", ring: "front", card: "front" }, faceTab: { front: "text", back: "layout" },
+  part: { coin: "front", ring: "front", card: "front", base: "front" }, faceTab: { front: "text", back: "layout" },
   reliefAsk: null, view: "angle",
   overrides: new Map(),   // read by loadDesigns once the tokens are known
   flash: "",
@@ -241,7 +241,7 @@ export function legacySpecs(): Record<TokenShape, TokenSpec> {
   // without one kept, the collection's first coin style (what the set's design was by default: Edition)
   const coin = upgradeSpec(loadJSON<TokenSpec | null>(STYLE_KEY, null)) || defSpec(startingStyles("coin")[0]);
   const specs = { coin } as Record<TokenShape, TokenSpec>;
-  for (const shape of ["ring", "card"] as const) specs[shape] = upgradeSpec(loadJSON<TokenSpec | null>(STYLE_KEYS[shape], null)) ?? structuredClone(coin);
+  for (const shape of ["ring", "card", "base"] as const) specs[shape] = upgradeSpec(loadJSON<TokenSpec | null>(STYLE_KEYS[shape], null)) ?? structuredClone(coin);
   return specs;
 }
 export const loadJSON = <T>(key: string, fallback: T): T => readJSON(key, fallback);

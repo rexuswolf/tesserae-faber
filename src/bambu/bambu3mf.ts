@@ -181,7 +181,7 @@ export async function buildBambuProject(items: BambuItem[], { printer = "a1", no
         if (!geom) continue;
         const id = nextId++;
         // A token with raised parts prints face-up, the relief on top.
-        const faceUp = printsFaceUp(token.spec);
+        const faceUp = printsFaceUp(token.spec) || !!token.faceUp;
         partXml.push(meshXml(id, meshOf(geom, token.spec.height, faceDown && !faceUp)));
         components.push(`<component p:path="${file}" objectid="${id}" transform="1 0 0 0 1 0 0 0 1 ${x.toFixed(3)} ${y.toFixed(3)} 0"/>`);
         partsCfg.push(`    <part id="${id}" subtype="${part === "magnet" ? "negative_part" : "normal_part"}">
