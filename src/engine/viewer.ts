@@ -55,6 +55,9 @@ export function createViewer(canvas: HTMLCanvasElement, { background = null }: {
   meshes.icon.position.z = 0.03;   // over the flat window
   meshes.back.position.z = meshes.backFrame.position.z = -0.015;
   meshes.backIcon.position.z = -0.03;   // a two-state token's back is a front too: its window's icon over the window
+  // Where an inlay runs along an edge (a ring's or a base tray's lines), its side lies in the body's
+  // wall: the body is drawn a hair behind wherever they meet, so the inlay shows, not stripes of both.
+  Object.assign(meshes.base.material, { polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 2 });
   // X-ray view: the coin turns see-through and shows the magnet inside.
   const magnetMesh = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshStandardMaterial({ color: 0xc8ced6, emissive: 0x30343a, roughness: 0.25, metalness: 0.8 }));
   const cavityLines = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xc9a227 }));
