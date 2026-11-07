@@ -116,6 +116,11 @@ const styles = {
       spec: { style: "classic", frame: "rim", frameWidth: 0.8, back: "escudete", backText: "collection", depth: 0.4, colours: { base: FILAMENTS.black, front: FILAMENTS.white, frame: "team", back: FILAMENTS.silver },
         frontPattern: { id: "damero", scale: 5, line: 0.7, halo: 0.8, colour: "frame" },
         backPattern: { id: "damero", scale: 5, line: 0.7, halo: 0.8 } } },
+    // a struck silver coin: icon, milled frame and name raised and bevelled in the silver, a reeded
+    // edge; on the back the shield and the collection's name in black
+    { id: "moneda-plata", name: { es: "Moneda de plata", en: "Silver coin" },
+      help: { es: "De plata, con el icono, el marco acuñado y el nombre en relieve biselado y el canto estriado; al reverso, el escudo y «Draw Steel» en negro.", en: "Silver, with the icon, the milled frame and the name in bevelled relief and a reeded edge; on the back, the shield and «Draw Steel» in black." },
+      spec: { style: "classic", frame: "acunado", frameWidth: 0.8, back: "escudo", backText: "collection", depth: 0.4, relief: { text: true, frame: true, icon: true }, reliefHeight: 0.8, reliefBevel: 0.3, edge: "reeded", colours: { base: FILAMENTS.silver, front: FILAMENTS.silver, frame: FILAMENTS.silver, back: FILAMENTS.black } } },
     { id: "legible", name: { es: "Legible", en: "Legible" }, help: { es: "Ventana del color del grupo con el icono y el nombre grande debajo.", en: "A window in the group colour with the icon, and the name large below." },
       spec: { style: "window", textSize: 6, frame: "none", back: "edition", depth: 0.4, colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } }, hidden: true },
   ],

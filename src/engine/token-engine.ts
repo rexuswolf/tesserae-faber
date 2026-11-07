@@ -1700,8 +1700,11 @@ export const BEVEL_MIN_TOP = 0.4;
  *  simplified (a tenth of a nozzle: the frame's milling alone is thousands of corners a layer). */
 const BEVEL_STEP = 0.2, BEVEL_GRID = 0.05, BEVEL_TOL = 0.04;
 /** How far a raised part's top is inset (mm): 0 for straight walls (unset), on a face that is raised. */
+// frames of fine repeated detail (milling, beads, rope, stars…) would only get a hair of bevel for
+// a model many times heavier: only plain line frames are bevelled
+const BEVEL_FRAMES = new Set(["rim", "double", "line", "corners"]);
 const bevelOf = (spec: TokenSpec, part: ReliefPart, face: Face) =>
-  face.flush || !reliefOf(spec)[part] || !reliefTop(spec) ? 0 : Math.max(0, spec.reliefBevel || 0);
+  face.flush || !reliefOf(spec)[part] || !reliefTop(spec) || (part === "frame" && !BEVEL_FRAMES.has(String(spec.frame))) ? 0 : Math.max(0, spec.reliefBevel || 0);
 /** The volume of a bevelled part out of its face (mm³); a straight one's is its share of the prism. */
 const aboveOf = new WeakMap<THREE.BufferGeometry, number>();
 
