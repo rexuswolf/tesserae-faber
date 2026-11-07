@@ -47,7 +47,9 @@ const GOVERNMENT = [
 // each player's, shown at once: the Senate's own Latin (placet: it pleases), the same in both languages
 const VOTE = [tok("voto", "fichas", "votos", { es: "Placet", en: "Placet" }, "thumb-up", flip({ es: "Non placet", en: "Non placet" }, "thumb-down"))];
 // the election tracker, for playing without the board: the third, chaos (the top law passes)
-const UNREST = [1, 2, 3].map((n) => tok(`tumultos-${n}`, "fichas", "tumultos", { es: `Tumultos ${n}`, en: `Unrest ${n}` }, n === 3 ? "flame" : "torch"));
+// Unrest is public: its back needn't hide anything, so it's a face too, in its own colour (the
+// torch in front, the fire behind) rather than the coins' shared laurel crown
+const UNREST = [1, 2, 3].map((n) => { const name = { es: `Tumultos ${n}`, en: `Unrest ${n}` }; return { ...tok(`tumultos-${n}`, "fichas", "tumultos", name, "torch"), ...flip(name, "flame") }; });
 // the laws, as cards: 6 of the Republic's and 11 of the tyrant's in the deck, each with its icon
 // beside its phrase (the Republic's temple, the would-be Caesar)
 const LAWS = [
@@ -114,7 +116,7 @@ const collection = {
 };
 const out = path.join(root, "public/collections/senado.json");
 fs.writeFileSync(out, JSON.stringify(collection));
-console.log(`wrote ${out}: ${tokens.length} tokens (${SIDES.length} sides, ${GOVERNMENT.length + VOTE.length} two-sided, ${UNREST.length} unrest, ${LAWS.length} laws)`);
+console.log(`wrote ${out}: ${tokens.length} tokens (${SIDES.length} sides, ${GOVERNMENT.length + VOTE.length} two-sided, ${UNREST.length} unrest (two-sided too), ${LAWS.length} laws)`);
 if (SEN.tokens !== tokens.length) console.warn(`src/builtins.ts says ${SEN.tokens} tokens: make it ${tokens.length}`);
 
 // its logo: a laurel wreath with a dagger through it, bone on Tyrian purple
