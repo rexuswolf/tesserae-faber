@@ -31,6 +31,8 @@ async function kit(id: string, lang: string): Promise<Kit | null> {
 const draw = (k: Kit, id: string, spec: TokenSpec, side: "front" | "back" = "front") => { const r = k.byId.get(id); return r ? tokenSvg(k.lib, r, spec, { side }) : ""; };
 
 let started = false;
+/** The Workshop's 3D view, made the first time it's asked for (one per canvas). */
+let viewer: { setToken(t: ReturnType<typeof buildToken>): void; setView(kind?: "angle"): void } | null = null;
 /** The chapters again, in the interface's new language. */
 export function redrawTour() { started = false; startTour(); }
 /** Draws the chapters once, as they come near; called on every visit to the front page. */
@@ -109,8 +111,12 @@ async function pick(sen: Kit | null, d5: Kit | null, ds: Kit | null, lang: strin
 
 /** 2: one token and three controls; tokens that turn over. */
 function design(sen: Kit | null, d5: Kit | null, ds: Kit | null) {
-  if (ds) {
+  if (ds && sen && d5) {
+    // the token to try it on: one of each collection's
+    const TOKENS: Record<string, [Kit, string]> = { heroic: [ds, "heroic"], republicano: [sen, "republicano"], blinded: [d5, "blinded"], consul: [sen, "consul"] };
+    const lang = uiLang(), nameOf = ([k, id]: [Kit, string]) => { const r = k.byId.get(id); return r ? r.names?.[lang] ?? r.en : id; };
     const OPTS = {
+      token: { label: "tour.optToken", now: "heroic", opts: Object.keys(TOKENS), key: "" },
       frame: { label: "tour.optFrame", now: "laurel", opts: ["rim", "laurel", "beads", "runas", "cordon"], key: "tour.frame" },
       style: { label: "tour.optLayout", now: "classic", opts: ["classic", "window", "solo", "double"], key: "tour.layout" },
       colours: { label: "tour.optColours", now: "gold", opts: ["gold", "silver", "white", "blue"], key: "tour.colours" },
@@ -121,11 +127,22 @@ function design(sen: Kit | null, d5: Kit | null, ds: Kit | null) {
       white: { base: FILAMENTS.white, front: FILAMENTS.black, frame: FILAMENTS.black },
       blue: { base: "#2f86e0", front: FILAMENTS.white, frame: FILAMENTS.white },
     };
-    const box = $("#tourOpts"), out = $("#tourDesigned");
-    box.innerHTML = Object.entries(OPTS).map(([k, o]) => `<div><span>${esc(t(o.label))}</span><div class="tour-chips" data-k="${k}">${o.opts.map((v) => `<button type="button" data-v="${v}" aria-pressed="${v === o.now}">${esc(t(`${o.key}.${v}`))}</button>`).join("")}</div></div>`).join("");
-    const redraw = () => {
-      const base = ds.style("coin");
-      out.innerHTML = draw(ds, "heroic", { ...base, frame: OPTS.frame.now, frameWidth: 1.2, style: OPTS.style.now, colours: { ...base.colours, ...COLOURS[OPTS.colours.now] } } as TokenSpec);
+    const label = (o: { key: string }, v: string) => (o.key ? t(`${o.key}.${v}`) : nameOf(TOKENS[v]));
+    const box = $("#tourOpts"), out = $("#tourDesigned"), canvas = $<HTMLCanvasElement>("#tourDesigned3d"), views = $("#tourView");
+    box.innerHTML = Object.entries(OPTS).map(([k, o]) => `<div><span>${esc(t(o.label))}</span><div class="tour-chips" data-k="${k}">${o.opts.map((v) => `<button type="button" data-v="${v}" aria-pressed="${v === o.now}">${esc(label(o, v))}</button>`).join("")}</div></div>`).join("");
+    let in3d = false;
+    out.hidden = false; canvas.hidden = true;   // drawn again in another language: flat, as it starts
+    for (const x of views.children) x.setAttribute("aria-pressed", String((x as HTMLElement).dataset.view === "flat"));
+    const redraw = async () => {
+      const [k, id] = TOKENS[OPTS.token.now], role = k.byId.get(id), base = ds.style("coin");
+      if (!role) return;
+      const spec = { ...base, frame: OPTS.frame.now, frameWidth: 1.2, style: OPTS.style.now, colours: { ...base.colours, ...COLOURS[OPTS.colours.now] } } as TokenSpec;
+      if (!in3d) { out.innerHTML = tokenSvg(k.lib, role, spec); return; }
+      if (!viewer) {
+        try { viewer = (await import("../engine/viewer.ts")).createViewer(canvas); viewer.setView("angle"); }   // the camera, put where the app's is
+        catch { in3d = false; canvas.hidden = true; out.hidden = false; return; }   // no WebGL: the flat token stays
+      }
+      viewer.setToken(buildToken(k.lib, role, spec));
     };
     box.onclick = (e) => {
       const b = (e.target as Element).closest<HTMLButtonElement>("button[data-v]");
@@ -133,9 +150,17 @@ function design(sen: Kit | null, d5: Kit | null, ds: Kit | null) {
       const row = b.parentElement!;
       OPTS[row.dataset.k as keyof typeof OPTS].now = b.dataset.v!;
       for (const x of row.children) x.setAttribute("aria-pressed", String(x === b));
-      redraw();
+      void redraw();
     };
-    redraw();
+    views.onclick = (e) => {
+      const b = (e.target as Element).closest<HTMLButtonElement>("button[data-view]");
+      if (!b) return;
+      in3d = b.dataset.view === "3d";
+      for (const x of views.children) x.setAttribute("aria-pressed", String(x === b));
+      out.hidden = in3d; canvas.hidden = !in3d;
+      void redraw();
+    };
+    void redraw();
   }
   if (sen && d5) {
     const coin = sen.style("coin"), vote = sen.byId.get("voto"), other = vote ? flipFace(vote, coin) : null;

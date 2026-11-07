@@ -1616,3 +1616,8 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
   .tour-head .n { width: 38px; height: 33px; font-size: 18px; }
 }
 @media (max-width: 860px) { .tour-stick .tour-txt h3 { margin-top: 10px; } }
+/* the front page's Workshop: the token flat or in 3D (drag to turn it) */
+.tour-out { display: grid; gap: 12px; justify-items: center; }
+.tour-out > .tour-tok { width: 100%; }
+.tour-designed3d { width: 100%; aspect-ratio: 1; display: block; cursor: grab; touch-action: none; }
+.tour-view { justify-content: center; }
