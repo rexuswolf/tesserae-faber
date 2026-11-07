@@ -85,15 +85,25 @@ export function plateFeatures(items: { token: EstimateToken; vol: Volumes }[], n
     for (let i = 0; i < layers; i++) walk(i % 2 ? [...path].reverse() : path);
   };
   const faceOrder = [...face].filter((s) => s !== coin).concat(coin);
-  layered(faceOrder);
-  for (let i = 0; i < reliefLayers; i++) walk(i % 2 ? [...raised].reverse() : [...raised]);   // the relief
-  walk([coin]);                                        // the body
-  layered([coin, ...[...back].filter((s) => s !== coin)]);
+  const backOrder = [coin, ...[...back].filter((s) => s !== coin)];
+  const relief = () => { for (let i = 0; i < reliefLayers; i++) walk(i % 2 ? [...raised].reverse() : [...raised]); };
+  if (raised.size) {
+    // raised parts print face-up: the back on the bed, then the body, the face and the relief on top
+    layered([...backOrder].reverse());
+    walk([coin]);
+    layered([...faceOrder].reverse());
+    relief();
+  } else {
+    layered(faceOrder);
+    walk([coin]);                                      // the body
+    layered(backOrder);
+  }
+  const first = raised.size ? backOrder : faceOrder;
   const slots = [...mm3.keys()];
   const grams = slots.sort((a, b) => a - b).map((s): [number, number] => [s, (mm3.get(s)! * DENSITY) / 1000]);
   // Time also counts the plate's first load of an inlay colour: it takes as long as a
   // change (perSwap was fitted that way), though its purge isn't in the plate's grams.
-  const loads = swaps + (faceOrder.length > 1 ? 1 : 0);   // + the first load
+  const loads = swaps + (first.length > 1 ? 1 : 0);   // + the first load
   const minutes = c.t0 + c.perToken * n + c.perCard * cards + c.perBodyMm3 * body + c.perInlayMm3 * inlay + c.perSwap * loads;
   return { n, cards, body, inlay, swaps, loads, grams, minutes };
 }

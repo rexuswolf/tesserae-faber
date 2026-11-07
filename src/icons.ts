@@ -4,6 +4,7 @@
 // transform that places it in the engine's icon square (ICON_VIEW units), like the library's
 // icons. `url` is the picture a script linked, kept so the script can be exported as it came.
 import { ICON_VIEW, iconShapeCount } from "./engine/token-engine.ts";
+import { safeIconMarkup } from "./engine/safe-svg.ts";
 import type { TokenIcon } from "./types.ts";
 import type { ScriptJsonEntry } from "./scripts.ts";
 
@@ -36,10 +37,8 @@ function hash(s: string) {
 function cleanMarkup(svg: Element) {
   // game-icons.net files open with a square black background: not part of the icon
   for (const el of svg.querySelectorAll("path")) if ((el.getAttribute("d") || "").replace(/\s+/g, "") === "M00h512v512H0z") el.remove();
-  return svg.innerHTML
-    .replace(/\sxmlns(:\w+)?="[^"]*"/g, "")
-    .replace(/<\?xml[^>]*>|<!--[\s\S]*?-->|<title[\s\S]*?<\/title>|<desc[\s\S]*?<\/desc>|<metadata[\s\S]*?<\/metadata>|<style[\s\S]*?<\/style>/g, "")
-    .replace(/\s(fill|fill-opacity|stroke|stroke-width|style|class)="[^"]*"/g, "");
+  // only its shapes and their geometry, rebuilt (no styling, scripts, images or handlers)
+  return safeIconMarkup(svg.innerHTML);
 }
 
 /**

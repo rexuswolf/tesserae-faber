@@ -422,7 +422,7 @@
   // anywhere else it's Tesserae Faber's, plain, or as the collection wore it last time (main.ts
   // keepGateLook). Then the saved language.
   try {
-    var en = localStorage.getItem("midnight-mint-lang") === "en", root = document.documentElement;
+    var saved = localStorage.getItem("midnight-mint-lang"), en = saved !== "es", root = document.documentElement;
     if (en) root.lang = "en";
     if (/^\/botc(\/|$)/.test(location.pathname)) {
       if (en) {

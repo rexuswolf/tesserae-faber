@@ -12,6 +12,7 @@
 // JSON file ("midnight-mint/collection", see CollectionFile). Kept in this browser.
 import type { Hex, PatternSpec, Role, SpecInput, Team, TokenIcon, TokenShape } from "./types.ts";
 import { gameIcon } from "./icons.ts";
+import { safeIconMarkup, safeTransform } from "./engine/safe-svg.ts";
 import { DEFAULT_SPEC, FILAMENTS, PATTERNS } from "./engine/token-engine.ts";
 import { BUILT_INS } from "./builtins.ts";
 import { ringDesigns, cardDesigns, APP_DESIGNS, appTwin } from "./shape-designs.ts";
@@ -44,6 +45,8 @@ export interface OwnType { id: string; name: Names; title: Names; shape: TokenSh
 export interface OwnGroup { id: string; name: Names; colour: Hex; icon?: string;
   /** Its own icon, as the paths of a 512-unit game-icons.net icon (for its filter and plate), when not one of the app's. */
   iconBody?: string }
+/** An id from a file: letters, digits, _ and - (it goes into the page's attributes, and keys join ids with ":"). */
+const okId = (v: unknown) => String(v).replace(/[^\w-]/g, "_").slice(0, 80) || "_";
 /** A group's icon from a file: only path outlines, rebuilt (nothing else of the markup is kept: it's drawn as HTML). */
 const okIconBody = (v: unknown) => typeof v === "string" && v.length < 60000
   ? [...v.matchAll(/<path\b[^>]*\sd="([-0-9.,a-zA-Z\s]+)"/g)].map((m) => `<path fill="currentColor" d="${m[1]}"/>`).join("") || undefined
@@ -395,7 +398,14 @@ function readSpec(v: unknown): SpecInput | null {
       if (!x || typeof x !== "object") continue;
       const c = Object.fromEntries(Object.entries(x).filter(([ck, cv]) => ck in DEFAULT_SPEC.colours && (cv === "team" || isHex(cv))));
       if (Object.keys(c).length) out.colours = c;
-    } else if (k === "backFace" || k === "relief") { if (x && typeof x === "object" && !Array.isArray(x)) out[k] = x; }
+    } else if (k === "relief") {
+      if (!x || typeof x !== "object" || Array.isArray(x)) continue;
+      const r = Object.fromEntries(Object.entries(x).filter(([rk, rv]) => ["text", "frame", "icon"].includes(rk) && typeof rv === "boolean"));
+      if (Object.keys(r).length) out[k] = r;
+    } else if (k === "backFace") {
+      const f = readSpec(x) as Record<string, unknown> | null;
+      if (f) { delete f.backFace; out[k] = f; }
+    }
     else if (k === "customSvg") { if (typeof x === "string" && x.length < 300000) out[k] = x; }
     else if (k === "frontPattern" || k === "backPattern") { const p = readPattern(x); if (p) out[k] = p; }
     else if (k === "backText") { if (x === "collection") out[k] = x; }
@@ -438,9 +448,10 @@ const okName = (n: unknown): n is Names => typeof n === "string" || (!!n && type
 export async function readCollectionFile(data: unknown, onProgress: (done: number, total: number) => void = () => {}): Promise<Collection> {
   const f = data as Partial<CollectionFile> | null;
   if (!f || f.format !== COLLECTION_FORMAT || !Array.isArray(f.tokens) || !Array.isArray(f.groups)) throw new Error("not-collection");
-  const types: OwnType[] = (f.types ?? []).filter((x) => x?.id).map((x) => ({ id: String(x.id), name: okName(x.name) ? x.name : String(x.id), title: okName(x.title) ? x.title : okName(x.name) ? x.name : String(x.id), shape: SHAPES.includes(x.shape) ? x.shape : "coin", ...(x.icon ? { icon: String(x.icon) } : {}) }));
+  const firstOf = <T extends { id: string }>(list: T[]) => { const seen = new Set<string>(); return list.filter((x) => !seen.has(x.id) && !!seen.add(x.id)); };
+  const types: OwnType[] = firstOf((f.types ?? []).filter((x) => x?.id).map((x) => ({ id: okId(x.id), name: okName(x.name) ? x.name : String(x.id), title: okName(x.title) ? x.title : okName(x.name) ? x.name : String(x.id), shape: SHAPES.includes(x.shape) ? x.shape : "coin", ...(x.icon ? { icon: String(x.icon) } : {}) })));
   if (!types.length) types.push(...starterCollection().types);
-  const groups: OwnGroup[] = f.groups.filter((g) => g?.id).map((g, i) => ({ id: String(g.id), name: okName(g.name) ? g.name : `Grupo ${i + 1}`, colour: /^#[0-9a-f]{6}$/i.test(g.colour) ? g.colour : GROUP_COLOURS[i % GROUP_COLOURS.length], ...(g.icon ? { icon: String(g.icon) } : {}), ...(okIconBody(g.iconBody) ? { iconBody: okIconBody(g.iconBody) } : {}) }));
+  const groups: OwnGroup[] = firstOf(f.groups.filter((g) => g?.id).map((g, i) => ({ id: okId(g.id), name: okName(g.name) ? g.name : `Grupo ${i + 1}`, colour: /^#[0-9a-f]{6}$/i.test(g.colour) ? g.colour : GROUP_COLOURS[i % GROUP_COLOURS.length], ...(g.icon ? { icon: String(g.icon) } : {}), ...(okIconBody(g.iconBody) ? { iconBody: okIconBody(g.iconBody) } : {}) })));
   if (!groups.length) groups.push({ id: "g1", name: "Grupo 1", colour: GROUP_COLOURS[0] });
   const knownGroup = new Set(groups.map((g) => g.id)), knownType = new Set(types.map((x) => x.id));
   let done = 0;
@@ -451,18 +462,20 @@ export async function readCollectionFile(data: unknown, onProgress: (done: numbe
       if (typeof x.icon === "string" && isGameIcon(x.icon)) return { ...(await gameIcon(x.icon)), id: x.icon };
       if (x.icon && typeof x.icon === "object" && typeof x.icon.svg === "string") {
         const m = x.icon.svg.match(/<g transform="([^"]*)">([\s\S]*)<\/g>\s*<\/svg>\s*$/);
-        const credit = x.iconCredit;
-        if (m) return { id, source: credit?.author ? "game-icons" : "upload", g: m[1], body: m[2], ...(credit ?? {}) };
+        const credit = x.iconCredit && typeof x.iconCredit === "object" ? x.iconCredit : null;
+        const body = m ? safeIconMarkup(m[2]) : "";
+        if (m && body) return { id, source: credit?.author ? "game-icons" : "upload", g: safeTransform(m[1]) || "translate(0 0) scale(1)", body,
+          ...(typeof credit?.name === "string" ? { name: credit.name.slice(0, 120) } : {}), ...(typeof credit?.author === "string" ? { author: credit.author.slice(0, 120) } : {}) };
       }
     } catch { /* an icon that won't load: the token stays, without it */ }
     return null;
   };
   for (const t of f.tokens) {
-    if (!t?.id || !okName(t.name)) continue;
-    const icon = await readIcon(t, `svg:${t.id}`);
-    const flip = t.flip && typeof t.flip === "object" && okName(t.flip.name) ? { name: t.flip.name, icon: await readIcon(t.flip, `svg:${t.id}~flip`) } : null;
+    if (!t?.id || !okName(t.name) || tokens.some((x) => x.id === okId(t.id))) continue;
+    const icon = await readIcon(t, `svg:${okId(t.id)}`);
+    const flip = t.flip && typeof t.flip === "object" && okName(t.flip.name) ? { name: t.flip.name, icon: await readIcon(t.flip, `svg:${okId(t.id)}~flip`) } : null;
     tokens.push({
-      id: String(t.id), type: knownType.has(String(t.type)) ? String(t.type) : types[0].id, group: knownGroup.has(String(t.group)) ? String(t.group) : groups[0].id,
+      id: okId(t.id), type: knownType.has(okId(t.type)) ? okId(t.type) : types[0].id, group: knownGroup.has(okId(t.group)) ? okId(t.group) : groups[0].id,
       name: t.name, ...(t.fem && typeof t.fem === "object" ? { fem: t.fem } : {}), ...(t.fixed ? { fixed: true } : {}), icon,
       linked: (t.linked ?? []).map((l) => (typeof l === "string" ? l : l?.name)).filter(okName),
       ...(flip ? { flip } : {}),
@@ -472,8 +485,8 @@ export async function readCollectionFile(data: unknown, onProgress: (done: numbe
   }
   const ids = new Set(tokens.map((t) => t.id));
   const sections: OwnSection[] = (f.sections ?? []).filter(Boolean).map((s, i) => ({
-    id: String(s.id ?? `s${i + 1}`), title: okName(s.title) ? s.title : "Catálogos", open: !!s.open,
-    catalogs: (s.catalogs ?? []).filter((k) => k?.id).map((k) => ({ id: String(k.id), name: okName(k.name) ? k.name : "Catálogo", tokens: (k.tokens ?? []).map(String).filter((id) => ids.has(id)) })),
+    id: okId(s.id ?? `s${i + 1}`), title: okName(s.title) ? s.title : "Catálogos", open: !!s.open,
+    catalogs: (s.catalogs ?? []).filter((k) => k?.id).map((k) => ({ id: okId(k.id), name: okName(k.name) ? k.name : "Catálogo", tokens: (k.tokens ?? []).map(okId).filter((id) => ids.has(id)) })),
   }));
   if (!sections.some((s) => s.open)) sections.push({ id: "mine", title: "Catálogos", open: true, catalogs: [] });
   const styles = readStyles(f.styles);
@@ -487,7 +500,7 @@ export async function readCollectionFile(data: unknown, onProgress: (done: numbe
     } } : {}),
     ...(f.brand && typeof f.brand === "object" ? { brand: { ...(okLogo(f.brand.logo) ? { logo: f.brand.logo } : {}), ...(okName(f.brand.title) ? { title: f.brand.title } : {}) } } : {}),
     ...(f.loader && typeof f.loader === "object" ? { loader: { ...(okName(f.loader.text) ? { text: f.loader.text } : {}), ...(okName(f.loader.footer) ? { footer: f.loader.footer } : {}), ...(f.loader.ccc ? { ccc: true } : {}) } } : {}),
-    ...(Array.isArray(f.languages) ? { languages: f.languages.map(String) } : {}),
+    ...(Array.isArray(f.languages) ? { languages: f.languages.map(String).filter((l) => /^[a-z]{2,3}(-[a-z0-9]+)*$/.test(l)) } : {}),
     types, groups, tokens, sections,
     ...(styles ? { styles } : {}),
   };

@@ -220,7 +220,11 @@ ${instances.join("\n")}
   }
 
   // Pauses to drop hidden magnets in: one per distinct height on each plate.
-  const pauses = plan.plates.map((p) => [...new Set(p.items.map((it) => it.token.magnet?.pauseZ).filter((z): z is number => !!z))].sort((a, b) => a - b));
+  // the engine sets each pause on the first 0.2 mm layer over the cavity; on a nozzle that prints
+  // thinner layers (0.1 mm on the 0.2 one), it's that nozzle's first layer over it, or the roof
+  // would close before the magnet is in
+  const pauseAt = (z: number | undefined) => (z ? Math.round((z - 0.2 + nozzle.layer) * 100) / 100 : 0);
+  const pauses = plan.plates.map((p) => [...new Set(p.items.map((it) => pauseAt(it.token.magnet?.pauseZ)).filter((z) => z > 0))].sort((a, b) => a - b));
   if (pauses.some((z) => z.length)) {
     zip.file("Metadata/custom_gcode_per_layer.xml", `${XML}<custom_gcodes_per_layer>
 ${pauses.map((zs, pi) => zs.length ? `<plate>

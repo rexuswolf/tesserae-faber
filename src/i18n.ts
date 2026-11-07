@@ -1642,6 +1642,10 @@ const OWN_STR: Record<string, Record<string, Entry>> = {
   },
   en: {
     "gate.opening": "Opening your collection…",
+    "icon.help": "The token's own. Search game-icons.net for another, or upload an SVG of filled shapes.",
+    "reminders.previewHint": "Previewing the linked token. Tap it again to go back to the token.",
+    "reminders.add": "Add these linked tokens to print",
+    "style.solo.help": "Just the icon, as large as it fits. No name: at the table it's known by its picture. Its linked tokens keep their word, as on the classic token.",
     "shape.fixed": ({ shape }) => `${shape} · its shape comes from its type`,
     "own.groupNew": "+ New group",
     "about.title": "About Tesserae Faber",

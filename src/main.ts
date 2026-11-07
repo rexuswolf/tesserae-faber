@@ -181,10 +181,13 @@ if ("serviceWorker" in navigator && import.meta.env.PROD) {
   navigator.serviceWorker.addEventListener("controllerchange", () => {
     if (!hadOne) return;
     if (!state.creating && $("#app").dataset.step !== "taller") { location.reload(); return; }
-    const el = $("#appToast"), b = $<HTMLButtonElement>("button", el);
-    $("span", el).textContent = t("app.updated");
-    b.textContent = t("app.reload"); b.hidden = false; b.onclick = () => location.reload();
-    clearTimeout(toastTimer); el.hidden = false;
+    // a notice of its own (not the Undo toast's), at the top, that stays until you reload
+    if (document.querySelector(".update-toast")) return;
+    const el = document.createElement("div"), msg = document.createElement("span"), btn = document.createElement("button");
+    el.className = "toast update-toast"; el.setAttribute("role", "status");
+    msg.textContent = t("app.updated");
+    btn.type = "button"; btn.textContent = t("app.reload"); btn.onclick = () => location.reload();
+    el.append(msg, btn); document.body.append(el);
   });
 }
 $("#buildTag").textContent = `v ${__BUILD__}`;
@@ -258,7 +261,8 @@ function legacySpecs(): Record<TokenShape, TokenSpec> {
   return specs;
 }
 function loadJSON<T>(key: string, fallback: T): T { try { return JSON.parse(localStorage.getItem(key) as string) ?? fallback; } catch { return fallback; } }
-function storeJSON(key: string, value: unknown) { try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* storage unavailable */ } }
+/** Saves to this browser; false if it couldn't (storage full or unavailable). */
+function storeJSON(key: string, value: unknown): boolean { try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch { return false; } }
 /** A saved design as the app now has it: an old window's "relief" finish becomes its icon raised. */
 function upgradeSpec<T extends TokenSpec | null | undefined>(spec: T): T {   // a declaration: the state above uses it before this line runs
   return (spec && typeof spec === "object" ? normalizeSpec(spec) : spec) as T;
@@ -441,7 +445,14 @@ function readMyDesigns(): Record<TokenShape, MyDesign[]> {
   const ok = (d: MyDesign | null) => !!d && typeof d.id === "string" && typeof d.name === "string" && !!d.spec && typeof d.spec === "object";
   return Object.fromEntries(SHAPES.map((sh) => [sh, Array.isArray(kept?.[sh]) ? kept[sh]!.filter(ok).map((d) => ({ ...d, spec: upgradeSpec(d.spec) })) : []])) as Record<TokenShape, MyDesign[]>;
 }
-function storeMyDesigns() { storeJSON(MY_DESIGNS_KEY, myDesigns); }
+/** Designs deleted in this tab: not brought back from another tab's copy. */
+const droppedDesigns = new Set<string>();
+/** Saves your designs, keeping any another tab (the Taller open twice, a sheet) added since this one read them. */
+function storeMyDesigns() {
+  const there = readMyDesigns();
+  for (const sh of SHAPES) for (const d of there[sh]) if (!droppedDesigns.has(d.id) && !myDesigns[sh].some((x) => x.id === d.id)) myDesigns[sh].push(d);
+  return storeJSON(MY_DESIGNS_KEY, myDesigns);
+}
 function storeDefaults() { storeJSON(DEFAULTS_KEY, defaults); }
 function storeOverrides() { storeJSON(OVERRIDES2_KEY, Object.fromEntries(state.overrides)); }
 /** A name not yet among your designs of a shape: "Ivory", else "Ivory 2". */
@@ -762,7 +773,8 @@ document.addEventListener("pointerdown", (e) => {
     navigator.vibrate?.(8);
   }, 380) };
 }, { passive: true });
-for (const ev of ["pointerup", "pointercancel"]) document.addEventListener(ev, endPeek);
+document.addEventListener("pointerup", endPeek);
+document.addEventListener("pointercancel", () => { endPeek(); peek = null; });
 // moving the finger (a scroll) before the hold lands isn't a hold
 document.addEventListener("pointermove", (e) => { if (peek && !peek.shown && Math.hypot(e.clientX - peek.x, e.clientY - peek.y) > 10) { clearTimeout(peek.timer); peek = null; } }, { passive: true });
 // the click that ends a hold isn't a pick
@@ -3315,7 +3327,7 @@ async function importAccountDesigns(user: User) {
     const role = state.lib && roleById(d.roleId), shape = (d.shape as TokenShape | undefined) ?? (role ? shapeOf(role) : "coin"), { lang: _lang, ...spec } = upgradeSpec(d.spec as TokenSpec);
     if (!myDesigns[shape].some((x) => x.id === d.id || sameLook(x.spec, spec))) myDesigns[shape].push({ id: d.id, name: uniqueDesignName(shape, d.title || t("style.mine")), spec: spec as TokenSpec });
   }
-  storeMyDesigns();
+  if (!storeMyDesigns()) return;   // not kept here (storage full or blocked): the account keeps them for next time
   if (state.lib && !TALLER) { renderAll(); renderQueue(); }
   await Promise.all(remote.map((d) => deleteAccountDesign(user.uid, d.id)));
 }
@@ -3841,7 +3853,7 @@ async function tallerAction(act: string) {
     const where = uses.map((u) => [u.defaults.includes(sh) ? t("taller.useDefault", { name: u.name }) : "", u.tokens ? t("taller.useTokens", { name: u.name, n: u.tokens }) : ""].filter(Boolean).join(", ")).filter(Boolean);
     const text = t("taller.deleteAsk", { name: mine.name }) + " " + (where.length ? t("taller.deleteUses", { list: where.join("; ") }) : t("taller.deleteUnused"));
     if (await ask(text, [{ id: "delete", label: t("taller.delete"), main: true }]) !== "delete") return;
-    myDesigns[sh] = myDesigns[sh].filter((x) => x !== mine); storeMyDesigns();
+    droppedDesigns.add(mine.id); myDesigns[sh] = myDesigns[sh].filter((x) => x !== mine); storeMyDesigns();
     // where it was used, back to the default: the collections' and their tokens' references to it go
     const ref = `u:${mine.id}`;
     for (const u of uses) {
@@ -4572,6 +4584,7 @@ function wireOwnHome() {
     const f = input(e).files?.[0]; input(e).value = ""; if (!f) return;
     try {
       const c = await readCollectionFile(JSON.parse(await f.text()), (i, n) => note("own.importing", { i, n }));
+      if (!c.tokens.length) throw new Error("empty");
       const id = addCollection(c);
       if (id) location.href = collectionUrl(id); else note("own.storageFull");
     } catch { note("own.importFailed"); }

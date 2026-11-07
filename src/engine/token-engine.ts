@@ -13,6 +13,7 @@
 //            state (see backFaceOf)
 
 import * as THREE from "three";
+import { safeIconMarkup, safeTransform } from "./safe-svg.ts";
 import { SVGLoader } from "three/addons/loaders/SVGLoader.js";
 import { TTFLoader } from "three/addons/loaders/TTFLoader.js";
 import { Font } from "three/addons/loaders/FontLoader.js";
@@ -495,10 +496,15 @@ const iconMarkup = (role: Role) => role.body ?? role.d!.map((d) => `<path d="${d
  * The icon a token shows: the design's own (spec.icon: {id, g, body}, an uploaded SVG or a
  * game-icons.net icon, placed in the same 127.56-unit square) or the character's.
  */
+/** A short tag of an icon's markup (its length and a sampled hash), so caches keyed by it follow its content. */
+const contentTag = (s: string) => { let h = 0; for (let i = 0; i < s.length; i += 5) h = (Math.imul(h, 31) + s.charCodeAt(i)) | 0; return `${s.length.toString(36)}${(h >>> 0).toString(36)}`; };
 function iconOf(role: Role, spec?: SpecInput) {
   const own = spec?.icon;
   // keyed by id: a script's own character can share an official one's name
-  return own?.body ? { key: `icon:${own.id}`, g: own.g, body: own.body } : { key: role.iconKey ?? role.id ?? role.en, g: role.g, body: iconMarkup(role) };
+  // drawn as HTML in the previews: only its shapes (safe-svg.ts), whatever stored or sent it
+  if (own?.body) return { key: `icon:${own.id}`, g: safeTransform(own.g), body: safeIconMarkup(own.body) };
+  const body = safeIconMarkup(iconMarkup(role));
+  return { key: `${role.iconKey ?? role.id ?? role.en}#${contentTag(body)}`, g: safeTransform(role.g), body };
 }
 const iconSvg = (icon: Pick<TokenIcon, "body"> & { g?: string }) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${TRACE_VIEW} ${TRACE_VIEW}"><g transform="${icon.g}">${icon.body}</g></svg>`;
 
@@ -848,6 +854,26 @@ function letterSvg(lib: Library, ch: string, x: number, y: number, deg: number, 
 }
 
 /** SVG path data for font shapes (y up), moved by (dx, y) and flipped to SVG's y-down. */
+/** An uploaded back's outlines as SVG path data, fitted as buildBack fits them (seen from the back). */
+const customBacks = new Map<string, string>();
+function customBackPath(spec: TokenSpec) {
+  if (!spec.customSvg) return "";
+  const key = `${spec.diameter}|${spec.customSvg}`;
+  if (!customBacks.has(key)) {
+    let d = "";
+    try {
+      const shapes = parseSvgShapes(spec.customSvg);
+      if (shapes.length) {
+        const m = fitShapes(shapes, spec.diameter / 2 - 1.2), v = new THREE.Vector3();
+        const ring = (pts: THREE.Vector2[]) => pts.map((p, i) => { v.set(p.x, p.y, 0).applyMatrix4(m); return `${i ? "L" : "M"}${v.x.toFixed(2)} ${(-v.y).toFixed(2)}`; }).join("") + "Z";
+        d = shapes.map((sh) => ring(sh.getPoints(6)) + sh.holes.map((h) => ring(h.getPoints(6))).join("")).join("");
+      }
+    } catch { /* an SVG that won't parse: no artwork, as in the model */ }
+    customBacks.set(key, d);
+    if (customBacks.size > 50) customBacks.delete(customBacks.keys().next().value!);
+  }
+  return customBacks.get(key)!;
+}
 function shapesToPath(shapes: THREE.Shape[], dx: number, y: number, div = 6) {
   const ring = (pts: THREE.Vector2[]) => pts.map((pt, i) => `${i ? "L" : "M"}${(pt.x + dx).toFixed(2)} ${(-(pt.y + y)).toFixed(2)}`).join("") + "Z";
   return shapes.map((sh) => ring(sh.getPoints(div)) + sh.holes.map((h) => ring(h.getPoints(div))).join("")).join("");
@@ -1668,7 +1694,7 @@ function frontPattern(lib: Library, role: Role, spec: TokenSpec, text: string): 
 /** The back's pattern, behind its design; null for none (or a back that is a face). */
 function backPattern(lib: Library, role: Role, spec: TokenSpec): PatternCut | null {
   const p = spec.backPattern;
-  if (!p || !PATTERN_IDS.has(p.id) || spec.back === FACE_BACK || !SHAPE_FEATURES[shapeOf(role)].pattern) return null;
+  if (!p || !PATTERN_IDS.has(p.id) || spec.back === FACE_BACK || spec.back === "custom" || spec.back === "seal" || !SHAPE_FEATURES[shapeOf(role)].pattern) return null;
   const ed = backEdition(role, spec)?.name.en ?? "";
   const key = ["back", JSON.stringify(p), spec.back, spec.back === "custom" ? spec.customSvg : "", ed, spec.lang, spec.diameter, faceRadius(spec)].join("|");
   return cached(key, () => cutPattern(p, faceRadius(spec), backInk(lib, role, spec)));
@@ -2400,7 +2426,7 @@ export function backFaceOf(role: Role, spec: TokenSpec, text: string): { role: R
   const other = flipFace(role, spec), b: BackFace = spec.backFace ?? {};
   const look = spec.backMode === "own" && !spec.linked ? Object.fromEntries(FACE_FIELDS.filter((k) => b[k] != null).map((k) => [k, b[k]])) : {};
   const c = backColours(spec);
-  const face = windowFrame({ ...spec, ...look, relief: backRelief(spec), colours: { ...spec.colours, front: c.front, frame: c.frame } });
+  const face = windowFrame({ ...spec, ...look, frontPattern: undefined, relief: backRelief(spec), colours: { ...spec.colours, front: c.front, frame: c.frame } });
   return other ? { role: other, text: roleName(other, spec.lang), spec: { ...face, icon: undefined } } : { role, text, spec: face };
 }
 
@@ -2654,6 +2680,8 @@ export function tokenSvg(lib: Library, role: Role, input: SpecInput | undefined,
     const back = ({ seal: "Seal", clock: "Clock", rings: "Rings", name: "Name", custom: "Custom" } as Record<string, string | undefined>)[spec.back];
     const designed = backDesign(spec.back, R);
     if (designed) body += `<path fill="${c.back}" fill-rule="nonzero" d="${shapesToPath(designed, 0, 0, 48)}"/>`;
+    const custom = spec.back === "custom" ? customBackPath(spec) : "";
+    if (custom) body += `<path fill="${c.back}" fill-rule="nonzero" d="${custom}"/>`;
     const ed = spec.back === "edition" ? editionBack(lib, role, spec) : null;
     const pocket = magnetLayout(spec);
     if (pocket?.kind === "pocket") body += `<circle r="${pocket.radius.toFixed(2)}" fill="#0b090c" opacity=".85"/>`;
@@ -2663,7 +2691,7 @@ export function tokenSvg(lib: Library, role: Role, input: SpecInput | undefined,
     const bp = backPattern(lib, role, spec);
     if (bp) body += `<path fill="${c.back}" fill-rule="evenodd" d="${cutPath(bp)}"/>`;
     if (spec.back === "seal" && lib.sealSvg) body += `<g fill="${c.back}" transform="scale(${spec.diameter / TRACE_VIEW}) translate(${-TRACE_VIEW / 2} ${-TRACE_VIEW / 2})">${lib.sealSvg.replace(/^[\s\S]*?<g /, "<g ").replace(/fill="#000000"/, "").replace(/<\/svg>\s*$/, "")}</g>`;
-    else if (back && !designed) body += `<text y="1.5" text-anchor="middle" font-size="5" fill="${c.back}" font-family="${LETTERING.family}">${esc(back === "Name" ? label.toUpperCase() : back.toUpperCase())}</text>`;
+    else if (back && !designed && !custom) body += `<text y="1.5" text-anchor="middle" font-size="5" fill="${c.back}" font-family="${LETTERING.family}">${esc(back === "Name" ? label.toUpperCase() : back.toUpperCase())}</text>`;
   }
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${-R - 0.5} ${-R - 0.5} ${spec.diameter + 1} ${spec.diameter + 1}" role="img" aria-label="${esc(label)} token">${raised ? reliefFilter(rid, spec.reliefBevel) + (flatFrame ? reliefFilter(rid + "s") : "") : ""}${coinSvg(spec, c.base)}${body}</svg>`;
 }
