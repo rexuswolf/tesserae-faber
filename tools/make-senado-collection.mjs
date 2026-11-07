@@ -77,12 +77,12 @@ const styles = {
   ],
   // the laws: every one black (the deck shows nothing face-down or edge-on), the icon, the phrase
   // and the laurels in the side's colour (a marble law, a red decree); their back one for all: the
-  // laurels, a laurel crown and the Senate's name (in the token's language) in gold. Then the app's.
+  // laurels and a laurel crown in gold. Then the app's.
   card: [
     { id: "ley", name: { es: "Ley del Senado", en: "Senate law" },
-      help: { es: "Negra, como todas: el icono a la izquierda, la frase y una ramita de laurel en cada esquina del color del bando; al reverso, igual para todas, los laureles, una corona de laurel y «El Senado» en oro. Boca abajo o de canto no se distinguen.", en: "Black, like every law: the icon on the left, the phrase and a sprig of laurel in each corner in the side's colour; on the back, the same for all, the laurels, a laurel crown and «The Senate» in gold. Face-down or edge-on, you can't tell them apart." },
+      help: { es: "Negra, como todas: el icono a la izquierda, la frase y una ramita de laurel en cada esquina del color del bando; al reverso, igual para todas, los laureles y una corona de laurel en oro. Boca abajo o de canto no se distinguen.", en: "Black, like every law: the icon on the left, the phrase and a sprig of laurel in each corner in the side's colour; on the back, the same for all, the laurels and a laurel crown in gold. Face-down or edge-on, you can't tell them apart." },
       spec: { frame: "laurel", frameWidth: 0.6, height: 2, depth: 0.4, cardIcon: "left", cardJoin: "spread", cardIconSize: 30,
-        cardBack: { on: true, name: "collection", text: "El Senado", cardIcon: "left", cardJoin: "spread", cardIconSize: 26, frame: "laurel", frameWidth: 0.6,
+        cardBack: { on: true, text: "", cardIcon: "only", cardIconSize: 34, frame: "laurel", frameWidth: 0.6,
           icon: { id: `${author("laurel-crown")}/laurel-crown`, source: "game-icons", name: "laurel-crown", author: author("laurel-crown"), g: PLACE, body: bare("laurel-crown") },
           colours: { text: FILAMENTS.gold, frame: FILAMENTS.gold } },
         colours: { base: FILAMENTS.black, front: "team", frame: "team", backBase: FILAMENTS.black } } },
