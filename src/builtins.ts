@@ -98,12 +98,12 @@ export const BUILT_INS: BuiltInEntry[] = [
     id: "senado",
     name: { es: "El Senado", en: "The Senate" },
     logo: "/collections/senado-logo.svg",
-    accent: "#c2639a",
+    accent: "#d4a72c",
     tokens: 11,
     preview: "/collections/senado-preview.svg",   // tools/make-crear-art.mjs
     file: "/collections/senado.json",   // tools/make-senado-collection.mjs
-    cover: "radial-gradient(120% 140% at 0% 0%, #4a2340 0%, #2a1626 55%, #140c12 100%)",
-    theme: { accent: "#c2639a", background: "#150e13", surface: "#21171e", text: "#efe8dc", muted: "#b6a8ae", glow: "#4b1838", font: "Marcellus" },
+    cover: "radial-gradient(120% 140% at 0% 0%, #5c1d15 0%, #2e110d 55%, #160a08 100%)",
+    theme: { accent: "#d4a72c", background: "#1b0c0a", surface: "#2a1411", text: "#f3e8dc", muted: "#c4a99c", glow: "#7a1e16", font: "Marcellus" },
     loader: { text: { es: "Convocando al Senado…", en: "Convening the Senate…" } },
     facts: { es: "3 bandos · 2 cargos de dos caras · el voto · 3 tumultos · 2 leyes · 2 idiomas", en: "3 sides · 2 two-sided offices · the vote · 3 unrest · 2 laws · 2 languages" },
     text: { es: "Un juego de roles ocultos en el Senado de Roma: bandos, Cónsul y Tribuno, Placet / Non placet, Tumultos y las leyes.", en: "A hidden-role game in the Roman Senate: sides, Consul and Tribune, Placet / Non placet, Unrest and the laws." },

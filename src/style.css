@@ -1038,7 +1038,8 @@ html[data-mode=own] .own-spine-h { display: none; }   /* the creator's sections 
 .oh-cover .go .forge { background: var(--acc); color: #170812; padding: 9px 18px; }
 .oh-cover .oh-actions { display: flex; gap: 14px; font-size: 13.5px; padding: 0 24px 18px; }
 .oh-cover .oh-actions .link { color: #c8b3c0; }
-.oh-cover .oh-ccc { display: block; margin: -6px 24px 18px auto; width: 120px; height: auto; pointer-events: none; }
+/* a licence's mark, on Open's row at the cover's foot */
+.oh-cover .oh-ccc { position: absolute; right: 24px; bottom: 22px; width: 120px; height: auto; pointer-events: none; }
 .oh-new { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
 .oh-make { display: flex; align-items: center; justify-content: center; gap: 10px; border: 1px dashed var(--seam); background: none; border-radius: 14px; padding: 13px 14px; color: var(--bone); font: 500 16px/1.2 var(--ui); cursor: pointer; }
 .oh-make:hover { border-color: #c9963a; }
@@ -1140,7 +1141,7 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
   .gate { animation: none; }
 }
 /* a licence's mark (Powered by Draw Steel): black artwork, shown light on the app's dark grounds */
-.oh-cover .oh-mark { width: 132px; bottom: 24px; }
+.oh-cover .oh-mark { width: 132px; bottom: 26px; }
 .invert { filter: invert(1); opacity: .9; }
 .about-mark img { width: 120px; }
 /* a new version has arrived (main.ts): a quiet button to reload into it */

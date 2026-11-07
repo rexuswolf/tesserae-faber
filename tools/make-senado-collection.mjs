@@ -119,8 +119,8 @@ fs.writeFileSync(out, JSON.stringify(collection));
 console.log(`wrote ${out}: ${tokens.length} tokens (${SIDES.length} sides, ${GOVERNMENT.length + VOTE.length} two-sided, ${UNREST.length} unrest (two-sided too), ${LAWS.length} laws)`);
 if (SEN.tokens !== tokens.length) console.warn(`src/builtins.ts says ${SEN.tokens} tokens: make it ${tokens.length}`);
 
-// its logo: a laurel wreath with a dagger through it, bone on Tyrian purple
+// its logo: a laurel wreath with a dagger through it, bone on Pompeian red
 const wreath = bare("laurels"), dagger = bare("plain-dagger");
 fs.writeFileSync(path.join(root, "public/collections/senado-logo.svg"), `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><title>${SEN.name.en}</title>
-<circle cx="50" cy="50" r="46" fill="#3a1531" stroke="#c9a227" stroke-width="4"/><g transform="translate(17 17) scale(${66 / 512})" fill="#efe8dc">${wreath}</g><g transform="translate(50 50) rotate(45) scale(${50 / 512}) translate(-256 -256)" fill="#c9a227">${dagger}</g></svg>\n`);
+<circle cx="50" cy="50" r="46" fill="#5c1a13" stroke="#c9a227" stroke-width="4"/><g transform="translate(17 17) scale(${66 / 512})" fill="#efe8dc">${wreath}</g><g transform="translate(50 50) rotate(45) scale(${50 / 512}) translate(-256 -256)" fill="#c9a227">${dagger}</g></svg>\n`);
 console.log("wrote senado-logo.svg");
