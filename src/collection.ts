@@ -192,7 +192,7 @@ export function readTheme(v: unknown): string | OwnTheme | undefined {
 const LIST_KEY = "midnight-mint-own-collections";
 const keyOf = (id: string) => `midnight-mint-own-${id}-collection`;
 /** A collection that comes with the app (src/builtins.ts): what it says about itself is code. */
-export interface BuiltInEntry { id: string; file?: string; name: string; logo?: string; accent?: string; tokens: number; text?: Names;
+export interface BuiltInEntry { id: string; file?: string; name: Names; logo?: string; accent?: string; tokens: number; text?: Names;
   /** A picture of some of its tokens, for its cover; and what it holds, in a line. */
   preview?: string; facts?: Names;
   /** Where it opens when it has an app of its own (Clocktower: /botc, Midnight Mint), instead of /c/<id>. */

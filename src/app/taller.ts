@@ -13,6 +13,7 @@ import { UI_ICONS, uiIcon, SHAPE_ICONS } from "../ui-icons.ts";
 import { uiLang, t } from "../i18n.ts";
 import { applyGroups, applyOwnTheme } from "./creator.ts";
 import { BOTC_STYLES } from "../botc-styles.ts";
+import { BUILT_INS } from "../builtins.ts";
 import { markStarted } from "./boot.ts";
 import { wire } from "./wiring.ts";
 import { buildChoices, renderWorkshop, designSwatch } from "./workshop.ts";
@@ -27,7 +28,7 @@ import { PHONE } from "./scripts-ui.ts";
 // The Taller (/taller) is where your designs are made and changed, outside the steps, for every
 // shape the app has. Entering it starts a new design in two steps: 1. its shape (or one of yours to
 // carry on with), 2. the design it starts from, its base: Basic (the app's own, blank), then the
-// collection it was opened from, then the app's collections' (Clocktower, Draw Steel), each with its
+// collection it was opened from, then the app's collections' (Clocktower, Draw Steel, 5e Fantasy), each with its
 // own designs only, then the app's (Tesserae Faber's, offered in every collection). Starting
 // makes a copy of the base, yours, and opens it in the editor: its look changed with the design
 // step's controls (the workshop column), straight on the design, which every token using it shows.
@@ -113,7 +114,11 @@ export async function openTaller() {
   const groups: TallerGroup[] = [{ kind: "blank", name: APP_NAME, designs: Object.fromEntries(SHAPES.map((sh) => [sh, [{ ...basic[sh][0], name: { es: "Básico", en: "Basic" } }]])) }];
   if (c?.styles) groups.push({ kind: "from", name: label(c), designs: own(c.styles), look: lookOfCollection(id, c) });
   if (id !== "botc") groups.push({ kind: "other", name: "Blood on the Clocktower", designs: own(BOTC_STYLES), look: lookOfCollection("botc") });
-  if (id !== "drawsteel") { const ds = await builtInStyles("drawsteel"); if (ds) groups.push({ kind: "other", name: builtIn("drawsteel")!.name, designs: own(ds), look: lookOfCollection("drawsteel") }); }
+  for (const b of BUILT_INS) {
+    if (b.id === "botc" || b.id === id || !b.file) continue;
+    const styles = await builtInStyles(b.id);
+    if (styles) groups.push({ kind: "other", name: nameIn(b.name, uiLang()), designs: own(styles), look: lookOfCollection(b.id) });
+  }
   groups.push({ kind: "app", name: APP_NAME, designs: Object.fromEntries(SHAPES.map((sh) => [sh, appDesigns(sh).filter((d) => d.id !== basic[sh][0].id)])), look: { logo: APP_LOGO } });
   taller.groups = groups;
   // the tokens to draw on: a few of each shape from the collection, different groups first, one with another state
@@ -307,7 +312,7 @@ function designUses(id: string): { prefix: string; name: string; defaults: Token
   const entry = (prefix: string) => {
     if (!out.has(prefix)) {
       const cid = prefix.match(/^midnight-mint-own-(.+)-$/)?.[1];
-      out.set(prefix, { prefix, name: cid ? builtIn(cid)?.name ?? listCollections().find((x) => x.id === cid)?.name ?? cid : "Blood on the Clocktower", defaults: [], tokens: 0 });
+      out.set(prefix, { prefix, name: cid ? (builtIn(cid) ? nameIn(builtIn(cid)!.name, uiLang()) : undefined) ?? listCollections().find((x) => x.id === cid)?.name ?? cid : "Blood on the Clocktower", defaults: [], tokens: 0 });
     }
     return out.get(prefix)!;
   };

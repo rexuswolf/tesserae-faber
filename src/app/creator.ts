@@ -183,7 +183,7 @@ export function wireOwn() {
     if (what !== "import") { openCollMenu(false); drawer(false); }
     if (what === "copy" && BUILT) {
       const n = $("#ownNote"); n.textContent = t("own.copying");
-      void copyBuiltIn(BUILT.id, t("own.copyName", { name: BUILT.name })).then((id) => { if (id) location.href = collectionUrl(id); else n.textContent = t("own.storageFull"); });
+      void copyBuiltIn(BUILT.id, t("own.copyName", { name: nameIn(BUILT.name, uiLang()) })).then((id) => { if (id) location.href = collectionUrl(id); else n.textContent = t("own.storageFull"); });
       return;
     }
     if (what === "settings") openOwnSettings();
@@ -685,7 +685,7 @@ export async function renderOwnLanding() {
   if (!last) return;
   const { built, mine } = await collectionsByKind();
   const b = built.find((x) => x.b.id === last), m = mine.find((x) => x.id === last);
-  const name = m?.name ?? b?.b.name, logo = m?.logo ?? b?.kept?.logo ?? b?.b.logo;
+  const name = m?.name ?? (b ? nameIn(b.b.name, lang) : undefined), logo = m?.logo ?? b?.kept?.logo ?? b?.b.logo;
   if (!name) return;
   const r = $<HTMLAnchorElement>("#ownResume");
   r.href = openUrl(last, built.map((x) => x.b)); r.hidden = false;
@@ -702,7 +702,7 @@ export async function renderOwnHome() {
   const exp = (id: string) => `<button class="link" type="button" data-oh-export="${esc(id)}">${esc(t("own.export"))}</button>`;
   $("#ownHomeBuilt").innerHTML = built.map(({ b }) => `<article class="oh-cover" style="--acc:${esc(b.accent ?? "#c9963a")}${b.cover ? `;--cover:${esc(b.cover)}` : ""}">
       <a class="oh-cover-link" href="${b.href ?? collectionUrl(b.id)}">
-        <span class="who"><img src="${esc(b.logo ?? APP_LOGO)}" alt=""><span><h3>${esc(b.name)}</h3><p>${esc(nameIn(b.text, lang))}</p></span></span>
+        <span class="who"><img src="${esc(b.logo ?? APP_LOGO)}" alt=""><span><h3>${esc(nameIn(b.name, lang))}</h3><p>${esc(nameIn(b.text, lang))}</p></span></span>
         ${b.preview ? `<img class="strip" src="${esc(b.preview)}" alt="">` : ""}
         <span class="go"><span class="forge">${esc(t("own.open"))}</span>${esc(nameIn(b.facts, lang) || t("own.homeCount", { n: b.tokens, when: "" }))}</span>
       </a>
@@ -734,7 +734,7 @@ function wireOwnHome() {
     if (cp) {
       const b = builtIn(cp.dataset.ohCopy!); if (!b) return;
       cp.textContent = t("own.copying"); (cp as HTMLButtonElement).disabled = true;
-      void copyBuiltIn(b.id, t("own.copyName", { name: b.name })).then((id) => { if (id) location.href = collectionUrl(id); else { note("own.storageFull"); renderOwnHome(); } });
+      void copyBuiltIn(b.id, t("own.copyName", { name: nameIn(b.name, uiLang()) })).then((id) => { if (id) location.href = collectionUrl(id); else { note("own.storageFull"); renderOwnHome(); } });
       return;
     }
     if (ex) { const c = loadCollection(ex.dataset.ohExport!); if (c) saveFile(new Blob([JSON.stringify(collectionFile(c), null, 2)], { type: "application/json" }), `${nameIn(c.name, "en").replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase() || "collection"}.json`); }
