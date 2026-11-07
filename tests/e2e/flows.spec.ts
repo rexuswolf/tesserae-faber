@@ -32,7 +32,12 @@ test("Clocktower: pick characters, see them designed, print them on paper", asyn
   await next(page);
   await expect(page.locator("#app")).toHaveAttribute("data-step", "2");
   await next(page);
-  await page.locator('#printPage [data-way="paper"]').click();
+  // the way chosen and the button ready before asking for the file
+  await expect(async () => {
+    await page.locator('#printPage [data-way="paper"]').click();
+    await expect(page.locator('#printPage [data-way="paper"]')).toHaveAttribute("aria-checked", "true", { timeout: 1000 });
+  }).toPass();
+  await expect(page.locator("#flowNext")).toBeEnabled();
   const download = page.waitForEvent("download", { timeout: 60_000 });
   await next(page);
   expect((await download).suggestedFilename()).toMatch(/\.pdf$/);
@@ -43,7 +48,12 @@ test("printing in 3D: the Bambu project", async ({ page }) => {
   const errors = await open(page, "/botc");
   await pick(page, 2, '#rows [data-pick^="c:"]');
   await next(page); await next(page);
-  await page.locator('#printPage [data-way="3d"]').click();
+  // the way chosen and the button ready before asking for the file
+  await expect(async () => {
+    await page.locator('#printPage [data-way="3d"]').click();
+    await expect(page.locator('#printPage [data-way="3d"]')).toHaveAttribute("aria-checked", "true", { timeout: 1000 });
+  }).toPass();
+  await expect(page.locator("#flowNext")).toBeEnabled();
   const download = page.waitForEvent("download", { timeout: 60_000 });
   await next(page);
   expect((await download).suggestedFilename()).toMatch(/\.3mf$/);
