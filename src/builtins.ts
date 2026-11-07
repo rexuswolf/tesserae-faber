@@ -91,4 +91,32 @@ export const BUILT_INS: BuiltInEntry[] = [
       links: [{ label: "System Reference Document 5.2", url: "https://www.dndbeyond.com/srd" }, { label: "CC BY 4.0", url: "https://creativecommons.org/licenses/by/4.0/legalcode" }],
     },
   },
+  {
+    // the hidden-role game of Secret Hitler (Goat, Wolf & Cabbage, CC BY-NC-SA 4.0), rethemed to
+    // the Roman Senate: the theme and every name on the tokens are ours; its attribution below,
+    // and this adaptation under the same licence (non-commercial)
+    id: "senado",
+    name: { es: "El Senado", en: "The Senate" },
+    logo: "/collections/senado-logo.svg",
+    accent: "#c2639a",
+    tokens: 11,
+    preview: "/collections/senado-preview.svg",   // tools/make-crear-art.mjs
+    file: "/collections/senado.json",   // tools/make-senado-collection.mjs
+    cover: "radial-gradient(120% 140% at 0% 0%, #4a2340 0%, #2a1626 55%, #140c12 100%)",
+    theme: { accent: "#c2639a", background: "#150e13", surface: "#21171e", text: "#efe8dc", muted: "#b6a8ae", glow: "#4b1838", font: "Marcellus" },
+    loader: { text: { es: "Convocando al Senado…", en: "Convening the Senate…" } },
+    facts: { es: "3 bandos · 2 cargos de dos caras · el voto · 3 tumultos · 2 leyes · 2 idiomas", en: "3 sides · 2 two-sided offices · the vote · 3 unrest · 2 laws · 2 languages" },
+    text: { es: "Un juego de roles ocultos en el Senado de Roma: bandos, Cónsul y Tribuno, Placet / Non placet, Tumultos y las leyes.", en: "A hidden-role game in the Roman Senate: sides, Consul and Tribune, Placet / Non placet, Unrest and the laws." },
+    about: {
+      text: {
+        es: "Fichas para jugar a un juego de roles ocultos en el Senado de Roma. La mayoría son Republicanos y no saben quién es quién; los Conspiradores se conocen entre ellos; el Aspirante a César, su líder, se esconde. El Cónsul nombra a un Tribuno y todos votan a la vez (Placet / Non placet); si sale adelante, entre los dos aprueban una ley; con tres gobiernos fallidos estallan los Tumultos y se aprueba la ley de arriba del mazo. Al acabar su mandato, el Cónsul y el Tribuno se dan la vuelta (Excónsul, Extribuno). Ganan los Republicanos con 5 Leyes de la República o ejecutando al Aspirante a César; los Conspiradores, con 6 Decretos del Tirano o si el Aspirante a César es nombrado Tribuno con 3 decretos ya aprobados. El mazo: 6 Leyes y 11 Decretos, en tarjetas.",
+        en: "Tokens to play a hidden-role game in the Roman Senate. Most players are Republicans and don't know who is who; the Conspirators know each other; the Aspiring Caesar, their leader, stays hidden. The Consul names a Tribune and everyone votes at once (Placet / Non placet); if it passes, the two of them enact a law; three failed governments spark Unrest and the top law of the deck passes. When their term ends, the Consul and the Tribune turn over (Ex-Consul, Ex-Tribune). The Republicans win with 5 Laws of the Republic or by executing the Aspiring Caesar; the Conspirators, with 6 Tyrant's Decrees, or if the Aspiring Caesar is named Tribune once 3 decrees have passed. The deck: 6 Laws and 11 Decrees, as cards.",
+      },
+      credits: {
+        es: "Basado en Secret Hitler, de Goat, Wolf & Cabbage (Max Temkin, Mike Boxleiter y Tommy Maranges), con licencia CC BY-NC-SA 4.0. Esta adaptación, con la temática del Senado de Roma y nombres propios, se comparte con la misma licencia y sin fines comerciales. No es oficial ni está afiliada a Goat, Wolf & Cabbage ni respaldada por ellos. Iconos de game-icons.net (CC BY 3.0).",
+        en: "Based on Secret Hitler by Goat, Wolf & Cabbage (Max Temkin, Mike Boxleiter and Tommy Maranges), licensed CC BY-NC-SA 4.0. This adaptation, rethemed to the Roman Senate with names of its own, is shared under the same licence, for non-commercial use. It is unofficial, and not affiliated with or endorsed by Goat, Wolf & Cabbage. Icons from game-icons.net (CC BY 3.0).",
+      },
+      links: [{ label: "Secret Hitler", url: "https://www.secrethitler.com" }, { label: "CC BY-NC-SA 4.0", url: "https://creativecommons.org/licenses/by-nc-sa/4.0/" }, { label: "game-icons.net", url: "https://game-icons.net" }],
+    },
+  },
 ];

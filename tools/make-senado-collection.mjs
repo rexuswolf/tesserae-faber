@@ -1,0 +1,124 @@
+// Writes The Senate collection that comes with the app (public/collections/senado.json) and its
+// logo; the strip of tokens on its cover is tools/make-crear-art.mjs. Tokens to play the hidden-role
+// game of Secret Hitler (Goat, Wolf & Cabbage, CC BY-NC-SA 4.0: its attribution is in the
+// collection's About, src/builtins.ts), rethemed to the Roman Senate: the theme and the names are
+// ours, none of the game's on the tokens; game-icons.net icons. tools/senado-protos/ shows them.
+//   node tools/make-senado-collection.mjs
+// Types: sides (who you are), government (Consul and Tribune, two-sided: turned over when their
+// term ends), the vote (two-sided), unrest (the election tracker, for playing without the board) as
+// coins, and the laws as cards. No executive powers.
+import fs from "node:fs";
+import path from "node:path";
+import { BUILT_INS } from "../src/builtins.ts";   // its theme, loading line and About: one place
+import { FILAMENTS } from "../src/engine/token-engine.ts";
+import { cardDesigns } from "../src/shape-designs.ts";
+const SEN = BUILT_INS.find((b) => b.id === "senado");
+
+const root = path.resolve(import.meta.dirname, "..");
+const GI = JSON.parse(fs.readFileSync(path.join(root, "node_modules/@iconify-json/game-icons/icons.json"), "utf8")).icons;
+const INDEX = JSON.parse(fs.readFileSync(path.join(root, "public/game-icons.json"), "utf8"));   // "author/name"
+const author = (name) => INDEX.find((x) => x.endsWith(`/${name}`))?.split("/")[0];
+// placed as the app places game-icons.net icons (src/icons.ts: GI_PLACE)
+const PLACE = "translate(28.063 19.134) scale(0.139518)";
+const bare = (name) => { const body = GI[name]?.body; if (!body) throw new Error(`no icon ${name}`); return body.replace(/\s(fill)="[^"]*"/g, ""); };
+const icon = (name) => {
+  if (!author(name)) throw new Error(`no author for ${name}`);
+  return { icon: { svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 127.559055 127.559055"><g transform="${PLACE}">${bare(name)}</g></svg>` }, iconCredit: { name, author: author(name) } };
+};
+
+// Colours are filaments the printer has (src/collection.ts GROUP_COLOURS), each group its own: the
+// Republic marble white, the conspiracy red (the daggers), its would-be Caesar Tyrian purple,
+// the offices silver, the vote bronze (the tablets), the unrest yellow (the torches).
+const C = { bone: FILAMENTS.white, red: "#b3191e", purple: "#8a3d9e", silver: FILAMENTS.silver, bronze: FILAMENTS.bronze, yellow: "#d4a72c" };
+const tok = (id, type, group, name, ic, extra = {}) => ({ id, type, group, name, ...(ic ? icon(ic) : { icon: null }), linked: [], ...extra });
+const flip = (name, ic) => ({ flip: { name, ...icon(ic) } });
+
+const SIDES = [
+  // the uninformed majority; those who know each other; their hidden leader
+  tok("republicano", "bandos", "republica", { es: "Republicano", en: "Republican" }, "greek-temple"),
+  tok("conspirador", "bandos", "conjura", { es: "Conspirador", en: "Conspirator" }, "cloak-dagger"),
+  tok("cesar", "bandos", "conjura", { es: "Aspirante a César", en: "Aspiring Caesar" }, "caesar", { colour: C.purple }),
+];
+const GOVERNMENT = [
+  // turned over when their term ends: the ex can't be named again at once
+  tok("consul", "gobierno", "gobierno", { es: "Cónsul", en: "Consul" }, "laurel-crown", flip({ es: "Excónsul", en: "Ex-Consul" }, "laurels")),
+  tok("tribuno", "gobierno", "gobierno", { es: "Tribuno", en: "Tribune" }, "scroll-unfurled", flip({ es: "Extribuno", en: "Ex-Tribune" }, "tied-scroll")),
+];
+// each player's, shown at once: the Senate's own Latin (placet: it pleases), the same in both languages
+const VOTE = [tok("voto", "votos", "votos", { es: "Placet", en: "Placet" }, "thumb-up", flip({ es: "Non placet", en: "Non placet" }, "thumb-down"))];
+// the election tracker, for playing without the board: the third, chaos (the top law passes)
+const UNREST = [1, 2, 3].map((n) => tok(`tumultos-${n}`, "tumultos", "tumultos", { es: `Tumultos ${n}`, en: `Unrest ${n}` }, n === 3 ? "flame" : "torch"));
+// the laws, as cards: 6 of the Republic's and 11 of the tyrant's in the deck
+const LAWS = [
+  tok("ley", "leyes", "republica", { es: "Ley de la República", en: "Law of the Republic" }, null),
+  tok("decreto", "leyes", "conjura", { es: "Decreto del Tirano", en: "Tyrant's Decree" }, null),
+];
+const tokens = [...SIDES, ...GOVERNMENT, ...VOTE, ...UNREST, ...LAWS];
+const ids = (list) => list.map((t) => t.id);
+
+// The styles it comes with (src/collection.ts StyleDef), per shape; "team" is the token's group
+// colour. Its own three, then the app's (src/shape-designs.ts APP_DESIGNS), offered in every collection.
+const styles = {
+  coin: [
+    // the default: black, a laurel wreath round it, icon and name in the group colour; a gold medallion behind
+    { id: "senado", name: { es: "Senado", en: "Senate" },
+      help: { es: "Negra, con una corona de laurel, el icono y el nombre del color del bando; al reverso, un medallón y «El Senado» en oro.", en: "Black, with a laurel wreath, the icon and the name in the side's colour; on the back, a medallion and «The Senate» in gold." },
+      spec: { style: "classic", frame: "laurel", frameWidth: 0.8, back: "medallon", backText: "collection", depth: 0.4, colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } } },
+    // a tessera: the coin in the side's colour (the Republic's marble, the conspiracy's red, Caesar's
+    // purple), its icon, name and rim raised in black
+    { id: "tesera", name: { es: "Tésera", en: "Tessera" },
+      help: { es: "Del color del bando —mármol, rojo, púrpura—, con el icono, el nombre y el borde en relieve negro; al reverso, un sol en negro.", en: "In the side's colour (marble, red, purple), with the icon, the name and the rim raised in black; on the back, a black sunburst." },
+      spec: { style: "classic", frame: "rim", frameWidth: 0.8, back: "sol", depth: 0.4, relief: { text: true, frame: true, icon: true }, reliefHeight: 0.6, colours: { base: "team", front: FILAMENTS.black, frame: FILAMENTS.black, back: FILAMENTS.black } } },
+    // an aureus: struck gold, the laurel raised and bevelled, a reeded edge; the shield and the name in black behind
+    { id: "aureo", name: { es: "Áureo", en: "Aureus" },
+      help: { es: "De oro, como la moneda de Roma: el icono, el nombre y la corona de laurel en relieve biselado y el canto estriado; al reverso, el escudo y «El Senado» en negro.", en: "Gold, like Rome's coin: the icon, the name and the laurel wreath in bevelled relief and a reeded edge; on the back, the shield and «The Senate» in black." },
+      spec: { style: "classic", frame: "laurel", frameWidth: 0.8, back: "escudo", backText: "collection", depth: 0.4, relief: { text: true, frame: true, icon: true }, reliefHeight: 0.8, reliefBevel: 0.3, edge: "reeded", colours: { base: FILAMENTS.gold, front: FILAMENTS.gold, frame: FILAMENTS.gold, back: FILAMENTS.black } } },
+  ],
+  // the laws: the whole card in its side's colour (a marble law, a red decree), then black with the side's line
+  card: cardDesigns("placa", "contraste"),
+};
+const collection = {
+  format: "midnight-mint/collection", version: 1,
+  name: SEN.name,
+  theme: SEN.theme,
+  brand: { logo: "/collections/senado-logo.svg" },
+  loader: SEN.loader,
+  about: SEN.about,
+  languages: ["es", "en"],
+  types: [
+    { id: "bandos", name: { es: "Bandos", en: "Sides" }, title: { es: "Bandos", en: "Sides" }, shape: "coin", icon: "greek-temple" },
+    { id: "gobierno", name: { es: "Gobierno", en: "Government" }, title: { es: "Gobierno", en: "Government" }, shape: "coin", icon: "laurel-crown" },
+    { id: "votos", name: { es: "Votos", en: "Votes" }, title: { es: "Votos", en: "Votes" }, shape: "coin", icon: "thumb-up" },
+    { id: "tumultos", name: { es: "Tumultos", en: "Unrest" }, title: { es: "Tumultos", en: "Unrest" }, shape: "coin", icon: "torch" },
+    { id: "leyes", name: { es: "Leyes", en: "Laws" }, title: { es: "Leyes", en: "Laws" }, shape: "card", icon: "scroll-unfurled" },
+  ],
+  groups: [
+    // each with an icon of its own (its filter on the sheet, its plates)
+    { id: "republica", name: { es: "La República", en: "Republic" }, colour: C.bone, iconBody: bare("greek-temple") },
+    { id: "conjura", name: { es: "La Conjura", en: "Conspiracy" }, colour: C.red, iconBody: bare("plain-dagger") },
+    { id: "gobierno", name: { es: "Gobierno", en: "Government" }, colour: C.silver, iconBody: bare("laurel-crown") },
+    { id: "votos", name: { es: "Votos", en: "Votes" }, colour: C.bronze, iconBody: bare("thumb-up") },
+    { id: "tumultos", name: { es: "Tumultos", en: "Unrest" }, colour: C.yellow, iconBody: bare("torch") },
+  ],
+  tokens,
+  sections: [
+    { id: "senado", title: { es: "El Senado", en: "The Senate" }, open: false, catalogs: [
+      { id: "bandos", name: { es: "Bandos", en: "Sides" }, tokens: ids(SIDES) },
+      { id: "gobierno", name: { es: "Gobierno y voto", en: "Government and vote" }, tokens: [...ids(GOVERNMENT), ...ids(VOTE)] },
+      { id: "tumultos", name: { es: "Tumultos", en: "Unrest" }, tokens: ids(UNREST) },
+      { id: "leyes", name: { es: "Leyes", en: "Laws" }, tokens: ids(LAWS) },
+    ] },
+    { id: "partidas", title: { es: "Partidas", en: "Games" }, open: true, catalogs: [] },
+  ],
+  styles,
+};
+const out = path.join(root, "public/collections/senado.json");
+fs.writeFileSync(out, JSON.stringify(collection));
+console.log(`wrote ${out}: ${tokens.length} tokens (${SIDES.length} sides, ${GOVERNMENT.length + VOTE.length} two-sided, ${UNREST.length} unrest, ${LAWS.length} laws)`);
+if (SEN.tokens !== tokens.length) console.warn(`src/builtins.ts says ${SEN.tokens} tokens: make it ${tokens.length}`);
+
+// its logo: a laurel wreath with a dagger through it, bone on Tyrian purple
+const wreath = bare("laurels"), dagger = bare("plain-dagger");
+fs.writeFileSync(path.join(root, "public/collections/senado-logo.svg"), `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><title>${SEN.name.en}</title>
+<circle cx="50" cy="50" r="46" fill="#3a1531" stroke="#c9a227" stroke-width="4"/><g transform="translate(17 17) scale(${66 / 512})" fill="#efe8dc">${wreath}</g><g transform="translate(50 50) rotate(45) scale(${50 / 512}) translate(-256 -256)" fill="#c9a227">${dagger}</g></svg>\n`);
+console.log("wrote senado-logo.svg");
