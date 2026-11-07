@@ -173,13 +173,14 @@ export interface TokenSpec {
 }
 
 /** A background pattern's id (the engine's PATTERNS): thin lines in a harlequin grid, or a checkerboard of filled rhombi. */
-export type PatternId = "rombos-lineas" | "damero-rombos";
+export type PatternId = "rombos-lineas" | "damero-rombos" | "escamas" | "escamas-relleno" | "rayas";
 /**
  * A background pattern: it runs behind everything on the face, continuous, and the icon, the name
  * and the frame (on the back, its design) sit on it, each with a halo of coin colour round it
  * (`halo`, mm, at least 0.6) so they read. It is a flush inlay like the rest of the face, in a colour
  * the token already has (it goes into that part: never a filament of its own). `scale` is a rhombus's
- * width (mm), `line` the line's width ("rombos-lineas") or the gap between cells ("damero-rombos"),
+ * width (mm; a scale's width for "escamas", the stripes' period for "rayas"), `line` the line's width
+ * ("rombos-lineas", "escamas") or the gap between cells ("damero-rombos", "escamas-relleno", "rayas"),
  * at least 0.6 mm. `colour` picks the front's part: "frame", "front" (the name's), "team" (whichever
  * is the team colour) or a hex one of them has; a back pattern is always the back's colour.
  */

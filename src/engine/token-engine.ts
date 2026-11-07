@@ -66,6 +66,8 @@ export const BACK_STYLES = [
   { id: "orbitas", label: "Orbits" },
   { id: "edition", label: "Edition" },
   { id: "medallon", label: "Medallion" },
+  { id: "escudo", label: "Shield" },
+  { id: "escudete", label: "Small shield" },
   { id: "custom", label: "Your SVG" },
 ];
 
@@ -701,6 +703,8 @@ function buildBack(lib: Library, role: Role, text: string, spec: TokenSpec) {
     }
     case "medallon":
       return extrude(medallionBack(lib, role, spec), d, chain(mirror), 32);
+    case "escudo": case "escudete":
+      return extrude(escudoBack(lib, role, spec, spec.back === "escudete"), d, chain(mirror), 32);
     case "name": {
       const t = (text || "").toUpperCase();
       if (!t.trim()) return null;
@@ -1224,6 +1228,9 @@ interface Ring { outer: Poly; holes: Poly[] }
 export const PATTERNS: { id: PatternId; label: string }[] = [
   { id: "rombos-lineas", label: "Harlequin lines" },
   { id: "damero-rombos", label: "Harlequin checks" },
+  { id: "escamas", label: "Scales (lines)" },
+  { id: "escamas-relleno", label: "Scales" },
+  { id: "rayas", label: "Bend stripes" },
 ];
 const PATTERN_IDS = new Set(PATTERNS.map((p) => p.id));
 /** The thinnest line, gap or piece a pattern prints (mm): about a nozzle's width and a half. */
@@ -1263,7 +1270,35 @@ const boxOf = (p: Poly) => {
 };
 
 /** What a pattern's fields are when it leaves them out: a rhombus's width, the line (the gap between cells) and the halo (mm). */
-export const patternDefaults = (id: PatternId) => (id === "damero-rombos" ? { scale: 3, line: 0.7, halo: PATTERN_HALO } : { scale: 3.2, line: PATTERN_MIN, halo: PATTERN_HALO });
+export const patternDefaults = (id: PatternId) => ({
+  "rombos-lineas": { scale: 3.2, line: PATTERN_MIN, halo: PATTERN_HALO },
+  "damero-rombos": { scale: 3, line: 0.7, halo: PATTERN_HALO },
+  "escamas": { scale: 4.4, line: PATTERN_MIN, halo: PATTERN_HALO },
+  "escamas-relleno": { scale: 3.6, line: 0.7, halo: PATTERN_HALO },
+  "rayas": { scale: 4, line: 1.6, halo: PATTERN_HALO },
+})[id];
+/** Patterns whose `line` is the gap between filled cells (or stripes), not a line's width. */
+export const patternFilled = (id: PatternId) => id === "damero-rombos" || id === "escamas-relleno" || id === "rayas";
+
+/**
+ * Fish scales, `w` wide, as the distance (mm) from a point to the nearest edge between scales
+ * (and whether it's that far inside a scale). Scales are circles of radius r = w/2 in rows r apart,
+ * each row offset half a scale; a row lies over the one below it, so each scale shows its round
+ * lower edge and hangs, point up, between two of the row above.
+ */
+function scaleEdge(x: number, y: number, w: number) {
+  const r = w / 2, near = (n: number) => { const off = n & 1 ? r : 0, cx = 2 * r * Math.round((x - off) / (2 * r)) + off; return [cx, n * r]; };
+  const n0 = Math.floor(y / r) + 1;
+  for (let n = n0; n >= n0 - 2; n--) {
+    const [cx, cy] = near(n), d = Math.hypot(x - cx, y - cy);
+    if (d >= r) continue;
+    // its own edge, and the scales over it: the two of the row above and the one above those
+    let e = r - d;
+    for (const [ax, ay] of [[cx - r, cy + r], [cx + r, cy + r], [cx, cy + 2 * r]]) e = Math.min(e, Math.hypot(x - ax, y - ay) - r);
+    return e;
+  }
+  return 0;
+}
 
 /**
  * A pattern as a signed distance (mm, positive inside), centred on the coin, and how wide its
@@ -1272,6 +1307,18 @@ export const patternDefaults = (id: PatternId) => (id === "damero-rombos" ? { sc
  */
 function patternField(p: PatternSpec) {
   const cells = p.id === "damero-rombos", d = patternDefaults(p.id);
+  if (p.id === "escamas" || p.id === "escamas-relleno") {
+    // lines along the scales' edges, or the scales themselves with `line` of coin between them
+    const w = Math.max(2.4, p.scale ?? d.scale), line = Math.max(PATTERN_MIN, p.line ?? d.line), r = w / 2;
+    return p.id === "escamas"
+      ? { sdf: (x: number, y: number) => line / 2 - scaleEdge(x, y, w), line, width: line, gap: r - line }
+      : { sdf: (x: number, y: number) => scaleEdge(x, y, w) - line / 2, line, width: w - line, gap: line };
+  }
+  if (p.id === "rayas") {
+    // a heraldic bend: broad stripes from the top left to the bottom right, one through the centre
+    const P = Math.max(2 * PATTERN_MIN, p.scale ?? d.scale), line = Math.max(PATTERN_MIN, Math.min(P - PATTERN_MIN, p.line ?? d.line));
+    return { sdf: (x: number, y: number) => { const t = (x + y) / Math.SQRT2; return (P - line) / 2 - Math.abs(t - P * Math.round(t / P)); }, line, width: P - line, gap: line };
+  }
   const a = Math.max(1.5, p.scale ?? d.scale), b = a * HARLEQUIN, s = Math.hypot(a / 2, b / 2), h = (a * b) / (4 * s);
   const line = Math.max(PATTERN_MIN, p.line ?? d.line);
   if (cells) {
@@ -1434,25 +1481,12 @@ function fillSolid(solid: Ring[], set: Uint8Array, W: number, H: number, x0: num
 }
 
 /**
- * A pattern over a coin of radius R, behind `ink` (what sits on it) and `solid` (what sits on it
- * as a silhouette: the icon, its holes and what it walls in filled; see fillSolid): the pattern
- * where it is at least the halo away from them and PATTERN_EDGE inside the coin's edge, opened so
- * nothing in it is thinner than PATTERN_MIN, pieces smaller than that left out.
+ * Opens a field (mm, positive inside, on a grid of `px`; `core` its cells more than half
+ * PATTERN_MIN inside): grown back from the core, so nothing in it is thinner than PATTERN_MIN,
+ * and pieces smaller than that across left out. Returns the smallest piece kept (mm across).
  */
-function cutPattern(p: PatternSpec, R: number, ink: Ring[], solid: Ring[] = []): PatternCut {
-  const P = patternField(p), halo = Math.max(PATTERN_MIN, p.halo ?? PATTERN_HALO), px = PATTERN_GRID, rho = PATTERN_MIN / 2;
-  const x0 = -R - 2 * px, W = Math.ceil((2 * R + 4 * px) / px) + 1, H = W, N = W * H;
-  const inkSet = new Uint8Array(N);
-  rasterise(ink, inkSet, W, H, x0, x0, px);
-  if (solid.length) fillSolid(solid, inkSet, W, H, x0, px, halo);
-  const dInk = distanceTransform(inkSet, W, H);
-  const F = new Float32Array(N), core = new Uint8Array(N), rOut = R - PATTERN_EDGE;
-  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
-    const x = x0 + i * px, y = x0 + j * px, k = j * W + i;
-    const f = Math.min(P.sdf(x, y), dInk[k] * px - halo - px, rOut - Math.hypot(x, y));   // less a cell: the ink may reach that far past a cell centre
-    F[k] = f;
-    if (f > rho - px / 2) core[k] = 1;                 // eroded by half the least width
-  }
+function openField(F: Float32Array, core: Uint8Array, W: number, H: number, px: number) {
+  const N = W * H, rho = PATTERN_MIN / 2;
   // grown back: what's left is the pattern without anything thinner than PATTERN_MIN
   const dCore = distanceTransform(core, W, H);
   for (let k = 0; k < N; k++) F[k] = Math.min(F[k], rho + px - dCore[k] * px);
@@ -1476,6 +1510,30 @@ function cutPattern(p: PatternSpec, R: number, ink: Ring[], solid: Ring[] = []):
     if (2 * peak < PATTERN_MIN - 0.03) for (const k of members) F[k] = -px;
     else minPiece = Math.min(minPiece, 2 * peak);
   }
+  return minPiece;
+}
+
+/**
+ * A pattern over a coin of radius R, behind `ink` (what sits on it) and `solid` (what sits on it
+ * as a silhouette: the icon, its holes and what it walls in filled; see fillSolid): the pattern
+ * where it is at least the halo away from them and PATTERN_EDGE inside the coin's edge, opened so
+ * nothing in it is thinner than PATTERN_MIN, pieces smaller than that left out.
+ */
+function cutPattern(p: PatternSpec, R: number, ink: Ring[], solid: Ring[] = []): PatternCut {
+  const P = patternField(p), halo = Math.max(PATTERN_MIN, p.halo ?? PATTERN_HALO), px = PATTERN_GRID, rho = PATTERN_MIN / 2;
+  const x0 = -R - 2 * px, W = Math.ceil((2 * R + 4 * px) / px) + 1, H = W, N = W * H;
+  const inkSet = new Uint8Array(N);
+  rasterise(ink, inkSet, W, H, x0, x0, px);
+  if (solid.length) fillSolid(solid, inkSet, W, H, x0, px, halo);
+  const dInk = distanceTransform(inkSet, W, H);
+  const F = new Float32Array(N), core = new Uint8Array(N), rOut = R - PATTERN_EDGE;
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+    const x = x0 + i * px, y = x0 + j * px, k = j * W + i;
+    const f = Math.min(P.sdf(x, y), dInk[k] * px - halo - px, rOut - Math.hypot(x, y));   // less a cell: the ink may reach that far past a cell centre
+    F[k] = f;
+    if (f > rho - px / 2) core[k] = 1;                 // eroded by half the least width
+  }
+  const minPiece = openField(F, core, W, H, px);
   return { rings: traceField(F, W, H, x0, x0, px), line: P.line, width: P.width, gap: P.gap, halo, minPiece, ink: [...ink, ...solid] };
 }
 
@@ -1518,7 +1576,8 @@ function frontInk(lib: Library, role: Role, spec: TokenSpec, text: string): { in
  * medallion's ring, not inside a letter or a moon).
  */
 function backInk(lib: Library, role: Role, spec: TokenSpec): Ring[] {
-  const shapes = spec.back === "medallon" ? medallionBack(lib, role, spec) : spec.back === "edition" ? editionBack(lib, role, spec) : backDesign(spec.back, spec.diameter / 2);
+  const shapes = spec.back === "medallon" ? medallionBack(lib, role, spec) : spec.back === "edition" ? editionBack(lib, role, spec)
+    : spec.back === "escudo" || spec.back === "escudete" ? escudoBack(lib, role, spec, spec.back === "escudete") : backDesign(spec.back, spec.diameter / 2);
   return ringsOf(shapes ?? [], undefined, 24).map((r) => {
     const a = Math.abs(polyArea(r.outer));
     return { outer: r.outer, holes: r.holes.filter((h) => Math.abs(polyArea(h)) > 0.6 * a) };
@@ -1578,6 +1637,86 @@ function medallionBack(lib: Library, role: Role, spec: TokenSpec) {
   const mr = rm * 0.45, cy = rm * 0.14;
   shapes.push(crescent(-mr * 0.12, cy, mr, mr * 0.25, cy + mr * 0.2, mr * 0.88));
   shapes.push(sparkle(mr * 0.32, cy + mr * 0.12, Math.min(1.5, mr * 0.3), Math.min(0.5, mr * 0.1)));
+  return shapes;
+}
+
+/** A heater shield `a` wide either side of the centre line, its top at `top`, straight sides down to `shoulder`, then two arcs (each centred on the far side) to the point (mm, y up, ccw). */
+function heaterShield(a: number, top: number, shoulder: number): Poly {
+  const right: Poly = [];
+  for (let i = 0; i <= 24; i++) { const t = (-i / 24) * (Math.PI / 3); right.push([-a + 2 * a * Math.cos(t), shoulder + 2 * a * Math.sin(t)]); }
+  // ccw: along the top to the left, down the left side to the point, up the right side
+  return [[a, top], [-a, top], ...right.map(([x, y]): Pt => [-x, y]), ...right.slice(0, -1).reverse()];
+}
+/** A convex outline (ccw) moved in by `d` (mm), each corner along its bisector. */
+function insetConvex(p: Poly, d: number): Poly {
+  const n = p.length, nrm = (i: number) => { const [x0, y0] = p[i], [x1, y1] = p[(i + 1) % n], l = Math.hypot(x1 - x0, y1 - y0) || 1; return [-(y1 - y0) / l, (x1 - x0) / l]; };
+  return p.map(([x, y], i) => {
+    const [ax, ay] = nrm((i - 1 + n) % n), [bx, by] = nrm(i), mx = ax + bx, my = ay + by, k = d / Math.max(0.35, (mx * ax + my * ay));
+    return [x + mx * k, y + my * k];
+  });
+}
+const shapeOfPoly = (p: Poly, holes: Poly[] = []) => { const sh = new THREE.Shape(v2(p)); sh.holes = holes.map((h) => new THREE.Path(v2(h))); return sh; };
+
+const escudoCache = new Map<string, THREE.Shape[]>();
+/**
+ * Shield back: a fine rim, a heater shield (a band round its field) with two swords crossed behind
+ * it, their hilts out at the bottom corners and their points at the top, and the edition's name
+ * (a collection's token: its catalog's or the collection's) along the bottom. `k` scales the shield
+ * and swords (the «escudete» back: smaller, so a pattern shows round it). Every part at least
+ * PATTERN_MIN wide; the swords stop 0.8 mm short of the shield, worked out on a grid like a pattern.
+ */
+function escudoBack(lib: Library, role: Role, spec: TokenSpec, small = false) {
+  const R = spec.diameter / 2, out = R - 0.7, k = (R / 22.5) * (small ? 0.62 : 1), dy = small ? R * 0.05 : 0;
+  const ed: Edition | null = EDITIONS[role.edition] ?? (role.editionName ? { name: { en: role.editionName } } : null);
+  const name = ed ? (ed.name[spec.lang] || ed.name[spec.lang?.split("-")[0]] || ed.name.en).toUpperCase() : "";
+  const key = [spec.diameter, small, name].join("|");
+  const hit = escudoCache.get(key);
+  if (hit) return hit;
+  const shapes: THREE.Shape[] = [annulus(out, out - 0.6)];
+  // the shield: a band round its field, 0.7 mm of coin between them
+  const a = 7.5 * k, shield = heaterShield(a, 9 * k + dy, 3 * k + dy), band = Math.max(PATTERN_MIN + 0.2, 1.1 * k);
+  const inner = insetConvex(shield, band), field = insetConvex(shield, band + 0.7);
+  shapes.push(shapeOfPoly(shield, [inner.slice().reverse()]), shapeOfPoly(field));
+  // the swords: along u from the pommel's end (rh below the centre) to the point (rt above), behind the shield
+  const rh = 15.4 * k, rt = 19.6 * k, gap = 0.8;
+  const sword = (x: number, y: number, ux: number, uy: number) => {
+    const sx = (x + rh * ux) * ux + (y - dy + rh * uy) * uy, w = -(x) * uy + (y - dy) * ux, aw = Math.abs(w);
+    const pommel = 1.25 * k, grip = 0.7 * k, guardS = 9.05 * k, guardT = 0.7 * k, guardW = 3.7 * k, blade = 1.25 * k, tipL = 3.4 * k, L = rh + rt;
+    const sGuard = rh - guardS;                         // the guard's middle, from the pommel's end
+    let f = pommel - Math.hypot(sx - pommel, w);
+    f = Math.max(f, Math.min(grip - aw, sx - pommel, sGuard - sx));
+    f = Math.max(f, Math.min(guardW - aw, guardT - Math.abs(sx - sGuard)));
+    f = Math.max(f, Math.min(blade - aw, sx - sGuard, L - tipL - sx + 0.01));
+    const tip = L - sx, half = (blade * tip) / tipL;
+    if (sx >= L - tipL) f = Math.max(f, Math.min((half - aw) * (tipL / Math.hypot(tipL, blade)), tip));
+    return f;
+  };
+  const px = PATTERN_GRID, ext = rt + 0.5, x0 = -ext, W = Math.ceil((2 * ext) / px) + 1, H = W, N = W * H;
+  const shieldSet = new Uint8Array(N);
+  rasterise([{ outer: shield, holes: [] }], shieldSet, W, H, x0, x0 + dy, px);
+  const dShield = distanceTransform(shieldSet, W, H);
+  const F = new Float32Array(N), core = new Uint8Array(N), u = Math.SQRT1_2;
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+    const x = x0 + i * px, y = x0 + dy + j * px, kk = j * W + i;
+    const f = Math.min(Math.max(sword(x, y, u, u), sword(x, y, -u, u)), dShield[kk] * px - gap - px);
+    F[kk] = f;
+    if (f > PATTERN_MIN / 2 - px / 2) core[kk] = 1;
+  }
+  openField(F, core, W, H, px);
+  for (const r of traceField(F, W, H, x0, x0 + dy, px)) shapes.push(shapeOfPoly(r.outer, r.holes));
+  // the name, along the bottom inside the rim
+  if (name) {
+    const chars = [...name], cap = Math.min(2.5, R * 0.11), base = out - 0.6 - 0.8;
+    const P = placeName(lib, chars, cap / lib.capHeight, base, 1.1, 120), em = (cap / lib.capHeight) * P.scale;
+    chars.forEach((ch, i) => {
+      if (ch === " ") return;
+      const g = glyph(lib, ch), an = (P.angles[i] * Math.PI) / 180, c = Math.cos(an + Math.PI / 2), sn = Math.sin(an + Math.PI / 2);
+      const move = (pts: THREE.Vector2[]) => pts.map((q) => { const x = (q.x - g.center) * em, y = q.y * em; return new THREE.Vector2(base * Math.cos(an) + x * c - y * sn, base * Math.sin(an) + x * sn + y * c); });
+      for (const sh of g.shapes) { const o = new THREE.Shape(move(sh.getPoints(6))); o.holes = sh.holes.map((hp) => new THREE.Path(move(hp.getPoints(6)))); shapes.push(o); }
+    });
+  }
+  escudoCache.set(key, shapes);
+  if (escudoCache.size > 50) escudoCache.delete(escudoCache.keys().next().value!);
   return shapes;
 }
 
@@ -2254,6 +2393,7 @@ export function tokenSvg(lib: Library, role: Role, input: SpecInput | undefined,
     if (pocket?.kind === "pocket") body += `<circle r="${pocket.radius.toFixed(2)}" fill="#0b090c" opacity=".85"/>`;
     if (ed) body += `<path fill="${c.back}" fill-rule="evenodd" d="${shapesToPath(ed, 0, 0, 48)}"/>`;
     if (spec.back === "medallon") body += `<path fill="${c.back}" fill-rule="evenodd" d="${shapesToPath(medallionBack(lib, role, spec), 0, 0, 48)}"/>`;
+    if (spec.back === "escudo" || spec.back === "escudete") body += `<path fill="${c.back}" fill-rule="evenodd" d="${shapesToPath(escudoBack(lib, role, spec, spec.back === "escudete"), 0, 0, 48)}"/>`;
     const bp = backPattern(lib, role, spec);
     if (bp) body += `<path fill="${c.back}" fill-rule="evenodd" d="${cutPath(bp)}"/>`;
     if (spec.back === "seal" && lib.sealSvg) body += `<g fill="${c.back}" transform="scale(${spec.diameter / TRACE_VIEW}) translate(${-TRACE_VIEW / 2} ${-TRACE_VIEW / 2})">${lib.sealSvg.replace(/^[\s\S]*?<g /, "<g ").replace(/fill="#000000"/, "").replace(/<\/svg>\s*$/, "")}</g>`;

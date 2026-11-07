@@ -3,7 +3,7 @@ import {
   loadLibrary, buildToken, geometryVolume, magnetLayout, MAGNET_SIZES, tokenSvg, roleName, saveFile, reminderSpec, layoutName, nameLetterHeight, SMALL_LETTERS_MM,
   TEAMS, EDITIONS, FRAME_STYLES, BACK_STYLES, TOKEN_STYLES, FILAMENTS, DEFAULT_SPEC, CARD, isCard, ringSize, ringBand, RING_BASES, RING_SEPARATORS,
   SHAPE_FEATURES, shapeOf, shapeSpec, flipFace, FACE_FIELDS, backFaceOf, partColours,
-  normalizeSpec, reliefOf, hasRelief, PATTERNS, patternDefaults, PATTERN_MIN,
+  normalizeSpec, reliefOf, hasRelief, PATTERNS, patternDefaults, patternFilled, PATTERN_MIN,
 } from "./engine/token-engine.ts";
 /** The face parts that can be raised, in the order a back that matches the front lists them. */
 const RELIEF_PARTS: ReliefPart[] = ["text", "frame", "icon"];
@@ -2180,6 +2180,17 @@ function patternSwatch(id: string, bg: string, fg: string, clip: string) {
   const rh = (cx: number, cy: number, k = 1) => `M${cx - (a / 2) * k} ${cy}L${cx} ${cy - (b / 2) * k}L${cx + (a / 2) * k} ${cy}L${cx} ${cy + (b / 2) * k}Z`;
   if (id === "rombos-lineas") for (let m = -3; m <= 3; m++) for (let n = -2; n <= 2; n++) out.push(rh(m * a, n * b), rh(m * a + a / 2, n * b + b / 2));
   if (id === "damero-rombos") for (let m = -3; m <= 3; m++) for (let n = -2; n <= 2; n++) out.push(rh(m * a, n * b, 0.82));
+  if (id === "escamas" || id === "escamas-relleno") {
+    // rows of scales, each a round lower edge, row over row
+    const r = 2.6, arc = (cx: number, cy: number) => `M${cx - r} ${cy}A${r} ${r} 0 0 0 ${cx + r} ${cy}`;
+    for (let n = -5; n <= 5; n++) for (let m = -3; m <= 3; m++) out.push(arc(2 * r * m + (n & 1 ? r : 0), -n * r));
+    return `<svg viewBox="-10 -10 20 20" aria-hidden="true"><defs><clipPath id="${clip}"><circle r="9.2"/></clipPath></defs><circle r="10" fill="${bg}" stroke="rgba(239,230,214,.25)" stroke-width="0.3"/><g clip-path="url(#${clip})"><path d="${out.join("")}" fill="none" stroke="${fg}" stroke-width="${id === "escamas" ? 0.8 : 1.6}"/></g></svg>`;
+  }
+  if (id === "rayas") {
+    // the bend: broad stripes from the top left to the bottom right
+    const stripes = [-3, -2, -1, 0, 1, 2, 3].map((m) => `<rect x="-20" y="${m * 4.6 - 1.4}" width="40" height="2.8"/>`).join("");
+    return `<svg viewBox="-10 -10 20 20" aria-hidden="true"><defs><clipPath id="${clip}"><circle r="9.2"/></clipPath></defs><circle r="10" fill="${bg}" stroke="rgba(239,230,214,.25)" stroke-width="0.3"/><g clip-path="url(#${clip})"><g fill="${fg}" transform="rotate(45)">${stripes}</g></g></svg>`;
+  }
   const body = !out.length ? "" : id === "rombos-lineas" ? `<path d="${out.join("")}" fill="none" stroke="${fg}" stroke-width="0.8"/>` : `<path d="${out.join("")}" fill="${fg}"/>`;
   return `<svg viewBox="-10 -10 20 20" aria-hidden="true"><defs><clipPath id="${clip}"><circle r="9.2"/></clipPath></defs><circle r="10" fill="${bg}" stroke="rgba(239,230,214,.25)" stroke-width="0.3"/><g clip-path="url(#${clip})">${body}</g></svg>`;
 }
@@ -2213,7 +2224,7 @@ function renderPattern(side: PatSide, role: Role, s: TokenSpec) {
     if (document.activeElement !== el) el.value = String(v[k]);
     $(`[data-pat-out=${k}]`, box).textContent = v[k].toFixed(k === "scale" ? 1 : 2).replace(".", dec) + " mm";
   }
-  $("[data-pat-line-label]", box).textContent = t(p.id === "damero-rombos" ? "pattern.gap" : "pattern.line");
+  $("[data-pat-line-label]", box).textContent = t(patternFilled(p.id) ? "pattern.gap" : "pattern.line");
   const colours = $("[data-pat-colour]", box);
   if (colours) colours.innerHTML = (["frame", "front"] as const).map((c) =>
     `<button class="pill group-pill" type="button" data-pat-col="${c}" aria-pressed="${(p.colour ?? "frame") === c}" style="--c: ${pc[c]}"><i></i>${esc(t(`pattern.colour.${c}`))}</button>`).join("");
@@ -2236,8 +2247,10 @@ function changePattern(side: PatSide, change: { id?: string; field?: "scale" | "
 }
 /** A pattern chosen where there was none starts as Midnight Harlequin's. */
 const STARTING_PATTERN: Record<PatSide, Record<PatternSpec["id"], Omit<PatternSpec, "id">>> = {
-  front: { "rombos-lineas": { scale: 5.1, line: 0.6, halo: 0.8, colour: "frame" }, "damero-rombos": { scale: 4.2, line: 0.7, halo: 0.8, colour: "frame" } },
-  back: { "rombos-lineas": { scale: 5.1, line: 0.6, halo: 0.8 }, "damero-rombos": { scale: 4.2, line: 0.7, halo: 0.8 } },
+  front: { "rombos-lineas": { scale: 5.1, line: 0.6, halo: 0.8, colour: "frame" }, "damero-rombos": { scale: 4.2, line: 0.7, halo: 0.8, colour: "frame" },
+    "escamas": { scale: 4.4, line: 0.6, halo: 0.8, colour: "frame" }, "escamas-relleno": { scale: 3.6, line: 0.7, halo: 0.8, colour: "frame" }, "rayas": { scale: 4, line: 1.6, halo: 0.8, colour: "frame" } },
+  back: { "rombos-lineas": { scale: 5.1, line: 0.6, halo: 0.8 }, "damero-rombos": { scale: 4.2, line: 0.7, halo: 0.8 },
+    "escamas": { scale: 4.4, line: 0.6, halo: 0.8 }, "escamas-relleno": { scale: 3.6, line: 0.7, halo: 0.8 }, "rayas": { scale: 4, line: 1.6, halo: 0.8 } },
 };
 
 /** The selected token's other state, if it has one (a reminder, a token of its own, never does). */
@@ -3775,7 +3788,8 @@ function renderTallerHead() {
   if (document.activeElement !== name) name.value = mine.name;
   const uses = usesLine(sh, mine.id);
   $("#tallerUses").textContent = uses; $("#tallerUses").hidden = !uses;
-  if (taller.focusName) { taller.focusName = false; name.focus(); name.select(); }
+  // the new copy's name ready to type over; not on a touch screen, where the keyboard would cover the preview
+  if (taller.focusName) { taller.focusName = false; if (!matchMedia("(hover: none)").matches) { name.focus(); name.select(); } }
 }
 /** A design of yours from a base (a collection's, or Basic) or another of yours: it opens in the editor, to be changed. */
 function tallerCopy(from: DesignEntry, name: string, origin = from.mine ? tallerMine()?.from : { name: from.name, spec: structuredClone(from.spec) }) {
