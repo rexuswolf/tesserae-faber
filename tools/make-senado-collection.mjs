@@ -74,15 +74,15 @@ const styles = {
       help: { es: "De oro, como la moneda de Roma: el icono, el nombre y la corona de laurel en relieve biselado y el canto estriado; al reverso, el escudo y «El Senado» en negro.", en: "Gold, like Rome's coin: the icon, the name and the laurel wreath in bevelled relief and a reeded edge; on the back, the shield and «The Senate» in black." },
       spec: { style: "classic", frame: "laurel", frameWidth: 0.8, back: "escudo", backText: "collection", depth: 0.4, relief: { text: true, frame: true, icon: true }, reliefHeight: 0.8, reliefBevel: 0.3, edge: "reeded", colours: { base: FILAMENTS.gold, front: FILAMENTS.gold, frame: FILAMENTS.gold, back: FILAMENTS.black } } },
   ],
-  // the laws: the card in its side's colour (a marble law, a red decree) with laurels in black; their
-  // back one for every law, black with the laurels and a laurel crown in gold, so the deck drawn
-  // face-down doesn't show which is which. Then the app's.
+  // the laws: every one black (the deck shows nothing face-down or edge-on), the phrase and the
+  // laurels in the side's colour (a marble law, a red decree); their back one for all, the laurels
+  // and a laurel crown in gold. Then the app's.
   card: [
     { id: "ley", name: { es: "Ley del Senado", en: "Senate law" },
-      help: { es: "Del color del bando, la frase y una ramita de laurel en cada esquina en negro; al reverso, igual para todas: negro, con los laureles y una corona de laurel en oro.", en: "In the side's colour, the phrase and a sprig of laurel in each corner in black; on the back, the same for all: black, with the laurels and a laurel crown in gold." },
+      help: { es: "Negra, como todas: la frase y una ramita de laurel en cada esquina del color del bando; al reverso, igual para todas, los laureles y una corona de laurel en oro. Boca abajo o de canto no se distinguen.", en: "Black, like every law: the phrase and a sprig of laurel in each corner in the side's colour; on the back, the same for all, the laurels and a laurel crown in gold. Face-down or edge-on, you can't tell them apart." },
       spec: { frame: "laurel", frameWidth: 0.6, height: 2, depth: 0.4, back: "custom",
         customSvg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">${GI["laurel-crown"].body.replace(/\s(fill)="[^"]*"/g, "")}</svg>`,
-        colours: { base: "team", front: FILAMENTS.black, frame: FILAMENTS.black, back: FILAMENTS.gold, backBase: FILAMENTS.black } } },
+        colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } } },
     ...cardDesigns("laureles", "placa", "contraste"),
   ],
 };

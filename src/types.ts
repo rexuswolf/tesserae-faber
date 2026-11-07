@@ -85,7 +85,7 @@ export interface RoleFlip {
 
 /** A token's shape: a coin, a card (Clocktower's Grimoire) or a condition ring (see SHAPE_FEATURES). */
 export type TokenShape = "coin" | "card" | "ring" | "base";
-export type TokenStyle = "classic" | "window" | "solo" | "double";
+export type TokenStyle = "classic" | "window" | "solo" | "double" | "text";
 /** A coin's side edge. */
 export type CoinEdge = "smooth" | "reeded" | "segmented";
 export type MagnetKind = "none" | "pocket" | "hidden";

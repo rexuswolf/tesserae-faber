@@ -480,7 +480,7 @@ function renderRelief(slot: HTMLElement, shape: TokenShape, side: Side, f: Token
   if (!parts.length) { slot.innerHTML = ""; return; }
   const relief = reliefOf(f), raised = parts.some((k) => relief[k]);
   // no name in the solo layout: nothing to raise
-  const off = (k: ReliefPart) => k === "text" && shape === "coin" && f.style === "solo";
+  const off = (k: ReliefPart) => shape === "coin" && ((k === "text" && f.style === "solo") || (k === "icon" && f.style === "text"));
   const row = (k: ReliefPart) => `<div class="relief-el"><span><b>${esc(which === "all" ? t(`relief.${k}`) : t("relief.title"))}</b><small>${esc(shapeText(`relief.${k}.help`, shape))}</small></span><span class="seg2" role="group" aria-label="${esc(t(`relief.${k}`))}" data-relief="${k}" data-side="${side}"><button type="button" data-v="flat" aria-pressed="${!relief[k]}"${off(k) ? " disabled" : ""}>${esc(t("relief.flat"))}</button><button type="button" data-v="raised" aria-pressed="${relief[k]}"${off(k) ? " disabled" : ""}>${esc(t("relief.raised"))}</button></span></div>`;
   const ask = state.reliefAsk && state.reliefAsk.side === side && parts.includes(state.reliefAsk.part)
     ? `<p class="hint warn relief-ask">${esc(t(side === "front" ? "relief.askBack" : "relief.askFront"))} <button class="pill" type="button" data-relief-swap>${esc(t(side === "front" ? "relief.flattenBack" : "relief.flattenFront"))}</button></p>` : "";
@@ -530,9 +530,9 @@ export function syncControls(role: Role, spec: TokenSpec, token: Token) {
   textSize.max = shape === "ring" ? String(Math.floor(ringBand(face).band * 10) / 10) : "6";
   if (shape === "ring") $("output[data-for=textSize]").textContent = (Math.min(face.textSize, +textSize.max)).toFixed(1).replace(".", dec) + " mm";
   const coinStyle = (st: TokenStyle) => shape === "coin" && face.style === st;
-  row("textSize").hidden = !f.textSize || coinStyle("solo");
+  row("textSize").hidden = !f.textSize || coinStyle("solo") || coinStyle("text");
   row("spacing").hidden = !f.spacing || coinStyle("window") || coinStyle("solo");
-  row("maxArc").hidden = !f.maxArc || coinStyle("window") || coinStyle("solo");
+  row("maxArc").hidden = !f.maxArc || coinStyle("window") || coinStyle("solo") || coinStyle("text");
   // The window's front is the window itself; its icon takes the coin's colour. A card's or a
   // ring's front is only its name.
   $("#frontColourLabel").textContent = shape === "coin" ? t(face.style === "window" ? "front.colourWindow" : "front.colour") : t("front.colourName");

@@ -123,7 +123,7 @@ export const FILAMENTS = {
  *  over the top half with the icon on it, the name straight and large below), "solo" (the
  *  icon alone, as large as the coin allows) and "double" (the name along the bottom and again
  *  along the top, turned round, so it reads right way up from both sides of the table). */
-export const TOKEN_STYLES: { id: TokenStyle }[] = [{ id: "classic" }, { id: "window" }, { id: "solo" }, { id: "double" }];
+export const TOKEN_STYLES: { id: TokenStyle }[] = [{ id: "classic" }, { id: "window" }, { id: "solo" }, { id: "double" }, { id: "text" }];
 
 export const DEFAULT_SPEC: TokenSpec = {
   style: "classic",
@@ -362,6 +362,28 @@ function frameInner(spec: TokenSpec) {
   return frameDesign(spec)?.inner ?? spec.diameter / 2;
 }
 
+/** The tallest letters of the "text" layout (mm): a "+1" doesn't fill the whole coin. */
+const TEXT_MAX_CAP = 12, TEXT_PITCH = 1.35;
+/**
+ * The "text" layout: the token's words in the middle, straight, in one line or two (split where
+ * the letters come out largest), as large as fits inside the frame; no icon. Baselines y up.
+ */
+export function textLayout(lib: Library, text: string | null | undefined, spec: TokenSpec) {
+  const words = (text || "").toUpperCase().trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return { em: 0, cap: 0, lines: [] as { text: string; y: number }[] };
+  const r = frameInner(spec) - 2, width = (line: string) => { const b = boundsOf(textShapes(lib, line, 1)); return b.max.x - b.min.x; };
+  const options = [[words.join(" ")], ...words.slice(1).map((_, i) => [words.slice(0, i + 1).join(" "), words.slice(i + 1).join(" ")])];
+  let best: { em: number; lines: string[] } | null = null;
+  for (const lines of options) {
+    // the block's corners on the circle: width × height at size 1, scaled to fit
+    const w = Math.max(...lines.map(width)), h = lib.capHeight * (1 + (lines.length - 1) * TEXT_PITCH);
+    const em = Math.min((2 * r) / Math.hypot(w, h), TEXT_MAX_CAP / lib.capHeight);
+    if (!best || em > best.em * 1.02) best = { em, lines };
+  }
+  const cap = best!.em * lib.capHeight, total = cap + (best!.lines.length - 1) * TEXT_PITCH * cap;
+  return { em: best!.em, cap, lines: best!.lines.map((l, i) => ({ text: l, y: total / 2 - cap - i * TEXT_PITCH * cap })) };
+}
+
 /** Where each letter of the curved name goes; shared by 3D and 2D renderers. */
 export function layoutName(lib: Library, text: string | null | undefined, spec: TokenSpec) {
   const chars = [...(text || "").toUpperCase()];
@@ -534,7 +556,7 @@ const NAME_GAP = 1.2, EDGE_GAP = 1.5;
 
 /** The name as laid out for this design: once, twice (the "double" arcs are narrower), or none. */
 function arcName(lib: Library, text: string, spec: TokenSpec) {
-  if (spec.style === "solo") return null;
+  if (spec.style === "solo" || spec.style === "text") return null;
   return layoutName(lib, text, spec.style === "double" ? { ...spec, maxArc: Math.min(spec.maxArc, DOUBLE_ARC) } : spec);
 }
 /** The turns the name is drawn at (radians): the "double" layout repeats it upside down. */
@@ -683,6 +705,12 @@ const partZ = (spec: TokenSpec, part: ReliefPart, face: Face) => (face.bottom ? 
 
 function buildFront(lib: Library, role: Role, text: string, spec: TokenSpec, face = topFace(spec)) {
   const top = partZ(spec, "text", face), iconZ = partZ(spec, "icon", face);
+  if (spec.style === "text") {
+    // the words alone, straight, in the middle
+    const TL = textLayout(lib, text, spec);
+    const letters = TL.lines.map((line) => { const shapes = textShapes(lib, line.text, TL.em), box = boundsOf(shapes); return partExtrude(shapes, spec, "text", face, onFace(face, T(-(box.min.x + box.max.x) / 2, line.y, top)), 4); });
+    return { geom: merge(letters), icon: null, name: { letterHeight: TL.cap || Infinity, scale: 1, total: null, lines: TL.lines.length } };
+  }
   let icon;
   if (fitsIcon(spec)) {
     const f = fittedIcon(lib, role, spec, text);
@@ -1657,6 +1685,13 @@ const ringsOf = (shapes: THREE.Shape[], m: (x: number, y: number) => Pt = (x, y)
 
 /** What the front draws over its pattern: the name (each, if twice) and the frame, and the icon as a silhouette (mm). */
 function frontInk(lib: Library, role: Role, spec: TokenSpec, text: string): { ink: Ring[]; solid: Ring[] } {
+  if (spec.style === "text") {
+    const TL = textLayout(lib, text, spec), ink: Ring[] = [];
+    for (const line of TL.lines) { const shapes = textShapes(lib, line.text, TL.em), box = boundsOf(shapes), dx = -(box.min.x + box.max.x) / 2; ink.push(...ringsOf(shapes, (x, y) => [x + dx, y + line.y], 6)); }
+    const fd = frameDesign(spec);
+    if (fd) ink.push(...ringsOf(fd.shapes, undefined, 24));
+    return { ink, solid: [] };
+  }
   const shapes = iconShapes(lib, role, spec), ink: Ring[] = [];
   const solid = fitsIcon(spec)
     ? ((f) => ringsOf(shapes, (x, y) => [(x - f.cx) * f.k, -(y - f.cy) * f.k + f.dy], 4))(fittedIcon(lib, role, spec, text))
@@ -2086,6 +2121,7 @@ export function nameLetterHeight(lib: Library, input: SpecInput, text: string, r
   if (isBase(role)) return baseLayout(lib, text, baseSpec(input)).cap;
   const spec = windowFrame({ ...DEFAULT_SPEC, ...input, colours: { ...DEFAULT_SPEC.colours, ...input?.colours } });
   const front = spec.style === "window" ? windowLayout(lib, text, spec).cap
+    : spec.style === "text" ? textLayout(lib, text, spec).cap || Infinity
     : arcName(lib, text, spec)?.letterHeight ?? Infinity;   // "solo" has no name to be too small
   // a two-state token's smaller name, of its two
   const other = flipFace(role, spec);
@@ -2231,6 +2267,8 @@ let cardBacks: string[] | null = null;
  *  built round the collection's words, the edition's or the seal) and an uploaded SVG. */
 export const CARD_BACKS = { includes: (id: string) => (cardBacks ??= BACK_STYLES.map((b) => b.id).filter((id) => id === "none" || id === "custom" || !!backDesign(id, CARD_EMBLEM_R))).includes(id) };
 const CARD_EMBLEM_R = 19, CARD_ICON_R = 13;
+/** How far in from the edge a card's face plate starts when the card is its back's colour (mm). */
+const CARD_FACE_INSET = 0.6;
 /** The back's design as shapes, each with the matrix that places it (seen from the back). */
 function cardBackInk(spec: TokenSpec): { shapes: THREE.Shape[]; m: THREE.Matrix4 }[] {
   if (spec.back === "none") return [];
@@ -2263,9 +2301,15 @@ function buildCard(lib: Library, role: Role, input: SpecInput | undefined, text?
   const mirror = S(-1, 1, 1), plate = cardBackBase(spec);
   const ink = merge(cardBackInk(spec).map(({ shapes, m }) => extrude(shapes, d, chain(mirror, m), 16)));
   const team = role.colour ?? TEAMS[role.team].colour, pick = (v: ColourRef): Hex => (v === "team" ? team : v);
+  // A back of its own colour makes the whole card that colour (its edges too: a deck shows nothing
+  // from the side) and the face a plate of the card's colour, CARD_FACE_INSET in from the edge.
+  const full = () => roundedRect(CARD.w, CARD.h, CARD.r), faceRect = () => roundedRect(CARD.w - 2 * CARD_FACE_INSET, CARD.h - 2 * CARD_FACE_INSET, CARD.r - CARD_FACE_INSET);
+  const rim = () => { const s = full(); s.holes.push(faceRect()); return s; };
   return {
-    parts: { base: extrude([roundedRect(CARD.w, CARD.h, CARD.r)], H, T(0, 0, 0), 16), front: merge(letters), frame: frame ? extrude(frame, d, T(0, 0, H - d), 16) : null,
-      back: plate ? extrude([roundedRect(CARD.w, CARD.h, CARD.r)], d, T(0, 0, 0), 16) : null, backIcon: ink },
+    parts: {
+      base: plate ? extrude([faceRect()], d, T(0, 0, H - d), 16) : extrude([full()], H, T(0, 0, 0), 16),
+      front: merge(letters), frame: frame ? extrude(frame, d, T(0, 0, H - d), 16) : null,
+      back: plate ? merge([extrude([full()], H - d, T(0, 0, 0), 16), extrude([rim()], d, T(0, 0, H - d), 16)]) : null, backIcon: ink },
     colours: { ...partColours(role, spec), back: pick(plate ?? spec.colours.base), backIcon: pick(spec.colours.back), hole: "#0b090c" },
     name: { letterHeight: L.cap, scale: 1, total: null, lines: L.lines.length },
     spec, magnet: null, depthClamped: null, card: true, foot: { w: CARD.w, h: CARD.h },
@@ -2277,6 +2321,11 @@ function cardSvg(lib: Library, role: Role, input: SpecInput | undefined, side: "
   const c = partColours(role, spec), label = text ?? roleName(role, spec.lang);
   const { w, h, r } = CARD;
   let body = "";
+  const facePlate = cardBackBase(spec);
+  if (side === "front" && facePlate) {
+    const team = role.colour ?? TEAMS[role.team].colour, pick = (v: ColourRef): Hex => (v === "team" ? team : v), i = CARD_FACE_INSET;
+    body += `<rect x="${-w / 2}" y="${-h / 2}" width="${w}" height="${h}" rx="${r}" fill="${pick(facePlate)}"/><rect x="${-w / 2 + i}" y="${-h / 2 + i}" width="${w - 2 * i}" height="${h - 2 * i}" rx="${r - i}" fill="${c.base}"/>`;
+  }
   if (side === "front") {
     const L = cardLayout(lib, label, spec);
     for (const line of L.lines) {
@@ -2874,8 +2923,12 @@ export function tokenSvg(lib: Library, role: Role, input: SpecInput | undefined,
     body += up("text", name);
     if (spec.frame !== "none") body += up("frame", `<circle r="${(faceRadius(spec) - FRAME_INSET - spec.frameWidth / 2).toFixed(2)}" fill="none" stroke="${c.frame}" stroke-width="${spec.frameWidth}"/>`);
   } else if (side === "front") {
-    const icon = iconOf(role, spec);
-    if (fitsIcon(spec)) {
+    const icon = spec.style === "text" ? null : iconOf(role, spec);
+    if (spec.style === "text" || !icon) {
+      // the words alone, straight, in the middle
+      const TL = textLayout(lib, label, spec);
+      body += up("text", TL.lines.map((line) => { const shapes = textShapes(lib, line.text, TL.em), box = boundsOf(shapes); return `<path fill="${c.front}" fill-rule="evenodd" d="${shapesToPath(shapes, -(box.min.x + box.max.x) / 2, line.y)}"/>`; }).join(""));
+    } else if (fitsIcon(spec)) {
       const f = fittedIcon(lib, role, spec, label);
       body += up("icon", `<g fill="${c.front}" transform="${f.dy ? `translate(0 ${(-f.dy).toFixed(3)}) ` : ""}scale(${f.k.toFixed(5)}) translate(${(-f.cx).toFixed(3)} ${(-f.cy).toFixed(3)})"><g transform="${icon.g}">${icon.body}</g></g>`);
     } else {

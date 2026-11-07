@@ -14,7 +14,7 @@ import { BOTC_STYLES } from "../botc-styles.ts";
 /** The face parts that can be raised, in the order a back that matches the front lists them. */
 export const RELIEF_PARTS: ReliefPart[] = ["text", "frame", "icon"];
 /** Each layout's name size (mm): the arcs' run along the edge, the window's has the lower half. */
-export const LAYOUT_TEXT: Record<TokenStyle, number> = { classic: DEFAULT_SPEC.textSize, window: 6, solo: DEFAULT_SPEC.textSize, double: DEFAULT_SPEC.textSize };
+export const LAYOUT_TEXT: Record<TokenStyle, number> = { classic: DEFAULT_SPEC.textSize, window: 6, solo: DEFAULT_SPEC.textSize, double: DEFAULT_SPEC.textSize , text: DEFAULT_SPEC.textSize};
 
 /** The first element matching `s`: the app's own markup, so it's there. */
 export const $ = <T extends HTMLElement = HTMLElement>(s: string, el: ParentNode = document) => el.querySelector(s) as T;
