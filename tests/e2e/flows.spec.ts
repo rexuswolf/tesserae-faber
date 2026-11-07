@@ -169,11 +169,10 @@ test("cards with a back: the Senate's laws to the Bambu project and the paper, b
     const file = await download;
     expect(file.suggestedFilename()).toMatch(ext);
     if (way === "3d") {
-      // each law carries its back: the plate and the design under it
+      // each law carries its back design, under it (the laws are all one colour: no plate of another)
       const zip = await (await import("jszip")).default.loadAsync(await (await import("node:fs/promises")).readFile((await file.path())!));
       const config = await zip.file("Metadata/model_settings.config")!.async("string");
-      expect(config).toContain('value="back"');
-      expect(config).toContain('value="backIcon"');
+      expect(config.match(/value="backIcon"/g)?.length).toBe(2);
     }
   }
   expect(errors).toEqual([]);
