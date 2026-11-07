@@ -1215,6 +1215,8 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 .tv-rest svg { display: block; width: 62px; height: 62px; }
 .tv-rest span.r svg { width: 46px; height: 46px; }
 .tv-rest.cards svg { width: 96px; }
+/* a card (no back) shows its first sample as large as a coin's front and back together */
+.tv-hero:has(+ .tv-rest.cards) svg { width: 260px; height: auto; }
 .tl-sec { margin-top: 22px; }
 .tl-sec h3 { margin: 0 0 10px; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; font-size: 12.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--dust); }
 .tl-sec h3 small { font-size: 12.5px; font-weight: 400; letter-spacing: 0; text-transform: none; }
@@ -1294,7 +1296,8 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
   .taller-title { font-size: 20px; }
   .taller-back { padding-right: 6px; }
   .tm-preview { top: -10px; margin: -10px -16px 0; padding: 8px 16px; gap: 6px 10px; }
-  .tv-hero svg { width: 76px; height: 76px; }
+  .tv-hero svg { width: 128px; height: 128px; }
+  .tv-hero:has(+ .tv-rest.cards) svg, .tv-hero:only-child svg { width: min(230px, 60vw); height: auto; }
   .tv-rest svg { width: 44px; height: 44px; }
   .tv-rest span.r svg { width: 36px; height: 36px; }
   .tv-rest.cards svg { width: 64px; }
