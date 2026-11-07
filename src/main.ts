@@ -175,15 +175,11 @@ function keepGateLook() {
 // collection, where you may be designing, offers to reload instead.
 if ("serviceWorker" in navigator && import.meta.env.PROD) {
   const hadOne = !!navigator.serviceWorker.controller;   // the first install brings nothing new
-  void navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => {});
-  navigator.serviceWorker.addEventListener("controllerchange", () => {
-    if (!hadOne) return;
-    if (OWN && OWN_VIEW !== "collection") { location.reload(); return; }
-    const b = document.createElement("button");
-    b.type = "button"; b.className = "update-note"; b.textContent = t("app.updated");
-    b.onclick = () => location.reload();
-    document.body.append(b);
-  });
+  const reg = navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => undefined);
+  // a phone keeps the tab alive for days: look for a new version whenever the app comes back to the front
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") void reg.then((r) => r?.update().catch(() => {})); });
+  // a new version took over: everything you do is kept as you do it, so load it straight away
+  navigator.serviceWorker.addEventListener("controllerchange", () => { if (hadOne) location.reload(); });
 }
 window.addEventListener("vite:preloadError", (e) => {
   if (sessionStorage.getItem("mm-reloaded")) return;   // don't loop if it really is broken
@@ -1894,7 +1890,15 @@ function renderDesignSheet() {
   };
   const tag = t(tokenMode ? "design.defaultItem" : "bar.originalTag");
   const card = ({ d, pick, first, on }: Item) => `<button class="dz-card" type="button" data-dz-pick="${esc(pick)}" aria-pressed="${on}">`
-    + `<span class="dz-tok">${tokenSvg(state.lib!, role, specWith(applyLook(d.spec, look), key, reminder != null), { text })}${first ? `<i class="dz-badge">${esc(tag)}</i>` : ""}</span>`
+    + (() => {
+      // the front, and beside it the back (what it shows when turned over), each named
+      const spec = specWith(applyLook(d.spec, look), key, reminder != null), front = tokenSvg(state.lib!, role, spec, { text });
+      const backs = SHAPE_FEATURES[shapeOf(role)].back && reminder == null && spec.back !== "none";
+      const badge = first ? `<i class="dz-badge">${esc(tag)}</i>` : "";
+      if (!backs) return `<span class="dz-tok">${front}${badge}</span>`;
+      return `<span class="dz-pair"><figure class="dz-tok">${front}<figcaption>${esc(t("part.front"))}</figcaption>${badge}</figure>`
+        + `<figure class="dz-tok dz-back">${tokenSvg(state.lib!, role, spec, { side: "back" })}<figcaption>${esc(t("part.back"))}</figcaption></figure></span>`;
+    })()
     + `<b>${esc(d.name)}</b>${help(d) ? `<small>${esc(help(d))}</small>` : ""}</button>`;
   // the collection's tab: its own under its name (when it has any), then the app's under Tesserae Faber
   const head = (name: string) => `<h3 class="dz-sec">${esc(name)}</h3>`;
@@ -3708,7 +3712,7 @@ function renderTallerBases() {
   const more = (spec: TokenSpec) => `<span class="tw-more">${taller.samples[sh].slice(1, sh === "card" ? 3 : 4).map((k) => tallerPic(k, spec)).join("")}${SHAPE_FEATURES[sh].back ? tallerPic(taller.samples[sh][0], spec, "back") : ""}</span>`;
   const row = (g: TallerGroup, i: number, def: StyleDef) => {
     const d = tallerBase(sh, `g${i}:${def.id}`)!, on = d.ref === pick.ref;
-    return `<button class="tw-opt" type="button" role="radio" aria-checked="${on}" data-tw-pick="${esc(d.ref)}">${designSwatch(d.spec, role)}<span class="tw-ot"><b>${esc(d.name)}${g.kind === "blank" ? ` <span class="tw-tag">${esc(t("taller.blankTag"))}</span>` : ""}</b>${d.help ? `<small>${esc(d.help)}</small>` : ""}</span><span class="rad" aria-hidden="true"></span>${on ? more(d.spec) : ""}</button>`;
+    return `<button class="tw-opt" type="button" role="radio" aria-checked="${on}" data-tw-pick="${esc(d.ref)}"><span class="tw-sw">${designSwatch(d.spec, role)}${SHAPE_FEATURES[sh].back && filled(d.spec).back !== "none" ? `<span class="tw-swb">${tokenSvg(state.lib!, role, { ...filled(d.spec), lang: tokenLang(), icon: ownIcon(role.id), diameter: 45 }, { side: "back" })}</span>` : ""}</span><span class="tw-ot"><b>${esc(d.name)}${g.kind === "blank" ? ` <span class="tw-tag">${esc(t("taller.blankTag"))}</span>` : ""}</b>${d.help ? `<small>${esc(d.help)}</small>` : ""}</span><span class="rad" aria-hidden="true"></span>${on ? more(d.spec) : ""}</button>`;
   };
   const label = (g: TallerGroup) => (g.kind === "blank" ? t("taller.blankGroup") : g.kind === "app" ? g.name : t("taller.of", { name: g.name }));
   const note = (g: TallerGroup) => (g.kind === "blank" ? t("taller.blankNote") : g.kind === "from" ? t("taller.fromNote") : g.kind === "app" ? t("taller.appNote") : "");
