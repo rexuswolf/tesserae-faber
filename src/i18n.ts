@@ -410,6 +410,7 @@ const STR: Record<string, Record<string, Entry>> = {
     "admin.logosUploaded": ({ n }) => `Subidos ${n} logos. Recargando…`,
     // gate
     "gate.signIn": "Entrar con Google",
+    "app.github": "El código, en GitHub",
     "botc.lockedTitle": "Colección privada",
     "botc.lockedText": "Blood on the Clocktower está cerrada mientras esperamos el permiso de The Pandemonium Institute. Si tienes la clave, escríbela.",
     "botc.keyPlaceholder": "Clave",
@@ -1256,6 +1257,7 @@ const STR: Record<string, Record<string, Entry>> = {
     "admin.uploadLogos": "Upload edition logos",
     "admin.logosUploaded": ({ n }) => `Uploaded ${n} logos. Reloading…`,
     "gate.signIn": "Sign in with Google",
+    "app.github": "The code, on GitHub",
     "botc.lockedTitle": "Private collection",
     "botc.lockedText": "Blood on the Clocktower is closed while we wait for The Pandemonium Institute's permission. If you have the key, type it here.",
     "botc.keyPlaceholder": "Key",

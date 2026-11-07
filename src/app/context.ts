@@ -35,7 +35,7 @@ export const MAX_SVG = 300000;
 // The source code. Its links (sidebar footer and credits) stay hidden while the repository
 // is private, so nobody lands on GitHub's 404: set REPO_PUBLIC to true once it is published.
 export const REPO_URL = "https://github.com/rexuswolf/tesserae-faber";
-export const REPO_PUBLIC = false;
+export const REPO_PUBLIC = true;
 export const QUEUE_KEY = "midnight-mint-queue";   // the old print queue, read once to carry it over
 // Tesserae Faber keeps each collection's own queue, style and designs, apart from Clocktower's.
 const KEYS = OWN ? `midnight-mint-own-${OWN_ID ?? "none"}-` : "midnight-mint-";   // each collection its own
