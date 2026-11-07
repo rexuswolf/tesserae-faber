@@ -7,3 +7,5 @@ dist
 # Firestore (invite-only), never in the public site or the repo.
 admin-data/
 .claude/
+test-results/
+playwright-report/

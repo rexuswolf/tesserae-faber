@@ -1,6 +1,6 @@
 import { handingOver } from "./handoff.ts";   // first: a browser arriving from midnight-mint.web.app brings its keepings
 import {
-  loadLibrary, buildToken, geometryVolume, magnetLayout, MAGNET_SIZES, tokenSvg, roleName, saveFile, reminderSpec, layoutName, nameLetterHeight, SMALL_LETTERS_MM,
+  loadLibrary, buildToken, geometryVolume, magnetLayout, MAGNET_SIZES, tokenSvg, roleName, saveFile, reminderSpec, nameLetterHeight, SMALL_LETTERS_MM,
   TEAMS, EDITIONS, FRAME_STYLES, BACK_STYLES, TOKEN_STYLES, FILAMENTS, DEFAULT_SPEC, CARD, isCard, ringSize, ringBand, RING_BASES, RING_SEPARATORS,
   SHAPE_FEATURES, shapeOf, shapeSpec, flipFace, FACE_FIELDS, backFaceOf, partColours,
   normalizeSpec, reliefOf, hasRelief, PATTERNS, patternDefaults, patternFilled, patternFixed, PATTERN_MIN,
@@ -23,7 +23,7 @@ import { BOTC_STYLES } from "./botc-styles.ts";
 import { OWN, OWN_ID, OWN_VIEW, LIST_URL, tallerUrl, builtInStyles, basicStyles, lastCollection, rememberCollection, collectionUrl, openUrl, listCollections, addCollection, deleteCollection, starterCollection, builtInCollections, MODE, loadCollection, storeCollection, collectionRoles, collectionFile, readCollectionFile, readTokenList, SHAPES, tokenRole as ownRole, readBuiltIn, copyBuiltIn, GROUP_COLOURS, newId, nameIn, withName, catalogsOf, isLocked, THEMES, THEME_FONTS, okLogo, hasCcc, builtIn, APP_LOGO, APP_LOGO_SMALL, APP_ICON, APP_NAME, stylesOf, ownStylesOf, appDesigns, knownStylesOf } from "./collection.ts";
 import { appTwin } from "./shape-designs.ts";
 import type { StyleDef, CollectionStyles, Collection, OwnToken, OwnCatalog, OwnSection, OwnTheme, CollectionEntry } from "./collection.ts";
-import { loadScripts, storeScripts, saveScript, scriptLink, readLink, scriptJson, idKey as scriptKey } from "./scripts.ts";
+import { loadScripts, storeScripts, saveScript, scriptLink, readLink, idKey as scriptKey } from "./scripts.ts";
 import type { HomebrewEntry, NewScript, Script, ScriptJsonEntry } from "./scripts.ts";
 import type { Translation } from "./translations.ts";
 import type { InlayPart } from "./colour-checks.ts";
@@ -292,7 +292,6 @@ function lookDiff(a: SpecInput, b: SpecInput): string[] {
   return out;
 }
 /** Two looks that are the same, field by field. */
-const sameLook = (a: SpecInput, b: SpecInput) => !lookDiff(a, b).length;
 /**
  * What of a look prints on a shape: its fields filled in, but for what the shape hasn't
  * (SHAPE_FEATURES: a coin's ring base and mark between names; a ring's or card's magnet and back)
@@ -978,7 +977,7 @@ $("#tlangTabs").onclick = (e) => {
 $("#tlangList").onclick = (e) => {
   const u = hit(e, "[data-ui]"), g = hit(e, "[data-group]"), b = hit(e, "[data-id]");
   if (u) { setLang(u.dataset.ui!); $(`#tlangList [data-ui="${CSS.escape(uiLang())}"]`).focus(); return; }
-  if (g) { const n = g.dataset.group!; tl.open.has(n) ? tl.open.delete(n) : tl.open.add(n); drawLangDialog(); $(`#tlangList [data-group="${CSS.escape(n)}"]`).focus(); return; }
+  if (g) { const n = g.dataset.group!; if (tl.open.has(n)) tl.open.delete(n); else tl.open.add(n); drawLangDialog(); $(`#tlangList [data-group="${CSS.escape(n)}"]`).focus(); return; }
   if (b) { tl.pick = b.dataset.id!; drawLangDialog(); $(`#tlangList [data-id="${CSS.escape(tl.pick)}"]`).focus(); }
 };
 // Pointing at a language previews it without choosing.
@@ -2627,7 +2626,7 @@ function wire() {
     if (pen) { editToken(pen.dataset.edit!); return; }
     if (onCopyStep(e)) return;
     const fold = hit(e, "[data-rems-fold]");
-    if (fold) { const k = fold.dataset.remsFold!; openRows.has(k) ? openRows.delete(k) : openRows.add(k); renderSheet(); $(`[data-rems-fold="${CSS.escape(k)}"]`)?.focus(); return; }
+    if (fold) { const k = fold.dataset.remsFold!; if (openRows.has(k)) openRows.delete(k); else openRows.add(k); renderSheet(); $(`[data-rems-fold="${CSS.escape(k)}"]`)?.focus(); return; }
     const pick = hit(e, "[data-pick]"), team = hit(e, "[data-pick-team]");
     if (pick) { toggleCharacter(pick.dataset.pick!); return; }
     // a reminder chip: all its reminders in, or (when they're all in already) all out
@@ -3112,7 +3111,7 @@ function renderQueueList() {
 
 function renderDesignStage() {
   // the coins on the side the 3D view shows: from behind when it's turned over
-  const keys = sortKeys(state.pick.keys()), total = queueNow().length, side = state.view === "back" ? "back" : "front";
+  const keys = sortKeys(state.pick.keys()), side = state.view === "back" ? "back" : "front";
   $("#designGrid").innerHTML = keys.map((k) => {
     const role = tokenRole(k), ri = tokenRem(k), text = textFor(k, role, ri);
     const spec = specFor(k, ri != null);

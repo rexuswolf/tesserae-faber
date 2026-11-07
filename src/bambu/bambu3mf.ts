@@ -56,7 +56,8 @@ function meshOf(geom: BufferGeometry, height: number, faceDown: boolean) {
     return -1;
   };
   const vid = (i: number) => {
-    let x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+    const x = pos.getX(i);
+    let y = pos.getY(i), z = pos.getZ(i);
     if (faceDown) { y = -y; z = height - z; }       // 180° about X, sitting on the plate
     const cx = Math.round(x / WELD), cy = Math.round(y / WELD), cz = Math.round(z / WELD);
     let id = near(cx, cy, cz, x, y, z);

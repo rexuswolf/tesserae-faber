@@ -27,7 +27,6 @@ import type {
 export { THREE };
 
 const TRACE_VIEW = 127.559055; // potrace viewBox; traced to a 45 mm square
-const TRACE_MM = 45;
 
 export const TEAMS: Record<Team, { label: Record<string, string>; colour: Hex; file: string }> = {
   townsfolk: { label: { en: "Townsfolk", es: "Aldeanos" }, colour: "#2f86e0", file: "blue" },
@@ -284,7 +283,7 @@ const S = (x: number, y: number, z: number) => M().makeScale(x, y, z);
 const RZ = (a: number) => M().makeRotationZ(a);
 const chain = (...ms: THREE.Matrix4[]) => ms.reduce((acc, m) => acc.multiply(m), M());
 
-function circleShape(r: number, segments = 96) {
+function circleShape(r: number) {
   const s = new THREE.Shape();
   s.absarc(0, 0, r, 0, Math.PI * 2, false);
   return s;
@@ -347,7 +346,6 @@ function inkRange(lib: Library, chars: string[], angles: number[], radius: numbe
   let lo = Infinity, hi = -Infinity;
   chars.forEach((ch, i) => {
     if (ch === " ") return;
-    const a = (angles[i] * Math.PI) / 180, ux = Math.cos(a), uy = Math.sin(a);   // outward
     for (const [x, y] of glyphPoints(lib, ch)) {
       // along the circle: x·tangent (towards larger angles); towards the centre: y
       const t = x * em, r = radius - y * em;
@@ -1085,7 +1083,8 @@ export function frameDesign(spec: TokenSpec): { shapes: THREE.Shape[]; inner: nu
 function makeFrameDesign(spec: TokenSpec): { shapes: THREE.Shape[]; inner: number } | null {
   const w = spec.frameWidth, out = faceRadius(spec) - FRAME_INSET, edge = out - w;
   const rim = edgeRing(out, edge, coinSegments());
-  let sh: THREE.Shape[] = [rim], inner = edge;
+  const sh: THREE.Shape[] = [rim];
+  let inner = edge;
   switch (spec.frame) {
     case "none": return null;
     case "rim": break;
@@ -2121,7 +2120,7 @@ function roundedRect(w: number, h: number, r: number) {
 }
 
 /** The phrase in up to 3 balanced lines, at the biggest letters that fit inside the padding. */
-export function cardLayout(lib: Library, text: string | null | undefined, spec: TokenSpec) {
+export function cardLayout(lib: Library, text: string | null | undefined, _spec: TokenSpec) {
   const words = (text || "").toUpperCase().trim().split(/\s+/).filter(Boolean);
   const width = (line: string) => { const b = boundsOf(lib.font.generateShapes(line, 1)); return b.max.x - b.min.x; };
   const W = CARD.w - 2 * CARD_PAD, H = CARD.h - 2 * CARD_PAD;

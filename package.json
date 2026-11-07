@@ -7,8 +7,12 @@
     "dev": "vite",
     "build": "vite build",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint src tests",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "check": "tsc --noEmit && eslint src tests && vitest run && playwright test",
     "preview": "vite preview",
-    "deploy": "tsc --noEmit && vite build && firebase deploy --project tesserae-faber --only hosting:app,firestore",
+    "deploy": "npm run check && vite build && firebase deploy --project tesserae-faber --only hosting:app,firestore",
     "deploy:legacy": "firebase deploy --project midnight-mint --only hosting:legacy"
   },
   "dependencies": {
@@ -20,12 +24,19 @@
     "three": "^0.160.0"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@iconify-json/game-icons": "^1.2.4",
+    "@playwright/test": "^1.65.0",
     "@types/three": "~0.160.0",
+    "eslint": "^10.14.0",
     "firebase-tools": "^15.34.2",
+    "globals": "^17.14.0",
+    "happy-dom": "^21.0.4",
     "typescript": "~5.9.3",
+    "typescript-eslint": "^8.72.1",
     "vite": "^6.4.5",
-    "vite-plugin-pwa": "^2.0.0"
+    "vite-plugin-pwa": "^2.0.0",
+    "vitest": "^5.1.0"
   },
   "license": "PolyForm-Noncommercial-1.0.0"
 }
