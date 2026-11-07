@@ -36,6 +36,18 @@ export const COIN_DESIGNS = {
     help: { es: "Blanca, con las letras en relieve del color del grupo y el nombre de la colección en negro al reverso.", en: "White, with raised letters in the group colour and the collection's name in black on the back." },
     spec: { style: "classic", frame: "rim", frameWidth: 1.0, back: "edition", depth: 0.4, relief: { text: true, frame: false, icon: false }, reliefHeight: 0.6, colours: { base: white, front: "team", frame: "team", back: black } },
   },
+  // a struck coin: icon, milled frame and name raised in the coin's own metal, a reeded side edge;
+  // one filament, no swaps (the relief reads by its shadow)
+  acunada: {
+    id: "acunada", name: { es: "Moneda acuñada", en: "Struck coin" },
+    help: { es: "Toda de oro, con el icono, el marco acuñado y el nombre en relieve y el canto estriado: un solo filamento.", en: "All gold, with the icon, the milled frame and the name raised and a reeded edge: a single filament." },
+    spec: { style: "classic", frame: "acunado", frameWidth: 0.8, back: "none", depth: 0.4, relief: { text: true, frame: true, icon: true }, reliefHeight: 0.8, edge: "reeded", colours: { base: gold, front: gold, frame: gold, back: gold } },
+  },
+  bicolor: {
+    id: "bicolor", name: { es: "Moneda bicolor", en: "Two-tone coin" },
+    help: { es: "Negra, con el icono, el marco acuñado y el nombre en relieve de oro, el nombre de la colección en oro al reverso y el canto segmentado.", en: "Black, with the icon, the milled frame and the name raised in gold, the collection's name in gold on the back and a segmented edge." },
+    spec: { style: "classic", frame: "acunado", frameWidth: 0.8, back: "edition", depth: 0.4, relief: { text: true, frame: true, icon: true }, reliefHeight: 0.8, edge: "segmented", colours: { base: black, front: gold, frame: gold, back: gold } },
+  },
 } satisfies Record<string, StyleDef>;
 
 /** Ring designs, by id (the app's: Aro de color, Relieve alto, Filos marcados, Exprés). Exprés keeps the id of the old "Fast print" (rapida): what it was chosen for, the quickest. */
