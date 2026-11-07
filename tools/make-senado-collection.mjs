@@ -58,22 +58,14 @@ const tokens = [...SIDES, ...GOVERNMENT, ...VOTE, ...UNREST, ...LAWS];
 const ids = (list) => list.map((t) => t.id);
 
 // The styles it comes with (src/collection.ts StyleDef), per shape; "team" is the token's group
-// colour. Its own three, then the app's (src/shape-designs.ts APP_DESIGNS), offered in every collection.
+// colour. Its own, then the app's (src/shape-designs.ts APP_DESIGNS), offered in every collection.
 const styles = {
   coin: [
-    // the default: black, a laurel wreath round it, icon and name in the group colour; a gold medallion behind
+    // the default: black, a laurel wreath round it, icon and name in the group colour; behind, a laurel
+    // crown in gold, the same on every coin (a role dealt face-down shows nothing)
     { id: "senado", name: { es: "Senado", en: "Senate" },
-      help: { es: "Negra, con una corona de laurel, el icono y el nombre del color del bando; al reverso, un medallón y «El Senado» en oro.", en: "Black, with a laurel wreath, the icon and the name in the side's colour; on the back, a medallion and «The Senate» in gold." },
-      spec: { style: "classic", frame: "laurel", frameWidth: 0.8, back: "medallon", backText: "collection", depth: 0.4, colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } } },
-    // a tessera: grey stone for every coin (a role dealt face-down shows nothing by its edge or back),
-    // its icon and name raised in the side's colour, its rim in black
-    { id: "tesera", name: { es: "Tésera", en: "Tessera" },
-      help: { es: "De piedra gris, igual para todas: el icono y el nombre en relieve del color del bando, el borde en relieve negro; al reverso, un sol en negro. De canto y por detrás no se distinguen.", en: "Grey stone, the same for all: the icon and the name raised in the side's colour, the rim raised in black; on the back, a black sunburst. Edge-on and from behind, you can't tell them apart." },
-      spec: { style: "classic", frame: "rim", frameWidth: 0.8, back: "sol", depth: 0.4, relief: { text: true, frame: true, icon: true }, reliefHeight: 0.6, colours: { base: FILAMENTS.silver, front: "team", frame: FILAMENTS.black, back: FILAMENTS.black } } },
-    // an aureus: struck gold, the laurel raised and bevelled, a reeded edge; the shield and the name in black behind
-    { id: "aureo", name: { es: "Áureo", en: "Aureus" },
-      help: { es: "De oro, como la moneda de Roma: el icono, el nombre y la corona de laurel en relieve biselado y el canto estriado; al reverso, el escudo y «El Senado» en negro.", en: "Gold, like Rome's coin: the icon, the name and the laurel wreath in bevelled relief and a reeded edge; on the back, the shield and «The Senate» in black." },
-      spec: { style: "classic", frame: "laurel", frameWidth: 0.8, back: "escudo", backText: "collection", depth: 0.4, relief: { text: true, frame: true, icon: true }, reliefHeight: 0.8, reliefBevel: 0.3, edge: "reeded", colours: { base: FILAMENTS.gold, front: FILAMENTS.gold, frame: FILAMENTS.gold, back: FILAMENTS.black } } },
+      help: { es: "Negra, con una corona de laurel, el icono y el nombre del color del bando; al reverso, una corona de laurel en oro, igual en todas.", en: "Black, with a laurel wreath, the icon and the name in the side's colour; on the back, a laurel crown in gold, the same on every coin." },
+      spec: { style: "classic", frame: "laurel", frameWidth: 0.8, back: "custom", customSvg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">${GI["laurel-crown"].body.replace(/\s(fill)="[^"]*"/g, "")}</svg>`, depth: 0.4, colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } } },
   ],
   // the laws: every one black (the deck shows nothing face-down or edge-on), the icon, the phrase
   // and the laurels in the side's colour (a marble law, a red decree); their back one for all: the
