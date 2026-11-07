@@ -7,7 +7,7 @@ import { renderSheet, hasOwn, selectToken, ownPen, BIN } from "./sheet.ts";
 import type { QueueEntry, Role, TokenSpec, PlateItem, PlanToken, PartName, Hex, PlatePlan, Volumes, MagnetLayout, Token } from "../types.ts";
 import { lookOf } from "./designs.ts";
 import { tokenLang } from "./token-language.ts";
-import { shapeSpec, reminderSpec, DEFAULT_SPEC, roleName, shapeOf, SHAPE_FEATURES, partColours, backFaceOf, CARD, ringSize, isCard, buildToken, geometryVolume, SMALL_LETTERS_MM, tokenSvg, nameLetterHeight, magnetLayout, saveFile } from "../engine/token-engine.ts";
+import { shapeSpec, reminderSpec, DEFAULT_SPEC, roleName, shapeOf, SHAPE_FEATURES, partColours, backFaceOf, CARD, ringSize, isCard, buildToken, geometryVolume, SMALL_LETTERS_MM, tokenSvg, nameLetterHeight, magnetLayout, saveFile, cardPlan } from "../engine/token-engine.ts";
 import { uiLang, t } from "../i18n.ts";
 import { planPlates, printerOf, nozzleOf, FILAMENT_SLOTS, PRINTERS, NOZZLES } from "../bambu/plates.ts";
 import { layoutCoins, PAGE, backX } from "../pdf/layout.ts";
@@ -99,19 +99,14 @@ export function queuePlan() {
     const hasBack = has.back && spec.back !== "none" && (spec.back !== "custom" || spec.customSvg) && (spec.back !== "seal" || state.lib!.sealSvg) && (spec.back !== "edition" || role.edition);
     // a back that is a face (itemSpec says so) is drawn like a front: its name, icon and frame
     const face = backFaceOf(role, spec, "")?.spec, iconColour = has.icon && spec.style !== "window" ? c.front : c.base;
-    const cardBack = shape === "card" && hasBack, bb = spec.colours.backBase;
-    const plate = cardBack && bb && bb !== spec.colours.base ? partColours(role, { ...spec, colours: { ...spec.colours, front: bb } }).front : null;
     return {
       q, title: queueLabel(q, role), group: queueGroup(q, role),
       token: {
         spec,
         // a card's footprint is its own; a ring takes up its outer diameter but has no body in its hole
         ...(shape === "card" ? { foot: { w: CARD.w, h: CARD.h } } : shape === "ring" ? { hole: 2 * ringSize(spec).inner } : {}),
-        ...(cardBack ? {
-          // a card's back (buildCard): its plate (a colour of its own, when it has one) and its design in the back colour
-          parts: { base: 1, front: 1, icon: null, frame: spec.frame !== "none" ? 1 : null, back: plate ? 1 : null, backIcon: 1, backFrame: null },
-          colours: { base: c.base, front: c.front, icon: c.base, frame: c.frame, back: plate ?? c.base, backIcon: c.back, backFrame: c.frame },
-        } : {
+        // a card's parts as buildCard makes them: its icon, frame and line, and its back's plate, phrase and icon, and frame
+        ...(shape === "card" ? cardPlan(state.lib!, role, spec) : {
           parts: { base: 1, front: 1, icon: has.icon ? 1 : null, frame: spec.frame !== "none" ? 1 : null, back: hasBack ? 1 : null,
             backIcon: face && has.icon ? 1 : null, backFrame: face && face.frame !== "none" ? 1 : null },
           // the window's icon is in the coin colour; the classic one in the name's (on a back face, in the back's)

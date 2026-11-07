@@ -21,7 +21,7 @@ import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import type {
   Role, Team, Hex, CoinEdge, ColourRef, TokenSpec, SpecInput, TokenStyle, Relief, ReliefPart, Library, Glyph,
   PartColours, TokenParts, Token, MagnetLayout, TokenIcon, TokenShape, FaceField, BackFace, RingSeparator, AutoText,
-  PatternId, PatternSpec, PartName,
+  PatternId, PatternSpec, PartName, CardIcon, CardJoin, CardBack,
 } from "../types.ts";
 
 export { THREE };
@@ -151,6 +151,10 @@ export const DEFAULT_SPEC: TokenSpec = {
   customSvg: null,
   ringBase: "25",
   separator: "dot",
+  // a card's: the phrase alone (as cards always were); an icon, when chosen, 30 mm at its side
+  cardIcon: "none",
+  cardIconSize: 30,
+  cardJoin: "spread",
   colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold },
 };
 
@@ -2116,7 +2120,7 @@ export const SMALL_LETTERS_MM = 2.5;
 
 /** How tall the name's letters come out (mm), without building any geometry. */
 export function nameLetterHeight(lib: Library, input: SpecInput, text: string, role: Role | null = null): number {
-  if (isCard(role)) return cardLayout(lib, text, cardSpec(input)).cap;
+  if (isCard(role)) return cardFaceOf(lib, role!, cardSpec(input), "front", text)!.L.cap;
   if (isRing(role)) return ringLayout(lib, text, ringSpec(input)).letterHeight;
   if (isBase(role)) return baseLayout(lib, text, baseSpec(input)).cap;
   const spec = windowFrame({ ...DEFAULT_SPEC, ...input, colours: { ...DEFAULT_SPEC.colours, ...input?.colours } });
@@ -2131,20 +2135,64 @@ export function nameLetterHeight(lib: Library, input: SpecInput, text: string, r
 // ---------------------------------------------------------------- info cards
 
 /**
- * The grimoire's info tokens ("This is the Demon"…) are rounded cards, not coins: a body
- * in the coin colour, the phrase and the set's frame as flush inlays, printed face-down
- * like the classic coins. Roles with kind "info" are drawn this way.
+ * Cards (the grimoire's info tokens, "This is the Demon"…, and a collection's types of shape
+ * "card") are rounded cards, not coins: a body in the card colour, the phrase, the icon and the
+ * frame as flush inlays, printed face-down like the classic coins. Roles with kind "info" are drawn
+ * this way. A face is the phrase alone, or with the token's icon beside it or alone (cardIcon,
+ * cardJoin, cardIconSize: one layout makes them all, cardLayout); its back, when the design has one,
+ * a face of its own laid out the same way (cardBack), the same on every card of the design.
  */
 export const CARD = { w: 85, h: 55, r: 4 };
 const CARD_PAD = 7, CARD_MAX_CAP = 8, CARD_PITCH = 1.6, CARD_FRAME_INSET = 1.2;
+/** The room between a card's icon and its phrase (mm), and the width of the line between them ("column"). */
+const CARD_GAP = 3, CARD_RULE = 0.6;
 export const isCard = (role: Role | null | undefined) => role?.kind === "info";
+/** Where a card's icon goes, and how it sits with the phrase (see CardIcon, CardJoin). */
+export const CARD_ICONS: CardIcon[] = ["none", "left", "right", "only"];
+export const CARD_JOINS: CardJoin[] = ["spread", "column", "together"];
+/** A card icon's size (mm): from what still reads to nearly the card's height inside its padding. */
+export const CARD_ICON_MM = { min: 12, max: 40 };
+const oneOf = <V extends string>(v: unknown, list: readonly V[], or: V): V => (list.includes(v as V) ? (v as V) : or);
+const iconMm = (v: unknown, or: number) => (typeof v === "number" && Number.isFinite(v) ? Math.min(CARD_ICON_MM.max, Math.max(CARD_ICON_MM.min, v)) : or);
+const isColourRef = (v: unknown): v is ColourRef => typeof v === "string" && (v === "team" || /^#[0-9a-f]{6}$/i.test(v));
 
-/** A card's spec: the set's colours, frame, height and depth; no style, back or magnet of its own. */
+/** A card's spec: the set's colours, frame, height and depth, its icon's place and its back; no style, coin back or magnet. */
 export function cardSpec(spec: SpecInput | undefined): TokenSpec {
   const s = { ...DEFAULT_SPEC, ...spec, colours: { ...DEFAULT_SPEC.colours, ...spec?.colours } };
-  // `diameter` is the card's long side, so the 3D view frames it like a coin that size.
-  return { ...s, style: "classic", relief: DEFAULT_SPEC.relief, back: CARD_BACKS.includes(s.back) ? s.back : "none", backMode: "design", magnet: "none", diameter: CARD.w, depth: Math.min(s.depth, s.height - 0.4) };
+  // `diameter` is the card's long side, so the 3D view frames it like a coin that size. Its back is
+  // cardBack: a coin's back design (an older card's, say) doesn't reach it.
+  return {
+    ...s, style: "classic", relief: DEFAULT_SPEC.relief, back: "none", backMode: "design", magnet: "none", diameter: CARD.w, depth: Math.min(s.depth, s.height - 0.4),
+    cardIcon: oneOf(s.cardIcon, CARD_ICONS, "none"), cardIconSize: iconMm(s.cardIconSize, DEFAULT_SPEC.cardIconSize), cardJoin: oneOf(s.cardJoin, CARD_JOINS, "spread"),
+    cardBack: s.cardBack?.on === true ? cardBackOf(s) : null,
+  };
 }
+
+/**
+ * A card's back with everything filled in, whatever was kept (an older or hand-written spec): its
+ * phrase, icon and their layout (the icon alone in the middle unless said), the face's frame, and
+ * colours of its own; a face in the group's colour starts in gold, so the backs of a deck match.
+ */
+export function cardBackOf(spec: SpecInput): CardBack & Required<Pick<CardBack, "text" | "cardIcon" | "cardIconSize" | "cardJoin" | "frame" | "frameWidth">> & { icon: TokenIcon | null; colours: { text: ColourRef; frame: ColourRef } } {
+  const b: Partial<CardBack> = spec.cardBack && typeof spec.cardBack === "object" ? spec.cardBack : {};
+  const c = { ...DEFAULT_SPEC.colours, ...spec.colours }, start = (v: ColourRef) => (v === "team" ? FILAMENTS.gold : v);
+  const icon = b.icon && typeof b.icon === "object" && typeof b.icon.body === "string" && typeof b.icon.id === "string" ? b.icon : null;
+  return {
+    on: b.on === true,
+    text: typeof b.text === "string" ? b.text : "",
+    ...(b.name === "collection" ? { name: "collection" as const } : {}),
+    icon,
+    cardIcon: oneOf(b.cardIcon, CARD_ICONS, "only"),
+    cardIconSize: iconMm(b.cardIconSize, DEFAULT_SPEC.cardIconSize),
+    cardJoin: oneOf(b.cardJoin, CARD_JOINS, "spread"),
+    frame: typeof b.frame === "string" ? b.frame : spec.frame ?? DEFAULT_SPEC.frame,
+    frameWidth: typeof b.frameWidth === "number" && Number.isFinite(b.frameWidth) ? b.frameWidth : spec.frameWidth ?? DEFAULT_SPEC.frameWidth,
+    colours: { text: isColourRef(b.colours?.text) ? b.colours.text : start(c.front), frame: isColourRef(b.colours?.frame) ? b.colours.frame : start(c.frame) },
+  };
+}
+/** Whether a token's design prints anything on its back: a card's back of its own, or a coin's back design. */
+export const printsBack = (role: Role | null | undefined, spec: SpecInput) =>
+  (isCard(role) ? spec.cardBack?.on === true : (spec.back ?? DEFAULT_SPEC.back) !== "none");
 
 function roundedRect(w: number, h: number, r: number) {
   const s = new THREE.Shape(), x = -w / 2, y = -h / 2;
@@ -2156,39 +2204,85 @@ function roundedRect(w: number, h: number, r: number) {
   return s;
 }
 
-/** The phrase in up to 3 balanced lines, at the biggest letters that fit inside the padding. */
-export function cardLayout(lib: Library, text: string | null | undefined, _spec: TokenSpec) {
-  const words = (text || "").toUpperCase().trim().split(/\s+/).filter(Boolean);
+/** The phrase in up to 3 balanced lines, at the biggest letters that fit a box w × h (mm); each line's width as it comes out. */
+function fitPhrase(lib: Library, words: string[], W: number, H: number) {
   const width = (line: string) => { const b = boundsOf(lib.font.generateShapes(line, 1)); return b.max.x - b.min.x; };
-  const W = CARD.w - 2 * CARD_PAD, H = CARD.h - 2 * CARD_PAD;
-  let best: { em: number; lines: string[] } | null = null;
+  let best: { em: number; lines: string[]; widths: number[] } | null = null;
   // every way to cut the words into 1–3 lines
   const splits = (n: number, k: number): number[][] => (k === 1 ? [[n]] : Array.from({ length: n - k + 1 }, (_, i) => i + 1).flatMap((a) => splits(n - a, k - 1).map((r) => [a, ...r])));
   for (let k = 1; k <= Math.min(3, words.length || 1); k++) {
     for (const sizes of splits(Math.max(1, words.length), k)) {
       let at = 0;
-      const lines = sizes.map((n) => { const l = words.slice(at, at + n).join(" "); at += n; return l; });
-      const em = Math.min(W / Math.max(...lines.map(width), 1e-6), (CARD_MAX_CAP / lib.capHeight),
+      const lines = sizes.map((n) => { const l = words.slice(at, at + n).join(" "); at += n; return l; }), widths = lines.map(width);
+      const em = Math.min(W / Math.max(...widths, 1e-6), (CARD_MAX_CAP / lib.capHeight),
         H / (lib.capHeight * (1 + (k - 1) * CARD_PITCH)));
-      if (!best || em > best.em + 1e-6) best = { em, lines };
+      if (!best || em > best.em + 1e-6) best = { em, lines, widths };
     }
   }
-  const fit = best!;
-  const cap = fit.em * lib.capHeight, pitch = cap * CARD_PITCH, total = cap + (fit.lines.length - 1) * pitch;
-  return { em: fit.em, cap, lines: fit.lines.map((l, i) => ({ text: l, y: total / 2 - cap - i * pitch })) };
+  return { ...best!, widths: best!.widths.map((w) => w * best!.em) };
+}
+/** A card face as laid out (mm, the card's centre at 0, y up): the phrase's lines (each its ink's centre `x` and
+ *  baseline `y`), the icon's square (none without one) and the line between them ("column"). */
+export interface CardLayout {
+  em: number;
+  /** The phrase's capital height: Infinity with no phrase (the icon alone). */
+  cap: number;
+  lines: { text: string; x: number; y: number }[];
+  icon: { x: number; y: number; size: number } | null;
+  rule: { x: number; h: number } | null;
+}
+/**
+ * A card face's layout, inside the padding that keeps it clear of any frame. Without an icon (or
+ * with cardIcon "none") the phrase in up to 3 balanced lines, as large as fits; with one, the icon
+ * a square of cardIconSize at the side asked, the phrase fitted to the room it leaves: centred in it
+ * ("spread"), aligned towards a thin line beside the icon ("column"), or, with the icon about its
+ * height (cardIconSize at most), one block with it in the middle ("together"); "only", the icon alone.
+ */
+export function cardLayout(lib: Library, text: string | null | undefined, spec: Pick<TokenSpec, "cardIcon" | "cardIconSize" | "cardJoin">, hasIcon = false): CardLayout {
+  const words = (text || "").toUpperCase().trim().split(/\s+/).filter(Boolean);
+  const W = CARD.w - 2 * CARD_PAD, H = CARD.h - 2 * CARD_PAD, edge = W / 2;
+  const at = hasIcon ? oneOf(spec.cardIcon, CARD_ICONS, "none") : "none", size = Math.min(iconMm(spec.cardIconSize, DEFAULT_SPEC.cardIconSize), H);
+  if (at === "only") return { em: 0, cap: Infinity, lines: [], icon: { x: 0, y: 0, size }, rule: null };
+  // the fitted phrase in the box from x0 to x1: centred, or against its left (-1) or right (1) side
+  const set = (f: ReturnType<typeof fitPhrase>, x0: number, x1: number, align: number) => {
+    const cap = f.em * lib.capHeight, pitch = cap * CARD_PITCH, total = cap + (f.lines.length - 1) * pitch;
+    return { em: f.em, cap, lines: f.lines.map((l, i) => ({ text: l, y: total / 2 - cap - i * pitch, x: align < 0 ? x0 + f.widths[i] / 2 : align > 0 ? x1 - f.widths[i] / 2 : (x0 + x1) / 2 })) };
+  };
+  if (at === "none") return { ...set(fitPhrase(lib, words, W, H), -edge, edge, 0), icon: null, rule: null };
+  const sx = at === "left" ? -1 : 1, join = oneOf(spec.cardJoin, CARD_JOINS, "spread");
+  if (join === "together") {
+    // the icon as tall as the phrase comes out beside the smallest icon (within its sizes), then the
+    // phrase fitted beside that icon, and the two centred as one block
+    const first = fitPhrase(lib, words, W - CARD_ICON_MM.min - CARD_GAP, H);
+    const tall = first.em * lib.capHeight * (1 + (first.lines.length - 1) * CARD_PITCH);
+    const s = Math.min(size, Math.max(CARD_ICON_MM.min, tall)), f = fitPhrase(lib, words, W - s - CARD_GAP, H), tw = Math.max(...f.widths, 0);
+    const x0 = -(s + CARD_GAP + tw) / 2;
+    return sx < 0
+      ? { ...set(f, x0 + s + CARD_GAP, x0 + s + CARD_GAP + tw, -1), icon: { x: x0 + s / 2, y: 0, size: s }, rule: null }
+      : { ...set(f, x0, x0 + tw, 1), icon: { x: x0 + tw + CARD_GAP + s / 2, y: 0, size: s }, rule: null };
+  }
+  const icon = { x: sx * (edge - size / 2), y: 0, size };
+  if (join === "column") {
+    // the line a gap past the icon, the phrase a gap past the line, aligned towards it
+    const room = size + 2 * CARD_GAP + CARD_RULE, f = fitPhrase(lib, words, W - room, H);
+    const rule = { x: sx * (edge - size - CARD_GAP - CARD_RULE / 2), h: H - 4 };
+    return { ...(sx < 0 ? set(f, -edge + room, edge, -1) : set(f, -edge, edge - room, 1)), icon, rule };
+  }
+  const room = size + CARD_GAP, f = fitPhrase(lib, words, W - room, H);
+  return { ...(sx < 0 ? set(f, -edge + room, edge, 0) : set(f, -edge, edge - room, 0)), icon, rule: null };
 }
 
 /** How far each arm of a corner bracket ("corners") runs along the card's edge (mm). */
 const CARD_CORNER_ARM = 11;
 /** A card's frame width, as it prints. */
-const cardFrameWidth = (spec: TokenSpec) => Math.min(Math.max(spec.frameWidth, 0.4), 2);
+const cardFrameWidth = (spec: CardFrame) => Math.min(Math.max(spec.frameWidth, 0.4), 2);
 /**
  * A card's frame as filled shapes: a line inside the edge ("rim", or any design: a card's frame is a
  * line), or "corners", only its corners: an L along each corner of that line, the frame's width,
  * with a dot inside it, like old playing cards; or "laurel", the line with a sprig of laurel inside
  * each corner, following it. None for "none".
  */
-function cardFrameShapes(spec: TokenSpec): THREE.Shape[] | null {
+function cardFrameShapes(spec: CardFrame): THREE.Shape[] | null {
   if (spec.frame === "none") return null;
   const fw = cardFrameWidth(spec), i = CARD_FRAME_INSET;
   if (spec.frame === "corners") return cardCorners(fw);
@@ -2256,97 +2350,163 @@ function cardCorners(fw: number): THREE.Shape[] {
   return out;
 }
 
-/**
- * A card's back, styled like its face: the face's frame and, where the face has its words, an
- * emblem in the middle (a coin back's design, 19 mm across the circle it fills, or an uploaded
- * SVG): in the back colour, on the card's own colour or on a colour of its own (backBase), so the
- * cards of a deck can share one back and not show, face-down, which card is which.
- */
-let cardBacks: string[] | null = null;
-/** The back designs a card offers: none, the coin backs that are a drawing of their own (not those
- *  built round the collection's words, the edition's or the seal) and an uploaded SVG. */
-export const CARD_BACKS = { includes: (id: string) => (cardBacks ??= BACK_STYLES.map((b) => b.id).filter((id) => id === "none" || id === "custom" || !!backDesign(id, CARD_EMBLEM_R))).includes(id) };
-const CARD_EMBLEM_R = 19, CARD_ICON_R = 13;
+/** A card's frame: its design and width (a face's, or its back's own). */
+type CardFrame = Pick<TokenSpec, "frame" | "frameWidth">;
 /** How far in from the edge a card's face plate starts when the card is its back's colour (mm). */
 const CARD_FACE_INSET = 0.6;
-/** The back's design as shapes, each with the matrix that places it (seen from the back). */
-function cardBackInk(spec: TokenSpec): { shapes: THREE.Shape[]; m: THREE.Matrix4 }[] {
-  if (spec.back === "none") return [];
-  const out: { shapes: THREE.Shape[]; m: THREE.Matrix4 }[] = [];
-  const frame = cardFrameShapes(spec);
-  if (frame) out.push({ shapes: frame, m: M() });
-  if (spec.back === "custom") {
-    if (spec.customSvg) try { const sh = parseSvgShapes(spec.customSvg); if (sh.length) out.push({ shapes: sh, m: fitShapes(sh, CARD_ICON_R) }); } catch { /* an SVG that won't parse: no emblem */ }
-  } else {
-    const sh = backDesign(spec.back, CARD_EMBLEM_R);
-    if (sh) out.push({ shapes: sh, m: M() });
+/** The colour behind a card's back, when it has a back and that isn't the card's own colour. */
+const cardBackBase = (spec: TokenSpec) => (spec.cardBack?.on && spec.colours.backBase && spec.colours.backBase !== spec.colours.base ? spec.colours.backBase : null);
+
+/** An icon's drawing on a card: its shapes (SVG units, y down), their box, and its markup for the 2D picture. */
+interface CardArt { shapes: THREE.Shape[]; box: THREE.Box2; g: string; body: string }
+const artBoxes = new WeakMap<THREE.Shape[], THREE.Box2>();
+function cardArt(lib: Library, key: string, g: string, body: string): CardArt | null {
+  if (!body) return null;
+  let shapes = lib.icons.get(key);
+  if (!shapes) {
+    try { shapes = parseSvgShapes(iconSvg({ g, body })); } catch { shapes = []; }   // an icon that won't parse: none
+    lib.icons.set(key, shapes);
   }
-  return out;
+  if (!shapes.length) return null;
+  if (!artBoxes.has(shapes)) artBoxes.set(shapes, boundsOf(shapes));
+  return { shapes, box: artBoxes.get(shapes)!, g, body };
 }
-/** The colour behind a card's back design, when it isn't the card's own. */
-const cardBackBase = (spec: TokenSpec) => (spec.back !== "none" && spec.colours.backBase && spec.colours.backBase !== spec.colours.base ? spec.colours.backBase : null);
+/** The token's icon on its card (its own, or its character's): none for a token without one, as Clocktower's info tokens. */
+function cardFaceArt(lib: Library, role: Role, spec: TokenSpec) {
+  if (!spec.icon?.body && !role.body && !role.d?.length) return null;
+  const icon = iconOf(role, spec);
+  return cardArt(lib, icon.key, icon.g, icon.body);
+}
+/** A card back's own icon (the design's: kept in a file or your designs, so drawn only as shapes, safe-svg.ts). */
+function cardBackArt(lib: Library, icon: TokenIcon | null) {
+  if (!icon?.body) return null;
+  const body = safeIconMarkup(icon.body);
+  return cardArt(lib, `cardback:${icon.id}#${contentTag(body)}`, safeTransform(icon.g), body);
+}
+
+/** A card face as it's drawn: its layout, icon, frame, and the colours of its phrase (and icon) and of its frame. */
+interface CardFace { L: CardLayout; art: CardArt | null; frame: CardFrame; ink: Hex; line: Hex }
+/**
+ * A card's face: the front, the token's phrase and icon in the design's layout; or the back (when the
+ * design has one), its own phrase (the collection's name, when it says so and the token has one) and icon.
+ */
+function cardFaceOf(lib: Library, role: Role, spec: TokenSpec, side: "front" | "back", text: string): CardFace | null {
+  const team = role.colour ?? TEAMS[role.team].colour, pick = (v: ColourRef): Hex => (v === "team" ? team : v);
+  if (side === "front") {
+    const art = spec.cardIcon !== "none" ? cardFaceArt(lib, role, spec) : null, L = cardLayout(lib, text, spec, !!art);
+    return { L, art, frame: spec, ink: pick(spec.colours.front), line: pick(spec.colours.frame) };
+  }
+  const b = spec.cardBack;
+  if (!b?.on) return null;
+  const back = cardBackOf({ ...spec, cardBack: b }), words = back.name === "collection" && role.collectionName ? role.collectionName : back.text;
+  const art = back.cardIcon !== "none" ? cardBackArt(lib, back.icon) : null;
+  return { L: cardLayout(lib, words, back, !!art), art, frame: back, ink: pick(back.colours.text), line: pick(back.colours.frame) };
+}
+/** Places an icon's drawing in its square (centre x, y; the drawing's larger side `size`), from its SVG units. */
+function cardArtMatrix(art: CardArt, at: { x: number; y: number; size: number }, z: number) {
+  const b = art.box, k = at.size / Math.max(b.max.x - b.min.x, b.max.y - b.min.y, 1e-6);
+  return chain(T(at.x, at.y, z), S(k, -k, 1), T(-(b.min.x + b.max.x) / 2, -(b.min.y + b.max.y) / 2, 0));
+}
+/** The line between the icon and the phrase ("column"), as a shape. */
+const cardRule = (r: { x: number; h: number }) => rectShape(r.x - CARD_RULE / 2, -r.h / 2, r.x + CARD_RULE / 2, r.h / 2);
+/**
+ * A card face as inlays `d` deep from height z: its phrase, its icon, and its frame with the line
+ * beside the icon. `m` places the face: the back is mirrored, to read right when the card is turned over.
+ */
+function cardFaceGeom(lib: Library, f: CardFace, z: number, d: number, m: THREE.Matrix4) {
+  const letters = merge(f.L.lines.map((line) => {
+    const shapes = lib.font.generateShapes(line.text, f.L.em);
+    if (!shapes.length) return null;
+    const box = boundsOf(shapes);
+    return extrude(shapes, d, chain(m, T(line.x - (box.min.x + box.max.x) / 2, line.y, z)), 4);
+  }));
+  const icon = f.art && f.L.icon ? extrude(f.art.shapes, d, chain(m, cardArtMatrix(f.art, f.L.icon, z)), 6) : null;
+  const frame = cardFrameShapes(f.frame);
+  const lines = merge([frame ? extrude(frame, d, chain(m, T(0, 0, z)), 16) : null, f.L.rule ? extrude([cardRule(f.L.rule)], d, chain(m, T(0, 0, z)), 1) : null]);
+  return { letters, icon, lines };
+}
 
 function buildCard(lib: Library, role: Role, input: SpecInput | undefined, text?: string | null): Token {
   const spec = cardSpec(input);
   text ??= roleName(role, spec.lang);
   const H = spec.height, d = spec.depth;
-  const L = cardLayout(lib, text, spec);
-  const letters = L.lines.map((line) => {
-    const shapes = lib.font.generateShapes(line.text, L.em), box = boundsOf(shapes);
-    return extrude(shapes, d, T(-(box.min.x + box.max.x) / 2, line.y, H - d), 4);
-  });
-  const frame = cardFrameShapes(spec);
-  // the back, seen from below: mirrored to read right when the card is turned over; its plate
-  // (a colour of its own) under it, its design drawn over the plate (backIcon, later, wins)
-  const mirror = S(-1, 1, 1), plate = cardBackBase(spec);
-  const ink = merge(cardBackInk(spec).map(({ shapes, m }) => extrude(shapes, d, chain(mirror, m), 16)));
+  const front = cardFaceOf(lib, role, spec, "front", text)!, back = cardFaceOf(lib, role, spec, "back", text);
+  const F = cardFaceGeom(lib, front, H - d, d, M());
+  // the back, seen from below: mirrored to read right when the card is turned over; its plate (a
+  // colour of its own) under it, its phrase and icon (backIcon) and its frame (backFrame) over the plate (later parts win)
+  const B = back ? cardFaceGeom(lib, back, 0, d, S(-1, 1, 1)) : null, plate = cardBackBase(spec);
   const team = role.colour ?? TEAMS[role.team].colour, pick = (v: ColourRef): Hex => (v === "team" ? team : v);
   // A back of its own colour makes the whole card that colour (its edges too: a deck shows nothing
   // from the side) and the face a plate of the card's colour, CARD_FACE_INSET in from the edge.
   const full = () => roundedRect(CARD.w, CARD.h, CARD.r), faceRect = () => roundedRect(CARD.w - 2 * CARD_FACE_INSET, CARD.h - 2 * CARD_FACE_INSET, CARD.r - CARD_FACE_INSET);
   const rim = () => { const s = full(); s.holes.push(faceRect()); return s; };
+  const c = partColours(role, spec);
   return {
     parts: {
       base: plate ? extrude([faceRect()], d, T(0, 0, H - d), 16) : extrude([full()], H, T(0, 0, 0), 16),
-      front: merge(letters), frame: frame ? extrude(frame, d, T(0, 0, H - d), 16) : null,
-      back: plate ? merge([extrude([full()], H - d, T(0, 0, 0), 16), extrude([rim()], d, T(0, 0, H - d), 16)]) : null, backIcon: ink },
-    colours: { ...partColours(role, spec), back: pick(plate ?? spec.colours.base), backIcon: pick(spec.colours.back), hole: "#0b090c" },
-    name: { letterHeight: L.cap, scale: 1, total: null, lines: L.lines.length },
+      front: F.letters, icon: F.icon, frame: F.lines,
+      back: plate ? merge([extrude([full()], H - d, T(0, 0, 0), 16), extrude([rim()], d, T(0, 0, H - d), 16)]) : null,
+      backIcon: B ? merge([B.letters, B.icon]) : null, backFrame: B?.lines ?? null },
+    // the icon in the phrase's colour, like a coin's classic icon; the back's in its own
+    colours: { ...c, icon: front.ink, back: pick(plate ?? spec.colours.base), backIcon: back?.ink ?? c.back, backFrame: back?.line ?? c.backFrame, hole: "#0b090c" },
+    name: { letterHeight: front.L.cap, scale: 1, total: null, lines: front.L.lines.length },
     spec, magnet: null, depthClamped: null, card: true, foot: { w: CARD.w, h: CARD.h },
   };
+}
+
+/**
+ * Which of a card's parts print, and in which colours, as buildCard makes them but without their
+ * geometry (the print plan counts a plate's colours with it): the phrase and the body always; the
+ * icon, the frame (with the line beside the icon) and the back's plate, phrase and icon, and frame
+ * as the design has them.
+ */
+export function cardPlan(lib: Library, role: Role, input: SpecInput): { parts: Record<PartName, 1 | null>; colours: Record<PartName, Hex> } {
+  const spec = cardSpec(input), text = roleName(role, spec.lang), c = partColours(role, spec);
+  const front = cardFaceOf(lib, role, spec, "front", text)!, back = cardFaceOf(lib, role, spec, "back", text), plate = cardBackBase(spec);
+  const lines = (f: CardFace | null) => !!f && (f.frame.frame !== "none" || !!f.L.rule), icon = (f: CardFace | null) => !!(f?.art && f.L.icon);
+  const one = (yes: boolean) => (yes ? 1 : null);
+  return {
+    parts: { base: 1, front: 1, icon: one(icon(front)), frame: one(lines(front)), back: one(!!plate),
+      backIcon: one(!!back && (icon(back) || back.L.lines.some((l) => l.text))), backFrame: one(lines(back)) },
+    colours: { base: c.base, front: c.front, icon: front.ink, frame: c.frame, back: plate ? (plate === "team" ? role.colour ?? TEAMS[role.team].colour : plate) : c.base,
+      backIcon: back?.ink ?? c.back, backFrame: back?.line ?? c.frame },
+  };
+}
+
+/** A card face in the 2D picture, as it's seen (a back too: the picture isn't mirrored). */
+function cardFaceSvg(lib: Library, f: CardFace) {
+  const { w, h, r } = CARD;
+  let body = "";
+  for (const line of f.L.lines) {
+    const shapes = lib.font.generateShapes(line.text, f.L.em);
+    if (!shapes.length) continue;
+    const box = boundsOf(shapes);
+    body += `<path fill="${f.ink}" fill-rule="evenodd" d="${shapesToPath(shapes, line.x - (box.min.x + box.max.x) / 2, line.y)}"/>`;
+  }
+  if (f.art && f.L.icon) {
+    const b = f.art.box, at = f.L.icon, k = at.size / Math.max(b.max.x - b.min.x, b.max.y - b.min.y, 1e-6);
+    body += `<g fill="${f.ink}" transform="translate(${at.x.toFixed(3)} ${(-at.y).toFixed(3)}) scale(${k.toFixed(5)}) translate(${(-(b.min.x + b.max.x) / 2).toFixed(3)} ${(-(b.min.y + b.max.y) / 2).toFixed(3)})"><g transform="${f.art.g}">${f.art.body}</g></g>`;
+  }
+  if (f.L.rule) body += `<path fill="${f.line}" d="${shapesToPath([cardRule(f.L.rule)], 0, 0, 1)}"/>`;
+  const fw = cardFrameWidth(f.frame), i = CARD_FRAME_INSET + fw / 2, frame = f.frame.frame;
+  if (frame === "corners") body += `<path fill="${f.line}" d="${shapesToPath(cardCorners(fw), 0, 0, 16)}"/>`;
+  if (frame === "laurel") body += `<path fill="${f.line}" d="${shapesToPath(cardLaurels(), 0, 0, 8)}"/>`;
+  if (frame !== "none" && frame !== "corners") body += `<rect x="${-w / 2 + i}" y="${-h / 2 + i}" width="${w - 2 * i}" height="${h - 2 * i}" rx="${Math.max(0.5, r - i)}" fill="none" stroke="${f.line}" stroke-width="${fw}"/>`;
+  return body;
 }
 
 function cardSvg(lib: Library, role: Role, input: SpecInput | undefined, side: "front" | "back", text?: string | null) {
   const spec = cardSpec(input);
   const c = partColours(role, spec), label = text ?? roleName(role, spec.lang);
-  const { w, h, r } = CARD;
-  let body = "";
-  const facePlate = cardBackBase(spec);
-  if (side === "front" && facePlate) {
-    const team = role.colour ?? TEAMS[role.team].colour, pick = (v: ColourRef): Hex => (v === "team" ? team : v), i = CARD_FACE_INSET;
-    body += `<rect x="${-w / 2}" y="${-h / 2}" width="${w}" height="${h}" rx="${r}" fill="${pick(facePlate)}"/><rect x="${-w / 2 + i}" y="${-h / 2 + i}" width="${w - 2 * i}" height="${h - 2 * i}" rx="${r - i}" fill="${c.base}"/>`;
-  }
-  if (side === "front") {
-    const L = cardLayout(lib, label, spec);
-    for (const line of L.lines) {
-      const shapes = lib.font.generateShapes(line.text, L.em), box = boundsOf(shapes);
-      body += `<path fill="${c.front}" fill-rule="evenodd" d="${shapesToPath(shapes, -(box.min.x + box.max.x) / 2, line.y)}"/>`;
-    }
-    const fw = cardFrameWidth(spec), i = CARD_FRAME_INSET + fw / 2;
-    if (spec.frame === "corners") body += `<path fill="${c.frame}" d="${shapesToPath(cardCorners(fw), 0, 0, 16)}"/>`;
-    if (spec.frame === "laurel") body += `<path fill="${c.frame}" d="${shapesToPath(cardLaurels(), 0, 0, 8)}"/>`;
-    if (spec.frame !== "none" && spec.frame !== "corners") body += `<rect x="${-w / 2 + i}" y="${-h / 2 + i}" width="${w - 2 * i}" height="${h - 2 * i}" rx="${Math.max(0.5, r - i)}" fill="none" stroke="${c.frame}" stroke-width="${fw}"/>`;
-  } else if (spec.back !== "none") {
-    // the back as it's seen: its plate, then its frame and emblem in the back colour
-    const team = role.colour ?? TEAMS[role.team].colour, pick = (v: ColourRef): Hex => (v === "team" ? team : v), ink = pick(spec.colours.back), plate = cardBackBase(spec);
-    if (plate) body += `<rect x="${-w / 2}" y="${-h / 2}" width="${w}" height="${h}" rx="${r}" fill="${pick(plate)}"/>`;
-    const frame = cardFrameShapes(spec);
-    if (frame) body += `<path fill="${ink}" fill-rule="evenodd" d="${shapesToPath(frame, 0, 0, 8)}"/>`;
-    if (spec.back === "custom") body += `<path fill="${ink}" fill-rule="evenodd" d="${customBackPath({ ...spec, diameter: 2 * (CARD_ICON_R + 1.2) })}"/>`;
-    else { const sh = backDesign(spec.back, CARD_EMBLEM_R); if (sh) body += `<path fill="${ink}" d="${shapesToPath(sh, 0, 0, 12)}"/>`; }
-  }
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${-w / 2 - 0.5} ${-h / 2 - 0.5} ${w + 1} ${h + 1}" role="img" aria-label="${esc(label)}"><rect x="${-w / 2}" y="${-h / 2}" width="${w}" height="${h}" rx="${r}" fill="${c.base}"/>${body}</svg>`;
+  const { w, h, r } = CARD, i = CARD_FACE_INSET;
+  // the card's colour all round: a back of its own colour makes the card that colour, its face a plate of its own
+  const plate = cardBackBase(spec), team = role.colour ?? TEAMS[role.team].colour, edge = plate ? (plate === "team" ? team : plate) : c.base;
+  let body = side === "front" && plate ? `<rect x="${-w / 2 + i}" y="${-h / 2 + i}" width="${w - 2 * i}" height="${h - 2 * i}" rx="${r - i}" fill="${c.base}"/>` : "";
+  const face = cardFaceOf(lib, role, spec, side, label);
+  if (face) body += cardFaceSvg(lib, face);
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${-w / 2 - 0.5} ${-h / 2 - 0.5} ${w + 1} ${h + 1}" role="img" aria-label="${esc(label)}"><rect x="${-w / 2}" y="${-h / 2}" width="${w}" height="${h}" rx="${r}" fill="${edge}"/>${body}</svg>`;
 }
+
 
 // ---------------------------------------------------------------- condition rings
 
@@ -2652,9 +2812,10 @@ export interface ShapeFeatures {
 export const SHAPE_FEATURES: Record<TokenShape, ShapeFeatures> = {
   // A coin has everything the workshop offers (some layouts leave a control out: see main.ts).
   coin: { layout: true, icon: true, textSize: true, spacing: true, maxArc: true, frame: "designs", relief: ["text", "frame", "icon"], back: true, magnet: true, diameter: true, ringBase: false, flip: true, separator: false, corners: false, pattern: true },
-  // A card (85 × 55 mm, Clocktower's Grimoire): the phrase as large as fits, the frame a line
-  // inside the edge, both flush (cardSpec); no icon or magnet; a back styled like the face (cardBackInk).
-  card: { layout: false, icon: false, textSize: false, spacing: false, maxArc: false, frame: "line", relief: [], back: true, magnet: false, diameter: false, ringBase: false, flip: false, separator: false, corners: true, pattern: false },
+  // A card (85 × 55 mm, Clocktower's Grimoire): the phrase as large as fits, beside the token's icon
+  // or without it, the frame a line inside the edge, all flush (cardSpec); no magnet; a back of its
+  // own, laid out like a face (cardBack).
+  card: { layout: false, icon: true, textSize: false, spacing: false, maxArc: false, frame: "line", relief: [], back: true, magnet: false, diameter: false, ringBase: false, flip: false, separator: false, corners: true, pattern: false },
   // A condition ring: the name round and round at the height asked for (as far as its band
   // allows, ringBand), a fine line along each edge, either raised (ringSpec); no icon, back or
   // magnet, and sized by its base.

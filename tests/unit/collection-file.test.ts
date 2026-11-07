@@ -42,6 +42,21 @@ describe("a collection file", () => {
     expect(c.styles!.coin![0].spec).toEqual({ diameter: 40, colours: { base: "#ffffff", front: "team", backBase: "#1d1c21" }, relief: { text: true }, backFace: { frame: "rim" } });
     expect(c.languages).toEqual(["en"]);
   });
+  it("keeps a card design's icon place and back of its own, checked, through a round trip", async () => {
+    const back = { on: true, text: "El Senado", name: "collection", cardIcon: "left", cardJoin: "together", cardIconSize: 30, frame: "laurel", frameWidth: 0.6,
+      icon: { id: "lorc/laurel-crown", source: "game-icons", name: "laurel-crown", author: "lorc", g: "translate(1 2) scale(0.5)", body: '<path d="M0 0h9v9z"></path>' },
+      colours: { text: "#c9a227", frame: "team" } };
+    const card = { frame: "laurel", cardIcon: "left", cardJoin: "spread", cardIconSize: 30, cardBack: back, colours: { base: "#1d1c21", backBase: "#1d1c21" } };
+    const c = await readCollectionFile(file({ styles: { card: [{ id: "ley", name: "Ley", spec: card }] } }));
+    expect(c.styles!.card![0].spec).toEqual(card);
+    expect(await readCollectionFile(JSON.parse(JSON.stringify(collectionFile(c))))).toEqual(c);
+    // and nothing it can't have: a place or join it doesn't know, a size out of range, an icon's script, a colour that isn't one
+    const odd = await readCollectionFile(file({ styles: { card: [{ id: "x", name: "X", spec: {
+      cardIcon: "middle", cardJoin: "apart", cardIconSize: 400,
+      cardBack: { on: "yes", text: 5, name: "other", cardIcon: "top", frameWidth: 9, evil: 1, icon: { id: "i", g: "url(x)", body: '<path d="M1 1z" onclick="evil()"/><script>x</script>' }, colours: { text: "red", frame: "#ffffff" } },
+    } }] } }));
+    expect(odd.styles!.card![0].spec).toEqual({ cardBack: { on: false, icon: { id: "i", g: "", body: '<path d="M1 1z"></path>' }, colours: { frame: "#ffffff" } } });
+  });
   it("keeps an icon's shapes only", async () => {
     const c = await readCollectionFile(file({
       tokens: [{ id: "t1", name: "x", linked: [], icon: { svg: svg('<path d="M0 0h9v9z" onclick="evil()"/><script>alert(1)</script>') }, iconCredit: { name: 7, author: "someone" } }],

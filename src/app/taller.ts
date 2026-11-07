@@ -5,7 +5,7 @@ import type { TokenShape, TokenSpec, TokenIcon, Role, MyDesign, TokenOverride } 
 import { myDesigns, collEntry, uniqueDesignName, storeMyDesigns, myEntry, droppedDesigns, rereadMyDesigns } from "./designs.ts";
 import type { DesignEntry } from "./designs.ts";
 import { tokenRole, tokenRem } from "./queue.ts";
-import { DEFAULT_SPEC, tokenSvg, reminderSpec, shapeOf, loadLibrary, SHAPE_FEATURES } from "../engine/token-engine.ts";
+import { DEFAULT_SPEC, tokenSvg, reminderSpec, shapeOf, loadLibrary, SHAPE_FEATURES, printsBack } from "../engine/token-engine.ts";
 import { tokenLang } from "./token-language.ts";
 import { ownIcon, roleIdOf, textFor, charKey, remKey } from "./tokens.ts";
 import { state, $, esc, loadJSON, storeJSON, hit, setColl, setGateState } from "./context.ts";
@@ -258,7 +258,7 @@ function renderTallerBases() {
   const more = (spec: TokenSpec) => `<span class="tw-more">${taller.samples[sh].slice(1, sh === "card" ? 3 : 4).map((k) => tallerPic(k, spec)).join("")}${SHAPE_FEATURES[sh].back ? tallerPic(taller.samples[sh][0], spec, "back") : ""}</span>`;
   const row = (g: TallerGroup, i: number, def: StyleDef) => {
     const d = tallerBase(sh, `g${i}:${def.id}`)!, on = d.ref === pick.ref;
-    return `<button class="tw-opt" type="button" role="radio" aria-checked="${on}" data-tw-pick="${esc(d.ref)}"><span class="tw-sw">${designSwatch(d.spec, role)}${SHAPE_FEATURES[sh].back && filled(d.spec).back !== "none" ? `<span class="tw-swb">${tokenSvg(state.lib!, role, { ...filled(d.spec), lang: tokenLang(), icon: ownIcon(role.id), diameter: 45 }, { side: "back" })}</span>` : ""}</span><span class="tw-ot"><b>${esc(d.name)}${g.kind === "blank" ? ` <span class="tw-tag">${esc(t("taller.blankTag"))}</span>` : ""}</b>${d.help ? `<small>${esc(d.help)}</small>` : ""}</span><span class="rad" aria-hidden="true"></span>${on ? more(d.spec) : ""}</button>`;
+    return `<button class="tw-opt" type="button" role="radio" aria-checked="${on}" data-tw-pick="${esc(d.ref)}"><span class="tw-sw">${designSwatch(d.spec, role)}${SHAPE_FEATURES[sh].back && printsBack(role, filled(d.spec)) ? `<span class="tw-swb">${tokenSvg(state.lib!, role, { ...filled(d.spec), lang: tokenLang(), icon: ownIcon(role.id), diameter: 45 }, { side: "back" })}</span>` : ""}</span><span class="tw-ot"><b>${esc(d.name)}${g.kind === "blank" ? ` <span class="tw-tag">${esc(t("taller.blankTag"))}</span>` : ""}</b>${d.help ? `<small>${esc(d.help)}</small>` : ""}</span><span class="rad" aria-hidden="true"></span>${on ? more(d.spec) : ""}</button>`;
   };
   const label = (g: TallerGroup) => (g.kind === "blank" ? t("taller.blankGroup") : g.kind === "app" ? g.name : t("taller.of", { name: g.name }));
   const note = (g: TallerGroup) => (g.kind === "blank" ? t("taller.blankNote") : g.kind === "from" ? t("taller.fromNote") : g.kind === "app" ? t("taller.appNote") : "");

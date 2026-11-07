@@ -118,6 +118,12 @@ The same for every collection.
   lines in the group colour) and *Express* (1.2 mm, two filaments). Cards: *Contrast*, *Colour plate*, *Parchment*, *Gold trim*, *Corners*
   (a bracket at each corner instead of a whole frame) and *Express*. Draw Steel's rings start on *High relief*; Clocktower's on *Colour ring*,
   its cards on *Gold trim*; *Basic* (your own collections) on *Colour ring* and *Contrast*.
+- A card's face: its phrase alone, or with the token's icon on the left or the right, or the icon alone (Front → Icon); beside the
+  phrase, the icon at the card's side with the phrase centred in the rest, with a thin line between them and the phrase against it,
+  or the two together as one block in the middle; its size from 12 to 40 mm.
+- A card's back (Back): plain, or a face of its own kept with the design, so every card of a deck has the same one: its own text (or
+  the collection's name), its own icon (game-icons.net or an SVG), laid out like a face, its own frame and colours, on the card's
+  colour or a background of its own (the whole card that colour, its face a plate: edge-on, a deck shows nothing either).
 - A ring's mark between repeats of its name: a dot, a diamond, a star or none (Front → Text).
 - 12 frame designs, and 7 back designs plus the edition's name (a homebrew's script) or your own SVG, each drawn on your character as you choose.
 - Any of the 10 filament colours for the coin, the frame and the back; the name and icon take the team's (or group's) colour.

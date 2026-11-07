@@ -181,9 +181,43 @@ export interface TokenSpec {
   /** The name a back design prints (Edition, medallion, shield): unset, the edition's (a collection's
    *  token: its catalog's); "collection", the collection's own name (a token outside one: as unset). */
   backText?: "collection";
+  /** A card's icon (the token's own, in the phrase's colour): none (the phrase alone, as cards always
+   *  were), at the phrase's left or right, or alone in the middle ("only"). */
+  cardIcon: CardIcon;
+  /** A card's icon size (mm, the square its drawing fits in); with "together", the most it grows to. */
+  cardIconSize: number;
+  /** How a card's icon and phrase sit side by side (see CardJoin). */
+  cardJoin: CardJoin;
+  /** A card's back, a face of its own (the same on every card with the design); none when unset or off. */
+  cardBack?: CardBack | null;
   /** Older window designs (normalizeSpec turns them into relief). */
   windowFinish?: string;
   windowDepth?: number;
+}
+
+/** Where a card's icon goes (TokenSpec.cardIcon). */
+export type CardIcon = "none" | "left" | "right" | "only";
+/** How a card's icon and phrase sit together: "spread", the icon at its side and the phrase centred
+ *  in the rest; "column", a thin line in the frame's colour between them and the phrase aligned
+ *  towards it; "together", the icon about the phrase's height, both one block in the middle. */
+export type CardJoin = "spread" | "column" | "together";
+/**
+ * A card's back, drawn like a face: a phrase of its own (or, with `name`, the collection's name in
+ * the token's language), an icon of its own, laid out and framed as a face is, in colours of its own
+ * (the card behind it is colours.backBase). It belongs to the design, not the token, so every card
+ * of a deck has the same one: face-down they give nothing away. What it leaves out, cardBackOf fills.
+ */
+export interface CardBack {
+  on: boolean;
+  text?: string;
+  name?: "collection";
+  icon?: TokenIcon | null;
+  cardIcon?: CardIcon;
+  cardIconSize?: number;
+  cardJoin?: CardJoin;
+  frame?: string;
+  frameWidth?: number;
+  colours?: { text?: ColourRef; frame?: ColourRef };
 }
 
 /** A background pattern's id (the engine's PATTERNS): thin lines in a harlequin grid, or a checkerboard of filled rhombi. */

@@ -53,8 +53,10 @@ export function createViewer(canvas: HTMLCanvasElement, { background = null }: {
   // Inlays are flush with the coin; nudge them out so the preview doesn't flicker.
   meshes.front.position.z = meshes.frame.position.z = 0.015;
   meshes.icon.position.z = 0.03;   // over the flat window
-  meshes.back.position.z = meshes.backFrame.position.z = -0.015;
-  meshes.backIcon.position.z = -0.03;   // a two-state token's back is a front too: its window's icon over the window
+  meshes.back.position.z = -0.015;
+  // a two-state token's back is a front too: its window's icon over the window; a card's back, its
+  // phrase, icon and frame over the plate of its own colour (the `back` part)
+  meshes.backIcon.position.z = meshes.backFrame.position.z = -0.03;
   // Where an inlay runs along an edge (a ring's or a base tray's lines), its side lies in the body's
   // wall: the body is drawn a hair behind wherever they meet, so the inlay shows, not stripes of both.
   Object.assign(meshes.base.material, { polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 2 });

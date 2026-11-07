@@ -215,6 +215,17 @@
       </section>
       <section class="ws-panel" data-panel="icon" role="tabpanel" hidden>
         <div class="row"><label for="iconScale" data-i18n="range.iconScale"></label><output data-for="iconScale"></output><input type="range" id="iconScale" min="0.6" max="1.2" step="0.05" value="1"></div>
+        <!-- a card's: where its icon goes, how it sits with the phrase and how big it is -->
+        <div id="cardIconBox" hidden>
+          <p class="metal-label" data-i18n="cardIcon.label"></p>
+          <div class="choices card-tiles" data-choice="cardIcon" data-i18n-attr="aria-label:cardIcon.label"></div>
+          <div id="cardJoinBox">
+            <p class="metal-label" data-i18n="cardJoin.label"></p>
+            <div class="choices card-tiles" data-choice="cardJoin" data-i18n-attr="aria-label:cardJoin.label"></div>
+          </div>
+          <div class="row"><label for="cardIconSize" data-i18n="range.cardIconSize"></label><output data-for="cardIconSize"></output><input type="range" id="cardIconSize" min="12" max="40" step="1" value="30"></div>
+          <p class="hint" id="cardIconHint"></p>
+        </div>
         <p class="hint" id="iconColourHint"></p>
         <div class="relief-slot" data-relief-part="icon"></div>
       </section>
@@ -236,11 +247,6 @@
           <p class="hint" id="uploadHint" hidden></p>
           <p class="metal-label" data-i18n="back.colour"></p>
           <div class="metal" data-colour="back" data-i18n-attr="aria-label:back.aria"></div>
-          <div id="backBaseRow" hidden>
-            <p class="metal-label" data-i18n="back.baseColour"></p>
-            <div class="metal" data-colour="backBase" data-i18n-attr="aria-label:back.baseColour"></div>
-            <p class="hint" data-i18n="back.baseHelp"></p>
-          </div>
           <div class="pattern-group" data-pat-side="back"></div>
         </div>
         <div class="back-match" id="backMatch">
@@ -248,6 +254,46 @@
           <div class="metal" data-colour="front" data-side="back" data-i18n-attr="aria-label:back.aria"></div>
           <p class="hint" data-i18n="back.matchHelp"></p>
           <div class="relief-slot" data-relief-part="all"></div>
+        </div>
+      </section>
+      <!-- a card's back: a face of its own (cardBack), the same on every card of the design -->
+      <section class="ws-panel" data-panel="cardBack" role="tabpanel" hidden>
+        <span class="seg2 cb-on" role="group" id="cbOn" data-i18n-attr="aria-label:cardBack.label"><button type="button" data-v="off" data-i18n="cardBack.off"></button><button type="button" data-v="on" data-i18n="cardBack.on"></button></span>
+        <p class="hint" data-i18n="cardBack.help"></p>
+        <div id="cbFields">
+          <label class="field"><span data-i18n="cardBack.text"></span><input class="text" type="text" id="cbText" autocomplete="off" maxlength="60"></label>
+          <label class="check" id="cbNameRow"><input type="checkbox" id="cbName"> <span data-i18n="cardBack.name"></span></label>
+          <div class="field icon-field">
+            <span data-i18n="cardBack.icon"></span>
+            <div class="icon-actions">
+              <button class="pill" type="button" id="cbIconSearchOpen" data-i18n="icon.search"></button>
+              <button class="pill" type="button" id="cbIconUpload" data-i18n="icon.upload"></button>
+              <button class="link" type="button" id="cbIconReset" data-i18n="cardBack.iconNone" hidden></button>
+            </div>
+            <input type="file" id="cbIconFile" accept=".svg,image/svg+xml" hidden>
+            <p class="hint" id="cbIconHint"></p>
+            <div class="icon-search" id="cbIconSearch" hidden>
+              <input class="text" type="search" id="cbIconQuery" autocomplete="off" data-i18n-attr="placeholder:icon.placeholder">
+              <div class="icon-results" id="cbIconResults"></div>
+            </div>
+          </div>
+          <p class="metal-label" data-i18n="cardIcon.label"></p>
+          <div class="choices card-tiles" data-cb-choice="cardIcon" data-i18n-attr="aria-label:cardIcon.label"></div>
+          <div id="cbJoinBox">
+            <p class="metal-label" data-i18n="cardJoin.label"></p>
+            <div class="choices card-tiles" data-cb-choice="cardJoin" data-i18n-attr="aria-label:cardJoin.label"></div>
+          </div>
+          <div class="row" id="cbSizeRow"><label for="cbIconSize" data-i18n="range.cardIconSize"></label><output id="cbIconSizeOut"></output><input type="range" id="cbIconSize" min="12" max="40" step="1" value="30"></div>
+          <p class="metal-label" data-i18n="face.frame"></p>
+          <div class="choices" data-cb-choice="frame" data-i18n-attr="aria-label:face.frame"></div>
+          <div class="row" id="cbFrameWidthRow"><label for="cbFrameWidth" data-i18n="range.frameWidth"></label><output id="cbFrameWidthOut"></output><input type="range" id="cbFrameWidth" min="0.4" max="2" step="0.1" value="0.8"></div>
+          <p class="metal-label" data-i18n="cardBack.textColour"></p>
+          <div class="metal" data-colour="front" data-side="cardback" data-cb-colour="text" data-i18n-attr="aria-label:cardBack.textColour"></div>
+          <p class="metal-label" data-i18n="cardBack.frameColour"></p>
+          <div class="metal" data-colour="frame" data-side="cardback" data-cb-colour="frame" data-i18n-attr="aria-label:cardBack.frameColour"></div>
+          <p class="metal-label" data-i18n="back.baseColour"></p>
+          <div class="metal" data-colour="backBase" data-i18n-attr="aria-label:back.baseColour"></div>
+          <p class="hint" data-i18n="back.baseHelp"></p>
         </div>
       </section>
       <section class="ws-panel" data-panel="body" role="tabpanel" hidden>
