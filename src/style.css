@@ -182,8 +182,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .lb-text { display: grid; line-height: 1.15; }
 .tlang-trigger small { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--dust); }
 .tlang-trigger b { font-weight: 600; font-size: 15px; }
-.oh-top .oh-gh { margin-left: auto; display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px; border: 1px solid var(--seam); border-radius: 999px; color: var(--dust); font-size: 13.5px; text-decoration: none; }
+.oh-top .oh-gh { margin-left: 0; display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px; border: 1px solid var(--seam); border-radius: 999px; color: var(--dust); font-size: 13.5px; text-decoration: none; }
 .oh-top .oh-gh:hover { color: var(--bone); border-color: var(--brass); }
+.oh-top .oh-kofi { margin-left: auto; }
 @media (max-width: 560px) { .oh-top .oh-gh span { display: none; } }
 
 /* Language dialog: the tabs and a list on the left, a preview on the right (your tokens redrawn, or a bit of the app). */

@@ -15,6 +15,8 @@
   <a href="https://tesserae-faber.web.app/c/senado">El Senado</a>
   ·
   <a href="#license-and-credits">License and credits</a>
+  ·
+  <a href="https://ko-fi.com/rexuswolf">Ko-fi</a>
 </p>
 
 *Tesserae Faber* is Latin for "the token's maker". It's free, needs no account, and keeps your work in your browser.

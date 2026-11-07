@@ -65,7 +65,7 @@ function openCredits() {
       <ul class="credit-icons">${icons}</ul></section>
     <section><h3>${esc(t("credits.more"))}</h3>
       <p class="hint">${esc(t("credits.moreText"))}</p>
-      <p class="hint">${esc(t("credits.code"))}: ${REPO_PUBLIC ? `${link(REPO_URL, "GitHub")} · ` : ""}PolyForm Noncommercial 1.0.0</p></section>`;
+      <p class="hint">${esc(t("credits.code"))}: ${REPO_PUBLIC ? `${link(REPO_URL, "GitHub")} · ` : ""}PolyForm Noncommercial 1.0.0 · ${link("https://ko-fi.com/rexuswolf", t("app.kofi"))}</p></section>`;
   $<HTMLDialogElement>("#credits").showModal();
 }
 document.addEventListener("click", (e) => { if (hit(e, "[data-about], [data-credits]")) { e.preventDefault(); drawer(false); openCredits(); } });
