@@ -1666,7 +1666,7 @@ const escudoCache = new Map<string, THREE.Shape[]>();
  * PATTERN_MIN wide; the swords stop 0.8 mm short of the shield, worked out on a grid like a pattern.
  */
 function escudoBack(lib: Library, role: Role, spec: TokenSpec, small = false) {
-  const R = spec.diameter / 2, out = R - 0.7, k = (R / 22.5) * (small ? 0.62 : 1), dy = small ? R * 0.05 : 0;
+  const R = spec.diameter / 2, out = R - 0.7, k = (R / 22.5) * (small ? 0.74 : 1), dy = small ? R * 0.04 : 0;
   const ed: Edition | null = EDITIONS[role.edition] ?? (role.editionName ? { name: { en: role.editionName } } : null);
   const name = ed ? (ed.name[spec.lang] || ed.name[spec.lang?.split("-")[0]] || ed.name.en).toUpperCase() : "";
   const key = [spec.diameter, small, name].join("|");
