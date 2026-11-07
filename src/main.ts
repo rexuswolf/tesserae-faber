@@ -3,7 +3,7 @@ import {
   loadLibrary, buildToken, geometryVolume, magnetLayout, MAGNET_SIZES, tokenSvg, roleName, saveFile, reminderSpec, layoutName, nameLetterHeight, SMALL_LETTERS_MM,
   TEAMS, EDITIONS, FRAME_STYLES, BACK_STYLES, TOKEN_STYLES, FILAMENTS, DEFAULT_SPEC, CARD, isCard, ringSize, ringBand, RING_BASES, RING_SEPARATORS,
   SHAPE_FEATURES, shapeOf, shapeSpec, flipFace, FACE_FIELDS, backFaceOf, partColours,
-  normalizeSpec, reliefOf, hasRelief, PATTERNS, patternDefaults, patternFilled, PATTERN_MIN,
+  normalizeSpec, reliefOf, hasRelief, PATTERNS, patternDefaults, patternFilled, patternFixed, PATTERN_MIN,
 } from "./engine/token-engine.ts";
 /** The face parts that can be raised, in the order a back that matches the front lists them. */
 const RELIEF_PARTS: ReliefPart[] = ["text", "frame", "icon"];
@@ -2186,6 +2186,12 @@ function patternSwatch(id: string, bg: string, fg: string, clip: string) {
     for (let n = -5; n <= 5; n++) for (let m = -3; m <= 3; m++) out.push(arc(2 * r * m + (n & 1 ? r : 0), -n * r));
     return `<svg viewBox="-10 -10 20 20" aria-hidden="true"><defs><clipPath id="${clip}"><circle r="9.2"/></clipPath></defs><circle r="10" fill="${bg}" stroke="rgba(239,230,214,.25)" stroke-width="0.3"/><g clip-path="url(#${clip})"><path d="${out.join("")}" fill="none" stroke="${fg}" stroke-width="${id === "escamas" ? 0.8 : 1.6}"/></g></svg>`;
   }
+  if (id === "cuartelado" || id === "damero") {
+    // the field quartered (top left and bottom right), or a checkerboard with a square on the centre
+    const q = id === "cuartelado" ? `<path d="M-10 -10H-0.5V-0.5H-10ZM0.5 0.5H10V10H0.5Z"/>`
+      : [-3, -2, -1, 0, 1, 2, 3].flatMap((m) => [-3, -2, -1, 0, 1, 2, 3].filter((n) => !((m + n) & 1)).map((n) => `<rect x="${m * 4.4 - 1.95}" y="${n * 4.4 - 1.95}" width="3.9" height="3.9"/>`)).join("");
+    return `<svg viewBox="-10 -10 20 20" aria-hidden="true"><defs><clipPath id="${clip}"><circle r="9.2"/></clipPath></defs><circle r="10" fill="${bg}" stroke="rgba(239,230,214,.25)" stroke-width="0.3"/><g clip-path="url(#${clip})"><g fill="${fg}">${q}</g></g></svg>`;
+  }
   if (id === "rayas") {
     // the bend: broad stripes from the top left to the bottom right
     const stripes = [-3, -2, -1, 0, 1, 2, 3].map((m) => `<rect x="-20" y="${m * 4.6 - 1.4}" width="40" height="2.8"/>`).join("");
@@ -2225,6 +2231,7 @@ function renderPattern(side: PatSide, role: Role, s: TokenSpec) {
     $(`[data-pat-out=${k}]`, box).textContent = v[k].toFixed(k === "scale" ? 1 : 2).replace(".", dec) + " mm";
   }
   $("[data-pat-line-label]", box).textContent = t(patternFilled(p.id) ? "pattern.gap" : "pattern.line");
+  $("[data-pat-range=scale]", box).closest<HTMLElement>(".row")!.hidden = patternFixed(p.id);
   const colours = $("[data-pat-colour]", box);
   if (colours) colours.innerHTML = (["frame", "front"] as const).map((c) =>
     `<button class="pill group-pill" type="button" data-pat-col="${c}" aria-pressed="${(p.colour ?? "frame") === c}" style="--c: ${pc[c]}"><i></i>${esc(t(`pattern.colour.${c}`))}</button>`).join("");
@@ -2248,9 +2255,11 @@ function changePattern(side: PatSide, change: { id?: string; field?: "scale" | "
 /** A pattern chosen where there was none starts as Midnight Harlequin's. */
 const STARTING_PATTERN: Record<PatSide, Record<PatternSpec["id"], Omit<PatternSpec, "id">>> = {
   front: { "rombos-lineas": { scale: 5.1, line: 0.6, halo: 0.8, colour: "frame" }, "damero-rombos": { scale: 4.2, line: 0.7, halo: 0.8, colour: "frame" },
-    "escamas": { scale: 4.4, line: 0.6, halo: 0.8, colour: "frame" }, "escamas-relleno": { scale: 3.6, line: 0.7, halo: 0.8, colour: "frame" }, "rayas": { scale: 4, line: 1.6, halo: 0.8, colour: "frame" } },
+    "escamas": { scale: 4.4, line: 0.6, halo: 0.8, colour: "frame" }, "escamas-relleno": { scale: 3.6, line: 0.7, halo: 0.8, colour: "frame" }, "rayas": { scale: 4, line: 1.6, halo: 0.8, colour: "frame" },
+    "cuartelado": { line: 0.7, halo: 0.8, colour: "frame" }, "damero": { scale: 5, line: 0.7, halo: 0.8, colour: "frame" } },
   back: { "rombos-lineas": { scale: 5.1, line: 0.6, halo: 0.8 }, "damero-rombos": { scale: 4.2, line: 0.7, halo: 0.8 },
-    "escamas": { scale: 4.4, line: 0.6, halo: 0.8 }, "escamas-relleno": { scale: 3.6, line: 0.7, halo: 0.8 }, "rayas": { scale: 4, line: 1.6, halo: 0.8 } },
+    "escamas": { scale: 4.4, line: 0.6, halo: 0.8 }, "escamas-relleno": { scale: 3.6, line: 0.7, halo: 0.8 }, "rayas": { scale: 4, line: 1.6, halo: 0.8 },
+    "cuartelado": { line: 0.7, halo: 0.8 }, "damero": { scale: 5, line: 0.7, halo: 0.8 } },
 };
 
 /** The selected token's other state, if it has one (a reminder, a token of its own, never does). */

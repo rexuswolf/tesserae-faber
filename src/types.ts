@@ -56,6 +56,8 @@ export interface Role {
   kind?: "homebrew" | "info" | "ring";
   /** A homebrew character's script name (its edition, on the Edition back). */
   editionName?: string;
+  /** A collection's token: the collection's name, for a back that prints it (TokenSpec.backText). */
+  collectionName?: string;
   ability?: string;
   /** A homebrew character whose icon is still on its way. */
   loading?: boolean;
@@ -167,20 +169,24 @@ export interface TokenSpec {
   frontPattern?: PatternSpec | null;
   /** A background pattern on the back, behind its design. */
   backPattern?: PatternSpec | null;
+  /** The name a back design prints (Edition, medallion, shield): unset, the edition's (a collection's
+   *  token: its catalog's); "collection", the collection's own name (a token outside one: as unset). */
+  backText?: "collection";
   /** Older window designs (normalizeSpec turns them into relief). */
   windowFinish?: string;
   windowDepth?: number;
 }
 
 /** A background pattern's id (the engine's PATTERNS): thin lines in a harlequin grid, or a checkerboard of filled rhombi. */
-export type PatternId = "rombos-lineas" | "damero-rombos" | "escamas" | "escamas-relleno" | "rayas";
+export type PatternId = "rombos-lineas" | "damero-rombos" | "escamas" | "escamas-relleno" | "rayas" | "cuartelado" | "damero";
 /**
  * A background pattern: it runs behind everything on the face, continuous, and the icon, the name
  * and the frame (on the back, its design) sit on it, each with a halo of coin colour round it
  * (`halo`, mm, at least 0.6) so they read. It is a flush inlay like the rest of the face, in a colour
  * the token already has (it goes into that part: never a filament of its own). `scale` is a rhombus's
- * width (mm; a scale's width for "escamas", the stripes' period for "rayas"), `line` the line's width
- * ("rombos-lineas", "escamas") or the gap between cells ("damero-rombos", "escamas-relleno", "rayas"),
+ * width (mm; a scale's width for "escamas", the stripes' period for "rayas", a square's side for
+ * "damero"; "cuartelado", the face quartered, has none), `line` the line's width ("rombos-lineas",
+ * "escamas") or the gap between cells ("damero-rombos", "escamas-relleno", "rayas", "cuartelado", "damero"),
  * at least 0.6 mm. `colour` picks the front's part: "frame", "front" (the name's), "team" (whichever
  * is the team colour) or a hex one of them has; a back pattern is always the back's colour.
  */

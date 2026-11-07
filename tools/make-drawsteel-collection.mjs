@@ -96,6 +96,13 @@ const STEEL = { style: "classic", frame: "rim", frameWidth: 0.8, back: "edition"
 const styles = {
   coin: [
     { id: "edicion", name: { es: "Acero", en: "Steel" }, help: { es: "Negra, con el nombre, el icono y el borde del color del grupo, y el catálogo en oro al reverso.", en: "Black, with the name, icon and rim in the group colour, and the catalog in gold on the back." }, spec: STEEL },
+    // Chainmail: fine scales in the group colour behind the face, a coined rim; on the back, filled
+    // scales in silver round a shield with two swords and the collection's name (not each catalog's)
+    { id: "cota-de-malla", name: { es: "Cota de malla", en: "Chainmail" },
+      help: { es: "Negra, con escamas finas del color del grupo detrás del icono y el nombre; al reverso, escamas de plata alrededor de un escudo con espadas y «Draw Steel».", en: "Black, with fine scales in the group colour behind the icon and the name; on the back, silver scales round a shield with swords and «Draw Steel»." },
+      spec: { style: "classic", frame: "acunado", frameWidth: 0.8, back: "escudo", backText: "collection", depth: 0.4, colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.silver },
+        frontPattern: { id: "escamas", scale: 4.4, line: 0.6, halo: 0.8, colour: "frame" },
+        backPattern: { id: "escamas-relleno", scale: 3.4, line: 0.7, halo: 0.8 } } },
     { id: "legible", name: { es: "Legible", en: "Legible" }, help: { es: "Ventana del color del grupo con el icono y el nombre grande debajo.", en: "A window in the group colour with the icon, and the name large below." },
       spec: { style: "window", textSize: 6, frame: "none", back: "edition", depth: 0.4, colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } }, hidden: true },
   ],

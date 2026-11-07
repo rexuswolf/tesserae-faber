@@ -10,9 +10,9 @@
 // Each token is a character to the rest of the app (team = group, reminders = linked tokens),
 // so designing and printing are Clocktower's own. A whole collection goes in and out as one
 // JSON file ("midnight-mint/collection", see CollectionFile). Kept in this browser.
-import type { Hex, Role, SpecInput, Team, TokenIcon, TokenShape } from "./types.ts";
+import type { Hex, PatternSpec, Role, SpecInput, Team, TokenIcon, TokenShape } from "./types.ts";
 import { gameIcon } from "./icons.ts";
-import { DEFAULT_SPEC, FILAMENTS } from "./engine/token-engine.ts";
+import { DEFAULT_SPEC, FILAMENTS, PATTERNS } from "./engine/token-engine.ts";
 import { BUILT_INS } from "./builtins.ts";
 import { ringDesigns, cardDesigns, APP_DESIGNS, appTwin } from "./shape-designs.ts";
 
@@ -332,7 +332,7 @@ export function tokenRole(c: Collection, t: OwnToken, lang = "es"): Role {
     id: t.id, en: nameIn(names, "en"), es: nameIn(names, "es"), names: Object.fromEntries([...langs].map((l) => [l, nameIn(names, l)])), fem: t.fem ?? {},
     team: t.group as Team,   // a group of the collection, registered as a team (main.ts, applyGroups)
     ...(t.colour ? { colour: t.colour } : {}),
-    edition: "own", editionName: nameIn(home?.name ?? c.name, lang),
+    edition: "own", editionName: nameIn(home?.name ?? c.name, lang), collectionName: nameIn(c.name, lang),
     reminders: Object.fromEntries([...langs].map((l) => [l, t.linked.map((n) => nameIn(n, l))])),
     body: t.icon?.body ?? "", d: [], g: t.icon?.g ?? "",
     ...(type?.shape === "card" ? { kind: "info" as const } : type?.shape === "ring" ? { kind: "ring" as const } : {}),
@@ -397,9 +397,20 @@ function readSpec(v: unknown): SpecInput | null {
       if (Object.keys(c).length) out.colours = c;
     } else if (k === "backFace" || k === "relief") { if (x && typeof x === "object" && !Array.isArray(x)) out[k] = x; }
     else if (k === "customSvg") { if (typeof x === "string" && x.length < 300000) out[k] = x; }
+    else if (k === "frontPattern" || k === "backPattern") { const p = readPattern(x); if (p) out[k] = p; }
+    else if (k === "backText") { if (x === "collection") out[k] = x; }
     else if (k in d && k !== "lang" && typeof x === typeof d[k]) out[k] = x;
   }
   return out as SpecInput;
+}
+/** A background pattern from a file (PatternSpec): a known pattern, its numbers and its colour. */
+function readPattern(v: unknown): PatternSpec | null {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return null;
+  const x = v as Record<string, unknown>;
+  if (!PATTERNS.some((p) => p.id === x.id)) return null;
+  const num = (k: string) => (typeof x[k] === "number" && Number.isFinite(x[k]) ? { [k]: x[k] } : {});
+  const colour = typeof x.colour === "string" && (["frame", "front", "back", "team"].includes(x.colour) || isHex(x.colour)) ? { colour: x.colour } : {};
+  return { id: x.id as PatternSpec["id"], ...num("scale"), ...num("line"), ...num("halo"), ...colour } as PatternSpec;
 }
 /** A collection's styles from a file: per shape, each with an id, a name and a look; none, nothing. */
 function readStyles(v: unknown): CollectionStyles | undefined {

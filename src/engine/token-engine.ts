@@ -398,6 +398,14 @@ function placeName(lib: Library, chars: string[], em: number, radius: number, sp
   return { angles, total, scale };
 }
 
+/** The edition a back design prints the name of (Edition, medallion, shield): the role's edition
+ *  (a homebrew character's script, a collection's token its catalog), or with backText "collection"
+ *  the collection's own name; null for none. */
+function backEdition(role: Role, spec: TokenSpec): Edition | null {
+  if (spec.backText === "collection" && role.collectionName) return { name: { en: role.collectionName } };
+  return EDITIONS[role.edition] ?? (role.editionName ? { name: { en: role.editionName } } : null);
+}
+
 /**
  * Edition back: the edition's full name (a homebrew character's: its script's) in the centre, one word per line, as
  * large as fits inside a fine double rim, with a small star above and below.
@@ -405,7 +413,7 @@ function placeName(lib: Library, chars: string[], em: number, radius: number, sp
  */
 function editionBack(lib: Library, role: Role, spec: TokenSpec) {
   // a script's own (homebrew) characters carry their script's name instead
-  const ed: Edition | null = EDITIONS[role.edition] ?? (role.editionName ? { name: { en: role.editionName } } : null);
+  const ed = backEdition(role, spec);
   if (!ed) return null;
   const R = spec.diameter / 2, out = R - 0.7;
   const shapes: THREE.Shape[] = [annulus(out, out - 0.6), annulus(out - 1.2, out - 1.65)];
@@ -1231,6 +1239,8 @@ export const PATTERNS: { id: PatternId; label: string }[] = [
   { id: "escamas", label: "Scales (lines)" },
   { id: "escamas-relleno", label: "Scales" },
   { id: "rayas", label: "Bend stripes" },
+  { id: "cuartelado", label: "Quartered" },
+  { id: "damero", label: "Checkerboard" },
 ];
 const PATTERN_IDS = new Set(PATTERNS.map((p) => p.id));
 /** The thinnest line, gap or piece a pattern prints (mm): about a nozzle's width and a half. */
@@ -1276,9 +1286,13 @@ export const patternDefaults = (id: PatternId) => ({
   "escamas": { scale: 4.4, line: PATTERN_MIN, halo: PATTERN_HALO },
   "escamas-relleno": { scale: 3.6, line: 0.7, halo: PATTERN_HALO },
   "rayas": { scale: 4, line: 1.6, halo: PATTERN_HALO },
+  "cuartelado": { scale: 4, line: 0.7, halo: PATTERN_HALO },
+  "damero": { scale: 5, line: 0.7, halo: PATTERN_HALO },
 })[id];
+/** Patterns without a size: the face quartered. */
+export const patternFixed = (id: PatternId) => id === "cuartelado";
 /** Patterns whose `line` is the gap between filled cells (or stripes), not a line's width. */
-export const patternFilled = (id: PatternId) => id === "damero-rombos" || id === "escamas-relleno" || id === "rayas";
+export const patternFilled = (id: PatternId) => id === "damero-rombos" || id === "escamas-relleno" || id === "rayas" || id === "cuartelado" || id === "damero";
 
 /**
  * Fish scales, `w` wide, as the distance (mm) from a point to the nearest edge between scales
@@ -1313,6 +1327,23 @@ function patternField(p: PatternSpec) {
     return p.id === "escamas"
       ? { sdf: (x: number, y: number) => line / 2 - scaleEdge(x, y, w), line, width: line, gap: r - line }
       : { sdf: (x: number, y: number) => scaleEdge(x, y, w) - line / 2, line, width: w - line, gap: line };
+  }
+  if (p.id === "cuartelado") {
+    // the field quartered, heraldry's way: the first and fourth quarters (top left, bottom right as
+    // you look at it) filled, `line` of coin along the cross between them
+    const line = Math.max(PATTERN_MIN, p.line ?? d.line);
+    return { sdf: (x: number, y: number) => (x * y < 0 ? 1 : -1) * Math.min(Math.abs(x), Math.abs(y)) - line / 2, line, width: Infinity, gap: line };
+  }
+  if (p.id === "damero") {
+    // a checkerboard of squares `scale` across, one filled square on the centre; where two meet at a
+    // corner each stops `line`/2 short of it
+    const P = Math.max(1.5, p.scale ?? d.scale), line = Math.max(PATTERN_MIN, Math.min(P / 2, p.line ?? d.line));
+    const sdf = (x: number, y: number) => {
+      const u = x + P / 2, v = y + P / 2, i = Math.floor(u / P), j = Math.floor(v / P), fu = u - i * P, fv = v - j * P;
+      const e = Math.min(fu, P - fu, fv, P - fv);
+      return ((i + j) & 1) === 0 ? e - line / 2 : -(e + line / 2);
+    };
+    return { sdf, line, width: P - line, gap: line * Math.SQRT2 };
   }
   if (p.id === "rayas") {
     // a heraldic bend: broad stripes from the top left to the bottom right, one through the centre
@@ -1597,7 +1628,7 @@ function frontPattern(lib: Library, role: Role, spec: TokenSpec, text: string): 
 function backPattern(lib: Library, role: Role, spec: TokenSpec): PatternCut | null {
   const p = spec.backPattern;
   if (!p || !PATTERN_IDS.has(p.id) || spec.back === FACE_BACK || !SHAPE_FEATURES[shapeOf(role)].pattern) return null;
-  const ed = EDITIONS[role.edition] ? role.edition : role.editionName ?? "";
+  const ed = backEdition(role, spec)?.name.en ?? "";
   const key = ["back", JSON.stringify(p), spec.back, spec.back === "custom" ? spec.customSvg : "", ed, spec.lang, spec.diameter].join("|");
   return cached(key, () => cutPattern(p, spec.diameter / 2, backInk(lib, role, spec)));
 }
@@ -1622,7 +1653,7 @@ const cutPath = (cut: PatternCut) => cut.rings.flatMap((r) => [r.outer, ...r.hol
 function medallionBack(lib: Library, role: Role, spec: TokenSpec) {
   const R = spec.diameter / 2, out = R - 0.7, rm = R * MEDALLION;
   const shapes: THREE.Shape[] = [annulus(out, out - 0.6), annulus(rm, rm - 0.6)];
-  const ed: Edition | null = EDITIONS[role.edition] ?? (role.editionName ? { name: { en: role.editionName } } : null);
+  const ed = backEdition(role, spec);
   const base = rm - 0.6 - 0.7;                          // the name's baseline, 0.7 mm inside the ring
   if (ed) {
     const chars = [...(ed.name[spec.lang] || ed.name[spec.lang?.split("-")[0]] || ed.name.en).toUpperCase()];
@@ -1667,7 +1698,7 @@ const escudoCache = new Map<string, THREE.Shape[]>();
  */
 function escudoBack(lib: Library, role: Role, spec: TokenSpec, small = false) {
   const R = spec.diameter / 2, out = R - 0.7, k = (R / 22.5) * (small ? 0.74 : 1), dy = small ? R * 0.04 : 0;
-  const ed: Edition | null = EDITIONS[role.edition] ?? (role.editionName ? { name: { en: role.editionName } } : null);
+  const ed = backEdition(role, spec);
   const name = ed ? (ed.name[spec.lang] || ed.name[spec.lang?.split("-")[0]] || ed.name.en).toUpperCase() : "";
   const key = [spec.diameter, small, name].join("|");
   const hit = escudoCache.get(key);
