@@ -10,7 +10,7 @@ const RELIEF_PARTS: ReliefPart[] = ["text", "frame", "icon"];
 /** Each layout's name size (mm): the arcs' run along the edge, the window's has the lower half. */
 const LAYOUT_TEXT: Record<TokenStyle, number> = { classic: DEFAULT_SPEC.textSize, window: 6, solo: DEFAULT_SPEC.textSize, double: DEFAULT_SPEC.textSize };
 import { infoRoles } from "./info-tokens.ts";
-import { onUser, signIn, signOut as signOutUser, isAdmin, loadRoles, uploadRoles } from "./services.ts";
+import { onUser, signIn, signOut as signOutUser, isAdmin, loadRoles, uploadRoles, local, session, readJSON, writeJSON } from "./services.ts";
 import { planPlates, FILAMENT_SLOTS, PRINTERS, printerOf, NOZZLES, nozzleOf } from "./bambu/plates.ts";
 import { colourIssues, LIGHT_DEPTH } from "./colour-checks.ts";
 import { iconFromSvg, gameIcon, gameIconPreview, searchGameIcons, scriptEntryIcon, iconForScript, placeGameIcon, tracedBefore } from "./icons.ts";
@@ -156,12 +156,12 @@ function keepGateLook() {
     for (const k of ["--velvet", "--velvet-mid", "--velvet-deep", "--brass", "--bone", "--dust", "--seam", "--glow", "--display"]) { const v = root.style.getPropertyValue(k); if (v) vars[k] = v; }
     const logo = coll.brand?.logo && coll.brand.logo.length < 30000 ? coll.brand.logo : APP_LOGO;   // a big uploaded logo isn't worth keeping twice
     const lang = uiLang();
-    localStorage.setItem(`midnight-mint-gate:${location.pathname}`, JSON.stringify({
+    writeJSON(`midnight-mint-gate:${location.pathname}`, {
       theme: root.dataset.theme ?? "", vars, logo,
       name: nameIn(coll.brand?.title, lang) || nameIn(coll.name, lang),
       title: coll.loader?.text ? nameIn(coll.loader.text, lang) : t("gate.opening"),
       footer: coll.loader?.footer ? nameIn(coll.loader.footer, lang) : "",
-    }));
+    });
   } catch { /* storage unavailable or full: the next visit shows the plain screen */ }
 }
 
@@ -194,12 +194,12 @@ if ("serviceWorker" in navigator && import.meta.env.PROD) {
 }
 $("#buildTag").textContent = `v ${__BUILD__}`;
 window.addEventListener("vite:preloadError", (e) => {
-  if (sessionStorage.getItem("mm-reloaded")) return;   // don't loop if it really is broken
+  if (session.get("mm-reloaded")) return;   // don't loop if it really is broken
   e.preventDefault();
-  sessionStorage.setItem("mm-reloaded", "1");
+  session.set("mm-reloaded", "1");
   location.reload();
 });
-setTimeout(() => sessionStorage.removeItem("mm-reloaded"), 10000);
+setTimeout(() => session.remove("mm-reloaded"), 10000);
 
 // The 3D preview loads on its own (WebGL and camera controls), so the sheet doesn't wait for
 // it. Until it's ready, calls are remembered and replayed: the latest token, view and X-ray.
@@ -262,9 +262,8 @@ function legacySpecs(): Record<TokenShape, TokenSpec> {
   for (const shape of ["ring", "card"] as const) specs[shape] = upgradeSpec(loadJSON<TokenSpec | null>(STYLE_KEYS[shape], null)) ?? structuredClone(coin);
   return specs;
 }
-function loadJSON<T>(key: string, fallback: T): T { try { return JSON.parse(localStorage.getItem(key) as string) ?? fallback; } catch { return fallback; } }
-/** Saves to this browser; false if it couldn't (storage full or unavailable). */
-function storeJSON(key: string, value: unknown): boolean { try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch { return false; } }
+const loadJSON = <T>(key: string, fallback: T): T => readJSON(key, fallback);
+const storeJSON = (key: string, value: unknown): boolean => writeJSON(key, value);
 /** A saved design as the app now has it: an old window's "relief" finish becomes its icon raised. */
 function upgradeSpec<T extends TokenSpec | null | undefined>(spec: T): T {   // a declaration: the state above uses it before this line runs
   return (spec && typeof spec === "object" ? normalizeSpec(spec) : spec) as T;
@@ -506,8 +505,7 @@ function keptStyles(place: (v: TokenOverride) => TokenOverride): { styles: Recor
       overrides: new Map(Object.entries(loadJSON<Record<string, TokenOverride>>(TOKENS_KEY, {})).filter(([, v]) => v).map(([k, v]) => [k, place(v)])),
     };
   }
-  let before = false;
-  try { before = [...Object.values(STYLE_KEYS), OVERRIDES_KEY, DESIGNS_KEY].some((k) => localStorage.getItem(k) != null); } catch { /* storage unavailable */ }
+  const before = [...Object.values(STYLE_KEYS), OVERRIDES_KEY, DESIGNS_KEY].some((k) => local.get(k) != null);
   if (!before) return null;
   const specs = legacySpecs(), styles = {} as Record<TokenShape, Style[]>, overrides = new Map<string, TokenOverride>();
   for (const sh of SHAPES) {
@@ -593,10 +591,10 @@ const TIDIED_KEY = "tesserae-styles-tidied-2";
  * known (a collection that comes with the app, read from its file).
  */
 async function tidyMyDesigns() {
-  try { if (localStorage.getItem(TIDIED_KEY)) return; } catch { return; }
+  if (local.get(TIDIED_KEY)) return;
   const mine = readMyDesigns();
   const prefixes = new Set<string>();
-  try { for (const k of Object.keys(localStorage)) { const m = k.match(/^(midnight-mint-.*)design-(?:defaults|tokens)$/); if (m) prefixes.add(m[1]); } } catch { return; }
+  for (const k of local.keys()) { const m = k.match(/^(midnight-mint-.*)design-(?:defaults|tokens)$/); if (m) prefixes.add(m[1]); }
   // each collection's own designs, per shape
   let known = true;
   const theirs = new Map<string, Record<TokenShape, StyleDef[]>>();
@@ -785,7 +783,7 @@ document.addEventListener("contextmenu", (e) => { if (peekTarget(e.target)) e.pr
 /** Once, on a touch screen with tokens that have a back on the sheet: how to see it. */
 function peekHint() {
   if (!matchMedia("(hover: none)").matches || !$(".tok-w.backed, .tok-w.two")) return;
-  try { if (localStorage.getItem(PEEK_HINT_KEY)) return; localStorage.setItem(PEEK_HINT_KEY, "1"); } catch { return; }
+  if (local.get(PEEK_HINT_KEY) || !local.set(PEEK_HINT_KEY, "1")) return;
   toast(t("sheet.peekHint"));
 }
 // The ⇄ on a two-state token on the sheet turns it over (on a phone, where nothing hovers); it doesn't pick it.
@@ -812,7 +810,7 @@ document.addEventListener("keydown", (e) => {
 // before "same" existed is a translation's id, so it stays as it was.
 const SAME = "same";
 function tokenLangChoice(): string {
-  try { return localStorage.getItem(TOKEN_LANG_KEY) || SAME; } catch { return SAME; }
+  return local.get(TOKEN_LANG_KEY) || SAME;
 }
 /**
  * "Same as the interface" in this collection: its first language in the interface's (Clocktower's
@@ -879,7 +877,7 @@ function renderLangButtons() {
   }
 }
 function setTokenLang(choice: string) {
-  try { localStorage.setItem(TOKEN_LANG_KEY, choice); } catch { /* no storage */ }
+  local.set(TOKEN_LANG_KEY, choice);
   renderLangButtons();
   if (state.lib) { renderAll(); renderQueue(); if ($<HTMLDialogElement>("#scriptInvite").open) renderInvite(); }
 }
@@ -3289,7 +3287,7 @@ function openGuide() {
   guide.at = 0;
   renderGuide();
   $<HTMLDialogElement>("#guide").showModal();
-  try { localStorage.setItem(GUIDE_KEY, "1"); } catch { /* no storage */ }
+  local.set(GUIDE_KEY, "1");
 }
 function renderGuide() {
   const i = guide.at + 1, lang = uiLang();
@@ -3308,8 +3306,7 @@ function wireGuide() {
   $("#guideBack").onclick = () => { guide.at = Math.max(0, guide.at - 1); renderGuide(); };
   $("#guideNext").onclick = () => { if (guide.at < GUIDE_STEPS - 1) { guide.at++; renderGuide(); } else $<HTMLDialogElement>("#guide").close(); };
   $("#guide").addEventListener("click", (e) => { if (e.target === e.currentTarget) (e.currentTarget as HTMLDialogElement).close(); });   // backdrop
-  let seen: string | null = null;
-  try { seen = localStorage.getItem(GUIDE_KEY); } catch { /* no storage */ }
+  const seen = local.get(GUIDE_KEY);
   // A first visit opens it, unless it came with a shared script, which opens its own invite.
   if (!seen && !location.hash.startsWith("#s=")) openGuide();
 }
@@ -3482,16 +3479,14 @@ function toast(message: string) {
 }
 /** Going to the Taller from the design step: coming back opens it again, on the same token. */
 function rememberReturn() {
-  try { sessionStorage.setItem(RETURN_KEY, JSON.stringify({ path: location.pathname, step: state.step, sel: state.sel?.key ?? null })); } catch { /* no storage */ }
+  writeJSON(RETURN_KEY, { path: location.pathname, step: state.step, sel: state.sel?.key ?? null }, session);
 }
 const RETURN_KEY = "tesserae-return";
 /** Back from the Taller: the step and token it was opened from, once. */
 function takeReturn(): { step: number; sel: string | null } | null {
-  try {
-    const v = JSON.parse(sessionStorage.getItem(RETURN_KEY) as string);
-    sessionStorage.removeItem(RETURN_KEY);
-    return v && v.path === location.pathname ? v : null;
-  } catch { return null; }
+  const v = readJSON<{ path?: string; step: number; sel: string | null } | null>(RETURN_KEY, null, session);
+  session.remove(RETURN_KEY);
+  return v && v.path === location.pathname ? v : null;
 }
 
 // ------------------------------------------------------------ the Taller
@@ -3783,12 +3778,10 @@ function designUses(id: string): { prefix: string; name: string; defaults: Token
     }
     return out.get(prefix)!;
   };
-  try {
-    for (const k of Object.keys(localStorage)) {
-      if (k.endsWith("design-defaults")) for (const [sh, r] of Object.entries(loadJSON<Record<string, string>>(k, {}))) { if (r === ref) entry(k.slice(0, -15)).defaults.push(sh as TokenShape); }
-      if (k.endsWith("design-tokens")) { const n = Object.values(loadJSON<Record<string, TokenOverride>>(k, {})).filter((o) => o?.style === ref).length; if (n) entry(k.slice(0, -13)).tokens += n; }
-    }
-  } catch { /* storage unavailable */ }
+  for (const k of local.keys()) {
+    if (k.endsWith("design-defaults")) for (const [sh, r] of Object.entries(loadJSON<Record<string, string>>(k, {}))) { if (r === ref) entry(k.slice(0, -15)).defaults.push(sh as TokenShape); }
+    if (k.endsWith("design-tokens")) { const n = Object.values(loadJSON<Record<string, TokenOverride>>(k, {})).filter((o) => o?.style === ref).length; if (n) entry(k.slice(0, -13)).tokens += n; }
+  }
   return [...out.values()];
 }
 /** A line on one of your designs saying where it's the default ("Default in Draw Steel"). */

@@ -21,3 +21,12 @@ export interface RoleLibraryPort {
   /** Writes these roles, each by its id (an existing one is replaced). */
   put(roles: Role[], onProgress: (done: number, total: number) => void): Promise<void>;
 }
+
+/** A small store of strings by key, read and written at once (the browser's storage today).
+ *  It never throws: a read finds null when there's no storage, a write says false when it didn't fit. */
+export interface KeyValueStore {
+  get(key: string): string | null;
+  set(key: string, value: string): boolean;
+  remove(key: string): void;
+  keys(): string[];
+}

@@ -10,6 +10,7 @@
 // Each token is a character to the rest of the app (team = group, reminders = linked tokens),
 // so designing and printing are Clocktower's own. A whole collection goes in and out as one
 // JSON file ("midnight-mint/collection", see CollectionFile). Kept in this browser.
+import { local, readJSON, writeJSON } from "./services.ts";
 import type { Hex, PatternSpec, Role, SpecInput, Team, TokenIcon, TokenShape } from "./types.ts";
 import { gameIcon } from "./icons.ts";
 import { safeIconMarkup, safeTransform } from "./engine/safe-svg.ts";
@@ -33,8 +34,8 @@ export const TALLER_URL = "/taller";
 export const tallerUrl = (from = location.pathname, extra: Record<string, string> = {}) => `${TALLER_URL}?${new URLSearchParams({ from, ...extra })}`;
 /** The last collection opened, for the front page's "carry on" link. */
 const LAST_KEY = "midnight-mint-own-last";
-export const lastCollection = () => { try { return localStorage.getItem(LAST_KEY); } catch { return null; } };
-export const rememberCollection = (id: string) => { try { localStorage.setItem(LAST_KEY, id); } catch { /* storage unavailable */ } };
+export const lastCollection = () => local.get(LAST_KEY);
+export const rememberCollection = (id: string) => { local.set(LAST_KEY, id); };
 /** Where a collection opens. */
 export const collectionUrl = (id: string) => `/c/${id}`;
 
@@ -263,24 +264,24 @@ function upgrade(c: Collection & { catalogs?: OwnCatalog[] }): Collection {
 }
 export function listCollections(): CollectionEntry[] {
   migrateSingle();
-  try { const l = JSON.parse(localStorage.getItem(LIST_KEY) as string); if (Array.isArray(l)) return l; } catch { /* none */ }
-  return [];
+  const l = readJSON<unknown>(LIST_KEY, null);
+  return Array.isArray(l) ? l as CollectionEntry[] : [];
 }
-function storeList(list: CollectionEntry[]) { try { localStorage.setItem(LIST_KEY, JSON.stringify(list)); } catch { /* storage unavailable */ } }
+function storeList(list: CollectionEntry[]) { writeJSON(LIST_KEY, list); }
 
 export function loadCollection(id = OWN_ID): Collection | null {
   if (!id) return null;
   migrateSingle();
   try {
-    const c = JSON.parse(localStorage.getItem(keyOf(id)) as string);
+    const c = readJSON<Collection | null>(keyOf(id), null);
     if (c && Array.isArray(c.groups) && Array.isArray(c.tokens) && c.tokens.length) return upgrade(c);
-  } catch { /* storage unavailable or not ours */ }
+  } catch { /* not ours */ }
   return null;
 }
 /** Keeps a collection, and its card in the list. Returns false when the browser's storage is full. */
 export function storeCollection(c: Collection, id = OWN_ID): boolean {
   if (!id || builtIn(id)) return false;   // the app's own collections are read-only: make a copy to change one
-  try { localStorage.setItem(keyOf(id), JSON.stringify(c)); } catch { return false; }
+  if (!writeJSON(keyOf(id), c)) return false;
   const theme = typeof c.theme === "object" ? c.theme : THEMES[c.theme ?? "faber"];
   const entry: CollectionEntry = { id, name: nameIn(c.name, "es"), ...(c.brand?.logo ? { logo: c.brand.logo } : {}), accent: theme?.accent ?? "#c9a227", tokens: c.tokens.length, updated: Date.now() };
   storeList([entry, ...listCollections().filter((x) => x.id !== id)]);
@@ -293,25 +294,23 @@ export function addCollection(c: Collection): string | null {
 }
 /** Takes a collection out, with its queue, style and designs. */
 export function deleteCollection(id: string) {
-  try { for (const k of Object.keys(localStorage)) if (k.startsWith(`midnight-mint-own-${id}-`)) localStorage.removeItem(k); } catch { /* none */ }
+  for (const k of local.keys()) if (k.startsWith(`midnight-mint-own-${id}-`)) local.remove(k);
   storeList(listCollections().filter((x) => x.id !== id));
 }
 /** The creator kept one collection before it kept several: that one becomes the first of the list. */
 function migrateSingle() {
-  try {
-    const old = localStorage.getItem("midnight-mint-own-collection");
-    if (!old || localStorage.getItem(LIST_KEY)) return;
-    const id = "c1";
-    localStorage.setItem(keyOf(id), old);
-    for (const k of ["picks", "style", "overrides", "designs", "view"]) {
-      const v = localStorage.getItem(`midnight-mint-own-${k}`);
-      if (v != null) localStorage.setItem(`midnight-mint-own-${id}-${k}`, v);
-      localStorage.removeItem(`midnight-mint-own-${k}`);
-    }
-    localStorage.removeItem("midnight-mint-own-collection");
-    const c = JSON.parse(old);
-    localStorage.setItem(LIST_KEY, JSON.stringify([{ id, name: nameIn(c.name, "es"), tokens: c.tokens?.length ?? 0, updated: Date.now() }]));
-  } catch { /* storage unavailable */ }
+  const old = local.get("midnight-mint-own-collection");
+  if (!old || local.get(LIST_KEY)) return;
+  const id = "c1";
+  local.set(keyOf(id), old);
+  for (const k of ["picks", "style", "overrides", "designs", "view"]) {
+    const v = local.get(`midnight-mint-own-${k}`);
+    if (v != null) local.set(`midnight-mint-own-${id}-${k}`, v);
+    local.remove(`midnight-mint-own-${k}`);
+  }
+  local.remove("midnight-mint-own-collection");
+  const c = readJSON<Partial<Collection> | null>(keyOf(id), null);
+  writeJSON(LIST_KEY, [{ id, name: c?.name ? nameIn(c.name, "es") : "", tokens: c?.tokens?.length ?? 0, updated: Date.now() }]);
 }
 
 /** Every catalog, with its section. */

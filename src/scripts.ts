@@ -14,6 +14,7 @@
  * The name, "~", then the ids joined by ".". Each part is percent-encoded, with "~" and "."
  * escaped too, so a name or id can hold any character.
  */
+import { readJSON, writeJSON } from "./services.ts";
 import type { Team, TokenIcon } from "./types.ts";
 
 /** An entry of a Script Tool JSON: a character's id, or an object (a homebrew definition, "_meta"…). */
@@ -61,13 +62,11 @@ const KEY = "midnight-mint-scripts";
 export const idKey = (s: unknown) => String(s).toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^a-z0-9]/g, "");
 
 export function loadScripts(): Script[] {
-  try {
-    const list = JSON.parse(localStorage.getItem(KEY) as string);
-    return Array.isArray(list) ? list.filter((s: Script) => s && typeof s.id === "string" && Array.isArray(s.ids)) : [];
-  } catch { return []; }
+  const list = readJSON<unknown>(KEY, null);
+  return Array.isArray(list) ? list.filter((s: Script) => s && typeof s.id === "string" && Array.isArray(s.ids)) : [];
 }
 export function storeScripts(list: Script[]) {
-  try { localStorage.setItem(KEY, JSON.stringify(list)); } catch { /* storage unavailable */ }
+  writeJSON(KEY, list);
 }
 
 /** Adds a script, or returns the one already saved with the same name and characters. */

@@ -1,3 +1,4 @@
+import { local } from "./services.ts";
 // Interface text in Spanish and English. The Language dialog (the flag at the top right) sets the
 // interface, and the tokens follow it unless another token language is picked there.
 //
@@ -1594,7 +1595,7 @@ const known = (code: string | null): code is string => LANGUAGES.some((l) => l.c
 
 const STORE_KEY = "midnight-mint-lang";
 const initial = (() => {
-  try { const saved = localStorage.getItem(STORE_KEY); if (known(saved)) return saved; } catch { /* no storage */ }
+  const saved = local.get(STORE_KEY); if (known(saved)) return saved;
   return "en";   // a first visit is in English; the switch remembers other choices
 })();
 let lang = initial;
@@ -1703,7 +1704,7 @@ export function applyStatic(root: ParentNode = document) {
 
 export function setUiLang(next: string) {
   lang = known(next) ? next : "en";
-  try { localStorage.setItem(STORE_KEY, lang); } catch { /* no storage */ }
+  local.set(STORE_KEY, lang);
   document.documentElement.lang = lang;
   applyStatic();
 }

@@ -1,11 +1,13 @@
 // RoleLibraryPort on Firestore: one document per role in "roles", kept on the device
 // so the library is downloaded once, not on every visit.
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, getDocs, writeBatch } from "firebase/firestore";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, memoryLocalCache, collection, doc, getDocs, writeBatch } from "firebase/firestore";
 import { app } from "./firebase-app.ts";
 import type { RoleLibraryPort } from "../ports.ts";
 import type { Role } from "../types.ts";
 
-const db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
+// (where the browser blocks its storage, the device cache can't start: the library is then fetched each visit)
+const canKeep = (() => { try { return !!localStorage && !!indexedDB; } catch { return false; } })();
+const db = initializeFirestore(app, { localCache: canKeep ? persistentLocalCache({ tabManager: persistentMultipleTabManager() }) : memoryLocalCache() });
 
 export const firestoreRoles: RoleLibraryPort = {
   async list() {

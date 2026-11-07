@@ -2,8 +2,29 @@
 // (who the admin is, how the library is ordered, what an upload must hold).
 // The adapters are loaded only when needed: a collection of your own or the Taller never
 // downloads Firebase; Clocktower loads the role library, and sign-in only for the admin.
-import type { AppUser, AuthPort, RoleLibraryPort } from "./ports.ts";
+import type { AppUser, AuthPort, KeyValueStore, RoleLibraryPort } from "./ports.ts";
 import type { Role } from "./types.ts";
+import { webStorage } from "./adapters/web-storage.ts";
+
+// ------------------------------------------------------------ what this browser keeps
+
+/** What stays in this browser (collections, designs, scripts, choices). */
+export const local: KeyValueStore = webStorage(() => localStorage);
+/** What lasts only while this tab is open. */
+export const session: KeyValueStore = webStorage(() => sessionStorage);
+
+/** A kept value read back; `fallback` when there's none or it isn't JSON. */
+export function readJSON<T>(key: string, fallback: T, from = local): T {
+  const s = from.get(key);
+  if (s == null) return fallback;
+  try { return (JSON.parse(s) as T) ?? fallback; } catch { return fallback; }
+}
+/** Keeps a value; false if it couldn't (storage full or unavailable). */
+export function writeJSON(key: string, value: unknown, to = local): boolean {
+  let s: string;
+  try { s = JSON.stringify(value); } catch { return false; }
+  return to.set(key, s);
+}
 
 const authAdapter = (): Promise<AuthPort> => import("./adapters/firebase-auth.ts").then((m) => m.firebaseAuth);
 const rolesAdapter = (): Promise<RoleLibraryPort> => import("./adapters/firebase-roles.ts").then((m) => m.firestoreRoles);
@@ -16,8 +37,8 @@ export const isAdmin = (user: AppUser | null | undefined) => user?.email?.toLowe
 // Whether this browser has a sign-in to restore: then (or on ?admin) the sign-in adapter loads;
 // otherwise no one is signed in, and nothing is downloaded to find that out.
 const SESSION_KEY = "tesserae-admin-session";
-const hasSession = () => { try { return localStorage.getItem(SESSION_KEY) === "1"; } catch { return false; } };
-const markSession = (on: boolean) => { try { if (on) localStorage.setItem(SESSION_KEY, "1"); else localStorage.removeItem(SESSION_KEY); } catch { /* no storage */ } };
+const hasSession = () => local.get(SESSION_KEY) === "1";
+const markSession = (on: boolean) => { if (on) local.set(SESSION_KEY, "1"); else local.remove(SESSION_KEY); };
 
 export function onUser(fn: (user: AppUser | null) => void, wanted = false) {
   if (!wanted && !hasSession()) { setTimeout(() => fn(null), 0); return; }
