@@ -3,7 +3,7 @@ import { on, emit } from "./events.ts";
 import { state, esc, $, EDITION_ORDER, TEAM_PLURAL, fold, coll, TEAM_ORDER, storeJSON, VIEW_KEY, hit, READONLY, view3d } from "./context.ts";
 import { isCard, EDITIONS, TEAMS, roleName, shapeOf, reminderSpec, DEFAULT_SPEC, SHAPE_FEATURES, tokenSvg, flipFace, printsBack } from "../engine/token-engine.ts";
 import { OWN, catalogsOf, nameIn, SHAPES, isLocked } from "../collection.ts";
-import { renderOwnSpine, catalogOf, typeOfView, typeOfToken, ownHome, ownHomeCatalog } from "./creator.ts";
+import { renderOwnSpine, catalogOf, typeOfView, typeOfToken, ownHome, ownHomeCatalog , ownAllView} from "./creator.ts";
 import { uiLang, t } from "../i18n.ts";
 import type { Role, Team } from "../types.ts";
 import { uiIcon, TEAM_ICONS } from "../ui-icons.ts";
@@ -111,16 +111,16 @@ export function renderSheet() {
   const lang = uiLang(), q = searchQuery();
   if (state.edition.startsWith("s:") && !scriptOf(state.edition)) state.edition = "all";   // a deleted script
   // the generic creator: a deleted catalog or type, or "all", shows the first type's entry
-  if (OWN && !catalogOf(state.edition) && !typeOfView(state.edition)) state.edition = `t:${coll.types[0].id}`;
+  if (OWN && !ownAllView(state.edition) && !catalogOf(state.edition) && !typeOfView(state.edition)) state.edition = `t:${coll.types[0].id}`;
   const ed = state.edition, sc = scriptOf(ed), inScript = sc && scriptRoles(sc), cat = catalogOf(ed), ty = typeOfView(ed);
   const catOpen = !!cat && catalogsOf(coll).some(({ k, s: sec }) => k === cat && sec.open);
   // header
-  $("#edTitle").textContent = q ? t("sheet.results", { q: $<HTMLInputElement>("#search").value.trim() }) : cat ? nameIn(cat.name, lang) : ty ? nameIn(ty.title, lang) : sc ? sc.name : ed === "all" ? t("library.all") : EDITIONS[ed].name[lang];
+  $("#edTitle").textContent = q ? t("sheet.results", { q: $<HTMLInputElement>("#search").value.trim() }) : cat ? nameIn(cat.name, lang) : ty ? nameIn(ty.title, lang) : sc ? sc.name : ed === "all" ? t(OWN ? "own.everything" : "library.all") : EDITIONS[ed].name[lang];
   // the generic creator's actions: new tokens in a type's entry or an open catalog; the open catalog itself
   $("#ownActions").hidden = !OWN || !!q || !(ty || catOpen);
   $("#ownCatRename").hidden = $("#ownCatDelete").hidden = $("#ownCatList").hidden = !catOpen;
   $("#edLead").textContent = q ? t("sheet.leadSearch")
-    : OWN ? t(cat ? "own.leadCatalog" : "own.leadAll", { n: (cat ? cat.tokens.length : state.lib!.roles.filter((r) => typeOfToken(r.id) === ty?.id).length) })
+    : OWN ? t(cat ? "own.leadCatalog" : "own.leadAll", { n: (cat ? cat.tokens.length : ty ? state.lib!.roles.filter((r) => typeOfToken(r.id) === ty.id).length : state.lib!.roles.length) })
     : sc ? t("script.lead", { n: inScript!.roles.length, eds: new Set(inScript!.roles.filter((r) => r.kind !== "homebrew").map((r) => r.edition)).size })
       + (inScript!.missing.length ? t("script.missing", { list: inScript!.missing.join(", ") }) : "")
     : ed === "all" ? t("library.allLead", { n: allCharacters().length })
@@ -135,7 +135,7 @@ export function renderSheet() {
   $("#scriptShare").textContent = t(PHONE.matches && (navigator as Partial<Navigator>).share ? "script.share" : "script.copy");
 
   // which characters
-  let roles = q ? state.lib!.roles : cat ? cat.tokens.map(roleById).filter((r): r is Role => !!r) : ty ? state.lib!.roles.filter((r) => typeOfToken(r.id) === ty.id) : sc ? inScript!.roles : ed === "all" ? allCharacters() : state.lib!.roles.filter((r) => r.edition === ed);
+  let roles = q ? state.lib!.roles : cat ? cat.tokens.map(roleById).filter((r): r is Role => !!r) : ty ? state.lib!.roles.filter((r) => typeOfToken(r.id) === ty.id) : sc ? inScript!.roles : ed === "all" ? (OWN ? state.lib!.roles : allCharacters()) : state.lib!.roles.filter((r) => r.edition === ed);
   const teamsHere = TEAM_ORDER.filter((tm) => roles.some((r) => r.team === tm));
   if (state.team !== "all" && !teamsHere.includes(state.team as Team)) state.team = "all";
   storeJSON(VIEW_KEY, { edition: state.edition, team: state.team });   // where to come back to

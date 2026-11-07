@@ -84,12 +84,17 @@ function collectionChanged() {
   emit("all");
 }
 
+/** "all" in a collection of more than one type: every token, coins, cards and rings together. */
+export const ownAllView = (view: string) => OWN && view === "all" && coll.types.length > 1;
 export function renderOwnSpine() {
-  if (!catalogOf(state.edition) && !typeOfView(state.edition)) state.edition = `t:${coll.types[0].id}`;
+  if (!ownAllView(state.edition) && !catalogOf(state.edition) && !typeOfView(state.edition)) state.edition = `t:${coll.types[0].id}`;
   const q = searchQuery(), lang = uiLang();
   const rolesOf = (ids: string[]) => ids.map(roleById).filter((r): r is Role => !!r);
   const sub = (roles: Role[], card: boolean) => card ? t("ed.countInfo", { n: roles.length }) : t("own.count", { n: roles.length, l: roles.reduce((n, r) => n + remindersOf(r).length, 0) });
-  $("#library").innerHTML = coll.types.map((ty) => {
+  // everything the collection has, of every type, at the top: where there's more than one type
+  const everything = coll.types.length > 1 ? `<button class="ed" type="button" data-ed="all" aria-current="${state.edition === "all" && !q}">${uiIcon("stack")}
+      <span>${esc(t("own.everything"))}<small>${esc(t("own.everythingCount", { n: state.lib!.roles.length }))}</small></span>${pickedBadge(state.lib!.roles)}</button>` : "";
+  $("#library").innerHTML = everything + coll.types.map((ty) => {
     const roles = state.lib!.roles.filter((r) => typeOfToken(r.id) === ty.id);
     return `<button class="ed" type="button" data-ed="t:${esc(ty.id)}" aria-current="${state.edition === `t:${ty.id}` && !q}">${uiIcon(ty.icon && UI_ICONS[ty.icon] ? ty.icon : SHAPE_ICONS[ty.shape])}
       <span>${esc(nameIn(ty.title, lang))}<small>${esc(sub(roles, ty.shape === "card"))}</small></span>${pickedBadge(roles)}</button>`;
