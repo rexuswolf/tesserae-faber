@@ -35,19 +35,19 @@ const flip = (name, ic) => ({ flip: { name, ...icon(ic) } });
 
 const SIDES = [
   // the uninformed majority; those who know each other; their hidden leader
-  tok("republicano", "bandos", "republica", { es: "Republicano", en: "Republican" }, "greek-temple"),
-  tok("conspirador", "bandos", "conjura", { es: "Conspirador", en: "Conspirator" }, "cloak-dagger"),
-  tok("cesar", "bandos", "conjura", { es: "Aspirante a César", en: "Aspiring Caesar" }, "caesar", { colour: C.purple }),
+  tok("republicano", "fichas", "republica", { es: "Republicano", en: "Republican" }, "greek-temple"),
+  tok("conspirador", "fichas", "conjura", { es: "Conspirador", en: "Conspirator" }, "cloak-dagger"),
+  tok("cesar", "fichas", "conjura", { es: "Aspirante a César", en: "Aspiring Caesar" }, "caesar", { colour: C.purple }),
 ];
 const GOVERNMENT = [
   // turned over when their term ends: the ex can't be named again at once
-  tok("consul", "gobierno", "gobierno", { es: "Cónsul", en: "Consul" }, "laurel-crown", flip({ es: "Excónsul", en: "Ex-Consul" }, "laurels")),
-  tok("tribuno", "gobierno", "gobierno", { es: "Tribuno", en: "Tribune" }, "scroll-unfurled", flip({ es: "Extribuno", en: "Ex-Tribune" }, "tied-scroll")),
+  tok("consul", "fichas", "gobierno", { es: "Cónsul", en: "Consul" }, "laurel-crown", flip({ es: "Excónsul", en: "Ex-Consul" }, "laurels")),
+  tok("tribuno", "fichas", "gobierno", { es: "Tribuno", en: "Tribune" }, "scroll-unfurled", flip({ es: "Extribuno", en: "Ex-Tribune" }, "tied-scroll")),
 ];
 // each player's, shown at once: the Senate's own Latin (placet: it pleases), the same in both languages
-const VOTE = [tok("voto", "votos", "votos", { es: "Placet", en: "Placet" }, "thumb-up", flip({ es: "Non placet", en: "Non placet" }, "thumb-down"))];
+const VOTE = [tok("voto", "fichas", "votos", { es: "Placet", en: "Placet" }, "thumb-up", flip({ es: "Non placet", en: "Non placet" }, "thumb-down"))];
 // the election tracker, for playing without the board: the third, chaos (the top law passes)
-const UNREST = [1, 2, 3].map((n) => tok(`tumultos-${n}`, "tumultos", "tumultos", { es: `Tumultos ${n}`, en: `Unrest ${n}` }, n === 3 ? "flame" : "torch"));
+const UNREST = [1, 2, 3].map((n) => tok(`tumultos-${n}`, "fichas", "tumultos", { es: `Tumultos ${n}`, en: `Unrest ${n}` }, n === 3 ? "flame" : "torch"));
 // the laws, as cards: 6 of the Republic's and 11 of the tyrant's in the deck
 const LAWS = [
   tok("ley", "leyes", "republica", { es: "Ley de la República", en: "Law of the Republic" }, null),
@@ -85,11 +85,9 @@ const collection = {
   loader: SEN.loader,
   about: SEN.about,
   languages: ["es", "en"],
+  // two types: a game's coins and its law cards (the groups sort and colour the coins)
   types: [
-    { id: "bandos", name: { es: "Bandos", en: "Sides" }, title: { es: "Bandos", en: "Sides" }, shape: "coin", icon: "greek-temple" },
-    { id: "gobierno", name: { es: "Gobierno", en: "Government" }, title: { es: "Gobierno", en: "Government" }, shape: "coin", icon: "laurel-crown" },
-    { id: "votos", name: { es: "Votos", en: "Votes" }, title: { es: "Votos", en: "Votes" }, shape: "coin", icon: "thumb-up" },
-    { id: "tumultos", name: { es: "Tumultos", en: "Unrest" }, title: { es: "Tumultos", en: "Unrest" }, shape: "coin", icon: "torch" },
+    { id: "fichas", name: { es: "Fichas", en: "Tokens" }, title: { es: "Fichas", en: "Tokens" }, shape: "coin", icon: "laurel-crown" },
     { id: "leyes", name: { es: "Leyes", en: "Laws" }, title: { es: "Leyes", en: "Laws" }, shape: "card", icon: "scroll-unfurled" },
   ],
   groups: [
@@ -103,10 +101,8 @@ const collection = {
   tokens,
   sections: [
     { id: "senado", title: { es: "El Senado", en: "The Senate" }, open: false, catalogs: [
-      { id: "bandos", name: { es: "Bandos", en: "Sides" }, tokens: ids(SIDES) },
-      { id: "gobierno", name: { es: "Gobierno y voto", en: "Government and vote" }, tokens: [...ids(GOVERNMENT), ...ids(VOTE)] },
-      { id: "tumultos", name: { es: "Tumultos", en: "Unrest" }, tokens: ids(UNREST) },
-      { id: "leyes", name: { es: "Leyes", en: "Laws" }, tokens: ids(LAWS) },
+      // the whole game, to queue in one go
+      { id: "partida", name: { es: "Partida completa", en: "Full game" }, tokens: [...ids(SIDES), ...ids(GOVERNMENT), ...ids(VOTE), ...ids(UNREST), ...ids(LAWS)] },
     ] },
     { id: "partidas", title: { es: "Partidas", en: "Games" }, open: true, catalogs: [] },
   ],
