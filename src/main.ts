@@ -10,9 +10,7 @@ const RELIEF_PARTS: ReliefPart[] = ["text", "frame", "icon"];
 /** Each layout's name size (mm): the arcs' run along the edge, the window's has the lower half. */
 const LAYOUT_TEXT: Record<TokenStyle, number> = { classic: DEFAULT_SPEC.textSize, window: 6, solo: DEFAULT_SPEC.textSize, double: DEFAULT_SPEC.textSize };
 import { infoRoles } from "./info-tokens.ts";
-import {
-  onUser, signIn, signOutUser, isAdmin, loadRoles, uploadRoles,
-} from "./firebase.ts";
+import { onUser, signIn, signOut as signOutUser, isAdmin, loadRoles, uploadRoles } from "./services.ts";
 import { planPlates, FILAMENT_SLOTS, PRINTERS, printerOf, NOZZLES, nozzleOf } from "./bambu/plates.ts";
 import { colourIssues, LIGHT_DEPTH } from "./colour-checks.ts";
 import { iconFromSvg, gameIcon, gameIconPreview, searchGameIcons, scriptEntryIcon, iconForScript, placeGameIcon, tracedBefore } from "./icons.ts";
@@ -32,7 +30,7 @@ import type { InlayPart } from "./colour-checks.ts";
 import type { Vars } from "./i18n.ts";
 import type { PaperSize, SheetSlot } from "./pdf/layout.ts";
 import type { Viewer, ViewKind } from "./engine/viewer.ts";
-import type { User } from "firebase/auth";
+import type { AppUser } from "./ports.ts";
 import type {
   BackFace, BackMode, ColourRef, Hex, Library, MagnetLayout, PartName, PatternSpec, PlanToken, PlateItem, PlatePlan, QueueEntry, ReliefPart, Role, SpecColours,
   LookChanges, MyDesign, SpecInput, Style, Team, Token, TokenIcon, TokenOverride, TokenShape, TokenSpec, TokenStyle, Volumes,
@@ -106,7 +104,7 @@ type Side = "front" | "back";
 interface Creating { draft: OwnToken; shape: TokenShape; cats: string[] }
 
 const state: {
-  user: User | null; lib: Library | null;
+  user: AppUser | null; lib: Library | null;
   edition: string; team: string; sel: Selection | null;
   /** The open part of each type, and the open tab of each face. */
   part: Record<TokenShape, Part>; faceTab: Record<Side, FaceTab>;
@@ -1034,7 +1032,7 @@ function showGate(make: () => GateConfig) { gateState = make; gate(make()); }
 // Anyone can use the app without signing in. Only the admin signs in (to upload the
 // library); the sign-in button shows when the page is opened with ?admin.
 const ADMIN_ENTRY = new URLSearchParams(location.search).has("admin");
-const adminSignIn = () => signIn().catch((e) => { if (e.code !== "auth/popup-closed-by-user") $("#gateText").textContent = t("gate.signInFailed", { message: e.message }); });
+const adminSignIn = () => signIn().catch((e) => { $("#gateText").textContent = t("gate.signInFailed", { message: (e as Error).message }); });
 
 async function boot() {
   if (handingOver) return;   // handoff.ts is writing what came from the old address, then reloads: start nothing yet
@@ -1082,7 +1080,7 @@ function libraryGate(kind: string) {
 }
 
 let firstAuth = true;
-onUser(async (user) => {
+onUser((user) => {
   state.user = user;
   if (user && !isAdmin(user)) {
     // a session left from when the app needed sign-in: only the admin signs in now
@@ -1092,7 +1090,7 @@ onUser(async (user) => {
   if (firstAuth) { firstAuth = false; boot(); return; }
   if (state.lib) renderAccount();
   else boot();
-});
+}, ADMIN_ENTRY);
 
 // ------------------------------------------------------------ app
 
@@ -1132,7 +1130,7 @@ function renderAccount() {
   const admin = isAdmin(state.user);
   $(".me").hidden = !admin;
   $("#adminSignIn").hidden = admin || !ADMIN_ENTRY;
-  if (admin) { $<HTMLImageElement>("#avatar").src = state.user!.photoURL || ""; $("#meEmail").textContent = state.user!.email; }
+  if (admin) { $<HTMLImageElement>("#avatar").src = state.user!.photoURL || ""; $("#meEmail").textContent = state.user!.email ?? ""; }
 }
 
 function renderAll() { renderSpine(); renderSheet(); renderWorkshop(); }

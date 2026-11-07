@@ -16,10 +16,10 @@
 <div class="out"><div id="hero"></div><div id="strip"></div></div>
 <script type="module">
 import { loadLibrary, tokenSvg, DEFAULT_SPEC, FILAMENTS } from "/src/engine/token-engine.ts";
-import { loadRoles } from "/tools/ui-test/firebase-mock.js";
+import { firestoreRoles } from "/tools/ui-test/mock-roles.js";
 import { gameIcon } from "/src/icons.ts";
 
-const lib = await loadLibrary(await loadRoles());
+const lib = await loadLibrary(await firestoreRoles.list());
 const role = (en) => lib.roles.find((r) => r.en === en);
 const base = { ...DEFAULT_SPEC, lang: "es", frame: "rim", frameWidth: 0.8, back: "edition", depth: 0.4, colours: { ...DEFAULT_SPEC.colours, base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } };
 // a range of designs, so the honeycomb shows what the app can do

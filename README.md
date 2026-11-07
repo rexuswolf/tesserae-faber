@@ -223,7 +223,7 @@ character (`Role`), a token's design (`TokenSpec`), a built `Token`, queue entri
   `public/collections/` holds the ones that come with the app.
 - `src/handoff.ts`, `legacy/`: the way over from midnight-mint.web.app, with what each browser kept there.
 - `src/translations.ts`: the languages tokens can be printed in, and who translated each one.
-- `src/firebase.ts`, `firestore.rules`: the public character library. Only the admin signs in (open the app with `?admin`) to upload it.
+- `src/ports.ts`, `src/services.ts`, `src/adapters/`: what the app needs from outside (the public character library, the admin's sign-in) as interfaces of its own; `services.ts` picks the adapters (Firebase today, loaded only when needed) and the test server swaps in local ones (`tools/ui-test/mock-*.js`). With `firestore.rules`. Only the admin signs in (open the app with `?admin`) to upload the library.
 - `src/icons.ts`: a token's own icon: an SVG, a game-icons.net icon, or a script's picture traced into shapes.
 - `tools/`: test pages and helpers (UI test server, design sheets, icon review, Bambu template, and
   `tools/guide/`, which takes the guide's and this README's pictures).

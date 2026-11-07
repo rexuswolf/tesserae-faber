@@ -52,8 +52,8 @@ const save = async (page, name, el) => { await page.mouse.move(2, 2); await page
   await page.setContent(`<body style="margin:0;background:#1b0b18;display:flex;gap:12px;padding:16px;width:max-content" id="b"></body>`);
   await page.addScriptTag({ type: "module", content: `
     import { loadLibrary, tokenSvg, DEFAULT_SPEC, BACK_STYLES, FILAMENTS } from "${BASE}src/engine/token-engine.ts";
-    import { loadRoles } from "${BASE}tools/ui-test/firebase-mock.js";
-    const lib = await loadLibrary(await loadRoles(), { assetBase: "${BASE}" });
+    import { firestoreRoles } from "${BASE}tools/ui-test/mock-roles.js";
+    const lib = await loadLibrary(await firestoreRoles.list(), { assetBase: "${BASE}" });
     const role = lib.roles.find((r) => r.en === "Washerwoman");
     const spec = { ...DEFAULT_SPEC, lang: "en", frame: "none", colours: { ...DEFAULT_SPEC.colours, base: FILAMENTS.white, back: FILAMENTS.bronze } };
     document.body.innerHTML = BACK_STYLES.filter((b) => !["custom", "seal"].includes(b.id)).map((b) => tokenSvg(lib, role, { ...spec, back: b.id }, { side: "back" }).replace("<svg ", '<svg width="220" height="220" ')).join("");

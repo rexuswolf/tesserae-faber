@@ -1,10 +1,16 @@
-// Local test server: the real app with Firebase replaced by a local mock, plus
+// Local test server: the real app with its Firebase adapters replaced by local ones, plus
 // the icon review tool, which saves choices to tools/icon-review/choices.json.
 import fs from "node:fs";
 import { threeBySource } from "../../vite.config.js";
 import { fileURLToPath } from "node:url";
 
-const mock = fileURLToPath(new URL("./firebase-mock.js", import.meta.url));
+const here = (f) => fileURLToPath(new URL(f, import.meta.url));
+
+// the test page hooks run before the app (they set the language it starts in)
+const testHooks = {
+  name: "test-hooks",
+  transformIndexHtml: (html) => html.replace('<script type="module" src="/src/main.ts">', '<script type="module" src="/tools/ui-test/test-hooks.js"></script>\n<script type="module" src="/src/main.ts">'),
+};
 const choicesFile = fileURLToPath(new URL("../icon-review/choices.json", import.meta.url));
 
 const reviewStore = {
@@ -43,7 +49,12 @@ const srcJs = {
 
 export default {
   root: fileURLToPath(new URL("../..", import.meta.url)),
-  resolve: { alias: [{ find: /^\.\/firebase\.ts$/, replacement: mock }, threeBySource] },
+  resolve: { alias: [
+    { find: /^\.\/adapters\/firebase-auth\.ts$/, replacement: here("./mock-auth.js") },
+    { find: /^\.\/adapters\/firebase-roles\.ts$/, replacement: here("./mock-roles.js") },
+    threeBySource,
+  ] },
+  define: { __BUILD__: JSON.stringify("test") },
   server: { port: 5198, strictPort: true },
-  plugins: [reviewStore, srcJs],
+  plugins: [reviewStore, srcJs, testHooks],
 };
