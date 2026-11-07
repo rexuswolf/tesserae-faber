@@ -711,7 +711,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .toast { position: absolute; left: 50%; bottom: 84px; transform: translateX(-50%); z-index: 2; display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 18px; border-radius: 999px; background: var(--bone); color: var(--velvet-deep); font-size: 14px; white-space: nowrap; box-shadow: 0 10px 30px rgba(0, 0, 0, .4); }
 .toast[hidden] { display: none; }
 .app-toast { position: fixed; bottom: 78px; z-index: 20; }
-.update-toast { position: fixed; top: 14px; bottom: auto; z-index: 30; }
+.update-toast { position: fixed; top: 14px; bottom: auto; z-index: 30; white-space: normal; max-width: calc(100vw - 32px); }
+.update-toast + .update-toast { top: 70px; }
 .cp .bin svg { display: block; }
 .toast button { border: 0; background: none; color: inherit; font: inherit; font-weight: 600; text-decoration: underline; padding: 4px 10px; cursor: pointer; }
 @media (prefers-reduced-motion: reduce) { .qdrawer[open] { animation: none; } }

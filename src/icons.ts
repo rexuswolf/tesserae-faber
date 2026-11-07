@@ -72,14 +72,17 @@ export async function gameIcon(path: string): Promise<TokenIcon> {
 }
 export const gameIconPreview = (path: string) => `${RAW}${path}.svg`;
 
-let index: string[] | null = null;
+let index: Promise<string[]> | null = null;
 /** game-icons.net's icons whose name has every word of `query` (English), best matches first. */
 export async function searchGameIcons(query: string, limit = 60): Promise<string[]> {
-  index ??= await (await fetch("/game-icons.json")).json();
+  // fetched once; a failure (offline) is thrown, and the next search tries again
+  index ??= fetch("/game-icons.json").then((r) => { if (!r.ok) throw new Error("index"); return r.json() as Promise<string[]>; })
+    .catch((err) => { index = null; throw err; });
+  const all = await index;
   const words = query.toLowerCase().trim().split(/[\s,]+/).filter(Boolean);
   if (!words.length) return [];
   const name = (p: string) => p.slice(p.indexOf("/") + 1);
-  const hits = index!.filter((p) => words.every((w) => name(p).includes(w)));
+  const hits = all.filter((p) => words.every((w) => name(p).includes(w)));
   const score = (p: string) => (name(p) === words.join("-") ? 0 : name(p).startsWith(words[0]) ? 1 : 2) + name(p).length / 100;
   return hits.sort((a, b) => score(a) - score(b)).slice(0, limit);
 }

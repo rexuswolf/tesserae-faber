@@ -874,6 +874,14 @@ function customBackPath(spec: TokenSpec) {
   }
   return customBacks.get(key)!;
 }
+/** Shapes built once per key and then reused, so caches keyed on the shapes themselves (the bevel's) hold. */
+const shapeMemo = new Map<string, THREE.Shape[]>();
+function memoShapes(key: string, make: () => THREE.Shape[]) {
+  let s = shapeMemo.get(key);
+  if (!s) { shapeMemo.set(key, (s = make())); if (shapeMemo.size > 400) shapeMemo.delete(shapeMemo.keys().next().value!); }
+  return s;
+}
+const textShapes = (lib: Library, text: string, size: number) => memoShapes(`t|${text}|${size}`, () => lib.font.generateShapes(text, size));
 function shapesToPath(shapes: THREE.Shape[], dx: number, y: number, div = 6) {
   const ring = (pts: THREE.Vector2[]) => pts.map((pt, i) => `${i ? "L" : "M"}${(pt.x + dx).toFixed(2)} ${(-(pt.y + y)).toFixed(2)}`).join("") + "Z";
   return shapes.map((sh) => ring(sh.getPoints(div)) + sh.holes.map((h) => ring(h.getPoints(div))).join("")).join("");
@@ -925,7 +933,7 @@ function buildWindowFace(lib: Library, role: Role, text: string, spec: TokenSpec
   const I = windowIconMatrix(lib, role, W, partZ(spec, "icon", face), spec);
   const window = extrude([new THREE.Shape(windowPoints(W.Rw, W.cutY))], d, onFace(face, T(0, 0, z)), 48);
   const letters = W.lines.map((line) => {
-    const shapes = lib.font.generateShapes(line.text, W.em);
+    const shapes = textShapes(lib, line.text, W.em);
     const box = boundsOf(shapes);
     return partExtrude(shapes, spec, "text", face, onFace(face, T(-(box.min.x + box.max.x) / 2, line.y, partZ(spec, "text", face))), 4);
   });
@@ -2311,10 +2319,11 @@ function buildRing(lib: Library, role: Role, input: SpecInput | undefined, text?
     const g = glyph(lib, ch), r = THREE.MathUtils.degToRad(a);
     return partExtrude(g.shapes, spec, "text", topFace(spec), chain(T(L.base * Math.cos(r), L.base * Math.sin(r), top), RZ(r - Math.PI / 2), S(L.em, L.em, 1), T(-g.center, 0, 0)), 4);
   });
-  const dots = L.sep === "dot" ? partExtrude(L.dots.map((a) => disc(L.dot, ...ptXY(L.mid, THREE.MathUtils.degToRad(a)))), spec, "text", topFace(spec), T(0, 0, top), 8)
-    : L.sep === "none" ? null : partExtrude(ringMarks(L), spec, "text", topFace(spec), T(0, 0, top), 1);
+  const ringKey = JSON.stringify([L.sep, L.dot, L.mid, L.cap, L.dots]);
+  const dots = L.sep === "dot" ? partExtrude(memoShapes(`dots|${ringKey}`, () => L.dots.map((a) => disc(L.dot, ...ptXY(L.mid, THREE.MathUtils.degToRad(a))))), spec, "text", topFace(spec), T(0, 0, top), 8)
+    : L.sep === "none" ? null : partExtrude(memoShapes(`marks|${ringKey}`, () => ringMarks(L)), spec, "text", topFace(spec), T(0, 0, top), 1);
   const front = merge([...letters, dots]);
-  const frame = L.line ? partExtrude(ringLines(L), spec, "frame", topFace(spec), T(0, 0, top), 64) : null;
+  const frame = L.line ? partExtrude(memoShapes(`lines|${L.outer}|${L.inner}|${L.line}`, () => ringLines(L)), spec, "frame", topFace(spec), T(0, 0, top), 64) : null;
   const R = reliefOf(spec), r = reliefTop(spec), above = (g: THREE.BufferGeometry | null) => (g && r ? aboveOf.get(g) ?? geometryVolume(g) * r / (spec.depth + r) : 0);
   return {
     parts: { base: extrude([annulus(L.outer, L.inner)], H, T(0, 0, 0), 64), front, icon: null, frame, back: null },

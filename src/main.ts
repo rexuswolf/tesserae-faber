@@ -167,6 +167,16 @@ function keepGateLook() {
   } catch { /* storage unavailable or full: the next visit shows the plain screen */ }
 }
 
+/** A notice at the top of the page (not the Undo toast's), one per kind, that stays until it's
+ *  replaced or cleared (message null): a new version to reload into, a collection that doesn't fit. */
+function stickyNotice(kind: string, message: string | null, action?: { label: string; run: () => void }) {
+  let el = document.querySelector<HTMLElement>(`.update-toast[data-kind="${kind}"]`);
+  if (!message) { el?.remove(); return; }
+  if (!el) { el = document.createElement("div"); el.className = "toast update-toast"; el.dataset.kind = kind; el.setAttribute("role", "status"); document.body.append(el); }
+  const msg = document.createElement("span"); msg.textContent = message;
+  el.replaceChildren(msg);
+  if (action) { const b = document.createElement("button"); b.type = "button"; b.textContent = action.label; b.onclick = action.run; el.append(b); }
+}
 // After a deploy, a page opened earlier may ask for code files that no longer
 // exist (their names change with each version). Reload once to get the new ones.
 //
@@ -181,13 +191,7 @@ if ("serviceWorker" in navigator && import.meta.env.PROD) {
   navigator.serviceWorker.addEventListener("controllerchange", () => {
     if (!hadOne) return;
     if (!state.creating && $("#app").dataset.step !== "taller") { location.reload(); return; }
-    // a notice of its own (not the Undo toast's), at the top, that stays until you reload
-    if (document.querySelector(".update-toast")) return;
-    const el = document.createElement("div"), msg = document.createElement("span"), btn = document.createElement("button");
-    el.className = "toast update-toast"; el.setAttribute("role", "status");
-    msg.textContent = t("app.updated");
-    btn.type = "button"; btn.textContent = t("app.reload"); btn.onclick = () => location.reload();
-    el.append(msg, btn); document.body.append(el);
+    stickyNotice("update", t("app.updated"), { label: t("app.reload"), run: () => location.reload() });
   });
 }
 $("#buildTag").textContent = `v ${__BUILD__}`;
@@ -2529,7 +2533,10 @@ function wireIcons() {
   $("#iconQuery").oninput = (e) => {
     clearTimeout(timer);
     timer = setTimeout(async () => {
-      const hits = await searchGameIcons(input(e).value);
+      const query = input(e).value;
+      let hits: string[];
+      try { hits = await searchGameIcons(query); } catch { $("#iconResults").innerHTML = `<p class="hint warn">${esc(t("icon.searchFailed"))}</p>`; return; }
+      if (input(e).value !== query) return;   // typed on meanwhile: that search shows instead
       $("#iconResults").innerHTML = hits.length
         ? hits.map((p) => `<button type="button" class="icon-hit" data-gi="${esc(p)}" title="${esc(p.replace("/", " · "))}"><img src="${gameIconPreview(p)}" alt="" loading="lazy"><span>${esc(p.split("/")[1])}</span></button>`).join("")
         : `<p class="hint">${esc(t(input(e).value.trim() ? "icon.none" : "icon.type"))}</p>`;
@@ -3930,9 +3937,15 @@ function syncOwnChrome() {
 }
 
 /** After any change to the collection: keep it, redraw, and drop picks and designs of tokens that are gone. */
+/** Saves the collection; if it doesn't fit, a notice at the top says so until a save fits again. */
+function saveColl() {
+  const ok = storeCollection(coll), full = !ok && !!OWN_ID && !builtIn(OWN_ID);
+  stickyNotice("storage", full ? t("own.storageFull") : null);
+  return ok;
+}
 function collectionChanged() {
   clearTimeout(ownTimer);
-  storeCollection(coll);
+  saveColl();
   applyGroups();
   state.lib!.roles = ownRoles();
   // the token being made is there too, with its style
@@ -4349,7 +4362,10 @@ function wireOwnToken() {
     $(`#${id}Iq`).oninput = (e) => {
       clearTimeout(timer);
       timer = setTimeout(async () => {
-        const query = input(e).value.trim(), hits = query ? await searchGameIcons(query, 48) : [];
+        const query = input(e).value.trim();
+        let hits: string[];
+        try { hits = query ? await searchGameIcons(query, 48) : []; } catch { $(`#${id}Hits`).innerHTML = `<p class="hint warn">${esc(t("icon.searchFailed"))}</p>`; return; }
+        if (input(e).value.trim() !== query) return;
         $(`#${id}Hits`).innerHTML = hits.map((p) => `<button type="button" class="icon-hit" data-gi="${esc(p)}" title="${esc(p.replace("/", " · "))}"><img src="${gameIconPreview(p)}" alt="" loading="lazy"><span>${esc(p.split("/")[1])}</span></button>`).join("")
           || (query ? `<p class="hint">${esc(t("icon.none"))}</p>` : "");
       }, 200);
@@ -4485,23 +4501,23 @@ function wireOwnSettings() {
     const id = b.dataset.themeId!;
     if (id === "custom") { const cur = coll.theme ?? "faber"; coll.theme = { ...(typeof cur === "object" ? cur : THEMES[cur] ?? THEMES.faber!) }; }
     else coll.theme = id;
-    storeCollection(coll); applyOwnTheme(); renderOwnThemes();
+    saveColl(); applyOwnTheme(); renderOwnThemes();
   };
   $("#osCustom").oninput = () => {
     if (typeof coll.theme !== "object") return;
     for (const k of ["accent", "background", "surface", "text", "muted"] as const) coll.theme[k] = $<HTMLInputElement>(`#os-${k}`).value as Hex;
     coll.theme.glow = coll.theme.surface;
     coll.theme.font = $<HTMLSelectElement>("#osFont").value;
-    storeCollection(coll); applyOwnTheme();
+    saveColl(); applyOwnTheme();
   };
   $<HTMLInputElement>("#osLogoFile").onchange = async (e) => {
     const f = input(e).files?.[0]; input(e).value = ""; if (!f) return;
     const url = await new Promise<string>((ok) => { const r = new FileReader(); r.onload = () => ok(String(r.result)); r.readAsDataURL(f); });
     if (!okLogo(url)) { $("#osLogoNote").textContent = t("own.logoTooBig"); return; }
-    coll.brand = { ...coll.brand, logo: url }; storeCollection(coll); applyOwnBrand();
+    coll.brand = { ...coll.brand, logo: url }; saveColl(); applyOwnBrand();
     $<HTMLImageElement>("#osLogo").src = url; $("#osLogoNote").textContent = "";
   };
-  $("#osLogoReset").onclick = () => { if (coll.brand) delete coll.brand.logo; storeCollection(coll); applyOwnBrand(); $<HTMLImageElement>("#osLogo").src = APP_LOGO; };
+  $("#osLogoReset").onclick = () => { if (coll.brand) delete coll.brand.logo; saveColl(); applyOwnBrand(); $<HTMLImageElement>("#osLogo").src = APP_LOGO; };
   $("#osCancel").onclick = () => dlg.close();
   $("#osSave").onclick = () => {
     const lang = uiLang(), v = (id: string) => $<HTMLInputElement>(id).value.trim();

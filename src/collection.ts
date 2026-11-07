@@ -359,7 +359,7 @@ export const collectionRoles = (c: Collection, lang?: string) => c.tokens.map((t
 // ------------------------------------------------------------ the JSON file
 
 /** An icon in the file: a game-icons.net icon by "author/name", or SVG (with its credit, when it came from game-icons.net). */
-interface FileIcon { icon?: string | { svg: string }; iconCredit?: { name?: string; author?: string } }
+interface FileIcon { icon?: string | { svg: string }; iconCredit?: { name?: string; author?: string }; iconSvg?: string }
 /** A token in the file; its other state is written like the token's own name and icon. */
 interface FileToken extends Omit<OwnToken, "icon" | "linked" | "flip">, FileIcon { linked?: ({ name: Names } | string)[]; flip?: { name: Names } & FileIcon }
 export interface CollectionFile extends Omit<Collection, "tokens"> { format: string; version: number; tokens: FileToken[] }
@@ -369,7 +369,7 @@ const svgOf = (icon: TokenIcon) => `<svg xmlns="http://www.w3.org/2000/svg" view
 
 /** An icon as the file has it: a game-icons.net icon by name, the rest as SVG. */
 const fileIcon = (icon: TokenIcon | null): FileIcon => ({
-  ...(icon ? { icon: icon.source === "game-icons" && isGameIcon(icon.id) ? icon.id : { svg: svgOf(icon) } } : {}),
+  ...(icon ? icon.source === "game-icons" && isGameIcon(icon.id) ? { icon: icon.id, iconSvg: svgOf(icon) } : { icon: { svg: svgOf(icon) } } : {}),
   // an icon kept as SVG still says where it's from, for the credits
   ...(icon?.author && !isGameIcon(icon.id) ? { iconCredit: { name: icon.name, author: icon.author } } : {}),
 });
@@ -459,7 +459,13 @@ export async function readCollectionFile(data: unknown, onProgress: (done: numbe
   /** An icon from the file: fetched (game-icons.net) or read (SVG); null if it won't load. */
   const readIcon = async (x: FileIcon, id: string): Promise<TokenIcon | null> => {
     try {
-      if (typeof x.icon === "string" && isGameIcon(x.icon)) return { ...(await gameIcon(x.icon)), id: x.icon };
+      if (typeof x.icon === "string" && isGameIcon(x.icon)) {
+        // its drawing, when the file has it; else fetched from game-icons.net
+        const m = typeof x.iconSvg === "string" ? x.iconSvg.match(/<g transform="([^"]*)">([\s\S]*)<\/g>\s*<\/svg>\s*$/) : null;
+        const body = m ? safeIconMarkup(m[2]) : "";
+        if (m && body) { const [author, name] = x.icon.split("/"); return { id: x.icon, source: "game-icons", name, author, g: safeTransform(m[1]) || "translate(0 0) scale(1)", body }; }
+        return { ...(await gameIcon(x.icon)), id: x.icon };
+      }
       if (x.icon && typeof x.icon === "object" && typeof x.icon.svg === "string") {
         const m = x.icon.svg.match(/<g transform="([^"]*)">([\s\S]*)<\/g>\s*<\/svg>\s*$/);
         const credit = x.iconCredit && typeof x.iconCredit === "object" ? x.iconCredit : null;
