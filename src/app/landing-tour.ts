@@ -113,13 +113,13 @@ function design(sen: Kit | null, d5: Kit | null, ds: Kit | null) {
     const OPTS = {
       frame: { label: "tour.optFrame", now: "laurel", opts: ["rim", "laurel", "beads", "runas", "cordon"], key: "tour.frame" },
       style: { label: "tour.optLayout", now: "classic", opts: ["classic", "window", "solo", "double"], key: "tour.layout" },
-      colours: { label: "tour.optColours", now: "gold", opts: ["gold", "silver", "group", "white"], key: "tour.colours" },
+      colours: { label: "tour.optColours", now: "gold", opts: ["gold", "silver", "white", "blue"], key: "tour.colours" },
     };
     const COLOURS: Record<string, Partial<TokenSpec["colours"]>> = {
       gold: { base: FILAMENTS.black, front: FILAMENTS.gold, frame: FILAMENTS.gold },
-      silver: { base: FILAMENTS.silver, front: FILAMENTS.black, frame: FILAMENTS.black },
-      group: { base: FILAMENTS.black, front: "team", frame: "team" },
-      white: { base: FILAMENTS.white, front: "team", frame: FILAMENTS.black },
+      silver: { base: FILAMENTS.black, front: FILAMENTS.silver, frame: FILAMENTS.silver },
+      white: { base: FILAMENTS.white, front: FILAMENTS.black, frame: FILAMENTS.black },
+      blue: { base: "#2f86e0", front: FILAMENTS.white, frame: FILAMENTS.white },
     };
     const box = $("#tourOpts"), out = $("#tourDesigned");
     box.innerHTML = Object.entries(OPTS).map(([k, o]) => `<div><span>${esc(t(o.label))}</span><div class="tour-chips" data-k="${k}">${o.opts.map((v) => `<button type="button" data-v="${v}" aria-pressed="${v === o.now}">${esc(t(`${o.key}.${v}`))}</button>`).join("")}</div></div>`).join("");
