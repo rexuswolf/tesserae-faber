@@ -239,6 +239,7 @@ function renderTallerShapes() {
   const mine = TALLER_SHAPES.flatMap((sh) => myDesigns[sh].map((d) => myDesignCard(sh, d, true)));
   $("#tallerWizard").innerHTML = `${tallerSteps(1)}
     <h2 class="tw-title">${esc(t("taller.shapeQ"))}</h2>
+    <p class="tw-lead">${esc(t("taller.lead"))}</p>
     <div class="tw-shapes">${shapes}</div>
     ${mine.length ? `<section class="tl-sec"><h3>${esc(t("taller.carryOn"))}<small>${mine.length}</small></h3><div class="tl-grid">${mine.join("")}</div></section>`
       : `<p class="hint tw-none">${esc(t("taller.noneYet"))}</p>`}`;
@@ -303,7 +304,8 @@ function renderTallerPreview() {
 function renderTallerList() {
   const sh = taller.shape;
   $("#tallerList").innerHTML = `<section class="tl-sec"><h3>${esc(t("taller.mine"))}<small>${esc(t(`type.${sh}.many`))} · ${myDesigns[sh].length}</small></h3>
-    <div class="tl-grid">${myDesigns[sh].map((d) => myDesignCard(sh, d, false)).join("")}</div></section>`;
+    <div class="tl-grid">${myDesigns[sh].map((d) => myDesignCard(sh, d, false)).join("")}</div>
+    <p class="hint tl-use">${esc(t("taller.howToUse"))}</p></section>`;
 }
 /**
  * Where one of your designs is used: as a default in a collection, or by its tokens, in every

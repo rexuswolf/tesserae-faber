@@ -1649,3 +1649,7 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 .ws-style:has(.ds-quick:not(:empty)) .ds-tok { display: none; }
 /* a long notice wraps on a narrow screen instead of running off it */
 .toast { white-space: normal; width: max-content; max-width: min(560px, calc(100vw - 32px)); border-radius: 20px; line-height: 1.35; }
+
+/* the Taller: what a design is, and how one reaches a collection */
+.tw-lead { margin: -6px 0 18px; color: var(--dust); max-width: 62ch; line-height: 1.5; }
+.tl-use { margin-top: 14px; max-width: 62ch; }
