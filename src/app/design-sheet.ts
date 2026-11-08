@@ -417,7 +417,8 @@ function renderBackStyleTiles(role: Role, spec: TokenSpec, text: string, pressed
   const s = { ...DEFAULT_SPEC, ...spec, colours: { ...DEFAULT_SPEC.colours, ...spec.colours }, diameter: 45, backPattern: null };
   const b = s.backMode === "design" ? {} : s.backFace ?? {}, plain = { ...role, flip: undefined };
   $("[data-choice=style]").innerHTML = TOKEN_STYLES.map((st) => {
-    const face = { ...b, style: st.id, ...backLayoutContent(st.id, b) };
+    // each at its own letter size but the one in use (as the front's tiles: a size doesn't carry over between layouts)
+    const face = { ...b, style: st.id, ...backLayoutContent(st.id, b), ...(st.id !== pressed ? { textSize: LAYOUT_TEXT[st.id] } : {}) };
     return `<button class="back-tile" type="button" data-v="${st.id}" aria-pressed="${pressed === st.id}">${tokenSvg(state.lib!, plain, { ...s, backMode: "own", backFace: face }, { side: "back", text })}<span>${esc(t(`style.${st.id}`))}</span></button>`;
   }).join("")
     // and plain, nothing on it (a back design of none)
