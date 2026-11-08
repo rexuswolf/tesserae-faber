@@ -184,15 +184,16 @@ export function renderQueue() {
   if (!state.lib) return;
   const queue = queueNow(), n = queue.length, step = state.step;
   const chars = new Set([...state.pick.keys()].filter((k) => k.startsWith("c:"))).size, rems = queue.filter(isReminder).length;
-  // two steps: your tokens (designing one is part of it) and printing the ones picked
-  const at = step === 3 ? 3 : 1;
-  $("#flowSteps").innerHTML = [1, 3].map((i, k) => `<button class="flow-step${at > i ? " done" : ""}" type="button" data-goto="${i}" ${at === i ? 'aria-current="step"' : ""} ${i > 1 && !n ? "disabled" : ""}><i>${at > i ? "✓" : k + 1}</i><b>${esc(t(`flow.step${i}`))}</b></button>`).join("");
+  // no steps to follow: the tokens are home. Anywhere else (designing one, printing), the top bar has the way back
+  $("#flowSteps").innerHTML = step > 1 ? `<button class="top-back" type="button" data-goto="1"><span aria-hidden="true">‹</span> ${esc(t("flow.step1"))}</button>` : "";
+  // the bottom bar only where it does something: on the tokens once some are picked, and printing (Download)
+  $("#queuebar").hidden = step === 2 || (step === 1 && !n);
   $("#queueCount").textContent = n ? t("queue.count", { n }) : t("pick.nothing");
   $("#queueStack").innerHTML = [...state.pick.keys()].slice(-5).map((k) => queuePic({ pick: k, ...queueEntry(tokenRole(k), tokenRem(k)) })).join("");
   $<HTMLButtonElement>("#queueToggle").disabled = !n;
   // what the count doesn't say already (linked tokens, copies), else what to do next
   $("#queueSummary").textContent = !n ? t("pick.help") : rems || chars !== n ? t("queue.summary", { c: chars, r: rems }) : step === 1 ? t("pick.next") : "";
-  $("#flowBack").hidden = step === 1;
+  $("#flowBack").hidden = true;   // the top bar's "‹ Tokens" is the way back
   // on a phone only the chevron shows; the step's name stays as the label
   $("#flowBack").innerHTML = step > 1 ? `<span aria-hidden="true">‹</span> <span class="fb-l">${esc(t("flow.step1"))}</span>` : "";
   $("#flowBack").setAttribute("aria-label", step > 1 ? t("flow.step1") : "");
