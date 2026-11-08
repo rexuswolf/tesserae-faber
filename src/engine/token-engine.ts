@@ -2762,7 +2762,8 @@ export function backFaceOf(role: Role, spec: TokenSpec, text: string): { role: R
   const c = backColours(spec);
   // the back's pattern behind it, in the back frame's colour (a pattern under a back design is in the design's)
   const face = windowFrame({ ...spec, ...look, frontPattern: spec.backPattern ? { ...spec.backPattern, colour: "frame" } : undefined, relief: backRelief(spec), colours: { ...spec.colours, front: c.front, frame: c.frame, icon: c.icon } });
-  if (other) return { role: other, text: roleName(other, spec.lang), spec: { ...face, icon: undefined } };
+  // what the token carries (its content) is its front's: the back's layout is the back's own, drawn as it is
+  if (other) return { role: { ...other, content: undefined }, text: roleName(other, spec.lang), spec: { ...face, icon: undefined } };
   return backContent(role, face, text, spec.backFace ?? {});
 }
 
@@ -2787,7 +2788,7 @@ function backContent(role: Role, spec: TokenSpec, text: string, b: BackFace): { 
   const art = !b.art || b.art === "token" ? null : b.art === "custom" ? svgIcon(spec.customSvg) : BACK_ORNAMENTS.includes(b.art) ? ornamentIcon(b.art) : null;
   const none = b.art === "none" || (!!b.art && b.art !== "token" && !art) || spec.style === "text";
   const style: TokenStyle = none ? "text" : !words.trim() || spec.style === "solo" ? "solo" : spec.style;
-  return { role: none ? { ...role, body: "", d: [], iconKey: "none" } : role, text: words, spec: { ...spec, style, ...(art ? { icon: art } : {}) } };
+  return { role: { ...role, content: undefined, ...(none ? { body: "", d: [], iconKey: "none" } : {}) }, text: words, spec: { ...spec, style, ...(art ? { icon: art } : {}) } };
 }
 
 /** How much of the icon square a drawing made into an icon fills: as much as a game icon's picture, clear of a curved name. */

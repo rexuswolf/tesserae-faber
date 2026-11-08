@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { reminderSpec, shapeSpec, DEFAULT_SPEC } from "../../src/engine/token-engine.ts";
+import { reminderSpec, shapeSpec, DEFAULT_SPEC, backFaceOf } from "../../src/engine/token-engine.ts";
 import { starterCollection, tokenRole } from "../../src/collection.ts";
 import type { OwnToken } from "../../src/collection.ts";
 import type { Role, TokenContent } from "../../src/types.ts";
@@ -22,6 +22,15 @@ describe("a token's content", () => {
     expect(card("icon")).toBe("only");
     expect(card("text")).toBe("none");
     expect(shapeSpec({ ...coin("both"), kind: "info" } as Role, { ...DEFAULT_SPEC, cardIcon: "right" }).cardIcon).toBe("right");
+  });
+  it("is the front's: the back keeps its own layout, its icon alone or its words alone", () => {
+    const back = (style: "solo" | "text") => {
+      const r = coin("both"), spec = shapeSpec(r, { ...DEFAULT_SPEC, backMode: "own", backFace: { style } });
+      const bf = backFaceOf(r, spec, "Wolf")!;
+      return shapeSpec(bf.role, { ...bf.spec, back: "none", backMode: "design" }).style;   // as the back is drawn
+    };
+    expect(back("solo")).toBe("solo");
+    expect(back("text")).toBe("text");
   });
   it("leaves a linked token its word", () => {
     expect(shapeSpec(coin("icon"), reminderSpec({ ...DEFAULT_SPEC, style: "classic" })).style).toBe("classic");
