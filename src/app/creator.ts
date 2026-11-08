@@ -8,8 +8,9 @@ import type { Creating } from "./context.ts";
 import type { Role, Team, Hex, TokenShape, TokenIcon, TokenContent } from "../types.ts";
 import { uiLang, t } from "../i18n.ts";
 import { PRINT_GROUPS, persistPicks, renderDesignStage, setPick, goStep } from "./queue.ts";
-import { TEAMS, saveFile, SHAPE_FEATURES, tokenSvg, shapeOf } from "../engine/token-engine.ts";
-import { UI_ICONS, TEAM_ICONS, uiIcon, SHAPE_ICONS, uiTokenIcon } from "../ui-icons.ts";
+import { TEAMS, saveFile, SHAPE_FEATURES, tokenSvg, shapeOf, ICON_VIEW } from "../engine/token-engine.ts";
+import { safeIconMarkup, safeTransform } from "../engine/safe-svg.ts";
+import { UI_ICONS, TEAM_ICONS, uiIcon, SHAPE_ICONS } from "../ui-icons.ts";
 import { renderLangButtons, closeOnBackdrop, tokenLang } from "./token-language.ts";
 import { storeOverrides, designOf, defaultRef, designFor, designOverridden, lookOf } from "./designs.ts";
 import { roleById } from "./wiring.ts";
@@ -334,7 +335,29 @@ function startCreate(like?: { shape: TokenShape; type: string; group: string; ca
   showTokenPanel();
   setTimeout(() => $("#ownTokName").focus(), 60);   // once the panel has drawn
 }
-function showTokenPanel() { const d = $<HTMLDialogElement>("#tokenPanel"); if (!d.open) d.showModal(); }
+function showTokenPanel() {
+  // the fields are the dialog's again (the designer's Content may have had them)
+  inlineId = null; $(".tp-body").append($("#tpFields"));
+  const d = $<HTMLDialogElement>("#tokenPanel"); if (!d.open) d.showModal();
+}
+/** The token whose content is open in the designer (Content), its fields there; null when they're the dialog's. */
+let inlineId: string | null = null;
+/**
+ * A token of yours in the designer: its content's fields inside Content (the token large beside them,
+ * the menu a step away), not a dialog over it. Null puts them back, and the token is no longer being changed.
+ */
+export function showContentInline(id: string | null) {
+  if ($<HTMLDialogElement>("#tokenPanel").open) return;   // the dialog has them (a token being made, or Edit from the list)
+  if (!id || READONLY || isLocked(coll, id) || !coll.tokens.some((x) => x.id === id)) {
+    if (inlineId) { inlineId = null; state.editing = null; $(".tp-body").append($("#tpFields")); }
+    return;
+  }
+  if (inlineId === id) return;
+  dropDraft();
+  inlineId = id; state.editing = id; panelFor = "";
+  $("#crOwn").append($("#tpFields"));
+  renderTokenPanel();
+}
 /**
  * Come from the front page's "Make a token" (?nueva): the new token's panel, open at once; with the name
  * and icon tried there (&n, &i), if any. The address loses them, so a reload doesn't open it again.
@@ -421,11 +444,16 @@ function renderTokenPanel() {
   const carries = contentNow(tk, shape);
   $("#ownTokIconRow").hidden = !SHAPE_FEATURES[shape].icon || carries === "text";
   $("#ownTokNameHint").hidden = carries !== "icon";
+  renderIconChip("ownTok", tk.icon);
+  renderOwnFlip(tk);
   const sig = [tk.id, shape, tokenLang(), uiLang()].join("|");
   if (sig === panelFor) return;
   panelFor = sig;
-  // more options open by themselves only on a token that already uses them
-  $<HTMLDetailsElement>("#tpMoreOpts").open = !!(tk.linked.length || tk.flip || tk.colour);
+  // the rest opens by itself only on a token that already uses it
+  $<HTMLDetailsElement>("#tpMoreOpts").open = !!(tk.linked.length || tk.colour);
+  // a new token without an icon: the search open, to choose one
+  searchOpen.ownTok = !!c && !tk.icon; searchOpen.ownTokFlip = false;
+  renderIconChip("ownTok", tk.icon);
   $<HTMLInputElement>("#ownTokName").value = nameIn(tk.name, tokenLang());
   $<HTMLInputElement>("#ownTokIq").value = ""; $("#ownTokHits").innerHTML = "";
   renderGroupPills(tk);
@@ -435,6 +463,9 @@ function renderTokenPanel() {
   $("#ownTokCatsRow").hidden = !openCats.length;   // no catalogs of yours yet: nothing to put it in
   renderOwnLinked(tk);
   $("#contentFlip").hidden = !SHAPE_FEATURES[shape].flip;
+  $<HTMLInputElement>("#ownTokFlipName").value = tk.flip ? nameIn(tk.flip.name, tokenLang()) : "";
+  for (const id of ["ownTokIq", "ownTokFlipIq"]) $<HTMLInputElement>(`#${id}`).value = "";
+  $("#ownTokHits").innerHTML = $("#ownTokFlipHits").innerHTML = "";
   renderOwnFlip(tk);
 }
 /**
@@ -446,10 +477,12 @@ function renderPanelShape(tk: OwnToken, shape: TokenShape) {
   const c = state.creating, types = coll.types.filter((x) => x.shape === shape);
   const typePick = types.length > 1 ? `<label class="field tp-type"><span>${esc(t("own.type"))}</span><select class="text" data-type-pick>${types.map((x) => `<option value="${esc(x.id)}"${x.id === tk.type ? " selected" : ""}>${esc(nameIn(x.name, uiLang()))}</option>`).join("")}</select></label>` : "";
   if (!c) {
-    $("#tpShape").innerHTML = `<p class="ws-shape-fixed">${uiIcon(SHAPE_ICONS[shape])}<span>${esc(t("shape.fixed", { shape: t(`own.shape.${shape}`) }))}</span></p>${typePick}`;
+    $("#tpShape").innerHTML = typePick;
+    $("#tpShape").hidden = !typePick;
     return;
   }
   const name = nameIn(c.draft.name, tokenLang()).trim() || t("own.namePlaceholder");
+  $("#tpShape").hidden = false;
   $("#tpShape").innerHTML = `<div class="field"><span>${esc(t("own.shape"))}</span><div class="shape-cards" role="radiogroup" aria-label="${esc(t("own.shape"))}">${SHAPES.map((sh) => {
     const r = draftRole(c, sh), spec = designOf(sh, defaultRef(sh))!.spec;
     return `<button type="button" role="radio" data-shape="${sh}" aria-checked="${sh === c.shape}">${tokenSvg(state.lib!, r, { ...filled(spec), lang: tokenLang(), diameter: 45, back: "none", backMode: "design" }, { text: name })}<span>${esc(t(`own.shape.${sh}`))}</span></button>`;
@@ -471,12 +504,10 @@ function renderPanelContent(tk: OwnToken, shape: TokenShape) {
   const box = $("#tpContent"), opts = CONTENTS[shape], role = roleById(tk.id);
   box.hidden = opts.length < 2 || !role;
   if (box.hidden || !role) { box.innerHTML = ""; return; }
-  const now = contentNow(tk, shape), spec = { ...specFor(charKey(role), false), diameter: 45, back: "none" as const, backMode: "design" as const };
-  const text = nameIn(tk.name, tokenLang()).trim() || t("own.namePlaceholder");
-  // before it has an icon, the choices with one show a stand-in, so they look as they will
-  const as = (content: TokenContent) => { const d = { ...tk, content, icon: tk.icon ?? (content === "text" ? null : uiTokenIcon("two-coins")) }; return state.creating ? draftRole({ ...state.creating, draft: d }, shape) : ownRole(coll, d, uiLang()); };
-  box.innerHTML = `<div class="field"><span>${esc(t("own.content"))}</span><div class="shape-cards content-cards" role="radiogroup" aria-label="${esc(t("own.content"))}">${opts.map((c) =>
-    `<button type="button" role="radio" data-content="${c}" aria-checked="${c === now}">${tokenSvg(state.lib!, as(c), spec, { text })}<span>${esc(t(`own.content.${c}`))}</span></button>`).join("")}</div></div>`;
+  // beside the name, small: the token on the left shows what each gives
+  const now = contentNow(tk, shape);
+  box.innerHTML = `<div class="field"><span>${esc(t("own.content"))}</span><span class="seg2 tp-carries" role="group" aria-label="${esc(t("own.content"))}">${opts.map((c) =>
+    `<button type="button" data-content="${c}" aria-pressed="${c === now}">${esc(t(`own.content.${c}`))}</button>`).join("")}</span></div>`;
 }
 /** The token as it prints, in its design (front, back, linked tokens), and which design that is. */
 function renderPanelToken() {
@@ -513,12 +544,25 @@ function renderOwnLinked(tk: OwnToken) {
   const lang = tokenLang();
   $("#ownTokLinked").innerHTML = tk.linked.map((w, i) => `<span class="own-link"><input class="text" value="${esc(nameIn(w, lang))}" data-li="${i}" aria-label="${esc(t("own.linked"))}"><button class="link" type="button" data-ldel="${i}" aria-label="${esc(t("own.remove"))}">✕</button></span>`).join("");
 }
-/** The other state's fields: the way to add one, or its name and icon and the way to take it away. */
+/** The back: like the other tokens' (its design's, named), or its other state, with its name and icon. */
 function renderOwnFlip(tk: OwnToken) {
-  $("#ownTokFlipAdd").hidden = !!tk.flip;
+  for (const b of $$("#ownTokFlipSeg [data-flip]")) b.setAttribute("aria-pressed", String((b.dataset.flip === "1") === !!tk.flip));
   $("#ownTokFlipBox").hidden = !tk.flip;
-  $<HTMLInputElement>("#ownTokFlipName").value = tk.flip ? nameIn(tk.flip.name, tokenLang()) : "";
-  $<HTMLInputElement>("#ownTokFlipIq").value = ""; $("#ownTokFlipHits").innerHTML = "";
+  const role = roleById(tk.id), design = role ? designFor(charKey(role), shapeOfToken(tk)).name : "";
+  $("#ownTokBackHint").textContent = tk.flip ? t("own.backFlipHelp") : t("own.backUsualHelp", { design });
+  if (tk.flip) renderIconChip("ownTokFlip", tk.flip.icon);
+}
+/** Whether an icon's search is open, the token's and its other state's. */
+const searchOpen: Record<string, boolean> = { ownTok: false, ownTokFlip: false };
+/** An icon as it's chosen: drawn, its name and where it's from, with Change (the search) and Remove; none, Choose. */
+function renderIconChip(id: string, icon: TokenIcon | null | undefined) {
+  const open = searchOpen[id];
+  $(`#${id}Search`).hidden = !open;
+  const name = icon ? icon.name || icon.id.split("/").pop() || "" : t("own.noIcon");
+  const from = icon ? t(icon.source === "upload" ? "icon.from.upload" : "icon.from.game") : "";
+  $(`#${id}Chip`).innerHTML = `<span class="tp-chip-ic">${icon ? `<svg viewBox="0 0 ${ICON_VIEW} ${ICON_VIEW}" aria-hidden="true"><g transform="${safeTransform(icon.g)}">${safeIconMarkup(icon.body)}</g></svg>` : ""}</span>`
+    + `<span class="tp-chip-txt"><b>${esc(name)}</b>${from ? `<small>${esc(from)}</small>` : ""}</span>`
+    + `<span class="tp-chip-acts"><button class="link" type="button" data-icon-change>${esc(t(open ? "icon.done" : icon ? "icon.change" : "icon.choose"))}</button>${icon ? `<button class="link" type="button" data-icon-none>${esc(t("icon.remove"))}</button>` : ""}</span>`;
 }
 /** A linked token taken out: the ones after it move up, and their picks and own designs follow them. */
 function dropLinked(id: string, i: number) {
@@ -549,6 +593,14 @@ function wireOwnToken() {
   // The token's icon and its other state's are chosen alike: game-icons.net, an SVG of yours, or none.
   const iconPicker = (id: string, set: (icon: TokenIcon | null) => void) => {
     let timer: ReturnType<typeof setTimeout> | undefined;
+    const chosen = (icon: TokenIcon | null) => { searchOpen[id] = false; set(icon); };
+    $(`#${id}Chip`).onclick = (e) => {
+      if (hit(e, "[data-icon-none]")) { chosen(null); return; }
+      if (!hit(e, "[data-icon-change]")) return;
+      searchOpen[id] = !searchOpen[id];
+      const tk = editingOwn(); renderIconChip(id, id === "ownTok" ? tk?.icon : tk?.flip?.icon);
+      if (searchOpen[id]) $(`#${id}Iq`).focus();
+    };
     $(`#${id}Iq`).oninput = (e) => {
       clearTimeout(timer);
       timer = setTimeout(async () => {
@@ -562,14 +614,13 @@ function wireOwnToken() {
     };
     $(`#${id}Hits`).onclick = async (e) => {
       const b = hit(e, "[data-gi]"); if (!b) return;
-      try { set({ ...(await gameIcon(b.dataset.gi!)), id: b.dataset.gi! }); } catch { /* offline: keep the old one */ }
+      try { chosen({ ...(await gameIcon(b.dataset.gi!)), id: b.dataset.gi! }); } catch { /* offline: keep the old one */ }
     };
     $<HTMLInputElement>(`#${id}Svg`).onchange = async (e) => {
       const f = input(e).files?.[0]; input(e).value = ""; if (!f) return;
-      try { set({ ...iconFromSvg(await f.text(), { source: "upload", name: f.name }), id: `upload:${newId("i")}` }); }
+      try { chosen({ ...iconFromSvg(await f.text(), { source: "upload", name: f.name }), id: `upload:${newId("i")}` }); }
       catch { $(`#${id}Hits`).innerHTML = `<p class="hint warn">${esc(t("own.svgFailed"))}</p>`; }
     };
-    $(`#${id}NoIcon`).onclick = () => set(null);
   };
   iconPicker("ownTok", (icon) => { const tk = editingOwn(); if (tk) { tk.icon = icon; ownEdited(); } });
   iconPicker("ownTokFlip", (icon) => { const tk = editingOwn(); if (tk?.flip) { tk.flip.icon = icon; ownEdited(); } });
@@ -599,8 +650,13 @@ function wireOwnToken() {
     else { k.tokens = on ? [...k.tokens.filter((x) => x !== tk.id), tk.id] : k.tokens.filter((x) => x !== tk.id); ownEdited(); }
   };
   // the other state: added, named (in the token language, like the name) and taken out
-  $("#ownTokFlipAdd").onclick = () => { const tk = editingOwn(); if (!tk) return; tk.flip = { name: "", icon: null }; renderOwnFlip(tk); ownEdited(); $("#ownTokFlipName").focus(); };
-  $("#ownTokFlipRemove").onclick = () => { const tk = editingOwn(); if (!tk) return; delete tk.flip; renderOwnFlip(tk); ownEdited(); };
+  $("#ownTokFlipSeg").onclick = (e) => {
+    const tk = editingOwn(), b = hit(e, "[data-flip]"); if (!tk || !b) return;
+    const on = b.dataset.flip === "1"; if (on === !!tk.flip) return;
+    if (on) { tk.flip = { name: "", icon: null }; searchOpen.ownTokFlip = true; $<HTMLInputElement>("#ownTokFlipName").value = ""; } else delete tk.flip;
+    renderOwnFlip(tk); ownEdited();
+    if (on) $("#ownTokFlipName").focus();
+  };
   $("#ownTokFlipName").oninput = (e) => { const tk = editingOwn(); if (tk?.flip) { tk.flip.name = withName(tk.flip.name, tokenLang(), input(e).value); ownEdited(); } };
   // linked tokens: one more, renamed in place, or taken out (an empty one goes when you leave it)
   $("#ownTokAddLinked").onclick = () => {

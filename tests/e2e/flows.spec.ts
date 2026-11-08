@@ -359,6 +359,30 @@ test("what a token shows is the token's: chosen when made, kept, and the design 
   await page.locator("#tpDone").click();
   await expect(page.locator("#tokenPanel")).not.toHaveAttribute("open", "");
   await page.locator("[data-own-edit]").first().click();
-  await expect(page.locator("[data-content=text]")).toHaveAttribute("aria-checked", "true");
+  await expect(page.locator("[data-content=text]")).toHaveAttribute("aria-pressed", "true");
+  expect(errors).toEqual([]);
+});
+
+test("a token of yours is changed where it's designed: Content has its front and its back, the token beside them", async ({ page }) => {
+  const errors = await open(page, "/");
+  await page.locator("#tourName").fill("Lobo");
+  await page.locator("[data-tok-new=maker]").evaluate((b) => (b as HTMLElement).click());
+  await page.waitForURL(/\/c\//);
+  await expect(page.locator("#tokenPanel")).toHaveAttribute("open", "", { timeout: 30_000 });
+  await page.locator("#tpDone").click();
+  const id = await page.locator("[data-own-edit]").first().getAttribute("data-own-edit");
+  await page.evaluate((key) => { const mm = (window as unknown as { __mm: { goStep(n: number): void; designToken(k: string): void } }).__mm; mm.goStep(2); mm.designToken(key); }, `c:${id}`);
+  await page.locator('.cr-item[data-cr="content"]').evaluate((b) => (b as HTMLElement).click());
+  // no dialog: the fields are in the designer
+  await expect(page.locator("#crOwn #ownTokName")).toHaveValue("Lobo");
+  await expect(page.locator("#tokenPanel")).not.toHaveAttribute("open", "");
+  // its back: like the others, or another state with its own name
+  await expect(page.locator('#ownTokFlipSeg [data-flip="0"]')).toHaveAttribute("aria-pressed", "true");
+  await page.locator('#ownTokFlipSeg [data-flip="1"]').click();
+  await page.locator("#ownTokFlipName").fill("Lobo herido");
+  await expect(page.locator("#ownTokFlipBox")).toBeVisible();
+  // its name changed here is the token's
+  await page.locator("#crOwn #ownTokName").fill("Lobo gris");
+  await expect(page.locator("#crValContent")).toContainText("Lobo gris");
   expect(errors).toEqual([]);
 });

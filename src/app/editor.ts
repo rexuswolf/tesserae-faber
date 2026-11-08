@@ -14,7 +14,7 @@ import { ownChanged, designFor } from "./designs.ts";
 import { renderEditorDesigns, wireEditorDesigns, toast, renderSays } from "./design-sheet.ts";
 import { textFor } from "./tokens.ts";
 import { t } from "../i18n.ts";
-import { openTokenPanel } from "./creator.ts";
+import { showContentInline } from "./creator.ts";
 import type { TokenShape } from "../types.ts";
 
 type Cat = "content" | "design" | "part";
@@ -29,6 +29,15 @@ function show() {
   a.dataset.crm = ed.inside ? "in" : "menu";
   for (const b of document.querySelectorAll<HTMLElement>(".cr-cats [data-cr]")) b.setAttribute("aria-current", String(b.dataset.cr === ed.cat));
   $("#crBackLabel").textContent = t(ed.cat === "content" ? "editor.content" : ed.cat === "design" ? "editor.design" : "editor.custom");
+  // a token of yours: its content is changed here, in Content (its fields come in while it's open)
+  const own = state.sel && state.sel.reminder == null ? document.querySelector<HTMLElement>("#saysLine [data-content-edit]")?.dataset.contentEdit : undefined;
+  showContentInline(ed.cat === "content" && own ? own : null);
+}
+/** Content, opened from elsewhere (the line over the design): what the token carries, in the designer. */
+export function openContent() {
+  ed.cat = "content"; ed.inside = true;
+  if (!state.saysOpen) { state.saysOpen = true; renderSays(); }
+  show();
 }
 
 /** The menu's values, the designs' list and the stage's actions, for the token being edited. */
@@ -63,9 +72,6 @@ export function wireEditor() {
     if (hit(e, "#parts [data-part]")) { ed.cat = "part"; ed.inside = true; show(); return; }
     const b = hit(e, ".cr-cats [data-cr]"); if (!b) return;
     const cat = b.dataset.cr as Cat;
-    // your collection's token: its content is its panel
-    const panel = cat === "content" ? document.querySelector<HTMLElement>("#saysLine [data-content-edit]") : null;
-    if (panel) { openTokenPanel(panel.dataset.contentEdit!); return; }
     if (cat === "content" && !state.saysOpen) { state.saysOpen = true; renderSays(); }
     ed.cat = cat; ed.inside = true;
     show();

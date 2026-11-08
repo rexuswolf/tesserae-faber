@@ -193,7 +193,9 @@
     <!-- the token's parts: a coin's FRONT · BACK · COIN · MAGNET, a ring's FRONT · RING, a card's FRONT · CARD -->
     <div class="ws-body" id="styleFields">
       <!-- the editor's Content: what the token carries printed (its text, its icon), over the collection's -->
-      <section class="cr-content design-only" id="crContent"><p class="cr-desc" data-i18n="editor.contentDesc"></p>
+      <section class="cr-content design-only" id="crContent"><p class="cr-desc" data-i18n="editor.contentDesc"></p><p class="cr-desc cr-desc-own" data-i18n="editor.contentDescOwn"></p>
+        <!-- a token of yours: its content's fields (#tpFields) come here while Content is open -->
+        <div id="crOwn"></div>
         <!-- a token of Clocktower's or of a closed collection, or a linked token: its printed text, feminine name and icon -->
         <div class="token-only" id="contentClosed" hidden>
           <label class="field"><span class="cr-fl"><b data-i18n="editor.printed"></b><small data-i18n="editor.printedHelp"></small></span><input class="text" type="text" id="printed" autocomplete="off"></label>
@@ -726,24 +728,48 @@
       <div class="tp-pic" id="tpPic"></div>
       <p class="hint" id="tpDesign"></p>
     </div>
-    <div class="tp-fields">
+    <!-- a token's content (yours): its front, its back, the rest folded. One set of fields, here or in the designer's
+         Content (moved there while it's open, so it's edited where you are) -->
+    <div class="tp-fields" id="tpFields">
       <div id="tpShape"></div>
-      <!-- what it carries: icon and name, icon only, name only (a coin's; a card's with or without its icon) -->
-      <div id="tpContent"></div>
-      <!-- its name, icon, group, catalogs and linked tokens -->
-      <div class="own-fields" id="contentOwn">
-        <label class="field"><span data-i18n="own.name"></span><input class="text" id="ownTokName" autocomplete="off" data-i18n-attr="placeholder:own.namePlaceholder"><small class="hint" id="ownTokNameHint" data-i18n="own.content.iconName" hidden></small></label>
+      <section class="tp-face" id="tpFront">
+        <h3 data-i18n="view.front"></h3>
+        <div class="tp-two">
+          <label class="field"><span data-i18n="own.name"></span><input class="text" id="ownTokName" autocomplete="off" data-i18n-attr="placeholder:own.namePlaceholder"><small class="hint" id="ownTokNameHint" data-i18n="own.content.iconName" hidden></small></label>
+          <div id="tpContent"></div>
+        </div>
         <div class="field" id="ownTokIconRow"><span data-i18n="own.icon"></span>
-          <div class="own-icon-bar">
-            <input class="text" type="search" id="ownTokIq" autocomplete="off" data-i18n-attr="placeholder:icon.placeholder">
-            <label class="pill file"><span data-i18n="icon.upload"></span><input type="file" id="ownTokSvg" accept=".svg,image/svg+xml" hidden></label>
-            <button class="pill" type="button" id="ownTokNoIcon" data-i18n="own.noIcon"></button>
+          <div class="tp-chip" id="ownTokChip"></div>
+          <div class="tp-search" id="ownTokSearch" hidden>
+            <div class="own-icon-bar">
+              <input class="text" type="search" id="ownTokIq" autocomplete="off" data-i18n-attr="placeholder:icon.placeholder">
+              <label class="pill file"><span data-i18n="icon.upload"></span><input type="file" id="ownTokSvg" accept=".svg,image/svg+xml" hidden></label>
+            </div>
+            <div class="icon-results" id="ownTokHits"></div>
           </div>
-          <div class="icon-results" id="ownTokHits"></div>
         </div>
         <div class="field" id="ownTokGroupRow"><span data-i18n="own.group"></span><div class="group-pills" id="ownTokGroups"></div></div>
-      </div>
-      <!-- the rest, folded: a first token needs only its shape, name, icon and group -->
+      </section>
+      <!-- the back (a coin's): the one the others have, or this token's other state, with its name and icon -->
+      <section class="tp-face" id="contentFlip">
+        <h3><span data-i18n="view.back"></span>
+          <span class="seg2" role="group" id="ownTokFlipSeg" data-i18n-attr="aria-label:view.back"><button type="button" data-flip="0" data-i18n="own.backUsual"></button><button type="button" data-flip="1" data-i18n="own.backFlip"></button></span></h3>
+        <p class="hint" id="ownTokBackHint"></p>
+        <div class="own-flip" id="ownTokFlipBox" hidden>
+          <label class="field"><span data-i18n="own.name"></span><input class="text" id="ownTokFlipName" autocomplete="off"></label>
+          <div class="field"><span data-i18n="own.icon"></span>
+            <div class="tp-chip" id="ownTokFlipChip"></div>
+            <div class="tp-search" id="ownTokFlipSearch" hidden>
+              <div class="own-icon-bar">
+                <input class="text" type="search" id="ownTokFlipIq" autocomplete="off" data-i18n-attr="placeholder:icon.placeholder">
+                <label class="pill file"><span data-i18n="icon.upload"></span><input type="file" id="ownTokFlipSvg" accept=".svg,image/svg+xml" hidden></label>
+              </div>
+              <div class="icon-results" id="ownTokFlipHits"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <!-- the rest, folded: its own colour, catalogs and linked tokens -->
       <details class="tp-more" id="tpMoreOpts">
       <summary><b data-i18n="own.moreOpts"></b><small data-i18n="own.moreOptsSub"></small></summary>
       <div class="own-fields">
@@ -756,24 +782,6 @@
           <button class="link" type="button" id="ownTokAddLinked" data-i18n="own.addLinked"></button>
         </div>
       </div>
-      <!-- the other state, on the back (a coin's): added, named, given an icon, taken away -->
-      <section class="own-fields tp-flip" id="contentFlip">
-        <h3 data-i18n="content.flip"></h3>
-        <p class="hint" data-i18n="own.flipHelp"></p>
-        <button class="pill" type="button" id="ownTokFlipAdd" data-i18n="own.flipAdd"></button>
-        <div class="own-flip" id="ownTokFlipBox" hidden>
-          <label class="field"><span data-i18n="own.flipName"></span><input class="text" id="ownTokFlipName" autocomplete="off"></label>
-          <div class="field"><span data-i18n="own.flipIcon"></span>
-            <div class="own-icon-bar">
-              <input class="text" type="search" id="ownTokFlipIq" autocomplete="off" data-i18n-attr="placeholder:icon.placeholder">
-              <label class="pill file"><span data-i18n="icon.upload"></span><input type="file" id="ownTokFlipSvg" accept=".svg,image/svg+xml" hidden></label>
-              <button class="pill" type="button" id="ownTokFlipNoIcon" data-i18n="own.noIcon"></button>
-            </div>
-            <div class="icon-results" id="ownTokFlipHits"></div>
-          </div>
-          <button class="link" type="button" id="ownTokFlipRemove" data-i18n="own.flipRemove"></button>
-        </div>
-      </section>
       </details>
     </div>
   </div>

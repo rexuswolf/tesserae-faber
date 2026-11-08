@@ -1358,7 +1358,9 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 .ask-dialog p { margin: 0; line-height: 1.5; }
 .ask-dialog .dialog-actions { flex-wrap: wrap; }
 @media (max-width: 760px) {
-  .token-panel { width: 100%; height: 100%; max-height: 100%; border: 0; border-radius: 0; }
+  /* a sheet from the bottom: the page it came from still shows above it */
+  .token-panel { width: 100%; max-width: 100%; height: 92vh; max-height: 92vh; margin: auto 0 0; border: 0; border-radius: 20px 20px 0 0; }
+  .token-panel[open] { animation: tl-rise .2s ease-out; }
   .tp-head { padding-left: 16px; }
   .tp-body { grid-template-columns: minmax(0, 1fr); overflow-y: auto; }
   .tp-side { overflow: visible; padding: 12px; border-right: 0; border-bottom: 1px solid var(--seam); }
@@ -2080,3 +2082,38 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 #reliefFaceBox, #reliefPartsBox { display: grid; gap: 8px; justify-items: start; }
 #reliefFaceBox[hidden], #reliefPartsBox[hidden], #reliefHeightBox[hidden] { display: none; }
 #reliefHeightBox { display: grid; gap: 12px; }
+
+/* A token's content (yours), in its dialog or in the designer's Content: its front and its back, each a block
+   of its own in the order the token shows them; the rest folded */
+.tp-face { display: grid; gap: 14px; padding: 16px 18px 18px; border: 1px solid var(--seam); border-radius: 16px; background: rgba(239, 230, 214, .025); }
+.tp-face[hidden] { display: none; }
+.tp-face > h3 { margin: 0; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font: 600 15px/1.2 var(--ui); }
+.tp-face > h3 .seg2 { margin-left: auto; font-weight: 400; }
+.tp-face > .hint { margin: -4px 0 0; }
+.tp-two { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: start; }
+#tpContent .field { gap: 4px; }
+#tpContent[hidden], #tpShape[hidden] { display: none; }
+.tp-carries button { white-space: nowrap; }
+.tp-chip { display: flex; align-items: center; gap: 12px; padding: 8px 12px 8px 8px; border: 1px solid var(--seam); border-radius: 12px; background: rgba(239, 230, 214, .04); }
+.tp-chip-ic { flex: none; width: 46px; height: 46px; border-radius: 9px; background: rgba(239, 230, 214, .06); display: grid; place-items: center; color: var(--bone); }
+.tp-chip-ic svg { width: 36px; height: 36px; fill: currentColor; }
+.tp-chip-txt { min-width: 0; display: grid; }
+.tp-chip-txt b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tp-chip-txt small { color: var(--dust); font-size: 12px; white-space: nowrap; }
+.tp-chip-acts { margin-left: auto; display: flex; gap: 14px; }
+.tp-chip-acts .link { font-size: 13.5px; }
+.tp-search { display: grid; gap: 8px; margin-top: 8px; }
+.tp-search[hidden] { display: none; }
+#tpFields .own-flip { margin: 0; padding: 0; border: 0; }
+/* in the designer: the fields in its column, the token large beside them */
+#crOwn .tp-fields { padding: 0; overflow: visible; gap: 14px; }
+#crOwn:empty { display: none; }
+#crOwn .tp-two { grid-template-columns: minmax(0, 1fr); }
+/* what Content says over it: a token of yours' own words, or a closed collection's (printed over the collection's) */
+#crContent .cr-desc-own { display: none; }
+#crContent:has(#crOwn:not(:empty)) .cr-desc-own { display: block; }
+#crContent:has(#crOwn:not(:empty)) .cr-desc:not(.cr-desc-own) { display: none; }
+@media (max-width: 760px) {
+  .tp-two { grid-template-columns: minmax(0, 1fr); }
+  .tp-face { padding: 14px; }
+}

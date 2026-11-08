@@ -10,7 +10,7 @@ import { roleIdOf, charKey, textFor } from "./tokens.ts";
 import { persistPicks, editToken, isPicked, setPick, renderQueue, goStep, flow, downloadPdf, downloadBambu, dropFromDesign, designToken, PAPER_BACKS_KEY, testQ, PRINT_WAY_KEY, PRINTER_KEY, NOZZLE_KEY, openQueue, onQueueClick, undoPicks, changePicks } from "./queue.ts";
 import { renderSpine, renderSheet, onCopyStep, openRows, toggleCharacter, openAddMenu, addShown } from "./sheet.ts";
 import { openTokenPanel, wireCollSwitch, wireOwn } from "./creator.ts";
-import { wireEditor } from "./editor.ts";
+import { wireEditor, openContent } from "./editor.ts";
 import { wireDesignBar, deepenAll, openDesignSheet, wireDesignSheet, saveLookAsDesign, setOwn, rememberReturn, renderSays, setBackFace, backToFront, backDrawn, changeLook, deepen, resetField, setReliefFace, toggleReliefPart, changePattern, changeCardBack, changeBackContent } from "./design-sheet.ts";
 import { OWN } from "../collection.ts";
 import { TALLER } from "./taller.ts";
@@ -198,7 +198,7 @@ export function wire() {
   // what the token says: one line, opening its content (your collection's) or its printed text and icon (a closed one's)
   $("#saysLine").onclick = (e) => {
     const edit = hit(e, "[data-content-edit]");
-    if (edit) { openTokenPanel(edit.dataset.contentEdit!); return; }
+    if (edit) { openContent(); return; }
     if (hit(e, ".says-toggle")) { state.saysOpen = !state.saysOpen; renderSays(); }
   };
   $("#parts").onclick = (e) => { const b = hit(e, "[data-part]"); if (!b) return; showTab({ part: b.dataset.part as Part, face: b.dataset.face as FaceTab | undefined }); viewTab(); renderWorkshop(); };
