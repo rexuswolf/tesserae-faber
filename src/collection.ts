@@ -102,11 +102,15 @@ export interface StyleDef { id: string; name: Names; help?: Names; spec: SpecInp
 export type CollectionStyles = Partial<Record<TokenShape, StyleDef[]>>;
 /**
  * The coin style a collection starts with when it says none: black, the name, icon and frame in
- * the group's colour, the collection's name in gold on the back (what every token looked like
- * before collections had styles). Its id is that look's old template's ("edicion"), so the style a
- * token already had from it is this one.
+ * the group's colour, the back plain. Its id is the old template's ("edicion", which had the
+ * collection's name in gold on the back), so the style a token already had from it is this one.
  */
 const BASIC: StyleDef = {
+  id: "edicion", name: { es: "Básico", en: "Basic" }, help: { es: "Negra, con el color del grupo y el reverso liso.", en: "Black, with the group colour and a plain back." },
+  spec: { style: "classic", frame: "rim", frameWidth: 0.8, back: "none", depth: 0.4, colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } },
+};
+/** Básico as it was, with the collection's name in gold on the back: a collection kept with it gets today's. */
+const BASIC_WAS: StyleDef = {
   id: "edicion", name: { es: "Básico", en: "Basic" }, help: { es: "Negra, con el color del grupo y el nombre de la colección en oro al reverso.", en: "Black, with the group colour and the collection's name in gold on the back." },
   spec: { style: "classic", frame: "rim", frameWidth: 0.8, back: "edition", depth: 0.4, colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } },
 };
@@ -127,8 +131,10 @@ export const basicStyles = (): Record<TokenShape, StyleDef[]> => ({
  * made before rings and cards had designs of their own) has today's basic ones for them instead.
  */
 function upgradeBasicStyles(styles: CollectionStyles | undefined) {
-  const old = JSON.stringify(BASIC);
-  for (const sh of ["ring", "card"] as const) if (styles?.[sh]?.length === 1 && JSON.stringify(styles[sh]![0]) === old) styles[sh] = basicStyles()[sh];
+  const olds = [JSON.stringify(BASIC), JSON.stringify(BASIC_WAS)];
+  for (const sh of ["ring", "card"] as const) if (styles?.[sh]?.length === 1 && olds.includes(JSON.stringify(styles[sh]![0]))) styles[sh] = basicStyles()[sh];
+  // Básico's back is plain now: a collection's copy of it as it was, too
+  if (styles?.coin) styles.coin = styles.coin.map((d) => (JSON.stringify(d) === olds[1] ? structuredClone(BASIC) : d));
 }
 /**
  * A collection's styles for a shape: its own, else the basic one. The first is its default. Every
