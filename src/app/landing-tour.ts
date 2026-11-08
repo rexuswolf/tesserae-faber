@@ -44,6 +44,9 @@ export function startTour() {
   };
   if (started) return;
   started = true;
+  // come from "How it works" (/#tourPick): to that chapter, once the page is shown
+  const at = /^#tour\w+$/.test(location.hash) ? document.querySelector(location.hash) : null;
+  if (at) requestAnimationFrame(() => at.scrollIntoView());
   const lang = uiLang();
   const kits = Promise.all(["senado", "srd5e", "drawsteel"].map((id) => kit(id, lang)));
   const when = (sel: string, fn: () => Promise<void> | void) => {

@@ -838,17 +838,6 @@ dialog .import { margin-top: 10px; }
 /* credits */
 .ccc a { color: var(--dust); text-decoration: underline; text-underline-offset: 2px; }
 #credits { width: min(620px, calc(100% - 32px)); }
-/* how it works */
-#guide { width: min(720px, calc(100% - 32px)); }
-.guide-kicker { margin: 0 0 4px; font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--brass); }
-#guide h2 { margin-bottom: 12px; }
-#guideShot { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; object-position: top left; border-radius: 10px; border: 1px solid var(--seam); background: var(--velvet); }
-.guide-text { margin: 14px 0 18px; color: var(--dust); line-height: 1.55; }
-.guide-nav { display: flex; align-items: center; gap: 12px; }
-.guide-nav .forge { margin-left: auto; }
-.guide-dots { display: flex; gap: 6px; margin: 0 auto; }
-.guide-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--seam); }
-.guide-dots i.on { background: var(--brass); }
 .credits { max-height: 70vh; overflow-y: auto; padding-right: 4px; }
 .credits > .hint:first-child { margin-top: 0; }
 .credits section + section { border-top: 1px solid var(--seam); margin-top: 18px; }

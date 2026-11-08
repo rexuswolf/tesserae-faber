@@ -188,7 +188,8 @@ export function renderQueue() {
   $("#queueCount").textContent = n ? t("queue.count", { n }) : t("pick.nothing");
   $("#queueStack").innerHTML = [...state.pick.keys()].slice(-5).map((k) => queuePic({ pick: k, ...queueEntry(tokenRole(k), tokenRem(k)) })).join("");
   $<HTMLButtonElement>("#queueToggle").disabled = !n;
-  $("#queueSummary").textContent = n ? t("queue.summary", { c: chars, r: rems }) : t("pick.help");
+  // what the count doesn't say already (linked tokens, copies), else what to do next
+  $("#queueSummary").textContent = !n ? t("pick.help") : rems || chars !== n ? t("queue.summary", { c: chars, r: rems }) : step === 1 ? t("pick.next") : "";
   $("#flowBack").hidden = step === 1;
   // on a phone only the chevron shows; the step's name stays as the label
   $("#flowBack").innerHTML = step > 1 ? `<span aria-hidden="true">‹</span> <span class="fb-l">${esc(t(`flow.step${step - 1}`))}</span>` : "";

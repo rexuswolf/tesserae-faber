@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tesserae Faber</title>
-<meta name="description" content="Design tokens for your games and download them ready to print in 3D or on paper. Includes every Blood on the Clocktower edition. Free, no account.">
+<meta name="description" content="Make tokens for your tabletop games, design them and download them ready to print in 3D (multicolour, Bambu Lab) or on paper. Free, open source, no account.">
 <link rel="icon" type="image/svg+xml" href="/logo-mark.svg" id="favicon">
 <link rel="apple-touch-icon" href="/pwa/apple-touch-icon.png">
 <meta name="theme-color" content="#1c1a18">
@@ -615,20 +615,6 @@
     }
   } catch (e) { /* no storage */ }
 </script>
-
-<!-- how it works: the three steps, one at a time, with a picture of each -->
-<dialog id="guide" aria-labelledby="guideTitle">
-  <form method="dialog" class="close"><button class="pill" data-i18n="admin.close"></button></form>
-  <p class="guide-kicker" id="guideKicker"></p>
-  <h2 id="guideTitle"></h2>
-  <img id="guideShot" alt="" width="960" height="600" decoding="async">
-  <p class="guide-text" id="guideText"></p>
-  <div class="guide-nav">
-    <button class="pill" type="button" id="guideBack" data-i18n="guide.back"></button>
-    <span class="guide-dots" id="guideDots" aria-hidden="true"></span>
-    <button class="forge" type="button" id="guideNext"></button>
-  </div>
-</dialog>
 
 <dialog id="credits" aria-labelledby="creditsTitle">
   <form method="dialog" class="close"><button class="pill" data-i18n="admin.close"></button></form>

@@ -32,7 +32,7 @@ const pwa = VitePWA({
   },
   workbox: {
     globPatterns: ["**/*.{js,css,html,svg,png,ttf,json,webp}"],
-    globIgnores: ["collections/*.json", "guide/**"],   // big and seldom needed: kept when first used (below)
+    globIgnores: ["collections/*.json"],   // kept when first used (below)
     maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
     // The page itself comes from the network whenever there is one, so each visit gets the latest
     // version (its files have new names, fetched then); offline, the one kept. Every address is the
@@ -43,7 +43,6 @@ const pwa = VitePWA({
       { urlPattern: ({ request }) => request.mode === "navigate", handler: "NetworkFirst", options: { cacheName: "pages", networkTimeoutSeconds: 4, precacheFallback: { fallbackURL: "/index.html" } } },
       // a collection's file changes with the app (its designs): the network's first, the kept copy offline
       { urlPattern: ({ url }) => url.origin === self.location.origin && /^\/collections\//.test(url.pathname), handler: "NetworkFirst", options: { cacheName: "collections", networkTimeoutSeconds: 4 } },
-      { urlPattern: ({ url }) => url.origin === self.location.origin && /^\/guide\//.test(url.pathname), handler: "StaleWhileRevalidate", options: { cacheName: "app-extras" } },
       { urlPattern: ({ url }) => url.origin === "https://fonts.googleapis.com", handler: "StaleWhileRevalidate", options: { cacheName: "font-css" } },
       { urlPattern: ({ url }) => url.origin === "https://fonts.gstatic.com", handler: "CacheFirst", options: { cacheName: "fonts", expiration: { maxEntries: 40, maxAgeSeconds: 365 * 86400 }, cacheableResponse: { statuses: [0, 200] } } },
     ],

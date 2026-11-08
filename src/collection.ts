@@ -243,16 +243,24 @@ export const nameIn = (n: Names | undefined, lang: string): string =>
 /** A name with one language changed (a plain text stays plain). */
 export const withName = (n: Names, lang: string, v: string): Names => (typeof n === "string" ? v : { ...n, [lang]: v });
 
+/** What a first collection's names say, in the interface's language (Spanish or English). */
+const STARTER = {
+  es: { name: "Mi colección", type: "Fichas", title: "Todas las fichas", group: "Grupo", token: "Mi primera ficha", section: "Catálogos", catalog: "Mi primer catálogo" },
+  en: { name: "My collection", type: "Tokens", title: "All tokens", group: "Group", token: "My first token", section: "Catalogs", catalog: "My first catalog" },
+};
 /** A first collection: one type, two groups, an open section with one catalog and one token. */
-export const starterCollection = (): Collection => ({
-  name: "Mi colección",
-  types: [{ id: "fichas", name: "Fichas", title: "Todas las fichas", shape: "coin", icon: "two-coins" }],
-  groups: [{ id: "g1", name: "Grupo 1", colour: GROUP_COLOURS[0] }, { id: "g2", name: "Grupo 2", colour: GROUP_COLOURS[1] }],
-  // one token to start from: the app always has something to show and design
-  tokens: [{ id: "t1", type: "fichas", group: "g1", name: "Mi primera ficha", icon: null, linked: [] }],
-  sections: [{ id: "s1", title: "Catálogos", open: true, catalogs: [{ id: "k1", name: "Mi primer catálogo", tokens: ["t1"] }] }],
-  styles: basicStyles(),
-});
+export const starterCollection = (lang = "es"): Collection => {
+  const s = lang === "es" ? STARTER.es : STARTER.en;
+  return {
+    name: s.name,
+    types: [{ id: "fichas", name: s.type, title: s.title, shape: "coin", icon: "two-coins" }],
+    groups: [{ id: "g1", name: `${s.group} 1`, colour: GROUP_COLOURS[0] }, { id: "g2", name: `${s.group} 2`, colour: GROUP_COLOURS[1] }],
+    // one token to start from: the app always has something to show and design
+    tokens: [{ id: "t1", type: "fichas", group: "g1", name: s.token, icon: null, linked: [] }],
+    sections: [{ id: "s1", title: s.section, open: true, catalogs: [{ id: "k1", name: s.catalog, tokens: ["t1"] }] }],
+    styles: basicStyles(),
+  };
+};
 
 /** A collection kept before types and sections: its catalogs become one open section. */
 function upgrade(c: Collection & { catalogs?: OwnCatalog[] }): Collection {

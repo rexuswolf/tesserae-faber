@@ -725,7 +725,7 @@ export async function renderOwnHome() {
 }
 function wireOwnHome() {
   const note = (k: string, v = {}) => { for (const el of $$("[data-own-note]")) el.textContent = t(k, v); };
-  for (const b of $$("[data-own-new]")) b.onclick = () => { const id = addCollection(starterCollection()); if (id) location.href = collectionUrl(id); else note("own.storageFull"); };
+  for (const b of $$("[data-own-new]")) b.onclick = () => { const id = addCollection(starterCollection(uiLang())); if (id) location.href = collectionUrl(id); else note("own.storageFull"); };
   $("#ownHomeImport").onclick = () => $("#ownHomeFile").click();
   $<HTMLInputElement>("#ownHomeFile").onchange = async (e) => {
     const f = input(e).files?.[0]; input(e).value = ""; if (!f) return;
