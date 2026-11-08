@@ -366,6 +366,7 @@ export function tokenRole(c: Collection, t: OwnToken, lang = "es"): Role {
     // the engine caches shapes by this: a new icon for the same token gets drawn afresh
     iconKey: `${t.id}:${icon?.id ?? "none"}`,
     ...(t.content ? { content: t.content } : {}),
+    ...(t.content === "text" && t.icon ? { keptIcon: { id: t.icon.id, g: t.icon.g, body: t.icon.body } } : {}),
     ...(t.flip ? { flip: flipRole(t.id, t.flip) } : {}),
   };
 }

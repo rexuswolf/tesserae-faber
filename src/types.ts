@@ -67,6 +67,8 @@ export interface Role {
   flip?: RoleFlip;
   /** What the token carries, whatever its design (a token of yours): unset, as its design lays it out. */
   content?: TokenContent;
+  /** A token of yours that shows only its name: the icon it keeps (not drawn on its front), for a back laid out with one. */
+  keptIcon?: Pick<TokenIcon, "id" | "g" | "body">;
 }
 /** What a token carries: its icon and its name, only its icon (the name names it in the lists), or only its name. */
 export type TokenContent = "both" | "icon" | "text";

@@ -2785,7 +2785,8 @@ export const backShown = (role: Role, spec: TokenSpec, text: string) => backCont
 function backContent(role: Role, spec: TokenSpec, text: string, b: BackFace): { role: Role; text: string; spec: TokenSpec } {
   const ed = b.say === "edition" ? backEdition(role, spec) : null;
   const words = b.say === "none" ? "" : b.say === "phrase" ? (b.phrase ?? "").trim() : b.say === "edition" ? (ed ? (ed.name[spec.lang] || ed.name[spec.lang?.split("-")[0]] || ed.name.en) : "") : text;
-  const art = !b.art || b.art === "token" ? null : b.art === "custom" ? svgIcon(spec.customSvg) : BACK_ORNAMENTS.includes(b.art) ? ornamentIcon(b.art) : null;
+  // its own icon: a token showing only its name keeps one for its back (keptIcon)
+  const art = !b.art || b.art === "token" ? (role.keptIcon && !role.body ? { ...role.keptIcon, id: `kept:${role.keptIcon.id}` } : null) : b.art === "custom" ? svgIcon(spec.customSvg) : BACK_ORNAMENTS.includes(b.art) ? ornamentIcon(b.art) : null;
   const none = b.art === "none" || (!!b.art && b.art !== "token" && !art) || spec.style === "text";
   const style: TokenStyle = none ? "text" : !words.trim() || spec.style === "solo" ? "solo" : spec.style;
   return { role: { ...role, content: undefined, ...(none ? { body: "", d: [], iconKey: "none" } : {}) }, text: words, spec: { ...spec, style, ...(art ? { icon: art } : {}) } };
@@ -2861,8 +2862,9 @@ function withContent(role: Role | null | undefined, spec: TokenSpec): TokenSpec 
   const c = spec.reminder ? undefined : role?.content;
   if (!c) return spec;
   if (c === "both") return spec.style === "solo" || spec.style === "text" ? { ...spec, style: "classic", textSize: LAYOUT_TEXT_SIZE } : spec;
+  // the front's: a back with a layout of its own keeps it (one that follows the front's follows this)
   const style: TokenStyle = c === "icon" ? "solo" : "text";
-  return { ...spec, style, ...(spec.backFace?.style ? { backFace: { ...spec.backFace, style } } : {}) };
+  return { ...spec, style };
 }
 const LAYOUT_TEXT_SIZE = DEFAULT_SPEC.textSize;
 /** A card laid out for what its token carries: only its phrase, no icon; only its icon, the icon alone; both, the icon beside the phrase (at the left, unless the design puts it at the right). */

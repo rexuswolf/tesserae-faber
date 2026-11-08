@@ -31,6 +31,10 @@ describe("a token's content", () => {
     };
     expect(back("solo")).toBe("solo");
     expect(back("text")).toBe("text");
+    // an icon-only token's back laid out with its name: so it stays
+    const r = coin("icon"), spec = shapeSpec(r, { ...DEFAULT_SPEC, backMode: "own", backFace: { style: "window" } });
+    const bf = backFaceOf(r, spec, "Wolf")!;
+    expect(shapeSpec(bf.role, { ...bf.spec, back: "none", backMode: "design" }).style).toBe("window");
   });
   it("leaves a linked token its word", () => {
     expect(shapeSpec(coin("icon"), reminderSpec({ ...DEFAULT_SPEC, style: "classic" })).style).toBe("classic");
