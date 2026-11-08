@@ -74,7 +74,7 @@ async function pick(sen: Kit | null, d5: Kit | null, ds: Kit | null, lang: strin
     const ring = [...d5.byId.values()].find((r) => r.kind === "ring");
     const word = t("tour.baseText"), base = ring ? { ...ring, id: "tour-base", kind: "base" as const, en: word, es: word, names: { en: word, es: word } } : null;
     const shapes: [string, string, string][] = [
-      [draw(d5, "frightened", d5.style("coin")), "tour.coin", "tour.coinSub"],
+      [draw(sen, "consul", sen.style("coin")), "tour.coin", "tour.coinSub"],
       [draw(sen, "ley", sen.style("card")), "tour.card", "tour.cardSub"],
       [ring ? tokenSvg(d5.lib, ring, d5.style("ring")) : "", "tour.ring", "tour.ringSub"],
       [base ? tokenSvg(d5.lib, base, { ...DEFAULT_SPEC, lang, ringBase: "32", colours: { ...DEFAULT_SPEC.colours, base: "#d4a72c", front: FILAMENTS.black, frame: FILAMENTS.black } }) : "", "tour.base", "tour.baseSub"],
