@@ -36,8 +36,8 @@ export const partsOf = (shape: TokenShape): Part[] => {
   const f = SHAPE_FEATURES[shape];
   return ["front", "colours", ...(f.back ? ["back" as const] : []), "body", ...(f.magnet ? ["magnet" as const] : [])];
 };
-/** One of the design's sections: a part, or a tab of the front; the advanced ones after the rest. */
-export interface Section { part: Part; face?: FaceTab; adv?: boolean }
+/** One of the design's sections: a part, or a tab of the front. */
+export interface Section { part: Part; face?: FaceTab }
 /**
  * The sections a token's design is changed in, from the basic to the advanced: how it's laid out, its
  * colours, its text, icon and frame, its back; then its background pattern, its body and its magnet.
@@ -51,8 +51,8 @@ export function sectionsOf(shape: TokenShape, content?: TokenContent): Section[]
     { part: "colours" },
     ...basic.filter((f) => f !== "layout").map((face) => ({ part: "front" as const, face })),
     ...(partsOf(shape).includes("back") ? [{ part: "back" as const }] : []),
-    ...(front.includes("pattern") ? [{ part: "front" as const, face: "pattern" as const, adv: true }] : []),
-    ...rest.map((part) => ({ part, adv: true })),
+    ...(front.includes("pattern") ? [{ part: "front" as const, face: "pattern" as const }] : []),
+    ...rest.map((part) => ({ part })),
   ];
 }
 /** A face's tabs (level 2): the layout only where there's more than one, the icon where the shape has one. */

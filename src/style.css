@@ -495,14 +495,13 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .tok-colour-menu { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
 .tok-colour-menu .own-swatches { grid-column: auto; }
 /* Level 1: the token's parts (FRONT · BACK · COIN · MAGNET), underlined */
-/* the design's sections, in one row: the basic ones, then the advanced after their word */
+/* the design's sections, in one row, the basic ones first */
 .parts { flex: none; display: flex; gap: 6px; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--seam); overflow-x: auto; scrollbar-width: none; }
 .parts::-webkit-scrollbar { display: none; }
 .parts[hidden] { display: none; }
 .parts button { flex: none; border: 1px solid var(--seam); background: none; border-radius: 999px; padding: 6px 13px; font: inherit; font-size: 13px; color: var(--dust); cursor: pointer; white-space: nowrap; }
 .parts button:hover { color: var(--bone); }
 .parts button[aria-selected=true] { background: var(--bone); border-color: var(--bone); color: var(--velvet-deep); font-weight: 600; }
-.parts .sec-adv { flex: none; margin-left: 6px; padding-left: 12px; border-left: 1px solid var(--seam); font-size: 12px; color: var(--dust); }
 /* Level 2: a face's Layout · Text · Icon · Frame, as pills */
 .face-tabs { flex: none; display: flex; gap: 2px; margin: 0 0 12px; padding: 0 0 8px; border-bottom: 1px solid var(--seam); overflow-x: auto; scrollbar-width: none; }
 .face-tabs::-webkit-scrollbar { display: none; }
@@ -1816,7 +1815,6 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 
 /* ---- the Designer: its parts' tabs wrap (none off the edge), the preview a stage with the token large */
 .parts { flex-wrap: wrap; overflow: visible; row-gap: 6px; }
-.parts .sec-adv { flex-basis: 100%; margin: 4px 0 0; padding: 0; border: 0; }
 .tm-preview { justify-content: center; gap: 18px 40px; padding-block: 26px 20px; border-bottom: 1px solid var(--seam);
   background: radial-gradient(60% 90% at 50% 30%, color-mix(in srgb, var(--brass) 9%, transparent), transparent 70%), color-mix(in srgb, var(--velvet-deep) 92%, transparent); }
 .tv-hero { gap: 28px; }
@@ -1973,7 +1971,6 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
   .cr-nav .parts button:hover { color: var(--bone); background: color-mix(in srgb, var(--bone) 5%, transparent); }
   .cr-nav .parts button[aria-selected=true] { color: var(--bone); font-weight: 600; box-shadow: inset 3px 0 0 var(--brass);
     background: radial-gradient(80% 140% at 30% 100%, color-mix(in srgb, var(--brass) 30%, transparent), transparent 75%), color-mix(in srgb, var(--bone) 5%, transparent); }
-  .cr-nav .parts .sec-adv { margin: 14px 24px 4px; padding: 0; border: 0; font-size: 12px; color: var(--dust); }
 }
 @media (min-width: 901px) and (max-width: 1180px) {
   .app[data-step="2"] { grid-template-columns: 220px 330px minmax(0, 1fr); }
@@ -2012,7 +2009,6 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
   .cr-nav .parts button { flex: none; clip-path: none; margin: 0; padding: 11px 14px 9px; border: 0; border-right: 1px solid var(--seam); border-radius: 0; background: none; color: var(--dust); font-size: 13.5px; white-space: nowrap; }
   .cr-nav .parts button:first-child { padding-left: 16px; }
   .cr-nav .parts button[aria-selected=true] { color: var(--bone); font-weight: 600; background: var(--tile); box-shadow: inset 0 -2px 0 var(--brass); }
-  .cr-nav .parts .sec-adv { flex: none; width: 1px; height: 22px; align-self: center; margin: 0 4px; padding: 0; overflow: hidden; color: transparent; background: var(--seam); border: 0; }
   .app[data-step="2"] .ws-body { padding: 14px 16px; }
   .app[data-step="2"][data-crc="design"] .ws-body { padding-top: 0; }
   /* the designs' list edge to edge; no title over it (the bar says where you are) */
