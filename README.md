@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Tokens for your games, ready to print.</strong><br>
-  Make your own tokens or start from a ready collection, choose their design and download them<br>
+  Make your tokens with a name and an icon, give them your design and download them<br>
   for your 3D printer (each colour its own part) or as a PDF to cut out.
 </p>
 
@@ -22,43 +22,63 @@
   <img src="docs/screenshots/tf-home.png" alt="Tesserae Faber's home: tokens for your games, ready to print" width="820">
 </p>
 
-## Pick · Design · Print
+## Make · Design · Print
 
-1. **Pick** your tokens: make them yourself (a name, an icon from game-icons.net or your own SVG, a colour group),
-   or tick them in a ready collection.
-2. **Design** them: colours, frame, background pattern, back, relief, a hole for a magnet. Change something and the
-   token changes at once.
-3. **Print** them: a Bambu Studio project with every colour on its filament, STL files for any printer, or an A4 PDF.
+1. **Make** your tokens, or pick them from a collection.
+2. **Design** them: frame, back, relief, magnet.
+3. **Print** them, in 3D or on paper.
 
-Free, no account, no ads: your collections and designs stay in your browser.
+## Make your tokens
 
-## Ready collections
+Name each token and find its icon among the thousands on [game-icons.net](https://game-icons.net), or upload your own
+SVG. Sort them into groups, each in its own colour.
 
-- ***El Senado***: a hidden-role game in Rome, adapted from Secret Hitler.
-- ***5e Fantasy***: conditions, spells and markers, from the SRD 5.2.
-- ***Draw Steel***: hero resources, Malice, Victories and conditions.
+Your tokens are kept in this browser, together in a collection you can give a name, a logo and colours. Export it to a
+file to share it or carry on on another device.
+
+**Or start from a ready collection**, with its tokens, its groups and designs made for it:
+
+- ***El Senado***: a hidden-role game in Rome.
+- ***5e Fantasy***: conditions, spells and markers.
+- ***Draw Steel***: hero resources and conditions.
 
 ## Coins, cards, rings and bases
 
+Not everything is a coin. A collection can have each kind, and each kind is designed and printed its own way.
+
 | | |
 |---|---|
-| **Coins** | 30 to 60 mm, with a front and a back |
+| **Coins** | 30 to 60 mm |
 | **Cards** | 85 × 55 mm, with their phrase, their icon and their back |
-| **Rings** | slip round a miniature's base (25 to 50 mm), the condition all the way round |
-| **Bases** | a tray the miniature stands in, with a number or a name on the tab |
+| **Rings** | slip round a miniature's base (25 to 50 mm), with its condition all the way round |
+| **Bases** | trays the miniature's base sits in, with a number or a name on the tab |
 
-## Your designs
+## Design them
 
-A design sets how every token looks at once. Make yours in **Your designs**, from scratch, from a template or from
-another of yours, and use it in any collection. Frames of all kinds (laurel, beads, runes, rope…), patterns, five
-layouts, a raised name, frame or icon to feel by touch, and a magnet open or hidden inside.
+A design sets how every token looks at once: colours, frame, lettering, back. Change something and the token changes
+at once: what you see is what you'll print.
 
-## Printing
+- Frames of all kinds: laurel, beads, runes, rope, moon phases…
+- Background patterns, such as harlequin, scales or quartered.
+- A raised name, frame or icon, to feel them by touch.
+- A hole for a magnet, open or hidden inside.
+- The back too: one for them all, so nobody can tell which token it is, or the token's other face, like a vote that
+  says yes on one side and no on the other.
 
-- **Bambu Lab A1 / A1 mini with AMS lite**: a ready `.3mf`, plates laid out, each part on its filament, magnet pauses
-  included, with the filament and time each plate will take.
-- **Any other printer**: STL files, one per colour.
-- **Paper**: a double-sided A4 PDF at real size, each back behind its front.
+Your designs work in any collection: start one from scratch, from a collection's or from another of yours.
+
+## Print them
+
+- **Each colour, its own part**: a Bambu Studio project with the plates laid out and each part of the token on its
+  filament. Open it, slice it and print. For the A1 and A1 mini with the AMS lite; any other printer gets STL files,
+  one per colour.
+- **Or on paper, to cut out**: an A4 PDF with the tokens at their real size, each back placed so that, printed
+  double-sided, it lands behind its token.
+
+## Free and open source
+
+No accounts, no ads: your collections and designs stay in your browser. If you'd like to support the project, you can
+do so on [Ko-fi](https://ko-fi.com/rexuswolf).
 
 ---
 
