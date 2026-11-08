@@ -4,7 +4,7 @@
 // changes, and handed to the stylesheet as --band-on and --floor.
 
 type Rgb = [number, number, number];
-const BLACK: Rgb = [0, 0, 0], WHITE: Rgb = [255, 255, 255];
+const BLACK: Rgb = [0, 0, 0];
 
 const rgb = (c: string): Rgb | null => {
   const m = /^#?([0-9a-f]{6})/i.exec(c.trim());
@@ -45,6 +45,7 @@ export function paintTesserae(root = document.documentElement) {
   const key = [accent, text, bg].join();
   if (key === painted) return;
   painted = key;
-  root.style.setProperty("--band-on", band(mix(accent, WHITE, 0.12), mix(accent, BLACK, 0.18), mix(text, BLACK, 0)));
+  // the band in the accent let down into the background, its corners the accent itself: it marks, it doesn't glare
+  root.style.setProperty("--band-on", band(mix(accent, bg, 0.3), mix(accent, bg, 0.5), mix(accent, BLACK, 0)));
   root.style.setProperty("--floor", floor(bg, text));
 }

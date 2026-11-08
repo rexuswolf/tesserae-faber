@@ -1782,8 +1782,8 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 .design-bar .db-chip { flex: none; }
 #rows .row .tok-w .cp { margin-top: 3px; }
 /* picked: the band of tesserae, hexagons at the corners; the check a hexagon */
-#rows .row[data-picked=true] { background: color-mix(in srgb, var(--velvet) 80%, var(--brass)); }
-#rows .row[data-picked=true]::before { content: ""; position: absolute; inset: -2px; border: 7px solid transparent; border-image: var(--band-on) 8 / 7px repeat; pointer-events: none; }
+#rows .row[data-picked=true] { background: color-mix(in srgb, var(--velvet) 90%, var(--brass)); }
+#rows .row[data-picked=true]::before { content: ""; position: absolute; inset: -1px; border: 5px solid transparent; border-image: var(--band-on) 8 / 5px repeat; pointer-events: none; }
 #rows .row[data-picked=true]::after { right: 16px; width: 26px; height: 24px; border-radius: 0; clip-path: var(--hex-s); }
 #rows .row:has(.tok:focus-visible) { outline: 2px solid var(--brass); outline-offset: 2px; }
 
