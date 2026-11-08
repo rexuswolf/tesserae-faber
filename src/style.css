@@ -1761,6 +1761,11 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
   background: var(--tile); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--bone) 7%, transparent), 0 1px 0 #0006; }
 #rows .row:hover { background: var(--tile-hi); }
 #rows .row > .tok-w { grid-area: tok; align-self: start; }
+/* folded (no linked tokens open under it): one line, the name and the buttons centred on the token */
+@media (min-width: 901px) {
+  #rows .row:not(.open) { grid-template-areas: "tok who fold acts"; }
+  #rows .row:not(.open) > .tok-w { align-self: center; }
+}
 #rows .row > .tok-w svg, #rows .row .tok svg { width: 60px; height: 60px; }
 /* cards are wider than coins: where the list has any, the token's column fits a card and coins sit centred in it,
    so every name starts at the same place */
