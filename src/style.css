@@ -495,11 +495,14 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .tok-colour-menu { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
 .tok-colour-menu .own-swatches { grid-column: auto; }
 /* Level 1: the token's parts (FRONT · BACK · COIN · MAGNET), underlined */
-.parts { flex: none; display: flex; border-bottom: 1px solid var(--seam); }
+/* the design's sections, in one row: the basic ones, then the advanced after their word */
+.parts { flex: none; display: flex; gap: 6px; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--seam); overflow-x: auto; scrollbar-width: none; }
+.parts::-webkit-scrollbar { display: none; }
 .parts[hidden] { display: none; }
-.parts button { flex: 1; min-width: 0; border: 0; border-bottom: 2px solid transparent; background: none; padding: 10px 2px 8px; font: inherit; font-size: 12px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--dust); cursor: pointer; white-space: nowrap; }
+.parts button { flex: none; border: 1px solid var(--seam); background: none; border-radius: 999px; padding: 6px 13px; font: inherit; font-size: 13px; color: var(--dust); cursor: pointer; white-space: nowrap; }
 .parts button:hover { color: var(--bone); }
-.parts button[aria-selected=true] { color: var(--bone); border-bottom-color: var(--brass); }
+.parts button[aria-selected=true] { background: var(--bone); border-color: var(--bone); color: var(--velvet-deep); font-weight: 600; }
+.parts .sec-adv { flex: none; margin-left: 6px; padding-left: 12px; border-left: 1px solid var(--seam); font-size: 12px; color: var(--dust); }
 /* Level 2: a face's Layout · Text · Icon · Frame, as pills */
 .face-tabs { flex: none; display: flex; gap: 2px; margin: 0 0 12px; padding: 0 0 8px; border-bottom: 1px solid var(--seam); overflow-x: auto; scrollbar-width: none; }
 .face-tabs::-webkit-scrollbar { display: none; }

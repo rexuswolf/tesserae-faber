@@ -208,6 +208,15 @@
       <div class="back-modes" id="backModes" hidden></div>
       <div class="face-tabs" id="faceTabs" role="tablist" data-i18n-attr="aria-label:ws.faceTabs" hidden></div>
       <!-- a face (the front, or a back of its own): its layout, name, icon and frame, each part flush or raised -->
+      <!-- its colours, together (each also where its part is) -->
+      <section class="ws-panel" data-panel="colours" role="tabpanel" hidden>
+        <p class="metal-label" id="coloursFrontLabel"></p>
+        <div class="metal" data-colour="front" data-i18n-attr="aria-label:front.colour"></div>
+        <p class="metal-label" data-i18n="face.frame"></p>
+        <div class="metal" data-colour="frame" data-i18n-attr="aria-label:frame.aria"></div>
+        <p class="metal-label" id="coloursBaseLabel"></p>
+        <div class="metal" data-colour="base" data-i18n-attr="aria-label:coin.colour"></div>
+      </section>
       <section class="ws-panel" data-panel="layout" role="tabpanel" hidden>
         <div class="choices layout-tiles" data-choice="style"></div>
         <p class="hint" id="styleHint"></p>

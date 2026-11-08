@@ -1,12 +1,12 @@
 // The workshop: a token's preview, its parts and faces, and its own icon.
 import { on } from "./events.ts";
-import type { TokenShape, TokenSpec, BackFace, TokenStyle, SpecInput, SpecColours, TokenIcon, TokenOverride } from "../types.ts";
+import type { TokenShape, TokenSpec, BackFace, TokenStyle, SpecInput, SpecColours, TokenIcon, TokenOverride, TokenContent } from "../types.ts";
 import { shapeOf, SHAPE_FEATURES, DEFAULT_SPEC, FACE_FIELDS, reliefOf, buildToken, TEAMS, tokenSvg, MAGNET_SIZES, RING_SEPARATORS, RING_BASES, cardBackOf } from "../engine/token-engine.ts";
-import { state, LAYOUT_TEXT, defSpec, STYLE_KEEPS, knownStyles, $, view3d, esc, input, hit, $$, SEPARATOR_MARKS, COLOUR_CHOICES } from "./context.ts";
+import { state, coll, LAYOUT_TEXT, defSpec, STYLE_KEEPS, knownStyles, $, view3d, esc, input, hit, $$, SEPARATOR_MARKS, COLOUR_CHOICES } from "./context.ts";
 import type { Part, Side, FaceTab, Fields } from "./context.ts";
 import { lookOf, designFor, ownChanged, designOf, inheritedRef, collLabel, defaultRef } from "./designs.ts";
 import { changeLook, renderSays, renderTabs, syncControls, renderColourWarn, dz, renderDesignSheet, setOwn, patternGroupHtml, setCardBack, changeCardBack, setCardBackIcon, renderQuickDesigns } from "./design-sheet.ts";
-import { APP_NAME, tallerUrl } from "../collection.ts";
+import { APP_NAME, tallerUrl, OWN } from "../collection.ts";
 import type { StyleDef } from "../collection.ts";
 import { BOTC_STYLES } from "../botc-styles.ts";
 import type { ViewKind } from "../engine/viewer.ts";
@@ -33,8 +33,27 @@ export const editShape = (): TokenShape => shapeOf(state.sel!.role);
 /** The parts a type is made of (level 1), from what its shape has. */
 export const partsOf = (shape: TokenShape): Part[] => {
   const f = SHAPE_FEATURES[shape];
-  return ["front", ...(f.back ? ["back" as const] : []), "body", ...(f.magnet ? ["magnet" as const] : [])];
+  return ["front", "colours", ...(f.back ? ["back" as const] : []), "body", ...(f.magnet ? ["magnet" as const] : [])];
 };
+/** One of the design's sections: a part, or a tab of the front; the advanced ones after the rest. */
+export interface Section { part: Part; face?: FaceTab; adv?: boolean }
+/**
+ * The sections a token's design is changed in, from the basic to the advanced: how it's laid out, its
+ * colours, its text, icon and frame, its back; then its background pattern, its body and its magnet.
+ * A token of yours that carries only its icon (or only its text) has no layout, nor text (or icon), to change.
+ */
+export function sectionsOf(shape: TokenShape, content?: TokenContent): Section[] {
+  const front = faceTabsOf(shape, "front").filter((f) => !(content === "icon" || content === "text") || (f !== "layout" && f !== (content === "icon" ? "text" : "icon")));
+  const basic = front.filter((f) => f !== "pattern"), rest = partsOf(shape).filter((p) => p !== "front" && p !== "colours" && p !== "back");
+  return [
+    ...basic.filter((f) => f === "layout").map((face) => ({ part: "front" as const, face })),
+    { part: "colours" },
+    ...basic.filter((f) => f !== "layout").map((face) => ({ part: "front" as const, face })),
+    ...(partsOf(shape).includes("back") ? [{ part: "back" as const }] : []),
+    ...(front.includes("pattern") ? [{ part: "front" as const, face: "pattern" as const, adv: true }] : []),
+    ...rest.map((part) => ({ part, adv: true })),
+  ];
+}
 /** A face's tabs (level 2): the layout only where there's more than one, the icon where the shape has one. */
 export const faceTabsOf = (shape: TokenShape, side: Side = "front"): FaceTab[] => {
   const f = SHAPE_FEATURES[shape];
@@ -133,7 +152,7 @@ export function startedFrom(spec: TokenSpec, shape: TokenShape) {
   return { def, modified: !!def && differsFrom(def, spec, shape) };
 }
 /** What each tab shows in the 3D view: a face straight on, the body at an angle, the magnet from behind. */
-const PART_VIEW: Record<Part, ViewKind> = { front: "top", back: "back", body: "angle", magnet: "back" };
+const PART_VIEW: Record<Part, ViewKind> = { front: "top", colours: "angle", back: "back", body: "angle", magnet: "back" };
 /** Opens a tab: a part, and inside a face one of its tabs. */
 export function showTab({ part, face }: { part?: Part; face?: FaceTab } = {}) {
   if (part) state.part[editShape()] = part;
@@ -170,7 +189,7 @@ export function renderWorkshop() {
       if (!token.magnet && $("#xray").getAttribute("aria-pressed") === "true") { $("#xray").setAttribute("aria-pressed", "false"); view3d("setXray", false); }
       const design = designFor(key, shape);
       $("#name").textContent = text.trim() || t("own.namePlaceholder");
-      $("#sub").textContent = [isRem ? textFor(charKey(role), role, null) : null, TEAMS[role.team].label[lang], editionName(role, lang),
+      $("#sub").textContent = [isRem ? textFor(charKey(role), role, null) : null, OWN && coll.groups.length < 2 ? null : TEAMS[role.team].label[lang], editionName(role, lang),
         t("design.sub", { name: design.name }), ownChanged(key) ? t("design.tweakedSub") : null].filter(Boolean).join(" · ");
       renderSays();
       renderDesignRow(key, shape);

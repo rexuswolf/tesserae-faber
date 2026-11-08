@@ -199,7 +199,7 @@ export function wire() {
     if (edit) { openTokenPanel(edit.dataset.contentEdit!); return; }
     if (hit(e, ".says-toggle")) { state.saysOpen = !state.saysOpen; renderSays(); }
   };
-  $("#parts").onclick = (e) => { const b = hit(e, "[data-part]"); if (!b) return; showTab({ part: b.dataset.part as Part }); viewTab(); renderWorkshop(); };
+  $("#parts").onclick = (e) => { const b = hit(e, "[data-part]"); if (!b) return; showTab({ part: b.dataset.part as Part, face: b.dataset.face as FaceTab | undefined }); viewTab(); renderWorkshop(); };
   $("#faceTabs").onclick = (e) => { const b = hit(e, "[data-face]"); if (!b) return; showTab({ face: b.dataset.face as FaceTab }); renderWorkshop(); };
   $("#backModes").onclick = (e) => { const b = hit(e, "[data-back-mode]"); if (b) setBackMode(b.dataset.backMode as BackMode); };
   // A face's choices and sliders go to the face being edited (the front, or a back of its own); the rest to the token.
@@ -225,7 +225,7 @@ export function wire() {
     // a card back's phrase and frame: its own colours
     if (box.dataset.side === "cardback") { const k = box.dataset.cbColour as "text" | "frame"; changeCardBack((cb) => { cb.colours = { ...cb.colours, [k]: b.dataset.v! }; }); return; }
     if (box.dataset.side === "back") changeFace("back", mutate);
-    else if (box.closest("[data-panel=text], [data-panel=frame]")) changeFace(editSide(), mutate);
+    else if (box.closest("[data-panel=text], [data-panel=frame], [data-panel=colours]")) changeFace(editSide(), mutate);
     else changeLook(mutate);
   };
   // a bevel of 0 is none: left unset, as in a design without one

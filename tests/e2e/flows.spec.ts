@@ -67,7 +67,7 @@ test("designing a token: another frame changes its preview", async ({ page }) =>
   await page.evaluate((k) => { const mm = (window as unknown as { __mm: { goStep(n: number): void; designToken(k: string): void } }).__mm; mm.goStep(2); mm.designToken(k!); }, key);
   const frames = page.locator('[data-choice="frame"] [data-v]');
   await expect(async () => {
-    await page.locator('#faceTabs [data-face="frame"]').evaluate((b) => (b as HTMLElement).click());
+    await page.locator('#parts [data-face="frame"]').evaluate((b) => (b as HTMLElement).click());
     await expect(frames.first()).toBeAttached({ timeout: 1000 });
   }).toPass();
   const before = await page.locator("#workshop svg[aria-label$='token']").first().innerHTML();

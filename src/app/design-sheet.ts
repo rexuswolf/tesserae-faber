@@ -15,7 +15,7 @@ import type { Vars } from "../i18n.ts";
 import { applyLook, prunedLook, withLookField, sameValue, lookFields, withoutLookField, setField, lookDiff, fieldOf } from "./looks.ts";
 import { tokenRole, queueEntry, tokenRem, queueLabel, itemSpec, smallLetters, nozzleMm, renderDesignStage, toastTimer, setToastTimer } from "./queue.ts";
 import { CHEVRON } from "./language.ts";
-import { renderIconField, openPart, openPanel, partsOf, faceTabsOf, faceOf, hasOwnLook, ownStart, syncView, renderWorkshop, editLook, changeFace, editSide, designSwatch } from "./workshop.ts";
+import { renderIconField, openPart, openPanel, sectionsOf, showTab, faceTabsOf, faceOf, hasOwnLook, ownStart, syncView, renderWorkshop, editLook, changeFace, editSide, designSwatch } from "./workshop.ts";
 import { TALLER, tallerMine, renderTaller } from "./taller.ts";
 import { colourIssues, LIGHT_DEPTH } from "../colour-checks.ts";
 import type { InlayPart } from "../colour-checks.ts";
@@ -238,9 +238,14 @@ export function renderSays() {
 
 /** The parts' tabs, and inside them the back's choices and a face's tabs. */
 export function renderTabs(role: Role, spec: TokenSpec) {
-  const shape = shapeOf(role), part = openPart(), panel = openPanel();
-  $("#parts").innerHTML = partsOf(shape).map((p) => `<button type="button" role="tab" data-part="${p}" aria-selected="${p === part}">${esc(p === "body" ? t(`part.body.${shape}`) : t(`part.${p}`))}</button>`).join("");
-  const faceOpen = part === "front" || (part === "back" && spec.backMode === "own" && shape !== "card");
+  const shape = shapeOf(role), secs = sectionsOf(shape, !TALLER && ownTokenOf(role.id) ? role.content : undefined);
+  const isOpen = (s: { part: string; face?: string }) => s.part === openPart() && (s.part !== "front" || s.face === openPanel());
+  if (!secs.some(isOpen)) showTab({ part: secs[0].part, face: secs[0].face });   // one this token hasn't (a layout, for a token of one thing)
+  const part = openPart(), panel = openPanel();
+  // the sections in one row, the advanced ones after a word that says so
+  $("#parts").innerHTML = secs.map((s, i) => (s.adv && !secs[i - 1]?.adv ? `<span class="sec-adv">${esc(t("sec.advanced"))}</span>` : "")
+    + `<button type="button" role="tab" data-part="${s.part}"${s.face ? ` data-face="${s.face}"` : ""} aria-selected="${isOpen(s)}">${esc(s.face ? t(`face.${s.face}`) : s.part === "body" ? t(`part.body.${shape}`) : t(`part.${s.part}`))}</button>`).join("");
+  const faceOpen = part === "back" && spec.backMode === "own" && shape !== "card";   // a back of its own: its face's tabs
   $("#faceTabs").hidden = !faceOpen;
   if (faceOpen) $("#faceTabs").innerHTML = faceTabsOf(shape, part === "back" ? "back" : "front").map((f) => `<button type="button" role="tab" data-face="${f}" aria-selected="${f === panel}">${esc(t(`face.${f}`))}</button>`).join("");
   renderBackModes(role, spec, part === "back" && shapeOf(role) !== "card");   // a card's back is always a design
@@ -612,6 +617,10 @@ export function syncControls(role: Role, spec: TokenSpec, token: Token) {
   }
   const row = (id: string) => $("#" + id).closest<HTMLElement>(".row")!;
   // Layout: the coin's layouts, drawn on this face
+  if (panel === "colours") {   // its colours together: the body's, the name's and icon's, the frame's
+    $("#coloursBaseLabel").textContent = shapeText("coin.colour", shape);
+    $("#coloursFrontLabel").textContent = shape === "coin" ? t(face.style === "window" && role.content !== "icon" && role.content !== "text" ? "front.colourWindow" : role.content === "text" ? "front.colourName" : "front.colour") : t("front.colourName");
+  }
   if (panel === "layout") {
     const only = !TALLER && ownTokenOf(role.id) ? role.content : undefined;   // a token of yours that carries one thing: nothing to lay out
     $("[data-choice=style]").hidden = only === "icon" || only === "text";
@@ -697,7 +706,7 @@ export function syncControls(role: Role, spec: TokenSpec, token: Token) {
   }
   $("[data-choice=magnet] [data-v=pocket]").hidden = faceBack;
   $$(".metal:not([data-side=cardback])").forEach((box) => {   // a card back's are renderCardBack's
-    const k = box.dataset.colour as keyof SpecColours, from = box.dataset.side === "back" || (box.closest("[data-panel=text], [data-panel=frame]") && side === "back") ? faceOf(spec, "back") : s;
+    const k = box.dataset.colour as keyof SpecColours, from = box.dataset.side === "back" || (box.closest("[data-panel=text], [data-panel=frame], [data-panel=colours]") && side === "back") ? faceOf(spec, "back") : s;
     $$("button", box).forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === from.colours[k])));
   });
   // Relief: in the open tab's slot, for the face being edited
