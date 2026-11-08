@@ -198,6 +198,7 @@ export function wireOwn() {
   });
   wireOwnSettings();
   $("#ownNewTok").onclick = () => startCreate();
+  setTimeout(() => void arriveToMake(), 0);   // once the sheet is up
   $<HTMLInputElement>("#ownImportFile").onchange = async (e) => {
     const f = input(e).files?.[0]; input(e).value = ""; if (!f) return;
     const noteEl = $("#ownNote");
@@ -317,12 +318,12 @@ export function openTokenPanel(id: string) {
  * shows, and it goes in the catalog open; "Create and another" passes on the last one's shape,
  * type, group and catalogs.
  */
-function startCreate(like?: { shape: TokenShape; type: string; group: string; cats: string[] }) {
+function startCreate(like?: { shape: TokenShape; type: string; group: string; cats: string[] }, seed?: { name?: string; icon?: TokenIcon }) {
   dropDraft();
   state.editing = null;
   const here = catalogOf(state.edition), shape = like?.shape ?? typeOfView(state.edition)?.shape ?? "coin";
   const group = like?.group ?? (state.team !== "all" && coll.groups.some((g) => g.id === state.team) ? state.team : coll.groups[0].id);
-  const draft: OwnToken = { id: newId("t"), type: like?.type ?? typeFor(shape), group, name: "", icon: null, linked: [] };
+  const draft: OwnToken = { id: newId("t"), type: like?.type ?? typeFor(shape), group, name: seed?.name ?? "", icon: seed?.icon ?? null, linked: [] };
   state.creating = { draft, shape, cats: like?.cats ?? (here ? [here.id] : []) };
   state.lib!.roles = ownRoles();
   panelFor = "";
@@ -332,6 +333,19 @@ function startCreate(like?: { shape: TokenShape; type: string; group: string; ca
   setTimeout(() => $("#ownTokName").focus(), 60);   // once the panel has drawn
 }
 function showTokenPanel() { const d = $<HTMLDialogElement>("#tokenPanel"); if (!d.open) d.showModal(); }
+/**
+ * Come from the front page's "Make a token" (?nueva): the new token's panel, open at once; with the name
+ * and icon tried there (&n, &i), if any. The address loses them, so a reload doesn't open it again.
+ */
+async function arriveToMake() {
+  const q = new URLSearchParams(location.search);
+  if (!q.has("nueva") || READONLY) return;
+  history.replaceState(history.state, "", location.pathname + location.hash);
+  const name = q.get("n")?.trim().slice(0, 40) || undefined, path = q.get("i");
+  let icon: TokenIcon | undefined;
+  if (path && /^[\w-]+\/[\w-]+$/.test(path)) try { icon = { ...(await gameIcon(path)), id: path }; } catch { /* offline: without it */ }
+  startCreate(undefined, { name, icon });
+}
 /** The token being made is dropped. */
 function dropDraft() {
   if (!state.creating) return;
@@ -737,6 +751,19 @@ export async function renderOwnHome() {
 function wireOwnHome() {
   const note = (k: string, v = {}) => { for (const el of $$("[data-own-note]")) el.textContent = t(k, v); };
   for (const b of $$("[data-own-new]")) b.onclick = () => { const id = addCollection(starterCollection(uiLang())); if (id) location.href = collectionUrl(id); else note("own.storageFull"); };
+  // a token first, no collection to think of: it goes in the one you were last in, or in a new "My tokens"
+  for (const b of $$("[data-tok-new]")) b.onclick = () => {
+    const last = lastCollection(), mine = last && !builtIn(last) && listCollections().some((c) => c.id === last) ? last : null;
+    const id = mine ?? addCollection({ ...starterCollection(uiLang()), name: t("own.quickName") });
+    if (!id) { note("own.storageFull"); return; }
+    const q = new URLSearchParams({ nueva: "" });
+    if (b.dataset.tokNew === "maker") {   // the one tried on the front page
+      const n = $<HTMLInputElement>("#tourName").value.trim(), i = $("#tourIcons [aria-pressed=true]")?.getAttribute("data-icon");
+      if (n) q.set("n", n);
+      if (i) q.set("i", i);
+    }
+    location.href = `${collectionUrl(id)}?${q}`;
+  };
   $("#ownHomeImport").onclick = () => $("#ownHomeFile").click();
   $<HTMLInputElement>("#ownHomeFile").onchange = async (e) => {
     const f = input(e).files?.[0]; input(e).value = ""; if (!f) return;

@@ -1667,3 +1667,5 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 .own-welcome .link { color: var(--brass); font-weight: 600; }
 .os-more { margin-top: 18px; }
 .os-ccc[hidden] { display: none; }
+/* the front page's token, made for real: under the maker, the whole row */
+.tour-make { grid-column: 1 / -1; justify-self: start; }

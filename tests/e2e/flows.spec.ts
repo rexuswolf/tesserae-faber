@@ -219,3 +219,20 @@ test("designing, simply: the token's designs a tap away, the fine changes folded
   await expect(page.locator("#flowNext")).toBeEnabled();
   expect(errors).toEqual([]);
 });
+
+test("a token first: the front page's maker carries its name to a new token, in a collection made for it, used again after", async ({ page }) => {
+  const errors = await open(page, "/");
+  await page.locator("#tourName").fill("Dragón rojo");
+  await page.locator("[data-tok-new=maker]").evaluate((b) => (b as HTMLElement).click());
+  await page.waitForURL(/\/c\//);
+  await expect(page.locator("#tokenPanel")).toHaveAttribute("open", "", { timeout: 30_000 });
+  await expect(page.locator("#ownTokName")).toHaveValue("Dragón rojo");
+  expect(new URL(page.url()).search).toBe("");   // a reload doesn't open it again
+  const first = new URL(page.url()).pathname;
+  await page.goto("/");
+  await page.locator(".ol-cta [data-tok-new]").first().evaluate((b) => (b as HTMLElement).click());
+  await page.waitForURL(/\/c\//);
+  await expect(page.locator("#tokenPanel")).toHaveAttribute("open", "", { timeout: 30_000 });
+  expect(new URL(page.url()).pathname).toBe(first);
+  expect(errors).toEqual([]);
+});
