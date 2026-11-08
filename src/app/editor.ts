@@ -69,6 +69,8 @@ export function wireEditor() {
     if (cat === "content" && !state.saysOpen) { state.saysOpen = true; renderSays(); }
     ed.cat = cat; ed.inside = true;
     show();
+    // Customise starts on its first part (Layout, or Text where a shape has no layouts)
+    if (cat === "part") $<HTMLElement>("#parts [data-part]")?.click();
   });
   $("#crSave").onclick = () => $("#styleSave").click();
   $("#crDrop").onclick = () => $("#styleDrop").click();
