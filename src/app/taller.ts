@@ -62,8 +62,9 @@ export const taller: { view: TallerView; shape: TokenShape; ref: string; pick: s
   { view: "shape", shape: "coin", ref: "", pick: "", from: null, groups: [], samples: { coin: [], ring: [], card: [], base: [] }, focusName: false };
 /** The design open in the Taller's editor (always one of yours). */
 export const tallerMine = () => (TALLER && taller.view === "edit" && taller.ref.startsWith("u:") ? myDesigns[taller.shape].find((x) => x.id === taller.ref.slice(2)) : undefined);
-/** A base of the second step by its reference ("g<n>:<id>"). */
+/** A base of the second step by its reference: a group's ("g<n>:<id>"), or one of yours ("m:<id>", copied to start from). */
 function tallerBase(shape: TokenShape, ref: string): DesignEntry | undefined {
+  if (ref.startsWith("m:")) { const d = myDesigns[shape].find((x) => x.id === ref.slice(2)); return d && { ...myEntry(d), ref }; }
   const m = ref.match(/^g(\d+):(.+)$/), d = m ? taller.groups[+m[1]]?.designs[shape]?.find((x) => x.id === m[2]) : undefined;
   return d ? collEntry(shape, d, ref) : undefined;
 }
@@ -250,16 +251,18 @@ document.addEventListener("toggle", (e) => {
 /** The first template of a shape: the collection you came from's, else the first collection's that has one. */
 function firstTemplate(sh: TokenShape) {
   const i = [...taller.groups.keys()].sort((a, b) => Number(taller.groups[b].kind === "from") - Number(taller.groups[a].kind === "from")).find((k) => taller.groups[k].kind !== "blank" && taller.groups[k].designs[sh]?.length);
-  return i == null ? null : `g${i}:${taller.groups[i].designs[sh]![0].id}`;
+  return i != null ? `g${i}:${taller.groups[i].designs[sh]![0].id}` : myDesigns[sh].length ? `m:${myDesigns[sh][0].id}` : null;
 }
+/** What starting from a base names the copy: yours "Copy of …", a collection's "… (mine)". */
+const startName = (d: DesignEntry) => t(d.mine ? "style.copyOf" : "taller.mineName", { name: d.name });
 /** How to start: from scratch (the basic design, straight to the editor) or from a template (the collections' designs). */
 function renderTallerStart() {
   const sh = taller.shape, tok = taller.samples[sh][0], blank = tallerBase(sh, firstBase(sh))!, tpl = firstTemplate(sh);
-  const n = taller.groups.filter((g) => g.kind !== "blank").reduce((a, g) => a + (g.designs[sh]?.length ?? 0), 0);
+  const n = taller.groups.filter((g) => g.kind !== "blank").reduce((a, g) => a + (g.designs[sh]?.length ?? 0), 0) + myDesigns[sh].length;
   const way = (attr: string, spec: TokenSpec, title: string, sub: string, cnt = "") => `<button class="tw-shape tw-way" type="button" ${attr}><span class="tw-tok ${sh}">${tallerPic(tok, spec)}</span><span><b>${esc(title)}</b><small>${esc(sub)}</small>${cnt ? `<span class="cnt">${esc(cnt)}</span>` : ""}</span></button>`;
   $("#tallerWizard").innerHTML = `${tallerSteps(2)}
     <div class="tw-titlebar"><button class="link" type="button" data-tw-back>‹ ${esc(t("taller.step.shape"))}</button><h2 class="tw-title">${esc(t("taller.startQ"))}</h2></div>
-    <div class="tw-shapes tw-ways">${way("data-tw-scratch", blank.spec, t("taller.fromScratch"), t("taller.fromScratchSub"))}${tpl ? way("data-tw-templates", tallerBase(sh, tpl)!.spec, t("taller.fromTemplate"), t("taller.fromTemplateSub"), t("taller.groupCount", { n })) : ""}</div>`;
+    <div class="tw-shapes tw-ways">${way("data-tw-scratch", blank.spec, t("taller.fromScratch"), t("taller.fromScratchSub"))}${tpl ? way("data-tw-templates", tallerBase(sh, tpl)!.spec, t("taller.fromTemplate"), t(myDesigns[sh].length ? "taller.fromTemplateSubMine" : "taller.fromTemplateSub"), t("taller.groupCount", { n })) : ""}</div>`;
 }
 function renderTallerBases() {
   const sh = taller.shape, role = tokenRole(taller.samples[sh][0]);
@@ -267,32 +270,36 @@ function renderTallerBases() {
   if (taller.pick === firstBase(sh)) { renderTallerStart(); return; }   // the basic one: the two ways to start
   const pick = tallerBase(sh, taller.pick)!;
   const more = (spec: TokenSpec) => `<span class="tw-more">${taller.samples[sh].slice(1, sh === "card" ? 3 : 4).map((k) => tallerPic(k, spec)).join("")}${SHAPE_FEATURES[sh].back ? tallerPic(taller.samples[sh][0], spec, "back") : ""}</span>`;
-  const row = (g: TallerGroup, i: number, def: StyleDef) => {
-    const d = tallerBase(sh, `g${i}:${def.id}`)!, on = d.ref === pick.ref;
-    return `<button class="tw-opt" type="button" role="radio" aria-checked="${on}" data-tw-pick="${esc(d.ref)}"><span class="tw-sw">${designSwatch(d.spec, role)}${SHAPE_FEATURES[sh].back && printsBack(role, filled(d.spec)) ? `<span class="tw-swb">${tokenSvg(state.lib!, role, { ...filled(d.spec), lang: tokenLang(), icon: ownIcon(role.id), diameter: 45 }, { side: "back" })}</span>` : ""}</span><span class="tw-ot"><b>${esc(d.name)}${g.kind === "blank" ? ` <span class="tw-tag">${esc(t("taller.blankTag"))}</span>` : ""}</b>${d.help ? `<small>${esc(d.help)}</small>` : ""}</span><span class="rad" aria-hidden="true"></span>${on ? more(d.spec) : ""}</button>`;
+  const row = (d: DesignEntry, blank = false) => {
+    const on = d.ref === pick.ref;
+    return `<button class="tw-opt" type="button" role="radio" aria-checked="${on}" data-tw-pick="${esc(d.ref)}"><span class="tw-sw">${designSwatch(d.spec, role)}${SHAPE_FEATURES[sh].back && printsBack(role, filled(d.spec)) ? `<span class="tw-swb">${tokenSvg(state.lib!, role, { ...filled(d.spec), lang: tokenLang(), icon: ownIcon(role.id), diameter: 45 }, { side: "back" })}</span>` : ""}</span><span class="tw-ot"><b>${esc(d.name)}${blank ? ` <span class="tw-tag">${esc(t("taller.blankTag"))}</span>` : ""}</b>${d.help ? `<small>${esc(d.help)}</small>` : ""}</span><span class="rad" aria-hidden="true"></span>${on ? more(d.spec) : ""}</button>`;
   };
   const note = (g: TallerGroup) => (g.kind === "blank" ? t("taller.blankNote") : g.kind === "from" ? t("taller.fromNote") : g.kind === "app" ? t("taller.appNote") : "");
   // the starting base in the open; each collection's designs folded (open where the chosen base is)
   const opts = taller.groups.map((g, i) => {
     const list = g.designs[sh];
     if (!list?.length || g.kind === "blank") return "";   // the templates: the basic one is "from scratch"
-    const rows = list.map((def) => row(g, i, def)).join("");
+    const rows = list.map((def) => row(tallerBase(sh, `g${i}:${def.id}`)!)).join("");
     const open = tallerOpenGroups.has(`${sh}:${i}`) || list.some((def) => `g${i}:${def.id}` === pick.ref);
     // folded, it looks like the collection's cover: its colours, logo and name, and its designs on the sample token
     const lk = g.look ?? {}, minis = list.slice(0, 6).map((def) => designSwatch(tallerBase(sh, `g${i}:${def.id}`)!.spec, role)).join("");
     const style = `--acc:${esc(lk.accent ?? "#c9963a")}${lk.cover ? `;--cover:${esc(lk.cover)}` : ""}`;
     return `<details class="tw-grp" data-tw-group="${sh}:${i}"${open ? " open" : ""}><summary class="tw-cover" style="${style}"><img src="${esc(lk.logo ?? APP_LOGO)}" alt=""><span class="tw-cv-t"><b>${esc(g.name)}</b><small>${esc(t("taller.groupCount", { n: list.length }))}${note(g) ? ` · ${esc(note(g))}` : ""}</small></span><span class="tw-cv-minis" aria-hidden="true">${minis}</span>${CHEVRON}</summary><div class="tw-grp-rows">${rows}</div></details>`;
   }).join("");
+  // yours, as a group like the collections' (Tesserae Faber's look), first
+  const mineList = myDesigns[sh].map((d) => tallerBase(sh, `m:${d.id}`)!);
+  const mineOpen = tallerOpenGroups.has(`${sh}:mine`) || pick.ref.startsWith("m:");
+  const mine = mineList.length ? `<details class="tw-grp" data-tw-group="${sh}:mine"${mineOpen ? " open" : ""}><summary class="tw-cover" style="--acc:#c9963a"><img src="${esc(APP_LOGO_SMALL)}" alt=""><span class="tw-cv-t"><b>${esc(t("taller.mine"))}</b><small>${esc(t("taller.groupCount", { n: mineList.length }))}</small></span><span class="tw-cv-minis" aria-hidden="true">${mineList.slice(0, 6).map((d) => designSwatch(d.spec, role)).join("")}</span>${CHEVRON}</summary><div class="tw-grp-rows">${mineList.map((d) => row(d)).join("")}</div></details>` : "";
   const go = esc(t("taller.go", { name: pick.name }));
   $("#tallerWizard").innerHTML = `${tallerSteps(2)}
     <div class="tw-titlebar"><button class="link" type="button" data-tw-start>‹ ${esc(t("taller.startBack"))}</button><h2 class="tw-title">${esc(t("taller.templateQ"))}</h2></div>
     <div class="tw-blist">
-      <div class="tw-opts" role="radiogroup" aria-label="${esc(t("taller.step.base"))}">${opts}</div>
+      <div class="tw-opts" role="radiogroup" aria-label="${esc(t("taller.step.base"))}">${mine}${opts}</div>
       <div class="tw-side">
         <div class="tw-pv">${tallerPreviewHtml(sh, pick.spec)}</div>
         <p class="tw-desc"><b>${esc(pick.name)}</b>${pick.help ? ` · ${esc(pick.help)}` : ""}</p>
         <button class="forge" type="button" data-tw-go>${go} ›</button>
-        <p class="hint tw-note">${esc(t("taller.goNote", { name: uniqueDesignName(sh, t("taller.mineName", { name: pick.name })) }))}</p>
+        <p class="hint tw-note">${esc(t("taller.goNote", { name: uniqueDesignName(sh, startName(pick)) }))}</p>
       </div>
     </div>`;
 }
@@ -359,7 +366,7 @@ export function renderTallerHead() {
   if (taller.focusName) { taller.focusName = false; if (!matchMedia("(hover: none)").matches) { name.focus(); name.select(); } }
 }
 /** A design of yours from a base (a collection's, or Basic) or another of yours: it opens in the editor, to be changed. */
-function tallerCopy(from: DesignEntry, name: string, origin = from.mine ? tallerMine()?.from : { name: from.name, spec: structuredClone(from.spec) }) {
+function tallerCopy(from: DesignEntry, name: string, origin = from.mine ? myDesigns[taller.shape].find((x) => x.id === from.ref.slice(2))?.from : { name: from.name, spec: structuredClone(from.spec) }) {
   const { preset: _p, fromPreset: _f, ...spec } = structuredClone(from.spec);
   const d: MyDesign = { id: newId("d"), name: uniqueDesignName(taller.shape, name), spec: spec as TokenSpec, ...(origin ? { from: origin } : {}) };
   myDesigns[taller.shape].push(d); storeMyDesigns();
@@ -410,7 +417,7 @@ function wireTaller() {
     else if (hit(e, "[data-tw-start]")) tallerGo({ pick: firstBase(taller.shape) });
     else if (hit(e, "[data-tw-templates]")) { const tpl = firstTemplate(taller.shape); if (tpl) tallerGo({ pick: tpl }); }
     else if (hit(e, "[data-tw-scratch]")) { const base = tallerBase(taller.shape, firstBase(taller.shape))!; tallerCopy(base, t("taller.mineName", { name: base.name })); }
-    else if (hit(e, "[data-tw-go]")) { const base = tallerBase(taller.shape, taller.pick)!; tallerCopy(base, t("taller.mineName", { name: base.name })); }
+    else if (hit(e, "[data-tw-go]")) { const base = tallerBase(taller.shape, taller.pick)!; tallerCopy(base, startName(base)); }
   };
   $("#tallerList").onclick = (e) => {
     const b = hit(e, "[data-taller-open]");

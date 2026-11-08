@@ -89,6 +89,12 @@ test("the Taller: start a design of your own from one of the app's, and duplicat
   await page.locator('[data-taller-act="mine"]').click();
   // the design and its copy (each listed in more than one place)
   await expect.poll(() => page.locator("[data-taller-open]").evaluateAll((l) => new Set(l.map((b) => b.getAttribute("data-ref"))).size)).toBe(2);
+  // a new one from one of yours: yours are among the templates, first, and starting from one copies it
+  await page.locator('[data-tw-shape="coin"]').click();
+  await page.locator("[data-tw-templates]").click();
+  await page.locator('[data-tw-pick^="m:"]').first().evaluate((b) => (b as HTMLElement).click());
+  await page.locator("[data-tw-go]").first().evaluate((b) => (b as HTMLElement).click());
+  await expect(page.locator("#tallerName")).toHaveValue(/^(Copia de|Copy of) /);
   expect(errors).toEqual([]);
 });
 
