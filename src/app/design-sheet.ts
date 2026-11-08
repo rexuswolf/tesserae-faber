@@ -305,9 +305,8 @@ export function renderTabs(role: Role, spec: TokenSpec) {
   const isOpen = (s: { part: string; face?: string }) => s.part === openPart() && (s.part !== "front" || s.face === openPanel());
   if (!secs.some(isOpen)) showTab({ part: secs[0].part, face: secs[0].face });   // one this token hasn't (a layout, for a token of one thing)
   const part = openPart(), panel = openPanel();
-  // the sections in one row, the advanced ones after a word that says so
-  $("#parts").innerHTML = secs.map((s, i) => (s.adv && !secs[i - 1]?.adv ? `<span class="sec-adv">${esc(t("sec.advanced"))}</span>` : "")
-    + `<button type="button" role="tab" data-part="${s.part}"${s.face ? ` data-face="${s.face}"` : ""} aria-selected="${isOpen(s)}">${esc(s.face ? t(`face.${s.face}`) : s.part === "body" ? t(`part.body.${shape}`) : t(`part.${s.part}`))}</button>`).join("");
+  // the sections in one list, the basic ones first
+  $("#parts").innerHTML = secs.map((s) => `<button type="button" role="tab" data-part="${s.part}"${s.face ? ` data-face="${s.face}"` : ""} aria-selected="${isOpen(s)}">${esc(s.face ? t(`face.${s.face}`) : s.part === "body" ? t(`part.body.${shape}`) : t(`part.${s.part}`))}</button>`).join("");
   const faceOpen = part === "back" && spec.backMode === "own" && shape !== "card";   // a back of its own: its face's tabs
   $("#faceTabs").hidden = !faceOpen;
   if (faceOpen) $("#faceTabs").innerHTML = faceTabsOf(shape, part === "back" ? "back" : "front").map((f) => `<button type="button" role="tab" data-face="${f}" aria-selected="${f === panel}">${esc(t(`face.${f}`))}</button>`).join("");
