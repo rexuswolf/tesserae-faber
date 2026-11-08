@@ -351,15 +351,18 @@ test("what a token shows is the token's: chosen when made, kept, and the design 
   await page.locator("[data-tok-new=maker]").evaluate((b) => (b as HTMLElement).click());
   await page.waitForURL(/\/c\//);
   await expect(page.locator("#tokenPanel")).toHaveAttribute("open", "", { timeout: 30_000 });
-  await page.locator("[data-content=text]").click();
-  await expect(page.locator("#ownTokIconRow")).toBeHidden();
-  await page.locator("[data-content=icon]").click();
+  // its name not printed: its icon alone
+  await page.locator("#ownTokPrint").uncheck();
   await expect(page.locator("#ownTokNameHint")).toBeVisible();
-  await page.locator("[data-content=text]").click();
+  // its icon removed: its name alone, which then has to print
+  await page.locator("#ownTokChip [data-icon-none]").click();
+  await expect(page.locator("#ownTokPrint")).toBeChecked();
+  await expect(page.locator("#ownTokPrint")).toBeDisabled();
   await page.locator("#tpDone").click();
   await expect(page.locator("#tokenPanel")).not.toHaveAttribute("open", "");
   await page.locator("[data-own-edit]").first().click();
-  await expect(page.locator("[data-content=text]")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("#ownTokPrint")).toBeChecked();
+  await expect(page.locator("#ownTokChip")).not.toContainText("wolf");
   expect(errors).toEqual([]);
 });
 
@@ -393,6 +396,6 @@ test("a token of yours is changed where it's designed: Content has its front and
   await expect(page.locator('#faceTabs [data-face="text"]')).toHaveCount(0);   // no name on it: nothing to set
   await page.locator('[data-choice="style"] [data-v="classic"]').click();
   await expect(page.locator('[data-choice="style"] [data-v="classic"]')).toHaveAttribute("aria-pressed", "true");
-  await expect(page.locator('#tpFields [data-content="both"]')).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("#ownTokPrint")).toBeChecked();
   expect(errors).toEqual([]);
 });

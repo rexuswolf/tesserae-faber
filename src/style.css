@@ -2124,3 +2124,19 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
   .tp-two { grid-template-columns: minmax(0, 1fr); }
   .tp-face { padding: 14px; }
 }
+
+#tpFront > .field > .field { gap: 4px; }
+.tp-print { margin-top: 8px; font-size: 13.5px; color: var(--dust); }
+.tp-print input:disabled + span { opacity: .6; }
+/* More: a setting a line, its name and help at the left, its control at the right; a list under them */
+#tpMoreOpts .own-fields { gap: 0; }
+#tpMoreOpts .own-fields > .field { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 16px; align-items: center; padding: 14px 0; border-top: 1px solid var(--seam); }
+#tpMoreOpts .own-fields > .field:first-child { border-top: 0; padding-top: 6px; }
+#tpMoreOpts .own-fields > .field[hidden] { display: none; }
+#tpMoreOpts .own-fields > .field > span:first-child { grid-column: 1; color: var(--bone); font-size: 14px; font-weight: 500; }
+#tpMoreOpts .own-fields > .field > .hint { grid-column: 1; margin: 0; }
+#ownTokColour { grid-column: 2; grid-row: 1 / span 2; }
+#ownTokColourHelp { grid-row: 2; }
+#ownTokAddLinked { grid-column: 2; grid-row: 1 / span 2; }
+#ownTokLinked:not(:empty), #ownTokCats { grid-column: 1 / -1; margin-top: 8px; }
+#ownTokLinked:empty { display: none; }

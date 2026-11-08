@@ -734,10 +734,10 @@
       <div id="tpShape"></div>
       <section class="tp-face" id="tpFront">
         <h3 data-i18n="view.front"></h3>
-        <div class="tp-two">
-          <label class="field"><span data-i18n="own.name"></span><input class="text" id="ownTokName" autocomplete="off" data-i18n-attr="placeholder:own.namePlaceholder"><small class="hint" id="ownTokNameHint" data-i18n="own.content.iconName" hidden></small></label>
+        <div class="field"><label class="field"><span data-i18n="own.name"></span><input class="text" id="ownTokName" autocomplete="off" data-i18n-attr="placeholder:own.namePlaceholder"></label>
+          <!-- whether its name is printed (not: its icon alone, or a base's tray alone); it still names it in your lists -->
           <div id="tpContent"></div>
-        </div>
+          <small class="hint" id="ownTokNameHint" data-i18n="own.content.iconName" hidden></small></div>
         <div class="field" id="ownTokIconRow"><span data-i18n="own.icon"></span>
           <div class="tp-chip" id="ownTokChip"></div>
           <div class="tp-search" id="ownTokSearch" hidden>
@@ -779,7 +779,7 @@
         <div class="field" id="ownTokCatsRow"><span data-i18n="own.inCatalogs"></span><div class="own-cats" id="ownTokCats"></div></div>
         <div class="field"><span data-i18n="own.linked"></span><p class="hint" data-i18n="own.linkedHelp"></p>
           <div class="own-linked" id="ownTokLinked"></div>
-          <button class="link" type="button" id="ownTokAddLinked" data-i18n="own.addLinked"></button>
+          <button class="pill" type="button" id="ownTokAddLinked" data-i18n="own.addLinked"></button>
         </div>
       </div>
       </details>

@@ -455,9 +455,9 @@ function renderTokenPanel() {
   renderPanelToken();
   renderTokenColour(tk);
   const carries = contentNow(tk, shape);
-  $("#ownTokIconRow").hidden = !SHAPE_FEATURES[shape].icon || carries === "text";
+  $("#ownTokIconRow").hidden = !SHAPE_FEATURES[shape].icon;
   $("#ownTokNameHint").hidden = carries !== "icon" && carries !== "none";
-  renderIconChip("ownTok", tk.icon);
+  renderIconChip("ownTok", tk.icon, carries === "text" && tk.icon ? t("own.iconNotPrinted") : "");
   renderOwnFlip(tk);
   const sig = [tk.id, shape, tokenLang(), uiLang()].join("|");
   if (sig === panelFor) return;
@@ -466,7 +466,7 @@ function renderTokenPanel() {
   $<HTMLDetailsElement>("#tpMoreOpts").open = !!(tk.linked.length || tk.colour);
   // a new token without an icon: the search open, to choose one
   searchOpen.ownTok = !!c && !tk.icon; searchOpen.ownTokFlip = false;
-  renderIconChip("ownTok", tk.icon);
+  renderIconChip("ownTok", tk.icon, contentNow(tk, shape) === "text" && tk.icon ? t("own.iconNotPrinted") : "");
   $<HTMLInputElement>("#ownTokName").value = nameIn(tk.name, tokenLang());
   $<HTMLInputElement>("#ownTokIq").value = ""; $("#ownTokHits").innerHTML = "";
   renderGroupPills(tk);
@@ -513,15 +513,23 @@ function contentNow(tk: OwnToken, shape: TokenShape): TokenContent {
   const style = shape === "coin" ? look?.style : null;
   return style === "solo" ? "icon" : style === "text" ? "text" : "both";
 }
-/** The token as it would be with each content, in its design: a tap chooses. */
+/**
+ * Whether its name is printed: unticked, its icon alone (a base: its tray alone). Its icon, there or
+ * not, is the icon's field (Remove: its name alone), so a token without one prints its name.
+ */
 function renderPanelContent(tk: OwnToken, shape: TokenShape) {
-  const box = $("#tpContent"), opts = CONTENTS[shape], role = roleById(tk.id);
-  box.hidden = opts.length < 2 || !role;
-  if (box.hidden || !role) { box.innerHTML = ""; return; }
-  // beside the name, small: the token on the left shows what each gives
+  const box = $("#tpContent"), opts = CONTENTS[shape];
+  box.hidden = opts.length < 2;
+  if (box.hidden) { box.innerHTML = ""; return; }
+  const now = contentNow(tk, shape), printed = now !== "icon" && now !== "none", locked = printed && shape !== "base" && !tk.icon;
+  box.innerHTML = `<label class="check tp-print"><input type="checkbox" id="ownTokPrint"${printed ? " checked" : ""}${locked ? " disabled" : ""}> <span>${esc(t(shape === "base" ? "own.printNameBase" : "own.printName"))}</span></label>`;
+}
+/** What a token carries once its icon changes: none left, its name alone; one given to a token printing only its name, both. */
+function contentWithIcon(tk: OwnToken, shape: TokenShape, icon: TokenIcon | null): TokenContent | undefined {
   const now = contentNow(tk, shape);
-  box.innerHTML = `<div class="field"><span>${esc(t("own.content"))}</span><span class="seg2 tp-carries" role="group" aria-label="${esc(t("own.content"))}">${opts.map((c) =>
-    `<button type="button" data-content="${c}" aria-pressed="${c === now}">${esc(t(shape === "base" ? `own.content.${c}.base` : `own.content.${c}`))}</button>`).join("")}</span></div>`;
+  if (!icon && (now === "icon" || now === "both")) return "text";
+  if (icon && !tk.icon && now === "text") return "both";
+  return tk.content;
 }
 /** The token as it prints, in its design (front, back, linked tokens), and which design that is. */
 function renderPanelToken() {
@@ -569,11 +577,11 @@ function renderOwnFlip(tk: OwnToken) {
 /** Whether an icon's search is open, the token's and its other state's. */
 const searchOpen: Record<string, boolean> = { ownTok: false, ownTokFlip: false };
 /** An icon as it's chosen: drawn, its name and where it's from, with Change (the search) and Remove; none, Choose. */
-function renderIconChip(id: string, icon: TokenIcon | null | undefined) {
+function renderIconChip(id: string, icon: TokenIcon | null | undefined, note = "") {
   const open = searchOpen[id];
   $(`#${id}Search`).hidden = !open;
   const name = icon ? icon.name || icon.id.split("/").pop() || "" : t("own.noIcon");
-  const from = icon ? t(icon.source === "upload" ? "icon.from.upload" : "icon.from.game") : "";
+  const from = note || (icon ? t(icon.source === "upload" ? "icon.from.upload" : "icon.from.game") : "");
   $(`#${id}Chip`).innerHTML = `<span class="tp-chip-ic">${icon ? `<svg viewBox="0 0 ${ICON_VIEW} ${ICON_VIEW}" aria-hidden="true"><g transform="${safeTransform(icon.g)}">${safeIconMarkup(icon.body)}</g></svg>` : ""}</span>`
     + `<span class="tp-chip-txt"><b>${esc(name)}</b>${from ? `<small>${esc(from)}</small>` : ""}</span>`
     + `<span class="tp-chip-acts"><button class="link" type="button" data-icon-change>${esc(t(open ? "icon.done" : icon ? "icon.change" : "icon.choose"))}</button>${icon ? `<button class="link" type="button" data-icon-none>${esc(t("icon.remove"))}</button>` : ""}</span>`;
@@ -594,9 +602,10 @@ function wireOwnToken() {
   $("#tpMore").onclick = () => createToken(true);
   $("#tpDone").onclick = () => (state.creating ? createToken(false) : closeTokenPanel());
   $("#tpShape").onclick = (e) => { const b = hit(e, "[data-shape]"); if (b) chooseShape(b.dataset.shape as TokenShape); };
-  $("#tpContent").onclick = (e) => {
-    const b = hit(e, "[data-content]"), tk = editingOwn(); if (!b || !tk) return;
-    tk.content = b.dataset.content as TokenContent;
+  $("#tpContent").onchange = (e) => {
+    const tk = editingOwn(); if (!tk) return;
+    const shape = shapeOfToken(tk), on = input(e).checked;
+    tk.content = on ? (shape === "base" || !tk.icon ? "text" : "both") : shape === "base" ? "none" : "icon";
     ownEdited(); renderTokenPanel();
   };
   $("#tpShape").onchange = (e) => {
@@ -636,7 +645,12 @@ function wireOwnToken() {
       catch { $(`#${id}Hits`).innerHTML = `<p class="hint warn">${esc(t("own.svgFailed"))}</p>`; }
     };
   };
-  iconPicker("ownTok", (icon) => { const tk = editingOwn(); if (tk) { tk.icon = icon; ownEdited(); } });
+  iconPicker("ownTok", (icon) => {
+    const tk = editingOwn(); if (!tk) return;
+    const content = contentWithIcon(tk, shapeOfToken(tk), icon);
+    tk.icon = icon; if (content) tk.content = content;
+    ownEdited(); renderTokenPanel();
+  });
   iconPicker("ownTokFlip", (icon) => { const tk = editingOwn(); if (tk?.flip) { tk.flip.icon = icon; ownEdited(); } });
   // its group, as the groups' colours, or a new one
   $("#ownTokGroups").onclick = (e) => {

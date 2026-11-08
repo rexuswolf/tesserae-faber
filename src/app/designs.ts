@@ -1,6 +1,6 @@
 // Designs: the collection's, yours and each token's, and which one a token prints with.
 import type { TokenSpec, TokenShape, MyDesign, TokenOverride, Style, LookChanges } from "../types.ts";
-import { nameIn, appDesigns, SHAPES, newId, OWN, knownStylesOf, builtIn, builtInStyles, loadCollection, basicStyles } from "../collection.ts";
+import { nameIn, appDesigns, SHAPES, newId, OWN, knownStylesOf, builtIn, builtInStyles, loadCollection, basicStyles, storeCollection } from "../collection.ts";
 import type { StyleDef, CollectionStyles } from "../collection.ts";
 import { defSpec, defName, startingStyles, state, loadJSON, MY_DESIGNS_KEY, upgradeSpec, storeJSON, DEFAULTS_KEY, OVERRIDES2_KEY, STYLES_KEY, TOKENS_KEY, STYLE_KEYS, OVERRIDES_KEY, DESIGNS_KEY, legacySpecs, coll, knownStyles, startingStyle } from "./context.ts";
 import type { SavedDesign } from "./context.ts";
@@ -114,6 +114,24 @@ export function uniqueDesignName(shape: TokenShape, base: string, but?: MyDesign
 }
 
 /**
+ * A token of yours given an icon in the designer, before its content was the token's (an override, as a
+ * closed collection's token has): the icon becomes the token's own, if it had none, and the override goes.
+ * Its editor then says the icon it prints with.
+ */
+function foldOwnIcons() {
+  if (!OWN) return;
+  let changed = false;
+  for (const [k, v] of state.overrides) {
+    const tk = k.startsWith("c:") && v.icon ? coll.tokens.find((x) => x.id === k.slice(2)) : undefined;
+    if (!tk) continue;
+    if (!tk.icon) tk.icon = v.icon!;
+    const { icon: _icon, ...rest } = v;
+    if (Object.keys(rest).length) state.overrides.set(k, rest); else state.overrides.delete(k);
+    changed = true;
+  }
+  if (changed) { storeCollection(coll); storeOverrides(); }
+}
+/**
  * Your designs, the collection's defaults and each token's overrides, once the tokens are known (a
  * token's shape is its character's). Kept since designs were yours: read as they are. Else made,
  * once, from what was kept before, printing exactly as it did:
@@ -132,6 +150,7 @@ export function loadDesigns() {
   if (kept) {
     defaults = loadJSON<Partial<Record<TokenShape, string>>>(DEFAULTS_KEY, {});
     state.overrides = new Map(Object.entries(kept).filter(([, v]) => v).map(([k, v]) => [k, place(v)]));
+    foldOwnIcons();
     return;
   }
   defaults = {}; state.overrides = new Map();
