@@ -1,0 +1,75 @@
+// Spanish words for the icon search: game-icons.net names its icons in English, so a search in
+// Spanish ("lobo", "poción") looks for these English words too. Words are kept without accents
+// (the search drops them); each maps to words found in the icons' names.
+export const ICON_WORDS_ES: Record<string, string[]> = {
+  // creatures
+  lobo: ["wolf"], perro: ["dog", "hound"], gato: ["cat"], dragon: ["dragon", "wyvern"], serpiente: ["snake", "serpent"], culebra: ["snake"],
+  arana: ["spider"], murcielago: ["bat"], cuervo: ["raven", "crow"], buho: ["owl"], lechuza: ["owl"], aguila: ["eagle"], pajaro: ["bird"], ave: ["bird"],
+  caballo: ["horse"], oso: ["bear"], leon: ["lion"], tigre: ["tiger"], zorro: ["fox"], rata: ["rat"], raton: ["mouse", "rat"], conejo: ["rabbit"],
+  pez: ["fish"], tiburon: ["shark"], pulpo: ["octopus"], tentaculo: ["tentacle"], calamar: ["squid"], cangrejo: ["crab"], rana: ["frog"], sapo: ["toad", "frog"],
+  abeja: ["bee"], escorpion: ["scorpion"], insecto: ["insect", "bug"], mariposa: ["butterfly"], hormiga: ["ant"], gusano: ["worm"], caracol: ["snail"],
+  toro: ["bull"], vaca: ["cow"], cerdo: ["pig"], jabali: ["boar"], cabra: ["goat"], oveja: ["sheep"], gallo: ["rooster"], gallina: ["chicken", "hen"],
+  ciervo: ["deer", "stag"], elefante: ["elephant"], mono: ["monkey"], tortuga: ["turtle"], cocodrilo: ["croc", "alligator"], dinosaurio: ["dinosaur"],
+  unicornio: ["unicorn"], grifo: ["griffin"], hidra: ["hydra"], kraken: ["kraken"], minotauro: ["minotaur"], centauro: ["centaur"],
+  fantasma: ["ghost", "spectre"], espectro: ["spectre", "ghost"], zombi: ["zombie"], vampiro: ["vampire"], momia: ["mummy"], esqueleto: ["skeleton"],
+  bruja: ["witch"], brujo: ["wizard", "warlock"], mago: ["wizard"], hechicero: ["wizard"], demonio: ["demon", "devil"], diablo: ["devil"], angel: ["angel"],
+  troll: ["troll"], trol: ["troll"], orco: ["orc"], goblin: ["goblin"], duende: ["goblin", "imp"], elfo: ["elf"], enano: ["dwarf"], gigante: ["giant"],
+  golem: ["golem"], robot: ["robot"], alien: ["alien"], extraterrestre: ["alien"], monstruo: ["monster"], bestia: ["beast", "monster"], hombre: ["man"], mujer: ["woman"],
+  // people
+  caballero: ["knight"], rey: ["king"], reina: ["queen"], principe: ["prince"], princesa: ["queen", "crown"], soldado: ["soldier"], guerrero: ["barbarian", "warrior"],
+  arquero: ["archer", "bowman"], monje: ["monk"], sacerdote: ["priest"], ladron: ["thief", "robber"], asesino: ["assassin"], espia: ["spy"],
+  pirata: ["pirate"], ninja: ["ninja"], vaquero: ["cowboy"], medico: ["doctor"], granjero: ["farmer"], minero: ["miner"], herrero: ["blacksmith", "anvil"],
+  mercader: ["trade", "shop"], comerciante: ["trade", "shop"], capitan: ["captain"], cazador: ["hunter"], bufon: ["jester"], juez: ["judge", "gavel"], verdugo: ["executioner"],
+  senador: ["senator", "toga", "greek-temple"], emperador: ["emperor", "laurel-crown"], cesar: ["caesar", "laurel-crown"], gladiador: ["gladius", "helmet"], legionario: ["legionary", "roman"],
+  persona: ["person", "character"], gente: ["meeple-group", "person"], multitud: ["meeple-group"], familia: ["family"], bebe: ["baby"], anciano: ["old"], nino: ["child", "kid"],
+  // weapons and gear
+  espada: ["sword"], daga: ["dagger"], punal: ["dagger"], cuchillo: ["knife"], hacha: ["axe"], martillo: ["hammer"], maza: ["mace"], lanza: ["spear", "lance"],
+  arco: ["bow"], flecha: ["arrow"], ballesta: ["crossbow"], escudo: ["shield"], armadura: ["armor"], casco: ["helmet"], capa: ["cloak", "cape"],
+  baculo: ["staff"], baston: ["staff", "cane"], varita: ["wand"], pistola: ["pistol", "gun"], arma: ["weapon", "gun"], canon: ["cannon"], bomba: ["bomb"],
+  latigo: ["whip"], cadena: ["chain"], grilletes: ["shackles", "manacles"], esposas: ["handcuffs"], jaula: ["cage"], trampa: ["trap"], red: ["net"],
+  bota: ["boot"], botas: ["boots"], guante: ["glove", "gauntlet"], sombrero: ["hat"], corona: ["crown"], anillo: ["ring"], collar: ["necklace"], amuleto: ["pendant", "amulet"],
+  // magic and conditions
+  pocion: ["potion", "flask"], frasco: ["flask", "bottle"], botella: ["bottle"], caldero: ["cauldron"], libro: ["book"], grimorio: ["spell-book", "book"],
+  pergamino: ["scroll"], hechizo: ["spell"], conjuro: ["spell"], magia: ["magic"], runa: ["rune"], cristal: ["crystal"], gema: ["gem"], joya: ["jewel", "gem"],
+  orbe: ["orb"], portal: ["portal"], veneno: ["poison"], envenenado: ["poison"], toxico: ["toxic", "poison"], sangre: ["blood"], sangrando: ["bleeding", "blood"],
+  maldicion: ["curse", "cursed"], bendicion: ["bless", "halo"], curar: ["heal"], cura: ["heal", "health"], salud: ["health", "heart"], vida: ["life", "heart"],
+  muerte: ["death", "skull"], muerto: ["dead", "skull"], calavera: ["skull"], craneo: ["skull"], hueso: ["bone"], tumba: ["tomb", "grave"], lapida: ["tombstone"], ataud: ["coffin"],
+  dormido: ["sleep", "sleepy"], sueno: ["sleep", "dream"], aturdido: ["dizzy", "stun"], mareado: ["spiral", "stun"], confuso: ["spiral"], asustado: ["screaming", "terror"],
+  miedo: ["screaming", "terror"], terror: ["terror", "fear"], invisible: ["invisible"], paralizado: ["paralysis", "frozen"], congelado: ["frozen", "ice"], ciego: ["blind"], cegado: ["blind"],
+  derribado: ["falling", "fall"], caido: ["falling"], agarrado: ["grab", "grasp"], atrapado: ["trap", "net"], encantado: ["charm", "enchant"],
+  hechizado: ["charm"], enfermo: ["sick", "disease"], enfermedad: ["disease", "virus"], cansado: ["tired", "sleepy"], agotado: ["tired"], velocidad: ["speed", "run"],
+  rapido: ["fast", "speed"], lento: ["slow", "snail"], fuerza: ["strength", "muscle"], escondido: ["hidden", "hood"], oculto: ["hidden"], protegido: ["shield", "protection"],
+  inspiracion: ["inspiration", "light-bulb"], concentracion: ["meditation", "concentration"], ventaja: ["advantage", "up"], desventaja: ["down"], reaccion: ["reaction", "lightning"],
+  // elements and nature
+  fuego: ["fire", "flame"], llama: ["flame"], hielo: ["ice", "frozen"], agua: ["water", "drop"], gota: ["drop"], ola: ["wave"], viento: ["wind", "tornado"],
+  tornado: ["tornado"], rayo: ["lightning", "bolt"], trueno: ["thunder", "lightning"], tormenta: ["storm"], nube: ["cloud"], lluvia: ["rain"], nieve: ["snow"],
+  tierra: ["earth"], piedra: ["stone", "rock"], roca: ["rock", "stone"], montana: ["mountain"], volcan: ["volcano"], arbol: ["tree"], bosque: ["forest", "tree"],
+  hoja: ["leaf"], flor: ["flower"], rosa: ["rose"], seta: ["mushroom"], hongo: ["mushroom"], planta: ["plant"], semilla: ["seed"], trigo: ["wheat"],
+  sol: ["sun"], luna: ["moon"], estrella: ["star"], noche: ["night", "moon"], dia: ["day", "sun"], cielo: ["sky"], planeta: ["planet"], cometa: ["comet"],
+  humo: ["smoke"], explosion: ["explosion"], luz: ["light", "sun"], oscuridad: ["dark", "shadow"], sombra: ["shadow"], cueva: ["cave"], desierto: ["desert"], isla: ["island"],
+  // places and buildings
+  castillo: ["castle"], torre: ["tower"], fortaleza: ["fortress", "castle"], templo: ["temple"], iglesia: ["church"], casa: ["house"], pueblo: ["village"],
+  ciudad: ["city"], puerta: ["door", "gate"], muro: ["wall"], puente: ["bridge"], tienda: ["tent", "shop"], campamento: ["camp"], hoguera: ["campfire"],
+  trono: ["throne"], prision: ["prison", "jail"], carcel: ["jail", "prison"], barco: ["ship", "boat"], ancla: ["anchor"], mapa: ["map"], brujula: ["compass"],
+  // objects
+  llave: ["key"], cerradura: ["lock", "padlock"], candado: ["padlock"], cofre: ["chest"], tesoro: ["treasure", "chest"], moneda: ["coin"], monedas: ["coins"],
+  oro: ["gold", "coin"], dinero: ["money", "coin"], bolsa: ["bag", "pouch"], saco: ["sack", "bag"], antorcha: ["torch"], vela: ["candle"], linterna: ["lantern"],
+  reloj: ["clock", "watch"], tiempo: ["time", "hourglass"], ronda: ["hourglass", "cycle"], turno: ["hourglass", "cycle"], arena: ["sand"], reloj_de_arena: ["hourglass"],
+  dado: ["dice", "die"], dados: ["dice"], carta: ["card", "letter"], cartas: ["card"], baraja: ["card"], ajedrez: ["chess"], peon: ["pawn"], rompecabezas: ["puzzle"],
+  diana: ["target"], objetivo: ["target"], bandera: ["flag"], estandarte: ["banner", "flag"], trofeo: ["trophy"], medalla: ["medal"], laurel: ["laurel"], victoria: ["victory", "laurel", "trophy"],
+  balanza: ["scale"], justicia: ["justice", "scale"], mascara: ["mask"], voto: ["vote", "ballot"], urna: ["ballot", "urn"], ley: ["law", "scroll"], pacto: ["shaking-hands"],
+  carta_sellada: ["envelope"], sobre: ["envelope"], sello: ["seal", "stamp"], pluma: ["feather", "quill"], tinta: ["ink"], papel: ["paper"], campana: ["bell"],
+  cuerno: ["horn"], tambor: ["drum"], musica: ["music"], arpa: ["harp"], laud: ["lute"], vino: ["wine"], cerveza: ["beer"], pan: ["bread"], carne: ["meat"],
+  manzana: ["apple"], comida: ["food", "meal"], copa: ["goblet", "cup"], caliz: ["chalice", "goblet"], plato: ["plate"], herramienta: ["tool"], engranaje: ["gear", "cog"],
+  rueda: ["wheel"], yunque: ["anvil"], pico: ["war-pick", "pick"], sierra: ["saw"], iman: ["magnet"], bateria: ["battery"], ordenador: ["computer"],
+  // body
+  ojo: ["eye"], ojos: ["eyes", "eye"], mano: ["hand"], puno: ["fist"], pie: ["foot"], huella: ["footprint"], brazo: ["arm"], pierna: ["leg"], cabeza: ["head"],
+  cara: ["face"], boca: ["mouth", "lips"], labios: ["lips"], lengua: ["tongue"], diente: ["tooth"], colmillo: ["fang"], garra: ["claw"], ala: ["wing"], alas: ["wings"],
+  pluma_ave: ["feather"], corazon: ["heart"], cerebro: ["brain"], musculo: ["muscle"], barba: ["beard"], huevo: ["egg"], nido: ["nest"], telarana: ["web", "spider-web"],
+  // signs
+  cruz: ["cross"], mas: ["plus"], flecha_arriba: ["up"], sonrisa: ["smile"], risa: ["laugh"],
+  enfado: ["angry"], enfadado: ["angry"], triste: ["sad"], feliz: ["happy", "smile"], amor: ["love", "heart"], paz: ["peace", "dove"], guerra: ["war", "crossed-swords"],
+  republica: ["republic", "greek-temple"], imperio: ["empire", "crown"], conjura: ["conspiracy", "hood"], conspiracion: ["conspiracy", "hood"], gobierno: ["government", "greek-temple"],
+  tumulto: ["riot", "torch"], revuelta: ["riot"], ira: ["anger", "angry"], malicia: ["evil", "devil"], heroe: ["hero"], heroico: ["hero"], recurso: ["stack"], impulso: ["momentum", "lightning"],
+  inicio: ["start", "flag"], jugador: ["player", "character"], jugador_inicial: ["crown", "first"], primero: ["first", "crown"], ganador: ["winner", "trophy"],
+};

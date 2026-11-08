@@ -78,12 +78,19 @@ export async function searchGameIcons(query: string, limit = 60): Promise<string
   // fetched once; a failure (offline) is thrown, and the next search tries again
   index ??= fetch("/game-icons.json").then((r) => { if (!r.ok) throw new Error("index"); return r.json() as Promise<string[]>; })
     .catch((err) => { index = null; throw err; });
-  const all = await index;
-  const words = query.toLowerCase().trim().split(/[\s,]+/).filter(Boolean);
+  const [all, { ICON_WORDS_ES: es }] = await Promise.all([index, import("./icon-words-es.ts")]);
+  // accents dropped ("poción" is "pocion"); a Spanish word looks for its English ones too, and a
+  // plural for its singular's ("lobos": "lobo", "wolf")
+  const plain = query.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  const phrase = es[plain.replace(/[\s,]+/g, "_")];
+  const words = phrase ? [plain.replace(/[\s,]+/g, "-")] : plain.split(/[\s,]+/).filter(Boolean);
   if (!words.length) return [];
+  const sing = (w: string) => [w.replace(/es$/, ""), w.replace(/s$/, "")].find((x) => x !== w && es[x]);
+  const alts = words.map((w) => [w, ...(phrase ?? es[w] ?? es[sing(w) ?? ""] ?? [])]);
   const name = (p: string) => p.slice(p.indexOf("/") + 1);
-  const hits = all.filter((p) => words.every((w) => name(p).includes(w)));
-  const score = (p: string) => (name(p) === words.join("-") ? 0 : name(p).startsWith(words[0]) ? 1 : 2) + name(p).length / 100;
+  const hits = all.filter((p) => alts.every((ws) => ws.some((w) => name(p).includes(w))));
+  const first = alts[0];
+  const score = (p: string) => (first.includes(name(p)) ? 0 : first.some((w) => name(p).startsWith(w)) ? 1 : 2) + name(p).length / 100;
   return hits.sort((a, b) => score(a) - score(b)).slice(0, limit);
 }
 
