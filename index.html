@@ -138,7 +138,7 @@
       <div class="own-welcome" id="ownWelcome" hidden>
         <h3 data-i18n="own.welcomeH"></h3>
         <ol><li data-i18n="own.welcome1"></li><li data-i18n="own.welcome2"></li><li data-i18n="own.welcome3"></li></ol>
-        <p data-i18n="own.welcomeMenu"></p>
+        <p><span data-i18n="own.welcomeMenu"></span> <button class="link" type="button" data-coll="settings" data-i18n="own.welcomeSettings"></button></p>
       </div>
       <!-- what only narrows the list -->
       <div class="filters">
@@ -786,7 +786,7 @@
     <img id="osLogo" alt="" width="64" height="64">
     <div class="os-brand-fields">
       <span class="os-brand-actions"><label class="pill file"><span data-i18n="own.logoUpload"></span><input type="file" id="osLogoFile" accept=".svg,.png,.webp,.jpg,.jpeg,image/svg+xml,image/png,image/webp,image/jpeg" hidden></label><button class="pill" type="button" id="osLogoReset" data-i18n="own.logoReset"></button></span>
-      <label class="field"><span data-i18n="own.brandTitle"></span><input class="text" id="osBrandTitle" autocomplete="off" placeholder="Midnight Mint"></label>
+      <label class="field"><span data-i18n="own.brandTitle"></span><input class="text" id="osBrandTitle" autocomplete="off"></label>
       <p class="hint warn" id="osLogoNote" aria-live="polite"></p>
     </div>
   </div>
@@ -800,6 +800,8 @@
     <label><input type="color" id="os-muted"><span data-i18n="own.c.muted"></span></label>
     <label class="field"><span data-i18n="own.c.font"></span><select class="text" id="osFont"></select></label>
   </div>
+  <!-- what a first collection doesn't need, folded -->
+  <details class="tp-more os-more"><summary><b data-i18n="own.moreOpts"></b><small data-i18n="own.osMoreSub"></small></summary>
   <h3 data-i18n="own.loaderH"></h3>
   <label class="field"><span data-i18n="own.loaderText"></span><input class="text" id="osLoader" autocomplete="off" data-i18n-attr="placeholder:gate.opening"></label>
   <label class="check os-ccc"><input type="checkbox" id="osCcc"> <span><span data-i18n="own.cccLabel"></span><small data-i18n="own.cccHelp"></small></span></label>
@@ -807,6 +809,7 @@
   <label class="field"><span data-i18n="own.aboutText"></span><textarea class="text" id="osAbout" rows="4"></textarea></label>
   <label class="field"><span data-i18n="own.aboutCredits"></span><textarea class="text" id="osCredits" rows="2"></textarea></label>
   <label class="field"><span data-i18n="own.aboutLinks"></span><textarea class="text" id="osLinks" rows="2" spellcheck="false" placeholder="Web | https://…"></textarea></label>
+  </details>
   <div class="dialog-actions"><button class="pill" type="button" id="osCancel" data-i18n="script.cancel"></button><button class="forge" type="button" id="osSave" data-i18n="own.save"></button></div>
 </dialog>
 

@@ -610,10 +610,12 @@ function openOwnSettings() {
   const lang = uiLang();
   $<HTMLImageElement>("#osLogo").src = coll.brand?.logo || APP_LOGO;
   $<HTMLInputElement>("#osBrandTitle").value = nameIn(coll.brand?.title, lang);
+  $<HTMLInputElement>("#osBrandTitle").placeholder = nameIn(coll.name, lang);   // empty: the collection's name
   $("#osLogoNote").textContent = "";
   $<HTMLInputElement>("#osName").value = nameIn(coll.name, lang);
   $<HTMLInputElement>("#osLoader").value = nameIn(coll.loader?.text, lang);
   $<HTMLInputElement>("#osCcc").checked = hasCcc(coll);
+  $(".os-ccc").hidden = !hasCcc(coll);   // Clocktower's mark: only where a collection already carries it
   $<HTMLTextAreaElement>("#osAbout").value = nameIn(coll.about?.text, lang);
   $<HTMLTextAreaElement>("#osCredits").value = nameIn(coll.about?.credits, lang);
   $<HTMLTextAreaElement>("#osLinks").value = (coll.about?.links ?? []).map((l) => `${nameIn(l.label, lang)} | ${l.url}`).join("\n");

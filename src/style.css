@@ -1664,3 +1664,6 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
   .oh-top { flex-wrap: nowrap; gap: 8px; }
   .oh-top .faber-wm { display: none; }
 }
+.own-welcome .link { color: var(--brass); font-weight: 600; }
+.os-more { margin-top: 18px; }
+.os-ccc[hidden] { display: none; }
