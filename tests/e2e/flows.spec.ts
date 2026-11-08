@@ -134,7 +134,7 @@ test("a collection of bases: the tray in the sheet and the Bambu project", async
     const c = C.starterCollection();
     c.types = [{ id: "peanas", name: "Peanas", title: "Peanas", shape: "base", icon: "metal-disc" }];
     c.tokens = ["2", "ORCO 3"].map((n, i) => ({ id: `p${i}`, type: "peanas", group: "g1", name: n, icon: null, linked: [] }));
-    c.sections[0].catalogs[0].tokens = c.tokens.map((t) => t.id);
+    c.sections[0].catalogs = [{ id: "k1", name: "Peanas", tokens: c.tokens.map((t) => t.id) }];
     return C.addCollection(c);
   });
   await page.goto(`/c/${id}`);

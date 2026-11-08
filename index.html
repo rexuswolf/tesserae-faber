@@ -127,10 +127,16 @@
         <p class="hint warn" id="scriptCustomWarn" data-i18n="script.customWarn" hidden></p>
       </div>
       <div class="own-actions own-only" id="ownActions" hidden>
-        <button class="pill add" type="button" id="ownNewTok" data-i18n="own.newToken"></button>
+        <button class="forge" type="button" id="ownNewTok" data-i18n="own.newToken"></button>
         <button class="pill" type="button" id="ownCatList" data-i18n="own.addFromList"></button>
         <button class="pill" type="button" id="ownCatRename" data-i18n="own.renameCatalog"></button>
         <button class="pill danger" type="button" id="ownCatDelete" data-i18n="own.deleteCatalog"></button>
+      </div>
+      <!-- a new collection of yours: what to do first (gone once it has more tokens) -->
+      <div class="own-welcome" id="ownWelcome" hidden>
+        <h3 data-i18n="own.welcomeH"></h3>
+        <ol><li data-i18n="own.welcome1"></li><li data-i18n="own.welcome2"></li><li data-i18n="own.welcome3"></li></ol>
+        <p data-i18n="own.welcomeMenu"></p>
       </div>
       <!-- what only narrows the list -->
       <div class="filters">
@@ -430,7 +436,7 @@
         <li><a href="#tourDesign" data-tour-go><span class="n">2</span><span><b data-i18n="own.step2"></b><span data-i18n="own.step2Sub"></span></span></a></li>
         <li><a href="#tourPrint" data-tour-go><span class="n">3</span><span><b data-i18n="own.step3"></b><span data-i18n="own.step3Sub"></span></span></a></li>
       </ol>
-      <div class="ol-cta"><a class="forge" href="/colecciones" data-i18n="own.landSee"></a><button class="pill" type="button" data-own-new data-i18n="own.homeNewPlain"></button></div>
+      <div class="ol-cta"><button class="forge" type="button" data-own-new data-i18n="own.homeNewPlain"></button><a class="pill" href="/colecciones" data-i18n="own.landSee"></a></div>
       <a class="ol-resume" id="ownResume" hidden><img alt=""><span><small data-i18n="own.resume"></small><b></b></span><span class="arrow" aria-hidden="true">›</span></a>
       <p class="hint" data-own-note aria-live="polite"></p>
       <a class="tour-more" href="#tourPick" data-tour-go data-i18n="tour.more"></a>
@@ -442,22 +448,6 @@
   <section class="tour-ch" id="tourPick"><div class="tour-wrap">
     <div class="tour-head"><span class="n">1</span><h2 data-i18n="own.step1"></h2></div>
     <p class="tour-lead" data-i18n="tour.pickLead"></p>
-    <div class="tour-sec">
-      <div class="tour-txt">
-        <h3 data-i18n="tour.readyH"></h3>
-        <p data-i18n="tour.readyP"></p>
-        <a class="tour-go" href="/colecciones" data-i18n="own.landSee"></a>
-      </div>
-      <div class="tour-covers" id="tourCovers"></div>
-    </div>
-    <div class="tour-sec flip">
-      <div class="tour-txt">
-        <h3 data-i18n="tour.shapesH"></h3>
-        <p data-i18n="tour.shapesP"></p>
-        <ul><li data-i18n="tour.shapesRing"></li><li data-i18n="tour.shapesBase"></li><li data-i18n="tour.shapesCard"></li></ul>
-      </div>
-      <div class="tour-shapes" id="tourShapes"></div>
-    </div>
     <div class="tour-sec">
       <div class="tour-txt">
         <h3 data-i18n="tour.ownH"></h3>
@@ -473,6 +463,22 @@
         </div>
         <div class="tour-out tour-tok" id="tourMade"></div>
       </div>
+    </div>
+    <div class="tour-sec flip">
+      <div class="tour-txt">
+        <h3 data-i18n="tour.shapesH"></h3>
+        <p data-i18n="tour.shapesP"></p>
+        <ul><li data-i18n="tour.shapesRing"></li><li data-i18n="tour.shapesBase"></li><li data-i18n="tour.shapesCard"></li></ul>
+      </div>
+      <div class="tour-shapes" id="tourShapes"></div>
+    </div>
+    <div class="tour-sec">
+      <div class="tour-txt">
+        <h3 data-i18n="tour.readyH"></h3>
+        <p data-i18n="tour.readyP"></p>
+        <a class="tour-go" href="/colecciones" data-i18n="own.landSee"></a>
+      </div>
+      <div class="tour-covers" id="tourCovers"></div>
     </div>
   </div></section>
   <section class="tour-ch" id="tourDesign"><div class="tour-wrap">
@@ -531,7 +537,7 @@
   <section class="tour-end"><div class="tour-wrap">
     <h2 data-i18n="tour.endH"></h2>
     <p data-i18n="tour.endP"></p>
-    <div class="ol-cta"><a class="forge" href="/colecciones" data-i18n="own.landSee"></a><a class="pill" href="/taller" data-i18n="tour.openTaller"></a></div>
+    <div class="ol-cta"><button class="forge" type="button" data-own-new data-i18n="own.homeNewPlain"></button><a class="pill" href="/colecciones" data-i18n="own.landSee"></a><a class="pill" href="/taller" data-i18n="tour.openTaller"></a></div>
     <p class="tour-links"><a href="https://github.com/rexuswolf/tesserae-faber" target="_blank" rel="noopener">GitHub</a><a href="https://ko-fi.com/rexuswolf" target="_blank" rel="noopener">Ko-fi</a><a href="#" data-about data-i18n="about.link"></a></p>
   </div></section>
 </main>
@@ -548,15 +554,6 @@
     <button class="tlang-trigger oh-lang" type="button" aria-haspopup="dialog" data-lang-open></button>
   </header>
   <section class="oh-band oh-page-h"><div><h1 data-i18n="own.listTitle"></h1><p class="ol-lead" data-i18n="own.listLead"></p></div></section>
-  <section class="oh-band oh-ready" id="ownHomeBuiltH"><div>
-    <div class="oh-zone"><h2 data-i18n="own.readyH"></h2><p data-i18n="own.readyLead"></p></div>
-    <div id="ownHomeBuilt" class="oh-covers"></div>
-  </div></section>
-  <!-- the Taller: designs for every collection -->
-  <section class="oh-band oh-taller"><div>
-    <div class="oh-zone"><h2 data-i18n="own.tallerTitle"></h2><p data-i18n="own.tallerLead"></p></div>
-    <a class="ol-taller wide" href="/taller"><span class="olt-mark" aria-hidden="true">✦</span><span><b data-i18n="own.tallerTitle"></b><span data-i18n="own.tallerText"></span></span><span class="arrow" aria-hidden="true">›</span></a>
-  </div></section>
   <section class="oh-band oh-yours"><div>
     <div class="oh-zone"><h2 data-i18n="own.mineH"></h2><p data-i18n="own.mineLead"></p></div>
     <div class="oh-new">
@@ -566,6 +563,15 @@
     <input type="file" id="ownHomeFile" accept="application/json,.json" hidden>
     <p class="hint" data-own-note aria-live="polite"></p>
     <div class="oh-tiles" id="ownHomeList"></div>
+  </div></section>
+  <section class="oh-band oh-ready" id="ownHomeBuiltH"><div>
+    <div class="oh-zone"><h2 data-i18n="own.readyH"></h2><p data-i18n="own.readyLead"></p></div>
+    <div id="ownHomeBuilt" class="oh-covers"></div>
+  </div></section>
+  <!-- the Taller: designs for every collection -->
+  <section class="oh-band oh-taller"><div>
+    <div class="oh-zone"><h2 data-i18n="own.tallerTitle"></h2><p data-i18n="own.tallerLead"></p></div>
+    <a class="ol-taller wide" href="/taller"><span class="olt-mark" aria-hidden="true">✦</span><span><b data-i18n="own.tallerTitle"></b><span data-i18n="own.tallerText"></span></span><span class="arrow" aria-hidden="true">›</span></a>
   </div></section>
 </main>
 
@@ -678,6 +684,11 @@
           <div class="icon-results" id="ownTokHits"></div>
         </div>
         <div class="field"><span data-i18n="own.group"></span><div class="group-pills" id="ownTokGroups"></div></div>
+      </div>
+      <!-- the rest, folded: a first token needs only its shape, name, icon and group -->
+      <details class="tp-more" id="tpMoreOpts">
+      <summary><b data-i18n="own.moreOpts"></b><small data-i18n="own.moreOptsSub"></small></summary>
+      <div class="own-fields">
         <div class="field"><span data-i18n="own.colour"></span>
           <details class="tok-colour" id="ownTokColour"><summary></summary><div class="tok-colour-menu"></div></details>
           <p class="hint" data-i18n="own.colourHelp"></p></div>
@@ -705,6 +716,7 @@
           <button class="link" type="button" id="ownTokFlipRemove" data-i18n="own.flipRemove"></button>
         </div>
       </section>
+      </details>
     </div>
   </div>
   <footer class="tp-foot">

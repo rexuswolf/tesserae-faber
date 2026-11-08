@@ -1,6 +1,6 @@
 // Collections of your own: the creator, a token's panel, the collection's look and the list.
 import { emit } from "./events.ts";
-import { OWN, catalogsOf, nameIn, storeCollection, OWN_ID, builtIn, tallerUrl, readTokenList, newId, withName, copyBuiltIn, collectionUrl, collectionFile, readCollectionFile, addCollection, GROUP_COLOURS, SHAPES, collectionRoles, tokenRole as ownRole, isLocked, THEMES, APP_LOGO, APP_LOGO_SMALL, APP_ICON, APP_NAME, hasCcc, THEME_FONTS, okLogo, builtInCollections, listCollections, lastCollection, openUrl, OWN_VIEW, LIST_URL, starterCollection, loadCollection, deleteCollection } from "../collection.ts";
+import { OWN, catalogsOf, nameIn, storeCollection, OWN_ID, builtIn, tallerUrl, readTokenList, newId, withName, copyBuiltIn, collectionUrl, collectionFile, readCollectionFile, addCollection, GROUP_COLOURS, SHAPES, collectionRoles, tokenRole as ownRole, isLocked, THEMES, APP_LOGO, APP_LOGO_SMALL, APP_ICON, APP_NAME, hasCcc, THEME_FONTS, okLogo, builtInCollections, listCollections, lastCollection, openUrl, OWN_VIEW, LIST_URL, starterCollection, loadCollection, deleteCollection, isUntouchedStarter } from "../collection.ts";
 import type { OwnCatalog, OwnSection, OwnToken, OwnTheme, CollectionEntry } from "../collection.ts";
 import { coll, TEAM_ORDER, TEAM_PLURAL, PLATE_LABEL, PLATE_GROUP, $$, stickyNotice, state, $, esc, READONLY, hit, input, BUILT, COLOUR_CHOICES } from "./context.ts";
 import type { Creating } from "./context.ts";
@@ -370,6 +370,13 @@ function createToken(more: boolean) {
   const { flip: _flip, ...rest } = d;
   const tk: OwnToken = { ...rest, type: type.id, linked: d.linked.filter((w) => nameIn(w, lang).trim()), ...(flip ? { flip } : {}) };
   coll.tokens.push(tk);
+  // the first real token: the placeholder the collection started with goes, if it's still as it came
+  const starter = coll.tokens.find(isUntouchedStarter);
+  if (starter) {
+    coll.tokens = coll.tokens.filter((x) => x !== starter);
+    for (const k of coll.sections.flatMap((x) => x.catalogs)) k.tokens = k.tokens.filter((id) => id !== starter.id);
+    setPick(`c:${starter.id}`, false);
+  }
   for (const k of coll.sections.filter((x) => x.open).flatMap((x) => x.catalogs)) if (c.cats.includes(k.id)) k.tokens.push(tk.id);
   const key = `c:${tk.id}`, name = nameIn(tk.name, lang);
   state.creating = null;
@@ -396,6 +403,8 @@ function renderTokenPanel() {
   const sig = [tk.id, shape, tokenLang(), uiLang()].join("|");
   if (sig === panelFor) return;
   panelFor = sig;
+  // more options open by themselves only on a token that already uses them
+  $<HTMLDetailsElement>("#tpMoreOpts").open = !!(tk.linked.length || tk.flip || tk.colour);
   $<HTMLInputElement>("#ownTokName").value = nameIn(tk.name, tokenLang());
   $("#ownTokIconRow").hidden = !SHAPE_FEATURES[shape].icon;
   $<HTMLInputElement>("#ownTokIq").value = ""; $("#ownTokHits").innerHTML = "";

@@ -245,10 +245,13 @@ export const withName = (n: Names, lang: string, v: string): Names => (typeof n 
 
 /** What a first collection's names say, in the interface's language (Spanish or English). */
 const STARTER = {
-  es: { name: "Mi colección", type: "Fichas", title: "Todas las fichas", group: "Grupo", token: "Mi primera ficha", section: "Catálogos", catalog: "Mi primer catálogo" },
-  en: { name: "My collection", type: "Tokens", title: "All tokens", group: "Group", token: "My first token", section: "Catalogs", catalog: "My first catalog" },
+  es: { name: "Mi colección", type: "Fichas", title: "Todas las fichas", group: "Grupo", token: "Mi primera ficha", section: "Catálogos" },
+  en: { name: "My collection", type: "Tokens", title: "All tokens", group: "Group", token: "My first token", section: "Catalogs" },
 };
-/** A first collection: one type, two groups, an open section with one catalog and one token. */
+/** The first collection's token, as it came (nobody named it, gave it an icon or anything else): a placeholder to drop once there are real ones. */
+export const isUntouchedStarter = (tk: OwnToken) =>
+  tk.id === "t1" && !tk.icon && !tk.linked.length && !tk.flip && !tk.colour && Object.values(STARTER).some((s) => nameIn(tk.name, "es") === s.token || nameIn(tk.name, "en") === s.token);
+/** A first collection: one type, two groups, one token, and an open section for the catalogs you make. */
 export const starterCollection = (lang = "es"): Collection => {
   const s = lang === "es" ? STARTER.es : STARTER.en;
   return {
@@ -257,7 +260,7 @@ export const starterCollection = (lang = "es"): Collection => {
     groups: [{ id: "g1", name: `${s.group} 1`, colour: GROUP_COLOURS[0] }, { id: "g2", name: `${s.group} 2`, colour: GROUP_COLOURS[1] }],
     // one token to start from: the app always has something to show and design
     tokens: [{ id: "t1", type: "fichas", group: "g1", name: s.token, icon: null, linked: [] }],
-    sections: [{ id: "s1", title: s.section, open: true, catalogs: [{ id: "k1", name: s.catalog, tokens: ["t1"] }] }],
+    sections: [{ id: "s1", title: s.section, open: true, catalogs: [] }],
     styles: basicStyles(),
   };
 };

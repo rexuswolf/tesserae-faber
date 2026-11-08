@@ -916,6 +916,11 @@ html[data-mode=own]:not([data-theme=botc]) h1, html[data-mode=own]:not([data-the
 .own-coll button:hover { text-decoration: underline; text-underline-offset: 3px; }
 .own-io { display: flex; gap: 6px; flex-wrap: wrap; }
 .own-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+/* a new collection of yours: its first steps */
+.own-welcome { margin-top: 14px; padding: 14px 18px; border: 1px solid var(--seam); border-left: 3px solid var(--brass); border-radius: 12px; background: rgba(239, 230, 214, .04); max-width: 640px; }
+.own-welcome h3 { margin: 0 0 6px; font-family: var(--display); font-weight: 400; font-size: 20px; }
+.own-welcome ol { margin: 0 0 8px; padding-left: 20px; line-height: 1.6; }
+.own-welcome p { margin: 0; color: var(--dust); font-size: 13.5px; }
 .who .own-edit { margin-top: 4px; justify-self: start; border: 1px solid var(--seam); background: none; border-radius: 999px; padding: 1px 10px; font-size: 12.5px; color: var(--dust); cursor: pointer; }
 .who .own-edit:hover { color: var(--bone); border-color: var(--dust); }
 .own-dialog { width: min(640px, calc(100% - 32px)); }
@@ -1150,8 +1155,9 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 }
 /* "+ Token" in your own collections: the way to make one, so it stands out in the collection's colour
    (outlined, not filled: the gold "Add to queue" stays the page's main button) */
-#ownNewTok { border: 1.5px solid var(--brass); color: var(--brass); font-weight: 600; padding: 8px 18px; background: color-mix(in srgb, var(--brass) 10%, transparent); }
-#ownNewTok:hover { background: color-mix(in srgb, var(--brass) 18%, transparent); }
+/* making a token is the main thing a collection of yours does: the solid button */
+#ownNewTok { padding: 10px 22px; font-size: 15px; }
+#ownNewTok:hover { filter: brightness(1.08); }
 /* a two-state token on the sheet: in its place like any other, with ⇄ on its edge; pointing at the row
    (or tapping the ⇄) turns it over in place to show its other state */
 .tok-w.two, .tok-w.backed { position: relative; }
@@ -1610,3 +1616,12 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 .tour-out > .tour-tok { width: 100%; }
 .tour-designed3d { width: 100%; aspect-ratio: 1; display: block; cursor: grab; touch-action: none; }
 .tour-view { justify-content: center; }
+
+/* the token panel: what a first token doesn't need, folded */
+.tp-more { margin-top: 14px; border-top: 1px solid var(--seam); padding-top: 10px; }
+.tp-more > summary { cursor: pointer; list-style: none; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; padding: 4px 0; }
+.tp-more > summary::-webkit-details-marker { display: none; }
+.tp-more > summary::before { content: "›"; display: inline-block; transition: transform .15s; color: var(--brass); }
+.tp-more[open] > summary::before { transform: rotate(90deg); }
+.tp-more > summary small { color: var(--dust); }
+.tp-more > .own-fields { margin-top: 8px; }

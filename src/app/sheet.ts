@@ -2,7 +2,7 @@
 import { on, emit } from "./events.ts";
 import { state, esc, $, EDITION_ORDER, TEAM_PLURAL, fold, coll, TEAM_ORDER, storeJSON, VIEW_KEY, hit, READONLY, view3d } from "./context.ts";
 import { isCard, EDITIONS, TEAMS, roleName, shapeOf, reminderSpec, DEFAULT_SPEC, SHAPE_FEATURES, tokenSvg, flipFace, printsBack } from "../engine/token-engine.ts";
-import { OWN, catalogsOf, nameIn, SHAPES, isLocked } from "../collection.ts";
+import { OWN, catalogsOf, nameIn, SHAPES, isLocked, isUntouchedStarter } from "../collection.ts";
 import { renderOwnSpine, catalogOf, typeOfView, typeOfToken, ownHome, ownHomeCatalog , ownAllView} from "./creator.ts";
 import { uiLang, t } from "../i18n.ts";
 import type { Role, Team } from "../types.ts";
@@ -119,6 +119,7 @@ export function renderSheet() {
   // the generic creator's actions: new tokens in a type's entry or an open catalog; the open catalog itself
   $("#ownActions").hidden = !OWN || !!q || !(ty || catOpen);
   $("#ownCatRename").hidden = $("#ownCatDelete").hidden = $("#ownCatList").hidden = !catOpen;
+  $("#ownWelcome").hidden = !OWN || READONLY || !!q || !(coll.tokens.length === 0 || (coll.tokens.length === 1 && isUntouchedStarter(coll.tokens[0])));   // a new collection: what to do first
   $("#edLead").textContent = q ? t("sheet.leadSearch")
     : OWN ? t(cat ? "own.leadCatalog" : "own.leadAll", { n: (cat ? cat.tokens.length : ty ? state.lib!.roles.filter((r) => typeOfToken(r.id) === ty.id).length : state.lib!.roles.length) })
     : sc ? t("script.lead", { n: inScript!.roles.length, eds: new Set(inScript!.roles.filter((r) => r.kind !== "homebrew").map((r) => r.edition)).size })
