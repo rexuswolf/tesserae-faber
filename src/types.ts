@@ -98,18 +98,26 @@ export type ReliefPart = "text" | "frame" | "icon";
 export type Relief = Record<ReliefPart, boolean>;
 
 /**
- * What a coin's back is: "design", one of the back designs (BACK_STYLES); "match", a face like the
- * front (its layout, text, icon and frame), so the coin reads the same whichever way up; "own", a
- * face with a layout, text, icon and frame of its own (BackFace). A two-state token's back is
- * always a face, its other state: drawn like the front with "design" and "match", with the back's
- * own settings with "own".
+ * What a coin's back is: "design", plain (a design kept from before the back was a face: migrateBack
+ * makes it one); "match", a face like the front (its layout, text, icon and frame), so the coin reads
+ * the same whichever way up; "own", a face with a layout, text, icon and frame of its own (BackFace),
+ * and on one-state tokens words and an icon of its own (BackFace.say, .art). A two-state token's back
+ * is always a face, its other state: drawn like the front when plain, with the back's look otherwise.
  */
 export type BackMode = "design" | "match" | "own";
 /** The fields that make a face's look (layout, name, icon, frame): a back face of its own sets them apart from the front's. */
+/** What a one-state token's back says: its name, its edition's (or collection's), a phrase of its own, or nothing. */
+export type BackSay = "name" | "edition" | "phrase" | "none";
 export type FaceField = "style" | "textSize" | "spacing" | "maxArc" | "iconScale" | "frame" | "frameWidth";
 /** A coin's back face (see BackMode): its own look ("own" only), its relief and its colours (both
  *  "match" and "own"); anything left out is the front's. */
 export interface BackFace extends Partial<Pick<TokenSpec, FaceField>> {
+  /** What a one-state token's back says (unset: its name): the edition's or collection's name, a phrase of its own, or nothing. */
+  say?: BackSay;
+  /** The back's own words, with say "phrase". */
+  phrase?: string;
+  /** What a one-state token's back shows for its icon (unset: the token's): an ornament (BACK_ORNAMENTS), the uploaded SVG ("custom"), or nothing. */
+  art?: string;
   relief?: Partial<Relief>;
   colours?: Partial<Pick<SpecColours, "front" | "frame">>;
 }

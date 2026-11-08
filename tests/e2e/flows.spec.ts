@@ -68,7 +68,8 @@ test("designing a token: another frame changes its preview", async ({ page }) =>
   await page.evaluate((k) => { const mm = (window as unknown as { __mm: { goStep(n: number): void; designToken(k: string): void } }).__mm; mm.goStep(2); mm.designToken(k!); }, key);
   const frames = page.locator('[data-choice="frame"] [data-v]');
   await expect(async () => {
-    await page.locator('#parts [data-face="frame"]').evaluate((b) => (b as HTMLElement).click());
+    await page.locator('#parts [data-part="front"]').evaluate((b) => (b as HTMLElement).click());
+    await page.locator('#faceTabs [data-face="frame"]').evaluate((b) => (b as HTMLElement).click());
     await expect(frames.first()).toBeAttached({ timeout: 1000 });
   }).toPass();
   const before = await page.locator("#workshop svg[aria-label$='token']").first().innerHTML();
@@ -117,6 +118,65 @@ test("switching the interface to Spanish", async ({ page }) => {
   const errors = await open(page, "/botc?admin");
   await page.locator('[data-lang="es"]').first().evaluate((b) => (b as HTMLElement).click());
   await expect(page.locator("html")).toHaveAttribute("lang", "es");
+  expect(errors).toEqual([]);
+});
+
+test("a token's back is changed like its front: a two-state token's other state, back to the front's look, plain behind the rest, and its pattern", async ({ page }) => {
+  const errors = await open(page, "/c/drawsteel?admin");
+  const design = (k: string) => page.evaluate((key) => { const mm = (window as unknown as { __mm: { goStep(n: number): void; designToken(k: string): void } }).__mm; mm.goStep(2); mm.designToken(key); }, k);
+  // a click, again until what it brings shows (the sheet may draw itself again meanwhile)
+  const step = (s: string, then: () => Promise<void>) => expect(async () => {
+    await page.locator(s).first().evaluate((b) => (b as HTMLElement).click());
+    await then();
+  }).toPass();
+  const seen = (s: string) => () => expect(page.locator(s)).toBeVisible({ timeout: 1000 });
+  await design("c:ready");   // Ready, Acted when turned over
+  await step('.cr-item[data-cr="part"]', seen("#parts"));   // Customise
+  await step('#parts [data-part="back"]', seen("#faceTabs"));
+  // the design's back, the edition in gold: its other state in gold too, changed from the front
+  await step('#faceTabs [data-face="layout"]', seen("#backNote [data-back-same]"));
+  await step("#backNote [data-back-same]", () => expect(page.locator("#backNote [data-back-same]")).toHaveCount(0, { timeout: 1000 }));
+  await step('[data-choice="style"] [data-v][aria-pressed="false"]', seen("#backNote [data-back-same]"));
+  // what one-state tokens' backs say and show isn't this token's: it says so
+  await step('#faceTabs [data-face="text"]', seen("#sayNote"));
+  await expect(page.locator("#backSayBox")).toBeHidden();
+  // a token without another state, its back plain: its tabs say so, and something can go on it
+  await design("c:recovery");
+  await step('#faceTabs [data-face="layout"]', seen('[data-choice="back"] [data-v="none"]'));
+  await step('[data-choice="back"] [data-v="none"]', () => expect(page.locator('[data-choice="back"] [data-v="none"]')).toHaveAttribute("aria-pressed", "true", { timeout: 1000 }));
+  await step('#faceTabs [data-face="text"]', seen("#backNote [data-back-face]"));
+  await step("#backNote [data-back-face]", () => expect(page.locator("#backNote [data-back-face]")).toHaveCount(0, { timeout: 1000 }));
+  await step('#faceTabs [data-face="layout"]', () => expect(page.locator('[data-choice="back"] [aria-pressed="true"]')).toHaveCount(0, { timeout: 1000 }));
+  // its pattern, the back's whatever it carries
+  await step('#faceTabs [data-face="pattern"]', seen('[data-pat-side="back"] [data-pat-choice]'));
+  expect(errors).toEqual([]);
+});
+
+test("a token's back says words of its own, shows an ornament, and its layout follows", async ({ page }) => {
+  const errors = await open(page, "/c/drawsteel?admin");
+  await page.evaluate((key) => { const mm = (window as unknown as { __mm: { goStep(n: number): void; designToken(k: string): void } }).__mm; mm.goStep(2); mm.designToken(key); }, "c:recovery");
+  const step = (s: string, then: () => Promise<void>) => expect(async () => {
+    await page.locator(s).first().evaluate((b) => (b as HTMLElement).click());
+    await then();
+  }).toPass();
+  const seen = (s: string) => () => expect(page.locator(s)).toBeVisible({ timeout: 1000 });
+  const pressed = (s: string) => () => expect(page.locator(s)).toHaveAttribute("aria-pressed", "true", { timeout: 1000 });
+  await step('.cr-item[data-cr="part"]', seen("#parts"));
+  await step('#parts [data-part="back"]', seen("#faceTabs"));
+  // the design's back was the edition's name: words alone, in the text layout
+  await step('#faceTabs [data-face="text"]', pressed('#backSay [data-v="edition"]'));
+  await step('#backSay [data-v="phrase"]', seen("#backPhrase"));
+  await page.locator("#backPhrase").fill("Recursos compartidos");
+  await expect(page.locator("#backPhrase")).toHaveValue("Recursos compartidos");
+  await step('#faceTabs [data-face="layout"]', pressed('[data-choice="style"] [data-v="text"]'));
+  // an ornament for its icon: the layout has both again; the icon alone keeps the words for later
+  await step('#faceTabs [data-face="icon"]', seen('#backArt [data-v="sol"]'));
+  await step('#backArt [data-v="sol"]', pressed('#backArt [data-v="sol"]'));
+  await step('#faceTabs [data-face="layout"]', pressed('[data-choice="style"] [data-v="classic"]'));
+  await step('[data-choice="style"] [data-v="solo"]', pressed('[data-choice="style"] [data-v="solo"]'));
+  await step('[data-choice="style"] [data-v="classic"]', pressed('[data-choice="style"] [data-v="classic"]'));
+  await step('#faceTabs [data-face="text"]', pressed('#backSay [data-v="phrase"]'));
+  await expect(page.locator("#backPhrase")).toHaveValue("Recursos compartidos");
   expect(errors).toEqual([]);
 });
 
@@ -222,8 +282,8 @@ test("designing, as a creator: Content, Design and Customise; customised, anothe
   await page.locator('.cr-item[data-cr="part"]').click();
   await expect(page.locator("#parts")).toBeVisible();
   // a change of its own: Customised, with its two actions
-  await page.locator('#parts [data-part="colours"]').click();
-  await page.locator('.metal[data-colour="frame"] button[aria-pressed=false]').first().click();
+  await page.locator('#parts [data-part="body"]').click();   // the card's colour, in Card
+  await page.locator('[data-panel="body"] .metal[data-colour="base"] button[aria-pressed=false]').first().click();
   await expect(page.locator("#crActs")).toBeVisible();
   await page.locator("#crBack").click();
   await page.locator('.cr-item[data-cr="design"]').click();

@@ -14,7 +14,7 @@ import { local, readJSON, writeJSON , botcUnlocked} from "./services.ts";
 import type { CardBack, CardIcon, CardJoin, Hex, PatternSpec, Role, SpecInput, Team, TokenContent, TokenIcon, TokenShape } from "./types.ts";
 import { gameIcon } from "./icons.ts";
 import { safeIconMarkup, safeTransform } from "./engine/safe-svg.ts";
-import { DEFAULT_SPEC, FILAMENTS, PATTERNS, CARD_ICONS, CARD_JOINS, CARD_ICON_MM } from "./engine/token-engine.ts";
+import { DEFAULT_SPEC, FILAMENTS, PATTERNS, CARD_ICONS, CARD_JOINS, CARD_ICON_MM, BACK_ORNAMENTS } from "./engine/token-engine.ts";
 import { BUILT_INS } from "./builtins.ts";
 import { ringDesigns, cardDesigns, baseDesigns, APP_DESIGNS, appTwin } from "./shape-designs.ts";
 
@@ -426,7 +426,11 @@ function readSpec(v: unknown): SpecInput | null {
       const r = Object.fromEntries(Object.entries(x).filter(([rk, rv]) => ["text", "frame", "icon"].includes(rk) && typeof rv === "boolean"));
       if (Object.keys(r).length) out[k] = r;
     } else if (k === "backFace") {
-      const f = readSpec(x) as Record<string, unknown> | null;
+      const f = readSpec(x) as Record<string, unknown> | null, b = x as Record<string, unknown>;
+      // what a one-state token's back says and shows (BackFace): not a spec's own fields
+      if (f && ["edition", "phrase", "none"].includes(b.say as string)) f.say = b.say;
+      if (f && typeof b.phrase === "string") f.phrase = b.phrase.slice(0, 60);
+      if (f && (["none", "custom"].includes(b.art as string) || BACK_ORNAMENTS.includes(b.art as string))) f.art = b.art;
       if (f) { delete f.backFace; out[k] = f; }
     }
     else if (k === "customSvg") { if (typeof x === "string" && x.length < 300000) out[k] = x; }

@@ -220,8 +220,8 @@
       <!-- how it looks: its design's, with this token's changes (in the Taller: the design's) -->
       <h3 class="ws-bh" id="lookHead"><span id="lookTitle"></span> <small id="lookSub"></small></h3>
       <div class="ws-warn" id="colourWarn" hidden></div>
-      <div class="back-modes" id="backModes" hidden></div>
       <div class="face-tabs" id="faceTabs" role="tablist" data-i18n-attr="aria-label:ws.faceTabs" hidden></div>
+      <p class="hint back-note" id="backNote" hidden></p>
       <!-- a face (the front, or a back of its own): its layout, name, icon and frame, each part flush or raised -->
       <!-- its colours, together (each also where its part is) -->
       <section class="ws-panel" data-panel="colours" role="tabpanel" hidden>
@@ -236,6 +236,11 @@
       <section class="ws-panel" data-panel="layout" role="tabpanel" hidden>
         <div class="choices layout-tiles" data-choice="style"></div>
         <p class="hint" id="styleHint"></p>
+        <!-- a coin's back: or nothing on it at all -->
+        <div class="back-design" id="backDesign" hidden>
+          <p class="metal-label" data-i18n="back.plainLabel"></p>
+          <div class="choices" data-choice="back"></div>
+        </div>
         <!-- a card's: where its icon goes and how it sits with the phrase -->
         <div id="cardLayoutBox" hidden>
           <p class="metal-label" data-i18n="cardIcon.label"></p>
@@ -248,6 +253,13 @@
         </div>
       </section>
       <section class="ws-panel" data-panel="text" role="tabpanel" hidden>
+        <!-- a coin's back: what it says on the tokens without another state (their name, the edition's, words of its own, nothing) -->
+        <div class="back-say" id="backSayBox" hidden>
+          <p class="metal-label" data-i18n="back.sayLabel"></p>
+          <span class="seg2 back-say-seg" role="group" id="backSay" data-i18n-attr="aria-label:back.sayLabel"></span>
+          <input class="text" type="text" id="backPhrase" maxlength="60" autocomplete="off" data-i18n-attr="placeholder:back.phrasePlaceholder aria-label:back.say.phrase" hidden>
+        </div>
+        <p class="hint flip-note" id="sayNote" hidden></p>
         <p class="hint" id="nameHint"></p>
         <div class="row"><label for="textSize" data-i18n="range.textSize"></label><output data-for="textSize"></output><input type="range" id="textSize" min="2" max="6" step="0.1" value="4"></div>
         <div class="row"><label for="spacing" data-i18n="range.spacing"></label><output data-for="spacing"></output><input type="range" id="spacing" min="0.8" max="2" step="0.05" value="1.1"></div>
@@ -262,6 +274,14 @@
         <div class="relief-slot" data-relief-part="text"></div>
       </section>
       <section class="ws-panel" data-panel="icon" role="tabpanel" hidden>
+        <!-- a coin's back: what it shows on the tokens without another state (their icon, an ornament, your SVG, nothing) -->
+        <div class="back-art" id="backArtBox" hidden>
+          <p class="metal-label" data-i18n="back.artLabel"></p>
+          <div class="choices" id="backArt"></div>
+          <input type="file" id="upload" accept=".svg,image/svg+xml" hidden data-i18n-attr="aria-label:upload.aria">
+          <p class="hint" id="uploadHint" hidden></p>
+        </div>
+        <p class="hint flip-note" id="artNote" hidden></p>
         <div class="row"><label for="iconScale" data-i18n="range.iconScale"></label><output data-for="iconScale"></output><input type="range" id="iconScale" min="0.6" max="1.2" step="0.05" value="1"></div>
         <!-- a card's: how big its icon is (where it goes is in Layout) -->
         <div id="cardIconBox" hidden>
@@ -277,26 +297,10 @@
         <div class="metal" data-colour="frame" data-i18n-attr="aria-label:frame.aria"></div>
         <div class="relief-slot" data-relief-part="frame"></div>
       </section>
-      <!-- the front's background pattern (patternGroupHtml) -->
+      <!-- a face's background pattern (patternGroupHtml): the front's, or the back's -->
       <section class="ws-panel" data-panel="pattern" role="tabpanel" hidden>
         <div class="pattern-group" data-pat-side="front"></div>
-      </section>
-      <!-- the back when it isn't a face of its own: a design and its colour, or the front again in a colour of its own -->
-      <section class="ws-panel" data-panel="back" role="tabpanel" hidden>
-        <div class="back-design" id="backDesign">
-          <div class="choices" data-choice="back"></div>
-          <input type="file" id="upload" accept=".svg,image/svg+xml" hidden data-i18n-attr="aria-label:upload.aria">
-          <p class="hint" id="uploadHint" hidden></p>
-          <p class="metal-label" data-i18n="back.colour"></p>
-          <div class="metal" data-colour="back" data-i18n-attr="aria-label:back.aria"></div>
-          <div class="pattern-group" data-pat-side="back"></div>
-        </div>
-        <div class="back-match" id="backMatch">
-          <p class="metal-label" id="matchColourLabel"></p>
-          <div class="metal" data-colour="front" data-side="back" data-i18n-attr="aria-label:back.aria"></div>
-          <p class="hint" data-i18n="back.matchHelp"></p>
-          <div class="relief-slot" data-relief-part="all"></div>
-        </div>
+        <div class="pattern-group" data-pat-side="back"></div>
       </section>
       <!-- a card's back: a face of its own (cardBack), the same on every card of the design -->
       <section class="ws-panel" data-panel="cardBack" role="tabpanel" hidden>

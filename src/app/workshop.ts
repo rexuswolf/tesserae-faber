@@ -1,8 +1,8 @@
 // The workshop: a token's preview, its parts and faces, and its own icon.
 import { on } from "./events.ts";
-import type { TokenShape, TokenSpec, BackFace, TokenStyle, SpecInput, SpecColours, TokenIcon, TokenOverride, TokenContent } from "../types.ts";
-import { shapeOf, SHAPE_FEATURES, DEFAULT_SPEC, FACE_FIELDS, reliefOf, buildToken, TEAMS, tokenSvg, MAGNET_SIZES, RING_SEPARATORS, RING_BASES, cardBackOf } from "../engine/token-engine.ts";
-import { state, coll, LAYOUT_TEXT, defSpec, STYLE_KEEPS, knownStyles, $, view3d, esc, input, hit, $$, SEPARATOR_MARKS, COLOUR_CHOICES } from "./context.ts";
+import type { TokenShape, TokenSpec, BackFace, SpecInput, SpecColours, TokenIcon, TokenOverride, TokenContent } from "../types.ts";
+import { shapeOf, SHAPE_FEATURES, DEFAULT_SPEC, FACE_FIELDS, reliefOf, backLookOf, flipFace, buildToken, TEAMS, tokenSvg, MAGNET_SIZES, RING_SEPARATORS, RING_BASES, cardBackOf } from "../engine/token-engine.ts";
+import { state, coll, defSpec, STYLE_KEEPS, knownStyles, $, view3d, esc, input, hit, $$, SEPARATOR_MARKS, COLOUR_CHOICES } from "./context.ts";
 import type { Part, Side, FaceTab, Fields } from "./context.ts";
 import { lookOf, designFor, ownChanged, designOf, inheritedRef, collLabel, defaultRef } from "./designs.ts";
 import { changeLook, renderSays, renderTabs, syncControls, renderColourWarn, dz, renderDesignSheet, setOwn, patternGroupHtml, setCardBack, changeCardBack, setCardBackIcon, renderQuickDesigns } from "./design-sheet.ts";
@@ -34,8 +34,14 @@ export const editShape = (): TokenShape => shapeOf(state.sel!.role);
 /** The parts a type is made of (level 1), from what its shape has. */
 export const partsOf = (shape: TokenShape): Part[] => {
   const f = SHAPE_FEATURES[shape];
-  return ["front", "colours", ...(f.back ? ["back" as const] : []), "body", ...(f.magnet ? ["magnet" as const] : [])];
+  // a shape with two sides: its front and back, each with its tabs (the colours are where their parts are, the coin's in its body)
+  return f.back ? ["front", "back", "body", ...(f.magnet ? ["magnet" as const] : [])] : ["front", "colours", "body", ...(f.magnet ? ["magnet" as const] : [])];
 };
+/** Whether a shape's front has its tabs inside it (a shape with a back: Front and Back, each with its own), not in the list of sections. */
+export const twoSided = (shape: TokenShape) => SHAPE_FEATURES[shape].back;
+/** The front's tabs: a token of yours that carries only its icon (or only its text) has no layout, nor text (or icon), to change. */
+export const frontTabsOf = (shape: TokenShape, content?: TokenContent): FaceTab[] =>
+  faceTabsOf(shape).filter((f) => !(content === "icon" || content === "text") || (f !== "layout" && f !== (content === "icon" ? "text" : "icon")));
 /** One of the design's sections: a part, or a tab of the front. */
 export interface Section { part: Part; face?: FaceTab }
 /**
@@ -44,7 +50,8 @@ export interface Section { part: Part; face?: FaceTab }
  * A token of yours that carries only its icon (or only its text) has no layout, nor text (or icon), to change.
  */
 export function sectionsOf(shape: TokenShape, content?: TokenContent): Section[] {
-  const front = faceTabsOf(shape, "front").filter((f) => !(content === "icon" || content === "text") || (f !== "layout" && f !== (content === "icon" ? "text" : "icon")));
+  if (twoSided(shape)) return partsOf(shape).map((part) => ({ part }));
+  const front = frontTabsOf(shape, content);
   const basic = front.filter((f) => f !== "pattern"), rest = partsOf(shape).filter((p) => p !== "front" && p !== "colours" && p !== "back");
   return [
     ...basic.filter((f) => f === "layout").map((face) => ({ part: "front" as const, face })),
@@ -56,10 +63,17 @@ export function sectionsOf(shape: TokenShape, content?: TokenContent): Section[]
   ];
 }
 /** A face's tabs (level 2): the layout only where there's more than one, the icon where the shape has one. */
-export const faceTabsOf = (shape: TokenShape, side: Side = "front"): FaceTab[] => {
+export const faceTabsOf = (shape: TokenShape): FaceTab[] => {
   const f = SHAPE_FEATURES[shape];
-  // the background pattern: the front's (a back face has none; a back design's is in BACK)
-  return [...(f.layout ? ["layout" as const] : []), "text", ...(f.icon ? ["icon" as const] : []), "frame", ...(f.pattern && side === "front" ? ["pattern" as const] : [])];
+  return [...(f.layout ? ["layout" as const] : []), "text", ...(f.icon ? ["icon" as const] : []), "frame", ...(f.pattern ? ["pattern" as const] : [])];
+};
+/** The back's tabs: the front's (its layout also has the drawings its tokens without another state can carry instead). */
+export const backTabsOf = (shape: TokenShape): FaceTab[] => faceTabsOf(shape);
+/** What the token being edited carries, when it's a token of yours (its tabs follow it); unset in the Taller. */
+export const editContent = (): TokenContent | undefined => {
+  if (TALLER || !state.sel) return undefined;
+  const id = state.sel.role.id, own = state.creating?.draft.id === id ? state.creating.draft : coll.tokens.find((x) => x.id === id);
+  return own ? state.sel.role.content : undefined;
 };
 /** The open level-1 tab of the type being edited (one it has). */
 export function openPart(): Part {
@@ -73,8 +87,8 @@ export const editSide = (): Side => (openPart() === "back" ? "back" : "front");
 export function openPanel(): string {
   const part = openPart(), shape = editShape();
   if (part === "back" && shape === "card") return "cardBack";   // a card's back: a face of its own, in one panel
-  if (part === "front" || (part === "back" && editLook().backMode === "own")) {
-    const side = part === "back" ? "back" : "front", tabs = faceTabsOf(shape, side);
+  if (part === "front" || part === "back") {
+    const side = part === "back" ? "back" : "front", tabs = side === "back" ? backTabsOf(shape) : twoSided(shape) ? frontTabsOf(shape, editContent()) : faceTabsOf(shape);
     if (!tabs.includes(state.faceTab[side])) state.faceTab[side] = tabs[0];
     return state.faceTab[side];
   }
@@ -85,16 +99,15 @@ export function openPanel(): string {
 export const editLook = () => lookOf(state.sel!.key);
 
 /**
- * A face as the controls show it: the front is the spec itself; the back (a face) is the front's
- * look, or with "own" its own, with the back's relief and colours. As backFaceOf draws it, before
+ * A face as the controls show it: the front is the spec itself; the back is the front's look with
+ * what the back changed (backLookOf), with the back's relief and colours. As backFaceOf draws it, before
  * the rule that only one face is raised (the workshop asks about that instead).
  */
 export function faceOf(s: TokenSpec, side: Side): TokenSpec {
   const spec = { ...DEFAULT_SPEC, ...s, colours: { ...DEFAULT_SPEC.colours, ...s.colours } };
   if (side === "front") return spec;
   const b = spec.backFace ?? {};
-  const look = spec.backMode === "own" ? Object.fromEntries(FACE_FIELDS.filter((k) => b[k] != null).map((k) => [k, b[k]])) : {};
-  return { ...spec, ...look, relief: reliefOf(b), colours: { ...spec.colours, front: b.colours?.front ?? spec.colours.front, frame: b.colours?.frame ?? spec.colours.frame } };
+  return { ...spec, ...backLookOf(spec), relief: reliefOf(b), colours: { ...spec.colours, front: b.colours?.front ?? spec.colours.front, frame: b.colours?.frame ?? spec.colours.frame } };
 }
 /** Applies a change to a face: the front's goes to the spec; the back's to its own settings, only what changed (what it
  *  never changed keeps following the front). */
@@ -104,18 +117,22 @@ export function changeFace(side: Side, mutate: (f: TokenSpec) => void) {
     const before = faceOf(s, "back"), v = structuredClone(before);
     mutate(v);
     const b: BackFace = { ...s.backFace };
+    // a back that changed nothing ("match") may keep what it once had: that goes, and what's changed now is its own
+    if (s.backMode === "match") for (const k of FACE_FIELDS) delete b[k];
     for (const k of FACE_FIELDS) if (v[k] !== before[k]) (b as Fields)[k] = v[k];
+    if (s.backMode === "match" && hasOwnLook(b)) s.backMode = "own";
     for (const k of ["front", "frame"] as const) if (v.colours[k] !== before.colours[k]) b.colours = { ...b.colours, [k]: v.colours[k] };
     b.relief = reliefOf(v);
     s.backFace = b;
   });
 }
-/** A back face of its own starts as the front in another layout (the solo, or the classic for a solo front), so choosing it shows something new. */
-export function ownStart(s: TokenSpec): BackFace {
-  const style: TokenStyle = s.style === "solo" ? "classic" : "solo";
-  return { ...Object.fromEntries(FACE_FIELDS.map((k) => [k, s[k] ?? DEFAULT_SPEC[k]])), style, textSize: LAYOUT_TEXT[style] };
-}
 export const hasOwnLook = (b: BackFace | undefined) => FACE_FIELDS.some((k) => b?.[k] != null);
+/** Whether the back changed anything from the front: its look or its colours (its relief is its own: only one face stands out). */
+export const backChanged = (s: TokenSpec) => {
+  const c = s.backFace?.colours, f = { ...DEFAULT_SPEC.colours, ...s.colours };
+  const b = s.backMode === "design" ? undefined : s.backFace;
+  return hasOwnLook(backLookOf(s)) || (!!c?.front && c.front !== f.front) || (!!c?.frame && c.frame !== f.frame) || !!b?.say || !!b?.art;
+};
 
 /**
  * What of a design a shape shows, to tell whether a spec kept before styles is one of the
@@ -156,6 +173,10 @@ export function startedFrom(spec: TokenSpec, shape: TokenShape) {
 const PART_VIEW: Record<Part, ViewKind> = { front: "top", colours: "angle", back: "back", body: "angle", magnet: "back" };
 /** Opens a tab: a part, and inside a face one of its tabs. */
 export function showTab({ part, face }: { part?: Part; face?: FaceTab } = {}) {
+  // into the back of a token without another state whose back is a drawing: its layout, where the drawing is chosen
+  // (its other tabs are for the tokens with one)
+  if (part === "back" && !face && state.part[editShape()] !== "back" && state.sel && editLook().backMode === "design"
+    && !flipFace(state.sel.role, { linked: state.sel.reminder != null })) state.faceTab.back = "layout";
   if (part) state.part[editShape()] = part;
   if (face) state.faceTab[editSide()] = face;
   state.reliefAsk = null;

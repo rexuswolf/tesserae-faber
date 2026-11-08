@@ -50,7 +50,7 @@ function printedLook(shape: TokenShape, spec: SpecInput): Fields {
   }
   if (!f.back) { delete s.back; delete s.backMode; delete s.backFace; delete s.customSvg; delete c.back; }
   else if (shape !== "card") {
-    if (s.back !== "custom") delete s.customSvg;
+    if (s.back !== "custom" && (s.backFace as SpecInput["backFace"])?.art !== "custom") delete s.customSvg;
     if (s.backMode !== "match" && s.backMode !== "own") delete s.backFace;
   }
   const raised: string[] = f.relief, relief = Object.fromEntries(Object.entries(reliefOf(u)).filter(([k]) => raised.includes(k)));

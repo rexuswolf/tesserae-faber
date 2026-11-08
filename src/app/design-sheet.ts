@@ -1,7 +1,7 @@
 // Choosing a design (the design sheet), and each shape's default design.
 import { emit } from "./events.ts";
-import type { TokenShape, TokenSpec, MyDesign, TokenOverride, Role, BackMode, PatternSpec, ReliefPart, Token, TokenStyle, SpecColours, SpecInput, CardBack, TokenIcon } from "../types.ts";
-import { DEFAULT_SPEC, reminderSpec, tokenSvg, SHAPE_FEATURES, shapeOf, roleName, shapeSpec, TOKEN_STYLES, FRAME_STYLES, FILAMENTS, BACK_STYLES, PATTERN_MIN, printsBack, cardBackOf, CARD_ICONS, CARD_JOINS, partColours, PATTERNS, patternDefaults, patternFilled, patternFixed, flipFace, reliefOf, hasRelief, FACE_FIELDS, ringBand, ringSize, baseSize, magnetLayout } from "../engine/token-engine.ts";
+import type { TokenShape, TokenSpec, MyDesign, TokenOverride, Role, PatternSpec, ReliefPart, Token, TokenStyle, SpecColours, SpecInput, CardBack, TokenIcon, BackFace, BackSay } from "../types.ts";
+import { DEFAULT_SPEC, reminderSpec, tokenSvg, SHAPE_FEATURES, shapeOf, roleName, shapeSpec, TOKEN_STYLES, FRAME_STYLES, BACK_ORNAMENTS, migrateBack, backShown, backLayoutContent, PATTERN_MIN, printsBack, cardBackOf, CARD_ICONS, CARD_JOINS, partColours, PATTERNS, patternDefaults, patternFilled, patternFixed, flipFace, reliefOf, hasRelief, FACE_FIELDS, ringBand, ringSize, baseSize, magnetLayout } from "../engine/token-engine.ts";
 import { tokenLang } from "./token-language.ts";
 import { ownIcon, roleIdOf, charKey, textFor, remindersOf, charName, specFor } from "./tokens.ts";
 import { ownChanged, myDesigns, myEntry, collEntry, inheritedRef, refOf, originalRef, defaultRef, designOf, collLabel, designFor, uniqueDesignName, lookOf, storeMyDesigns, storeOverrides, shapesHere, tokensOf, designOverridden, defaults, storeDefaults } from "./designs.ts";
@@ -15,7 +15,7 @@ import type { Vars } from "../i18n.ts";
 import { applyLook, prunedLook, withLookField, sameValue, lookFields, withoutLookField, setField, lookDiff, fieldOf } from "./looks.ts";
 import { tokenRole, queueEntry, tokenRem, queueLabel, itemSpec, smallLetters, nozzleMm, renderDesignStage, toastTimer, setToastTimer } from "./queue.ts";
 import { CHEVRON } from "./language.ts";
-import { renderIconField, openPart, openPanel, sectionsOf, showTab, faceTabsOf, faceOf, hasOwnLook, ownStart, syncView, renderWorkshop, editLook, changeFace, editSide, designSwatch } from "./workshop.ts";
+import { renderIconField, openPart, openPanel, sectionsOf, showTab, backTabsOf, frontTabsOf, twoSided, editContent, faceOf, hasOwnLook, backChanged, syncView, renderWorkshop, editLook, changeFace, editSide, designSwatch } from "./workshop.ts";
 import { TALLER, tallerMine, renderTaller } from "./taller.ts";
 import { colourIssues, LIGHT_DEPTH } from "../colour-checks.ts";
 import type { InlayPart } from "../colour-checks.ts";
@@ -301,16 +301,17 @@ export function renderSays() {
 
 /** The parts' tabs, and inside them the back's choices and a face's tabs. */
 export function renderTabs(role: Role, spec: TokenSpec) {
-  const shape = shapeOf(role), secs = sectionsOf(shape, !TALLER && ownTokenOf(role.id) ? role.content : undefined);
-  const isOpen = (s: { part: string; face?: string }) => s.part === openPart() && (s.part !== "front" || s.face === openPanel());
+  const shape = shapeOf(role), secs = sectionsOf(shape, editContent());
+  const isOpen = (s: { part: string; face?: string }) => s.part === openPart() && (s.part !== "front" || twoSided(shape) || s.face === openPanel());
   if (!secs.some(isOpen)) showTab({ part: secs[0].part, face: secs[0].face });   // one this token hasn't (a layout, for a token of one thing)
   const part = openPart(), panel = openPanel();
   // the sections in one list, the basic ones first
   $("#parts").innerHTML = secs.map((s) => `<button type="button" role="tab" data-part="${s.part}"${s.face ? ` data-face="${s.face}"` : ""} aria-selected="${isOpen(s)}">${esc(s.face ? t(`face.${s.face}`) : s.part === "body" ? t(`part.body.${shape}`) : t(`part.${s.part}`))}</button>`).join("");
-  const faceOpen = part === "back" && spec.backMode === "own" && shape !== "card";   // a back of its own: its face's tabs
+  // a two-sided shape's front and a coin's back: their tabs (a card's back is one panel)
+  const faceOpen = (part === "back" && shape !== "card") || (part === "front" && twoSided(shape));
   $("#faceTabs").hidden = !faceOpen;
-  if (faceOpen) $("#faceTabs").innerHTML = faceTabsOf(shape, part === "back" ? "back" : "front").map((f) => `<button type="button" role="tab" data-face="${f}" aria-selected="${f === panel}">${esc(t(`face.${f}`))}</button>`).join("");
-  renderBackModes(role, spec, part === "back" && shapeOf(role) !== "card");   // a card's back is always a design
+  if (faceOpen) $("#faceTabs").innerHTML = (part === "back" ? backTabsOf(shape) : frontTabsOf(shape, editContent())).map((f) => `<button type="button" role="tab" data-face="${f}" aria-selected="${f === panel}">${esc(t(`face.${f}`))}</button>`).join("");
+  renderBackNote(role, spec, part === "back" && faceOpen ? panel : null);
   $$(".ws-panel").forEach((p) => { p.hidden = p.dataset.panel !== panel; });
 }
 
@@ -320,35 +321,38 @@ function backReach() {
   return { flips: other ? [textFor(key, role, null)] : [], plain: !other };
 }
 /**
- * BACK's three choices, each drawn on the selected token: the front again, a face of its own, or
- * a design. A token with another state always shows that state on its back, drawn with the front's
- * look (or the back's own), and a line under the choices says so.
+ * Over a back's tabs (but its pattern, which is the back's whatever it carries): whether it's still
+ * the front's look (what's changed here is the back's alone) or how to set it back to it; and on a
+ * token without another state whose back is a drawing, that the tabs past its layout (where the
+ * drawing is) are for the tokens with one, with the way to put the token behind.
  */
-function renderBackModes(role: Role, spec: TokenSpec, open: boolean) {
-  const box = $("#backModes");
-  box.hidden = !open;
-  if (!open) return;
-  const s = faceOf(spec, "front"), mode = s.backMode, text = textFor(state.sel!.key, role, state.sel!.reminder);
-  const isRem = state.sel!.reminder != null;
-  const back = (input: TokenSpec, r = role) => { const sp = { ...input, lang: tokenLang(), icon: ownIcon(role.id) }; return tokenSvg(state.lib!, r, isRem ? reminderSpec(sp) : sp, { side: "back", text }); };
-  const own = hasOwnLook(s.backFace) ? s.backFace : { ...s.backFace, ...ownStart(s) };
-  const modes: [BackMode, string][] = [
-    ["match", back({ ...s, backMode: "match" })],
-    ["own", back({ ...s, backMode: "own", backFace: own })],
-    ["design", back({ ...s, backMode: "design" }, { ...role, flip: undefined })],
-  ];
-  const how = mode === "own" ? "own" : mode === "match" ? "match" : "design", other = selFlip(role);
-  const note = other ? t(TALLER ? "flip.sample" : "flip.mine", { name: roleName(other, tokenLang()), how }) : "";
-  box.innerHTML = `<div class="back-mode-list" role="radiogroup" aria-label="${esc(t("back.modes"))}">${modes.map(([m, svg]) => `<button type="button" role="radio" data-back-mode="${m}" aria-checked="${m === mode}">${svg}<span><b>${esc(t(`back.mode.${m}`))}</b><small>${esc(t(`back.mode.${m}.help`))}</small></span></button>`).join("")}</div>`
-    + (note ? `<p class="flip-note"><span aria-hidden="true">⇄</span> ${esc(note)}</p>` : "");
+function renderBackNote(role: Role, spec: TokenSpec, panel: string | null) {
+  const box = $("#backNote"), s = faceOf(spec, "front"), plain = s.backMode === "design" && !selFlip(role);
+  box.hidden = !panel || panel === "pattern" || (plain && panel === "layout");
+  if (box.hidden) return;
+  if (plain) {
+    box.innerHTML = `${esc(t("back.plainOn"))} <button class="pill" type="button" data-back-face>${esc(t("back.putFace"))}</button>`;
+    return;
+  }
+  box.innerHTML = backChanged(s) ? `${esc(t("back.changed"))} <button class="pill" type="button" data-back-same>${esc(t("back.toFront"))}</button>` : esc(t("back.same"));
 }
-/** Choosing what the back is. A face of its own starts from ownStart the first time. */
-export function setBackMode(mode: BackMode) {
-  changeLook((s) => {
-    s.backMode = mode;
-    if (mode === "own" && !hasOwnLook(s.backFace)) s.backFace = { ...s.backFace, ...ownStart(faceOf(s, "front")) };
-  });
+/** Whether the token being edited has its back plain (a token without another state, nothing on its back). */
+export const backDrawn = () => editLook().backMode === "design" && !selFlip(state.sel!.role);
+/** The token behind, on the tokens without another state: the back is a face (its look what it changed, if anything). */
+export function setBackFace() {
+  changeLook((s) => { s.backMode = hasOwnLook(s.backFace) ? "own" : "match"; });
   state.reliefAsk = null;
+  view3d("setView", "back"); syncView("back");
+}
+/** The back as the front again: what it changed of its look and colours goes (its relief stays: only one face stands out). */
+export function backToFront() {
+  changeLook((s) => {
+    const b = { ...s.backFace };
+    for (const k of FACE_FIELDS) delete b[k];
+    delete b.colours; delete b.say; delete b.phrase; delete b.art;
+    s.backFace = b;
+    if (s.backMode === "own") s.backMode = "match";
+  });
   view3d("setView", "back"); syncView("back");
 }
 
@@ -413,6 +417,16 @@ export function deepenAll() {
   storeOverrides();
   if (state.sel) renderWorkshop();
   emit("looks");
+}
+
+/** A one-state token's back in each layout, as it would print: each with what that layout says and shows (backLayoutContent). */
+function renderBackStyleTiles(role: Role, spec: TokenSpec, text: string, pressed: string | null) {
+  const s = { ...DEFAULT_SPEC, ...spec, colours: { ...DEFAULT_SPEC.colours, ...spec.colours }, diameter: 45, backPattern: null };
+  const b = s.backMode === "design" ? {} : s.backFace ?? {}, backMode = s.backMode === "design" ? "own" as const : s.backMode, plain = { ...role, flip: undefined };
+  $("[data-choice=style]").innerHTML = TOKEN_STYLES.map((st) => {
+    const face = { ...b, style: st.id, ...backLayoutContent(st.id, b) };
+    return `<button class="back-tile" type="button" data-v="${st.id}" aria-pressed="${pressed === st.id}">${tokenSvg(state.lib!, plain, { ...s, backMode, backFace: face }, { side: "back", text })}<span>${esc(t(`style.${st.id}`))}</span></button>`;
+  }).join("");
 }
 
 /** The layouts, each drawn on the token (the back's: on what its back shows) in the face's current colours. */
@@ -514,16 +528,49 @@ export function setCardBack(on: boolean) { changeCardBack((b) => { b.on = on; })
 /** A card back's own icon (null: none). */
 export function setCardBackIcon(icon: TokenIcon | null) { changeCardBack((b) => { b.icon = icon; if (icon && b.cardIcon === "none") b.cardIcon = "only"; }); }
 
-/** The back designs as small coin backs, in the colours of the design being edited. */
+/** The plain back (nothing on it), as a small coin back in the design's colours. */
 function renderBackTiles(role: Role, spec: TokenSpec) {
-  const s = { ...DEFAULT_SPEC, ...spec, colours: { ...DEFAULT_SPEC.colours, ...spec.colours }, diameter: 45, backMode: "design" as const };
-  if (s.colours.back === "team") s.colours.back = FILAMENTS.gold;
-  // on an ordinary coin's back: a two-state token's would show its other state
-  const plain = { ...role, flip: undefined };
-  $("[data-choice=back]").innerHTML = BACK_STYLES.filter((b) => b.id !== "seal").map((b) =>
-    `<button class="back-tile" type="button" data-v="${b.id}" aria-pressed="${s.back === b.id}">${
-      b.id === "custom" && !s.customSvg ? `<span class="upload-tile">SVG</span>` : tokenSvg(state.lib!, plain, { ...s, back: b.id }, { side: "back" })
-    }<span>${esc(t(`back.${b.id}`))}</span></button>`).join("");
+  const s = { ...DEFAULT_SPEC, ...spec, colours: { ...DEFAULT_SPEC.colours, ...spec.colours }, diameter: 45, backMode: "design" as const, back: "none" };
+  const face = spec.backMode !== "design";
+  $("[data-choice=back]").innerHTML = `<button class="back-tile" type="button" data-v="none" aria-pressed="${!face}">${tokenSvg(state.lib!, { ...role, flip: undefined }, s, { side: "back" })}<span>${esc(t("back.none"))}</span></button>`;
+}
+
+/** What a one-state token's back says (BackFace.say): its name, the edition's, words of its own, or nothing. */
+const BACK_SAYS: BackSay[] = ["name", "edition", "phrase", "none"];
+function renderBackSay(spec: TokenSpec) {
+  // the icon alone (solo) says nothing
+  const b = spec.backMode === "design" ? {} : spec.backFace ?? {}, say = (b.style ?? spec.style) === "solo" ? "none" : b.say ?? "name";
+  $("#backSay").innerHTML = BACK_SAYS.map((v) => `<button type="button" data-v="${v}" aria-pressed="${v === say}">${esc(t(`back.say.${v}`))}</button>`).join("");
+  const phrase = $<HTMLInputElement>("#backPhrase");
+  phrase.hidden = say !== "phrase";
+  if (document.activeElement !== phrase) phrase.value = b.phrase ?? "";
+}
+/** What a one-state token's back shows (BackFace.art): its icon, an ornament, your SVG, or nothing; each as that back. */
+function renderBackArt(role: Role, spec: TokenSpec, text: string) {
+  const s = { ...DEFAULT_SPEC, ...spec, colours: { ...DEFAULT_SPEC.colours, ...spec.colours }, diameter: 45 };
+  // the words alone (the text layout) show no icon
+  const b = s.backMode === "design" ? {} : s.backFace ?? {}, art = (b.style ?? s.style) === "text" ? "none" : b.art ?? "token", plain = { ...role, flip: undefined };
+  const backMode = s.backMode === "design" ? "match" as const : s.backMode;
+  const tile = (v: string, label: string) => `<button class="back-tile" type="button" data-v="${v}" aria-pressed="${v === art}">${
+    v === "custom" && !s.customSvg ? `<span class="upload-tile">SVG</span>` : tokenSvg(state.lib!, plain, { ...s, backMode, backFace: { ...b, art: v, ...(art === "none" && v !== "none" && (b.style ?? s.style) === "text" ? { style: s.style === "text" || s.style === "solo" ? "classic" : s.style } : {}) } }, { side: "back", text })
+  }<span>${esc(label)}</span></button>`;
+  $("#backArt").innerHTML = [tile("token", t("back.art.token")), ...BACK_ORNAMENTS.map((id) => tile(id, t(`back.${id}`))), tile("custom", t("back.custom")), tile("none", t("back.art.none"))].join("");
+}
+/** The back's words or icon (BackFace.say, .phrase, .art): the back becomes a face if it was plain. */
+export function changeBackContent(change: Partial<BackFace>) {
+  changeLook((s) => {
+    if (s.backMode === "design" || !s.backMode) s.backMode = hasOwnLook(s.backFace) ? "own" : "match";
+    const b: BackFace = { ...s.backFace, ...change };
+    // words again on an icon alone, or an icon again on words alone: the layout that has both
+    const style = b.style ?? s.style;
+    if ((style === "text" && change.art && change.art !== "none") || (style === "solo" && change.say && change.say !== "none")) b.style = s.style === "text" || s.style === "solo" ? "classic" : s.style;
+    if (b.style === s.style) delete b.style;
+    if (b.say === "name") delete b.say;
+    if (b.say !== "phrase") delete b.phrase;
+    if (b.art === "token") delete b.art;
+    s.backFace = b;
+  });
+  view3d("setView", "back"); syncView("back");
 }
 
 // A background pattern (the front's in its own tab, the back's under the back design): which one,
@@ -562,8 +609,7 @@ function patternSwatch(id: string, bg: string, fg: string, clip: string) {
 export function patternGroupHtml(side: PatSide) {
   const range = (k: string, label: string, min: number, max: number, step: number) =>
     `<div class="row"><label for="pat-${side}-${k}" ${k === "line" ? "data-pat-line-label" : ""}>${esc(label)}</label><output data-pat-out="${k}"></output><input type="range" id="pat-${side}-${k}" data-pat-range="${k}" min="${min}" max="${max}" step="${step}"></div>`;
-  return (side === "back" ? `<p class="metal-label">${esc(t("pattern.title"))}</p>` : "")
-    + `<div class="choices pat-tiles" data-pat-choice role="group" aria-label="${esc(t("pattern.title"))}"></div>`
+  return `<div class="choices pat-tiles" data-pat-choice role="group" aria-label="${esc(t("pattern.title"))}"></div>`
     + `<button type="button" class="reset-f group" hidden data-reset="${patKey(side)}">↺</button>`
     + `<div class="pat-opts">`
     + range("scale", t("pattern.scale"), 2.4, 8, 0.1)
@@ -575,7 +621,8 @@ export function patternGroupHtml(side: PatSide) {
 /** Puts a face's pattern into its group: the swatches, the sliders' values, the colours and a line on what it does. */
 function renderPattern(side: PatSide, role: Role, s: TokenSpec) {
   const box = $(`[data-pat-side=${side}]`), p = s[patKey(side)] ?? null, pc = partColours(role, shapeSpec(role, s));
-  const colour = side === "back" ? pc.back : (p?.colour ?? "frame") === "front" ? pc.front : pc.frame;
+  // the back's: in the drawing's colour under a drawing, else (a face) in its frame's
+  const colour = side === "back" ? (s.backMode === "design" && !selFlip(role) ? pc.back : pc.backFrame) : (p?.colour ?? "frame") === "front" ? pc.front : pc.frame;
   const dec = uiLang() === "es" ? "," : ".";
   const tiles: [string, string][] = [["none", t("pattern.none")], ...PATTERNS.map((x) => [x.id, t(`pattern.${x.id}`)] as [string, string])];
   $("[data-pat-choice]", box).innerHTML = tiles.map(([id, label]) =>
@@ -593,8 +640,10 @@ function renderPattern(side: PatSide, role: Role, s: TokenSpec) {
   const colours = $("[data-pat-colour]", box);
   if (colours) colours.innerHTML = (["frame", "front"] as const).map((c) =>
     `<button class="pill group-pill" type="button" data-pat-col="${c}" aria-pressed="${(p.colour ?? "frame") === c}" style="--c: ${pc[c]}"><i></i>${esc(t(`pattern.colour.${c}`))}</button>`).join("");
-  $("[data-pat-hint]", box).textContent = side === "front" && s.style === "window" ? t("pattern.window")
-    : t(side === "front" ? "pattern.help" : "pattern.helpBack");
+  // the back's: behind its drawing, or (a face) behind its icon, name and frame, like the front's
+  const drawn = side === "back" && s.backMode === "design" && !selFlip(role), face = faceOf(s, side);
+  $("[data-pat-hint]", box).textContent = !drawn && face.style === "window" ? t("pattern.window")
+    : t(side === "front" ? "pattern.help" : drawn ? "pattern.helpBack" : "pattern.helpBackFace");
 }
 /** A change to a face's pattern: another one (keeping its size, thickness, halo and colour; from none, its defaults) or one of its fields. */
 export function changePattern(side: PatSide, change: { id?: string; field?: "scale" | "line" | "halo" | "colour"; value?: number | string }) {
@@ -653,7 +702,7 @@ function renderRelief(slot: HTMLElement, shape: TokenShape, side: Side, f: Token
 /** Raising or flattening a face part; raising one while the other face has raised parts asks first (renderRelief). */
 export function setRelief(side: Side, part: ReliefPart, raised: boolean) {
   const s = editLook();
-  const other = side === "front" ? (s.backMode === "match" || s.backMode === "own") && hasRelief(s.backFace ?? {}) : hasRelief(s);
+  const other = side === "front" ? hasRelief(s.backFace ?? {}) : hasRelief(s);
   if (raised && other) { state.reliefAsk = { side, part }; renderWorkshop(); return; }
   state.reliefAsk = null;
   changeFace(side, (f) => { f.relief = { ...reliefOf(f), [part]: raised }; });
@@ -674,6 +723,10 @@ export function swapRelief() {
 export function syncControls(role: Role, spec: TokenSpec, token: Token) {
   const shape = shapeOf(role), f = SHAPE_FEATURES[shape], side = editSide(), panel = openPanel();
   const s = faceOf(spec, "front"), face = faceOf(spec, side), who = faceRole(role, side);
+  // the tiles of a one-state token's back: what it says and shows (its words, an ornament…), as the back draws them
+  const oneBack = side === "back" && shape === "coin" && !selFlip(role);
+  const shown = oneBack && s.backMode !== "design" ? backShown(who.role, face, who.text) : null;
+  const tileWho = shown ? { role: shown.role, text: shown.text } : who, tileFace = shown ? shown.spec : face;
   const dec = uiLang() === "es" ? "," : ".";
   const FACE_RANGES = new Set<string>(FACE_FIELDS);
   for (const [id, [dp, unit]] of Object.entries(RANGES) as [RangeKey, [number, string]][]) {
@@ -697,14 +750,15 @@ export function syncControls(role: Role, spec: TokenSpec, token: Token) {
     const only = !TALLER && ownTokenOf(role.id) ? role.content : undefined;   // a token of yours that carries one thing: nothing to lay out
     $("[data-choice=style]").hidden = only === "icon" || only === "text";
     if (only === "icon" || only === "text") { $("[data-choice=style]").innerHTML = ""; $("#styleHint").textContent = t("style.onlyOne", { what: t(`own.content.${only}`).toLowerCase() }); }
-    else { renderStyleTiles(who, face); $("#styleHint").textContent = t(`style.${face.style}.help`); }
+    else if (oneBack) { renderBackStyleTiles(role, s, who.text, shown?.spec.style ?? null); $("#styleHint").textContent = shown ? t(`style.${shown.spec.style}.help`) : ""; }
+    else { renderStyleTiles(tileWho, tileFace); $("#styleHint").textContent = t(`style.${face.style}.help`); }
   }
   // Text: the name; a ring's letters are as tall as asked only up to the band between its edge
   // lines (the slider stops there and shows the height they print at); a card's phrase is fitted.
   const textSize = $<HTMLInputElement>("#textSize");
   textSize.max = shape === "ring" ? String(Math.floor(ringBand(face).band * 10) / 10) : "6";
   if (shape === "ring") $("output[data-for=textSize]").textContent = (Math.min(face.textSize, +textSize.max)).toFixed(1).replace(".", dec) + " mm";
-  const laid = role.content === "icon" ? "solo" : role.content === "text" ? "text" : face.style;   // a token of yours that carries one thing is laid out for it
+  const laid = role.content === "icon" ? "solo" : role.content === "text" ? "text" : shown?.spec.style ?? face.style;   // a token of yours that carries one thing is laid out for it
   const coinStyle = (st: TokenStyle) => shape === "coin" && laid === st;
   row("textSize").hidden = !f.textSize || coinStyle("solo") || coinStyle("text");
   row("spacing").hidden = !f.spacing || coinStyle("window") || coinStyle("solo");
@@ -722,13 +776,13 @@ export function syncControls(role: Role, spec: TokenSpec, token: Token) {
       : t("name.hint", { arc: n.total.toFixed(0), mm, shrunk: n.scale < 1, small, nozzle: nozzleMm() });
   };
   const other = selFlip(role), b = token.backName;
-  const names = side === "back" ? [b] : [token.name, other && s.backMode !== "own" ? b : undefined];
+  const names = side === "back" ? [b] : [token.name, other && !backChanged(s) ? b : undefined];
   $("#nameHint").className = "hint" + (names.some((x) => x && x.letterHeight < smallLetters()) ? " warn" : "");
   $("#nameHint").textContent = side === "back" && b ? (other ? `${t("name.flip", { name: roleName(other, tokenLang()) })} ` : `${t("name.back")} `) + hint(b)
     : hint(token.name) + (names[1] && other ? ` ${t("name.flip", { name: roleName(other, tokenLang()) })} ${hint(names[1])}` : "");
   $("#iconColourHint").textContent = t(shape === "card" ? "icon.colourCard" : face.style === "window" ? "icon.colourWindow" : "icon.colourName");
   // Icon: a coin's size, a card's (where it goes and how it sits with the phrase are its Layout)
-  row("iconScale").hidden = shape === "card";
+  row("iconScale").hidden = shape === "card" || coinStyle("text");
   $("#cardIconBox").hidden = shape !== "card";
   if ((panel === "icon" || panel === "layout") && shape === "card") {
     const own = ownIcon(role.id), hasIcon = !!(own?.body || role.body || role.d?.length);
@@ -736,18 +790,25 @@ export function syncControls(role: Role, spec: TokenSpec, token: Token) {
   }
   if (panel === "cardBack") renderCardBack(role, who.text, { ...s, icon: ownIcon(role.id) });
   // Frame: a coin's designs, or for a card or a ring only with or without (any design is a line there)
-  if (panel === "frame") renderFrameTiles(who, face);
-  // Back: a design (and its colour) or the front again in a colour of its own. The designs are the
-  // style's, for its tokens without another state: one with another state shows that instead (the note says so).
-  if (panel === "pattern") renderPattern("front", role, s);
-  if (panel === "back") {
-    const design = s.backMode !== "match";
-    $("#backDesign").hidden = !design; $("#backMatch").hidden = design;
-    if (design) renderBackTiles(role, s);
-    $("[data-pat-side=back]").hidden = !design || !f.pattern;
-    if (design && f.pattern) renderPattern("back", role, s);
-    $("#matchColourLabel").textContent = t(s.style === "window" ? "back.faceColourWindow" : "back.faceColour");
-  }
+  if (panel === "frame") renderFrameTiles(tileWho, tileFace);
+  // The back's drawing: the token behind (a face) or a design, with its colour and pattern, for the
+  // tokens without another state: one with another state shows that instead (the note says so).
+  $("[data-pat-side=front]").hidden = side !== "front"; $("[data-pat-side=back]").hidden = side !== "back";
+  if (panel === "pattern") renderPattern(side, role, s);
+  // a coin's back: in its layout, or plain; in its text, what it says; in its icon, what it shows. A token
+  // with another state shows that instead (in the Taller, its sample is shown so and the choices stay)
+  const coinBack = side === "back" && shape === "coin", flipped = coinBack ? selFlip(role) : null;
+  $("#backDesign").hidden = !(panel === "layout" && coinBack);
+  if (!$("#backDesign").hidden) renderBackTiles(role, s);
+  const flipNote = (key: string) => (flipped ? t(TALLER ? "flip.sample" : key, { name: roleName(flipped, tokenLang()) }) : "");
+  $("#backSayBox").hidden = !(panel === "text" && coinBack && (!flipped || TALLER));
+  if (!$("#backSayBox").hidden) renderBackSay(s);
+  $("#sayNote").hidden = !(panel === "text" && flipped);
+  $("#sayNote").textContent = flipNote("flip.sayMine");
+  $("#backArtBox").hidden = !(panel === "icon" && coinBack && (!flipped || TALLER));
+  if (!$("#backArtBox").hidden) renderBackArt(role, s, textFor(state.sel!.key, role, state.sel!.reminder));
+  $("#artNote").hidden = !(panel === "icon" && flipped);
+  $("#artNote").textContent = flipNote("flip.artMine");
   // Body: its colour, size (a coin's diameter, a ring's base, a card's fixed), thickness and colour depth
   $("#diameterRow").hidden = !f.diameter;
   $("#ringBaseRow").hidden = !f.ringBase;
@@ -773,6 +834,10 @@ export function syncControls(role: Role, spec: TokenSpec, token: Token) {
   // pressed: the face's choices in a face's tabs, the token's elsewhere; the magnet as it prints
   for (const b of $$("[data-choice] button")) {
     const key = b.parentElement!.dataset.choice as keyof TokenSpec, from = key === "style" || key === "frame" ? face : s;
+    // the back's layout and its drawing: one or the other is chosen (a drawing, on a token without another state)
+    const drawn = s.backMode === "design" && !selFlip(role);
+    if ((key === "back" && !drawn) || (key === "style" && side === "back" && drawn)) { b.setAttribute("aria-pressed", "false"); continue; }
+    if (key === "style" && oneBack) continue;   // renderBackStyleTiles: the layout its content makes
     const v = key === "magnet" && faceBack && s.magnet === "pocket" ? "hidden" : from[key] ?? DEFAULT_SPEC[key] ?? (key === "edge" ? "smooth" : undefined);
     b.setAttribute("aria-pressed", String(v === b.dataset.v));
   }
@@ -784,8 +849,8 @@ export function syncControls(role: Role, spec: TokenSpec, token: Token) {
   // Relief: in the open tab's slot, for the face being edited
   $("#reliefHeightBox").hidden = true; $("#styleFields").append($("#reliefHeightBox"));
   for (const slot of $$<HTMLElement>(".relief-slot")) {
-    if (slot.closest<HTMLElement>(".ws-panel")!.dataset.panel !== panel || slot.closest(".back-match[hidden]")) { slot.innerHTML = ""; continue; }
-    renderRelief(slot, shape, slot.dataset.reliefPart === "all" ? "back" : side, slot.dataset.reliefPart === "all" ? faceOf(spec, "back") : face, s);
+    if (slot.closest<HTMLElement>(".ws-panel")!.dataset.panel !== panel) { slot.innerHTML = ""; continue; }
+    renderRelief(slot, shape, side, face, s);
   }
   // Reset buttons: shown where a field differs from what it resets to (see resetBase), never on a
   // hidden field, and not on a back face (its fields follow the front until changed).
@@ -834,7 +899,7 @@ export function resetField(field: string) {
 export function changeLook(mutate: (s: TokenSpec) => void) {
   if (TALLER) {
     const d = tallerMine(); if (!d) return;
-    const next = structuredClone(d.spec);
+    const next = migrateBack(structuredClone(d.spec));
     mutate(next);
     d.spec = next;
     storeMyDesigns(); renderTaller();

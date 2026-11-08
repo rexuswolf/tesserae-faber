@@ -7,7 +7,7 @@ import type { SavedDesign } from "./context.ts";
 import { uiLang, t } from "../i18n.ts";
 import { appTwin } from "../shape-designs.ts";
 import { roleIdOf, charKey, remindersOf, remKey } from "./tokens.ts";
-import { shapeOf } from "../engine/token-engine.ts";
+import { shapeOf, migrateBack } from "../engine/token-engine.ts";
 import { tokenRole } from "./queue.ts";
 import { TALLER, taller } from "./taller.ts";
 import { applyLook, lookFrom, lookFields, printsAs } from "./looks.ts";
@@ -78,7 +78,7 @@ export function refOf(key: string, shape = shapeOf(tokenRole(key))): string {
 }
 export const designFor = (key: string, shape = shapeOf(tokenRole(key))) => designOf(shape, refOf(key, shape))!;
 /** A token's look: its design's, with its own changes. */
-export const lookOf = (key: string): TokenSpec => applyLook(designFor(key).spec, state.overrides.get(key)?.look);
+export const lookOf = (key: string): TokenSpec => migrateBack(applyLook(designFor(key).spec, state.overrides.get(key)?.look));
 /** The token has changes of its own to its design's look. */
 export const ownChanged = (key: string) => !!state.overrides.get(key)?.look;
 /** The token has a design of its own or changes to it: an override of the collection's default. */

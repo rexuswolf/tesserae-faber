@@ -3,7 +3,7 @@ import { emit } from "./events.ts";
 import { $, hit, input, state, MY_DESIGNS_KEY, $$, storeJSON, view3d, LAYOUT_TEXT, RANGES, MAX_SVG } from "./context.ts";
 import type { Part, FaceTab, Fields, RangeKey, Side } from "./context.ts";
 import { openScriptDialog, goEdition, drawer, saveFromDialog, scriptCustomizes, shareScript, scriptOf, scriptJsonWithOwn, syncHomebrew, openSharedScript, PHONE } from "./scripts-ui.ts";
-import { saveFile, shapeOf, FACE_FIELDS, DEFAULT_SPEC, PATTERN_MIN } from "../engine/token-engine.ts";
+import { saveFile, shapeOf, FACE_FIELDS, DEFAULT_SPEC, PATTERN_MIN, backLayoutContent } from "../engine/token-engine.ts";
 import { t, uiLang } from "../i18n.ts";
 import { storeScripts, loadScripts } from "../scripts.ts";
 import { roleIdOf, charKey, textFor } from "./tokens.ts";
@@ -11,7 +11,7 @@ import { persistPicks, editToken, isPicked, setPick, renderQueue, goStep, flow, 
 import { renderSpine, renderSheet, onCopyStep, openRows, toggleCharacter, openAddMenu, addShown } from "./sheet.ts";
 import { openTokenPanel, wireCollSwitch, wireOwn } from "./creator.ts";
 import { wireEditor } from "./editor.ts";
-import { wireDesignBar, deepenAll, openDesignSheet, wireDesignSheet, saveLookAsDesign, setOwn, rememberReturn, renderSays, setBackMode, changeLook, deepen, resetField, swapRelief, setRelief, changePattern, changeCardBack } from "./design-sheet.ts";
+import { wireDesignBar, deepenAll, openDesignSheet, wireDesignSheet, saveLookAsDesign, setOwn, rememberReturn, renderSays, setBackFace, backToFront, backDrawn, changeLook, deepen, resetField, swapRelief, setRelief, changePattern, changeCardBack, changeBackContent } from "./design-sheet.ts";
 import { OWN } from "../collection.ts";
 import { TALLER } from "./taller.ts";
 import { designFor, rereadMyDesigns } from "./designs.ts";
@@ -19,7 +19,7 @@ import { adminSignIn } from "./boot.ts";
 import { printerOf, nozzleOf } from "../bambu/plates.ts";
 import type { ViewKind } from "../engine/viewer.ts";
 import { syncView, editShape, openPart, showTab, renderWorkshop, viewTab, changeFace, editSide, editLook, wireIcons, wireCardBack } from "./workshop.ts";
-import type { TokenOverride, BackMode, TokenSpec, TokenStyle, ReliefPart } from "../types.ts";
+import type { TokenOverride, TokenSpec, TokenStyle, ReliefPart, BackSay } from "../types.ts";
 import { signOut as signOutUser, local } from "../services.ts";
 import { openAdmin } from "./admin.ts";
 
@@ -203,21 +203,26 @@ export function wire() {
   };
   $("#parts").onclick = (e) => { const b = hit(e, "[data-part]"); if (!b) return; showTab({ part: b.dataset.part as Part, face: b.dataset.face as FaceTab | undefined }); viewTab(); renderWorkshop(); };
   $("#faceTabs").onclick = (e) => { const b = hit(e, "[data-face]"); if (!b) return; showTab({ face: b.dataset.face as FaceTab }); renderWorkshop(); };
-  $("#backModes").onclick = (e) => { const b = hit(e, "[data-back-mode]"); if (b) setBackMode(b.dataset.backMode as BackMode); };
+  $("#backNote").onclick = (e) => { if (hit(e, "[data-back-face]")) setBackFace(); else if (hit(e, "[data-back-same]")) backToFront(); };
   // A face's choices and sliders go to the face being edited (the front, or a back of its own); the rest to the token.
   const FACE_KEYS = new Set<string>(FACE_FIELDS);
   const change = (key: string, mutate: (s: TokenSpec) => void) => (FACE_KEYS.has(key) ? changeFace(editSide(), mutate) : changeLook(mutate));
   for (const key of ["style", "frame", "back", "magnet", "magnetSize", "ringBase", "separator", "edge", "cardIcon", "cardJoin"]) {
     $(`[data-choice=${key}]`).onclick = (e) => {
       const b = hit(e, "button"); if (!b) return;
-      if (key === "back" && b.dataset.v === "custom" && !editLook().customSvg) { $("#upload").click(); return; }
       change(key, (s) => {
         // a name size doesn't carry over between layouts: each starts from its own
         if (key === "style" && (s.style ?? DEFAULT_SPEC.style) !== b.dataset.v) s.textSize = LAYOUT_TEXT[b.dataset.v as TokenStyle];
         if (key === "edge" && b.dataset.v === "smooth") delete s.edge;   // smooth is unset: the coin as always
         else (s as unknown as Fields)[key] = b.dataset.v;
+        if (key === "back") s.backMode = "design";   // a drawing behind the tokens without another state
       });
       if (key === "back") { view3d("setView", "back"); syncView("back"); }
+      // a layout for the back: the token behind, no longer plain; and what it says and shows, as that layout has them
+      if (key === "style" && editSide() === "back" && editShape() === "coin") {
+        const fix = backLayoutContent(b.dataset.v as TokenStyle, editLook().backFace ?? {});
+        if (Object.keys(fix).length) changeBackContent(fix); else if (backDrawn()) setBackFace();
+      }
     };
   }
   // the name's and the frame's colours are the face's; the back's own (a back that matches the front) is marked as the back's
@@ -264,6 +269,14 @@ export function wire() {
       changePattern(side, { field: el.dataset.patRange as "scale" | "line" | "halo", value: Math.max(PATTERN_MIN, +el.value) });
     });
   }
+  // a one-state token's back: what it says (its own words as they're typed) and what it shows (your SVG asks for one first)
+  $("#backSay").onclick = (e) => { const b = hit(e, "[data-v]"); if (b) changeBackContent({ say: b.dataset.v as BackSay }); };
+  $("#backPhrase").oninput = (e) => changeBackContent({ say: "phrase", phrase: input(e).value });
+  $("#backArt").onclick = (e) => {
+    const b = hit(e, "[data-v]"); if (!b) return;
+    if (b.dataset.v === "custom" && !editLook().customSvg) { $("#upload").click(); return; }
+    changeBackContent({ art: b.dataset.v });
+  };
   $("#upload").onchange = async (e) => {
     const f = input(e).files![0]; input(e).value = "";
     if (!f) return;
@@ -271,9 +284,9 @@ export function wire() {
     hint.hidden = false;
     if (f.size > MAX_SVG) { hint.className = "hint warn"; hint.textContent = t("upload.tooBig", { file: f.name, kb: (f.size / 1024).toFixed(0), max: MAX_SVG / 1000 }); return; }
     const svg = await f.text();
-    changeLook((s) => { s.customSvg = svg; s.back = "custom"; });
+    changeLook((s) => { s.customSvg = svg; });
+    changeBackContent({ art: "custom" });
     hint.className = "hint"; hint.textContent = t("upload.using", { file: f.name });
-    view3d("setView", "back"); syncView("back");
   };
   // what the token says: its printed text, its feminine name and its icon (Clocktower's, a closed collection's)
   $("#printed").oninput = (e) => {

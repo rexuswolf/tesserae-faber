@@ -91,11 +91,17 @@ export const BACK_STYLES = [
   { id: "eclipse", label: "Eclipse" },
   { id: "orbitas", label: "Orbits" },
   { id: "edition", label: "Edition" },
-  { id: "medallon", label: "Medallion" },
-  { id: "escudo", label: "Shield" },
-  { id: "escudete", label: "Small shield" },
   { id: "custom", label: "Your SVG" },
 ];
+/** The drawings a back face can carry for its icon (BackFace.art): the back designs that are pictures. */
+export const BACK_ORNAMENTS = ["medianoche", "guilloche", "rosa", "sol", "eclipse", "orbitas"];
+/** The back designs kept before the back was a face, and what each became (migrateBack): a picture its icon, the edition (or the medallion or shield round it) its words. */
+const OLD_BACKS: Record<string, BackFace> = {
+  ...Object.fromEntries([...BACK_ORNAMENTS, "custom"].map((id) => [id, { say: "none" as const, art: id }])),
+  edition: { say: "edition", art: "none" },
+  medallon: { say: "edition", art: "eclipse" },
+  escudo: { say: "edition" }, escudete: { say: "edition" },
+};
 
 /** An edition's name by language, and the mark used on token backs. */
 export interface Edition { name: { en: string; [lang: string]: string }; mark?: string }
@@ -453,7 +459,7 @@ function placeName(lib: Library, chars: string[], em: number, radius: number, sp
   return { angles, total, scale };
 }
 
-/** The edition a back design prints the name of (Edition, medallion, shield): the role's edition
+/** The edition a back prints the name of (the Edition design, a face that says the edition): the role's edition
  *  (a homebrew character's script, a collection's token its catalog), or with backText "collection"
  *  the collection's own name; null for none. */
 function backEdition(role: Role, spec: TokenSpec): Edition | null {
@@ -778,10 +784,6 @@ function buildBack(lib: Library, role: Role, text: string, spec: TokenSpec) {
       const ed = editionBack(lib, role, spec);
       return ed ? extrude(ed, d, chain(mirror), 32) : null;
     }
-    case "medallon":
-      return extrude(medallionBack(lib, role, spec), d, chain(mirror), 32);
-    case "escudo": case "escudete":
-      return extrude(escudoBack(lib, role, spec, spec.back === "escudete"), d, chain(mirror), 32);
     case "name": {
       const t = (text || "").toUpperCase();
       if (!t.trim()) return null;
@@ -937,11 +939,11 @@ const FLAT: Relief = { text: false, frame: false, icon: false };
 /**
  * Which parts of a back face stand out ({text, frame, icon}; none for a back design). Only one
  * face can have raised parts, since the other lies on the bed: the back's count only while the
- * front's are all flush, and a two-state token's other state under a back design is always flush.
+ * front's are all flush. A two-state token's other state under a back design is a face too, with the back's settings.
  * The workshop never lets both be raised; this is the rule should a design say otherwise.
  */
 export function backRelief(spec: SpecInput): Relief {
-  if (spec.back !== FACE_BACK || (spec.backMode !== "match" && spec.backMode !== "own") || hasRelief(spec)) return FLAT;
+  if (spec.back !== FACE_BACK || hasRelief(spec)) return FLAT;
   return reliefOf(spec.backFace);
 }
 /** How far the relief stands out of its face (mm), 0 when nothing is raised on either. */
@@ -1358,8 +1360,6 @@ export const PATTERN_HALO = 0.8;
 const HARLEQUIN = 1.6;
 /** The grid the cut is worked out on (mm), and how far inside the coin's edge a pattern stops. */
 const PATTERN_GRID = 0.05, PATTERN_EDGE = 0.7;
-/** The back medallion's ring, as a share of the coin's radius (its outer edge). */
-export const MEDALLION = 0.5;
 
 const polyArea = (p: Poly) => { let s = 0; for (let i = 0, j = p.length - 1; i < p.length; j = i++) s += p[j][0] * p[i][1] - p[i][0] * p[j][1]; return s / 2; };
 function inPoly(x: number, y: number, p: Poly) {
@@ -1721,8 +1721,7 @@ function frontInk(lib: Library, role: Role, spec: TokenSpec, text: string): { in
  * medallion's ring, not inside a letter or a moon).
  */
 function backInk(lib: Library, role: Role, spec: TokenSpec): Ring[] {
-  const shapes = spec.back === "medallon" ? medallionBack(lib, role, spec) : spec.back === "edition" ? editionBack(lib, role, spec)
-    : spec.back === "escudo" || spec.back === "escudete" ? escudoBack(lib, role, spec, spec.back === "escudete") : backDesign(spec.back, spec.diameter / 2);
+  const shapes = spec.back === "edition" ? editionBack(lib, role, spec) : backDesign(spec.back, spec.diameter / 2);
   return ringsOf(shapes ?? [], undefined, 24).map((r) => {
     const a = Math.abs(polyArea(r.outer));
     return { outer: r.outer, holes: r.holes.filter((h) => Math.abs(polyArea(h)) > 0.6 * a) };
@@ -1738,7 +1737,7 @@ function frontPattern(lib: Library, role: Role, spec: TokenSpec, text: string): 
   return cached(key, () => { const { ink, solid } = frontInk(lib, role, spec, text); return cutPattern(p, faceRadius(spec), ink, solid); });
 }
 
-/** The back's pattern, behind its design; null for none (or a back that is a face). */
+/** The back's pattern, behind its design; null for none (or a back that is a face: backFaceOf draws it there, like a front's). */
 function backPattern(lib: Library, role: Role, spec: TokenSpec): PatternCut | null {
   const p = spec.backPattern;
   if (!p || !PATTERN_IDS.has(p.id) || spec.back === FACE_BACK || spec.back === "custom" || spec.back === "seal" || !SHAPE_FEATURES[shapeOf(role)].pattern) return null;
@@ -1894,111 +1893,6 @@ function bevelLayers(shapes: THREE.Shape[], b: number, minTop: number, px: numbe
 }
 
 /**
- * Medallion back: a fine rim, and a medallion in the centre (its own fine ring) with a crescent
- * moon and the edition's name (a homebrew character's: its script's) along its lower edge.
- */
-function medallionBack(lib: Library, role: Role, spec: TokenSpec) {
-  const R = spec.diameter / 2, out = R - 0.7, rm = R * MEDALLION;
-  const shapes: THREE.Shape[] = [annulus(out, out - 0.6), annulus(rm, rm - 0.6)];
-  const ed = backEdition(role, spec);
-  const base = rm - 0.6 - 0.7;                          // the name's baseline, 0.7 mm inside the ring
-  if (ed) {
-    const chars = [...(ed.name[spec.lang] || ed.name[spec.lang?.split("-")[0]] || ed.name.en).toUpperCase()];
-    const P = placeName(lib, chars, Math.min(2.6, rm * 0.24) / lib.capHeight, base, 1.1, 220), em = (Math.min(2.6, rm * 0.24) / lib.capHeight) * P.scale;
-    chars.forEach((ch, i) => {
-      if (ch === " ") return;
-      const g = glyph(lib, ch), a = (P.angles[i] * Math.PI) / 180, c = Math.cos(a + Math.PI / 2), s = Math.sin(a + Math.PI / 2);
-      const move = (pts: THREE.Vector2[]) => pts.map((q) => { const x = (q.x - g.center) * em, y = q.y * em; return new THREE.Vector2(base * Math.cos(a) + x * c - y * s, base * Math.sin(a) + x * s + y * c); });
-      for (const sh of g.shapes) { const o = new THREE.Shape(move(sh.getPoints(6))); o.holes = sh.holes.map((hp) => new THREE.Path(move(hp.getPoints(6)))); shapes.push(o); }
-    });
-  }
-  const mr = rm * 0.45, cy = rm * 0.14;
-  shapes.push(crescent(-mr * 0.12, cy, mr, mr * 0.25, cy + mr * 0.2, mr * 0.88));
-  shapes.push(sparkle(mr * 0.32, cy + mr * 0.12, Math.min(1.5, mr * 0.3), Math.min(0.5, mr * 0.1)));
-  return shapes;
-}
-
-/** A heater shield `a` wide either side of the centre line, its top at `top`, straight sides down to `shoulder`, then two arcs (each centred on the far side) to the point (mm, y up, ccw). */
-function heaterShield(a: number, top: number, shoulder: number): Poly {
-  const right: Poly = [];
-  for (let i = 0; i <= 24; i++) { const t = (-i / 24) * (Math.PI / 3); right.push([-a + 2 * a * Math.cos(t), shoulder + 2 * a * Math.sin(t)]); }
-  // ccw: along the top to the left, down the left side to the point, up the right side
-  return [[a, top], [-a, top], ...right.map(([x, y]): Pt => [-x, y]), ...right.slice(0, -1).reverse()];
-}
-/** A convex outline (ccw) moved in by `d` (mm), each corner along its bisector. */
-function insetConvex(p: Poly, d: number): Poly {
-  const n = p.length, nrm = (i: number) => { const [x0, y0] = p[i], [x1, y1] = p[(i + 1) % n], l = Math.hypot(x1 - x0, y1 - y0) || 1; return [-(y1 - y0) / l, (x1 - x0) / l]; };
-  return p.map(([x, y], i) => {
-    const [ax, ay] = nrm((i - 1 + n) % n), [bx, by] = nrm(i), mx = ax + bx, my = ay + by, k = d / Math.max(0.35, (mx * ax + my * ay));
-    return [x + mx * k, y + my * k];
-  });
-}
-const shapeOfPoly = (p: Poly, holes: Poly[] = []) => { const sh = new THREE.Shape(v2(p)); sh.holes = holes.map((h) => new THREE.Path(v2(h))); return sh; };
-
-const escudoCache = new Map<string, THREE.Shape[]>();
-/**
- * Shield back: a fine rim, a heater shield (a band round its field) with two swords crossed behind
- * it, their hilts out at the bottom corners and their points at the top, and the edition's name
- * (a collection's token: its catalog's or the collection's) along the bottom. `k` scales the shield
- * and swords (the «escudete» back: smaller, so a pattern shows round it). Every part at least
- * PATTERN_MIN wide; the swords stop 0.8 mm short of the shield, worked out on a grid like a pattern.
- */
-function escudoBack(lib: Library, role: Role, spec: TokenSpec, small = false) {
-  const R = spec.diameter / 2, out = R - 0.7, k = (R / 22.5) * (small ? 0.74 : 1), dy = small ? R * 0.04 : 0;
-  const ed = backEdition(role, spec);
-  const name = ed ? (ed.name[spec.lang] || ed.name[spec.lang?.split("-")[0]] || ed.name.en).toUpperCase() : "";
-  const key = [spec.diameter, small, name].join("|");
-  const hit = escudoCache.get(key);
-  if (hit) return hit;
-  const shapes: THREE.Shape[] = [annulus(out, out - 0.6)];
-  // the shield: a band round its field, 0.7 mm of coin between them
-  const a = 7.5 * k, shield = heaterShield(a, 9 * k + dy, 3 * k + dy), band = Math.max(PATTERN_MIN + 0.2, 1.1 * k);
-  const inner = insetConvex(shield, band), field = insetConvex(shield, band + 0.7);
-  shapes.push(shapeOfPoly(shield, [inner.slice().reverse()]), shapeOfPoly(field));
-  // the swords: along u from the pommel's end (rh below the centre) to the point (rt above), behind the shield
-  const rh = 15.4 * k, rt = 19.6 * k, gap = 0.8;
-  const sword = (x: number, y: number, ux: number, uy: number) => {
-    const sx = (x + rh * ux) * ux + (y - dy + rh * uy) * uy, w = -(x) * uy + (y - dy) * ux, aw = Math.abs(w);
-    const pommel = 1.25 * k, grip = 0.7 * k, guardS = 9.05 * k, guardT = 0.7 * k, guardW = 3.7 * k, blade = 1.25 * k, tipL = 3.4 * k, L = rh + rt;
-    const sGuard = rh - guardS;                         // the guard's middle, from the pommel's end
-    let f = pommel - Math.hypot(sx - pommel, w);
-    f = Math.max(f, Math.min(grip - aw, sx - pommel, sGuard - sx));
-    f = Math.max(f, Math.min(guardW - aw, guardT - Math.abs(sx - sGuard)));
-    f = Math.max(f, Math.min(blade - aw, sx - sGuard, L - tipL - sx + 0.01));
-    const tip = L - sx, half = (blade * tip) / tipL;
-    if (sx >= L - tipL) f = Math.max(f, Math.min((half - aw) * (tipL / Math.hypot(tipL, blade)), tip));
-    return f;
-  };
-  const px = PATTERN_GRID, ext = rt + 0.5, x0 = -ext, W = Math.ceil((2 * ext) / px) + 1, H = W, N = W * H;
-  const shieldSet = new Uint8Array(N);
-  rasterise([{ outer: shield, holes: [] }], shieldSet, W, H, x0, x0 + dy, px);
-  const dShield = distanceTransform(shieldSet, W, H);
-  const F = new Float32Array(N), core = new Uint8Array(N), u = Math.SQRT1_2;
-  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
-    const x = x0 + i * px, y = x0 + dy + j * px, kk = j * W + i;
-    const f = Math.min(Math.max(sword(x, y, u, u), sword(x, y, -u, u)), dShield[kk] * px - gap - px);
-    F[kk] = f;
-    if (f > PATTERN_MIN / 2 - px / 2) core[kk] = 1;
-  }
-  openField(F, core, W, H, px);
-  for (const r of traceField(F, W, H, x0, x0 + dy, px)) shapes.push(shapeOfPoly(r.outer, r.holes));
-  // the name, along the bottom inside the rim
-  if (name) {
-    const chars = [...name], cap = Math.min(2.5, R * 0.11), base = out - 0.6 - 0.8;
-    const P = placeName(lib, chars, cap / lib.capHeight, base, 1.1, 120), em = (cap / lib.capHeight) * P.scale;
-    chars.forEach((ch, i) => {
-      if (ch === " ") return;
-      const g = glyph(lib, ch), an = (P.angles[i] * Math.PI) / 180, c = Math.cos(an + Math.PI / 2), sn = Math.sin(an + Math.PI / 2);
-      const move = (pts: THREE.Vector2[]) => pts.map((q) => { const x = (q.x - g.center) * em, y = q.y * em; return new THREE.Vector2(base * Math.cos(an) + x * c - y * sn, base * Math.sin(an) + x * sn + y * c); });
-      for (const sh of g.shapes) { const o = new THREE.Shape(move(sh.getPoints(6))); o.holes = sh.holes.map((hp) => new THREE.Path(move(hp.getPoints(6)))); shapes.push(o); }
-    });
-  }
-  escudoCache.set(key, shapes);
-  if (escudoCache.size > 50) escudoCache.delete(escudoCache.keys().next().value!);
-  return shapes;
-}
-
-/**
  * What a token's pattern on one side came out as, measured on its outlines: how many pieces, the
  * line's width (the cells' across), the gap between lines (cells), the halo, the smallest piece
  * kept (mm across) and the least room (mm) between the pattern and what sits on it. Null with none.
@@ -2006,7 +1900,8 @@ function escudoBack(lib: Library, role: Role, spec: TokenSpec, small = false) {
 export function patternReport(lib: Library, role: Role, input: SpecInput | undefined, side: "front" | "back" = "front") {
   if (shapeOf(role) !== "coin") return null;
   const spec = windowFrame(shapeSpec(role, input)), text = roleName(role, spec.lang);
-  const cut = side === "front" ? frontPattern(lib, role, spec, text) : backPattern(lib, role, spec);
+  const bf = side === "back" ? backFaceOf(role, spec, text) : null;   // a back that is a face has its pattern as a front's
+  const cut = side === "front" ? frontPattern(lib, role, spec, text) : bf ? frontPattern(lib, bf.role, bf.spec, bf.text) : backPattern(lib, role, spec);
   if (!cut) return null;
   const boxes = cut.rings.map((r) => boxOf(r.outer));
   let clear = Infinity;
@@ -2834,29 +2729,109 @@ export const shapeOf = (role: Role | null | undefined): TokenShape => (isCard(ro
 export const FACE_BACK = "face";
 /** The fields a back face of its own ("own") sets apart from the front's: its layout, name, icon and frame. */
 export const FACE_FIELDS: FaceField[] = ["style", "textSize", "spacing", "maxArc", "iconScale", "frame", "frameWidth"];
+/**
+ * The back face's own look (layout, name, icon, frame): what it changed from the front's. "match"
+ * is a back that changed nothing (as designs kept it before the back could be changed); "own" and a
+ * back design (for its two-state tokens' other state) keep what was changed.
+ */
+export const backLookOf = (spec: SpecInput): Partial<TokenSpec> => {
+  const b = spec.backFace ?? {};
+  return spec.backMode === "match" ? {} : Object.fromEntries(FACE_FIELDS.filter((k) => b[k] != null).map((k) => [k, b[k]]));
+};
 /** Is the coin's back a face: its other state, or a back that matches the front or has a face of its own? */
 export const backIsFace = (role: Role | null | undefined, spec: SpecInput | undefined) =>
   shapeOf(role) === "coin" && (!!flipFace(role, spec) || spec?.backMode === "match" || spec?.backMode === "own");
 
-/** A back face's colours: its own with "match" and "own", else (a two-state token's other state under a back design) the front's. */
+/** A back face's colours: its own, else the front's. */
 function backColours(spec: SpecInput) {
-  const c = { ...DEFAULT_SPEC.colours, ...spec.colours }, own = spec.backMode === "match" || spec.backMode === "own" ? spec.backFace?.colours : undefined;
+  const c = { ...DEFAULT_SPEC.colours, ...spec.colours }, own = spec.backFace?.colours;
   return { front: own?.front ?? c.front, frame: own?.frame ?? c.frame };
 }
 
 /**
  * What a coin's back face shows, as a front the engine draws (null when the back is a design):
  * the role (a two-state token's other state, else the token itself), its text, and the spec it's
- * drawn with: the front's look, or with "own" the back's own (a linked token keeps its reminder
- * look); the back's relief (backRelief) and colours. `spec` is the token's as its shape prints it.
+ * drawn with: the front's look with what the back changed (backLookOf; a linked token keeps its
+ * reminder look); the back's relief (backRelief) and colours. `spec` is the token's as its shape prints it.
  */
 export function backFaceOf(role: Role, spec: TokenSpec, text: string): { role: Role; text: string; spec: TokenSpec } | null {
   if (spec.back !== FACE_BACK) return null;
-  const other = flipFace(role, spec), b: BackFace = spec.backFace ?? {};
-  const look = spec.backMode === "own" && !spec.linked ? Object.fromEntries(FACE_FIELDS.filter((k) => b[k] != null).map((k) => [k, b[k]])) : {};
+  const other = flipFace(role, spec);
+  const look = !spec.linked ? backLookOf(spec) : {};
   const c = backColours(spec);
-  const face = windowFrame({ ...spec, ...look, frontPattern: undefined, relief: backRelief(spec), colours: { ...spec.colours, front: c.front, frame: c.frame } });
-  return other ? { role: other, text: roleName(other, spec.lang), spec: { ...face, icon: undefined } } : { role, text, spec: face };
+  // the back's pattern behind it, in the back frame's colour (a pattern under a back design is in the design's)
+  const face = windowFrame({ ...spec, ...look, frontPattern: spec.backPattern ? { ...spec.backPattern, colour: "frame" } : undefined, relief: backRelief(spec), colours: { ...spec.colours, front: c.front, frame: c.frame } });
+  if (other) return { role: other, text: roleName(other, spec.lang), spec: { ...face, icon: undefined } };
+  return backContent(role, face, text, spec.backFace ?? {});
+}
+
+/**
+ * What a back's layout needs of what it says and shows: the text layout its words, solo its icon, the
+ * others both (whichever was set to nothing comes back as the token's own). The text layout leaves the
+ * icon out and solo the words, without forgetting them.
+ */
+export function backLayoutContent(style: TokenStyle, b: BackFace): Partial<BackFace> {
+  return { ...(b.art === "none" && style !== "text" ? { art: "token" } : {}), ...(b.say === "none" && style !== "solo" ? { say: "name" } : {}) };
+}
+/** A one-state token's back face as it's drawn (`spec` the face's look): its words, its icon, and the layout they make. */
+export const backShown = (role: Role, spec: TokenSpec, text: string) => backContent(role, spec, text, spec.backFace ?? {});
+/**
+ * A one-state token's back as it says it (BackFace.say, .art): its name or the edition's or a phrase
+ * of its own (or none), and its icon, an ornament, the uploaded SVG (or none). Without words the
+ * icon is alone (the solo layout); without an icon the words are (the text layout).
+ */
+function backContent(role: Role, spec: TokenSpec, text: string, b: BackFace): { role: Role; text: string; spec: TokenSpec } {
+  const ed = b.say === "edition" ? backEdition(role, spec) : null;
+  const words = b.say === "none" ? "" : b.say === "phrase" ? (b.phrase ?? "").trim() : b.say === "edition" ? (ed ? (ed.name[spec.lang] || ed.name[spec.lang?.split("-")[0]] || ed.name.en) : "") : text;
+  const art = !b.art || b.art === "token" ? null : b.art === "custom" ? svgIcon(spec.customSvg) : BACK_ORNAMENTS.includes(b.art) ? ornamentIcon(b.art) : null;
+  const none = b.art === "none" || (!!b.art && b.art !== "token" && !art) || spec.style === "text";
+  const style: TokenStyle = none ? "text" : !words.trim() || spec.style === "solo" ? "solo" : spec.style;
+  return { role: none ? { ...role, body: "", d: [], iconKey: "none" } : role, text: words, spec: { ...spec, style, ...(art ? { icon: art } : {}) } };
+}
+
+/** How much of the icon square a drawing made into an icon fills: as much as a game icon's picture, clear of a curved name. */
+const ICON_FILL = 0.66;
+/** Shapes (mm, y up; or SVG units, y down) as an icon: one path in the icon square, its box centred in it (ICON_FILL). */
+function shapesIcon(id: string, shapes: THREE.Shape[], yDown: boolean): TokenIcon | null {
+  if (!shapes.length) return null;
+  const box = boundsOf(shapes), w = box.max.x - box.min.x, h = box.max.y - box.min.y, k = (TRACE_VIEW * ICON_FILL) / Math.max(w, h, 1e-6);
+  const cx = (box.min.x + box.max.x) / 2, cy = (box.min.y + box.max.y) / 2, half = TRACE_VIEW / 2;
+  const ring = (pts: THREE.Vector2[]) => pts.map((p, i) => `${i ? "L" : "M"}${(half + (p.x - cx) * k).toFixed(2)} ${(half + (yDown ? 1 : -1) * (p.y - cy) * k).toFixed(2)}`).join("") + "Z";
+  const d = shapes.map((sh) => ring(sh.getPoints(48)) + sh.holes.map((hp) => ring(hp.getPoints(48))).join("")).join("");
+  return { id, g: "", body: `<path fill-rule="evenodd" d="${d}"/>` };
+}
+const ornaments = new Map<string, TokenIcon | null>();
+/** A back ornament (BACK_ORNAMENTS) as an icon, drawn at its size on a 45 mm coin. */
+export function ornamentIcon(id: string): TokenIcon | null {
+  if (!ornaments.has(id)) ornaments.set(id, shapesIcon(`ornament:${id}`, backDesign(id, 22.5) ?? [], false));
+  return ornaments.get(id)!;
+}
+const svgIcons = new Map<string, TokenIcon | null>();
+/** An uploaded SVG (the back's "custom") as an icon. */
+function svgIcon(svg: string | null | undefined): TokenIcon | null {
+  if (!svg) return null;
+  const key = contentTag(svg);
+  if (!svgIcons.has(key)) {
+    let shapes: THREE.Shape[] = [];
+    try { shapes = parseSvgShapes(svg); } catch { /* not one we can draw: no icon */ }
+    svgIcons.set(key, shapesIcon(`custom:${key}`, shapes, true));
+    if (svgIcons.size > 20) svgIcons.delete(svgIcons.keys().next().value!);
+  }
+  return svgIcons.get(key)!;
+}
+
+/**
+ * A coin spec kept before its back was a face: a back design (OLD_BACKS) becomes a face that
+ * says and shows the same (the edition's name, the ornament as its icon), in the design's colour.
+ * What the face already set stays; a plain back ("none") stays plain.
+ */
+export function migrateBack<T extends SpecInput | undefined>(spec: T): T {
+  if (!spec || (spec.backMode && spec.backMode !== "design")) return spec;
+  const was = spec.back && OLD_BACKS[spec.back];
+  if (!was) return spec;
+  const b = spec.backFace ?? {}, gold = spec.colours?.back ?? DEFAULT_SPEC.colours.back;
+  // `back` stays as it was (a face's isn't read): a token's own change to plain is then a change from it
+  return { ...spec, backMode: "own", backFace: { ...was, ...b, colours: { front: gold, frame: gold, ...b.colours } } };
 }
 
 /**
@@ -2900,9 +2875,10 @@ export function shapeSpec(role: Role | null | undefined, input: SpecInput | unde
   if (shape === "card") return cardContent(role, cardSpec(input));
   if (shape === "ring") return ringSpec(input);
   if (shape === "base") return baseSpec(input);
+  input = migrateBack(input);
   const spec = withContent(role, { ...DEFAULT_SPEC, ...input, colours: { ...DEFAULT_SPEC.colours, ...input?.colours } });
   if (!backIsFace(role, spec)) return spec;
-  return { ...spec, back: FACE_BACK, customSvg: null, magnet: spec.magnet === "pocket" ? "hidden" : spec.magnet };
+  return { ...spec, back: FACE_BACK, customSvg: spec.backFace?.art === "custom" ? spec.customSvg : null, magnet: spec.magnet === "pocket" ? "hidden" : spec.magnet };
 }
 
 /**
@@ -2917,7 +2893,7 @@ export function normalizeSpec(spec: SpecInput): SpecInput {
     spec = { ...spec, relief: { ...reliefOf(spec), icon: true } };
   }
   if (spec && "windowFinish" in spec) { spec = { ...spec }; delete spec.windowFinish; delete spec.windowDepth; }
-  return spec;
+  return migrateBack(spec);
 }
 function windowFrame(spec: TokenSpec) {
   spec = normalizeSpec(spec);
@@ -2984,7 +2960,10 @@ export function buildToken(lib: Library, role: Role, input: SpecInput | undefine
   const bf = backFaceOf(role, spec, text);
   const backSpec = bf?.spec, backUp = !!backSpec && hasRelief(backSpec);
   const back = bf ? face(bf.role, bf.text, bottomFace(backUp), bf.spec) : null;
-  const backFrame = backSpec ? buildFrame(backSpec, bottomFace(backUp)) : null;
+  // its frame, with the back's pattern (backFaceOf puts it in the face's spec, in the frame's colour)
+  const bp = bf ? frontPattern(lib, bf.role, bf.spec, bf.text) : null, bface = bottomFace(backUp);
+  const bpGeom = bp && backSpec ? partExtrude(cutShapes(bp), backSpec, "frame", bface, onFace(bface, T(0, 0, partZ(backSpec, "frame", bface))), 1) : null;
+  const backFrame = backSpec ? merge([buildFrame(backSpec, bface), bpGeom]) : null;
   // The relief out of each face, per part (mm³): each raised element is a prism standing
   // `depth` into the coin and `relief` out of it, so that share of its volume.
   const R = reliefOf(spec), B = reliefOf(backSpec), r = reliefTop(spec), above = (g: THREE.BufferGeometry | null | undefined) => (g && r ? aboveOf.get(g) ?? geometryVolume(g) * r / (spec.depth + r) : 0);
@@ -3142,8 +3121,6 @@ export function tokenSvg(lib: Library, role: Role, input: SpecInput | undefined,
     const pocket = magnetLayout(spec);
     if (pocket?.kind === "pocket") body += `<circle r="${pocket.radius.toFixed(2)}" fill="#0b090c" opacity=".85"/>`;
     if (ed) body += `<path fill="${c.back}" fill-rule="evenodd" d="${shapesToPath(ed, 0, 0, 48)}"/>`;
-    if (spec.back === "medallon") body += `<path fill="${c.back}" fill-rule="evenodd" d="${shapesToPath(medallionBack(lib, role, spec), 0, 0, 48)}"/>`;
-    if (spec.back === "escudo" || spec.back === "escudete") body += `<path fill="${c.back}" fill-rule="evenodd" d="${shapesToPath(escudoBack(lib, role, spec, spec.back === "escudete"), 0, 0, 48)}"/>`;
     const bp = backPattern(lib, role, spec);
     if (bp) body += `<path fill="${c.back}" fill-rule="evenodd" d="${cutPath(bp)}"/>`;
     if (spec.back === "seal" && lib.sealSvg) body += `<g fill="${c.back}" transform="scale(${spec.diameter / TRACE_VIEW}) translate(${-TRACE_VIEW / 2} ${-TRACE_VIEW / 2})">${lib.sealSvg.replace(/^[\s\S]*?<g /, "<g ").replace(/fill="#000000"/, "").replace(/<\/svg>\s*$/, "")}</g>`;
