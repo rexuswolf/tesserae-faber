@@ -18,6 +18,7 @@ import { filled } from "./looks.ts";
 import { tokenLang } from "./token-language.ts";
 import { iconFromSvg, searchGameIcons, gameIconPreview, gameIcon } from "../icons.ts";
 import { renderDesignStage } from "./queue.ts";
+import { renderEditor } from "./editor.ts";
 
 // ------------------------------------------------------------ workshop
 //
@@ -234,6 +235,7 @@ function renderDesignRow(key: string, shape: TokenShape) {
   $("#designFlash").hidden = !state.flash;
   $("#designFlash").textContent = state.flash;
   renderQuickDesigns();
+  renderEditor(key, shape);
   if (dz.open && dz.mode === "token") renderDesignSheet();
 }
 

@@ -202,18 +202,33 @@ test("the front page walks through the app: its chapters draw as they come near,
   expect(errors).toEqual([]);
 });
 
-test("designing, simply: a token's designs a tap away from its row, the fine changes folded until asked for", async ({ page }) => {
+test("designing, as a creator: Content, Design and Customise; customised, another design asks first", async ({ page }) => {
   const errors = await open(page, "/c/senado");
   await pick(page, 1, '#rows [data-pick^="c:"]');
   await page.locator("#rows [data-design-row]").first().evaluate((b) => (b as HTMLElement).click());
-  const quick = page.locator("#styleQuick [data-dq-pick]");
-  await expect(quick.nth(1)).toBeVisible();
+  // the designs, a list; the parts behind Customise
+  const designs = page.locator("#crDesigns [data-cr-pick]");
+  await expect(designs.nth(1)).toBeVisible();
   await expect(page.locator("#parts")).toBeHidden();
-  const other = page.locator("#styleQuick [data-dq-pick][aria-pressed=false]").first(), name = (await other.getAttribute("title"))!;
+  const other = page.locator("#crDesigns [data-cr-pick][aria-selected=false]").first(), name = (await other.getAttribute("data-name"))!;
   await other.click();
-  await expect(page.locator("#styleQuick .dstrip-h b")).toContainText(name);
-  await page.locator("#tweakToggle").click();
+  await expect(page.locator("#crValDesign")).toHaveText(name);
+  await page.locator('.cr-item[data-cr="part"]').click();
   await expect(page.locator("#parts")).toBeVisible();
+  // a change of its own: Customised, with its two actions
+  await page.locator('#parts [data-part="colours"]').click();
+  await page.locator('.metal[data-colour="frame"] button[aria-pressed=false]').first().click();
+  await expect(page.locator("#crActs")).toBeVisible();
+  await page.locator("#crBack").click();
+  await page.locator('.cr-item[data-cr="design"]').click();
+  await expect(page.locator("#crDesigns [data-cr-mine]")).toHaveAttribute("aria-selected", "true");
+  // another design drops the changes: it asks, and Cancel keeps them
+  await page.locator("#crDesigns [data-cr-pick]:not([data-on])").first().click();
+  await page.locator('#crDesigns [data-cr-ask=""]').click();
+  await expect(page.locator("#crActs")).toBeVisible();
+  await page.locator("#crDesigns [data-cr-pick]:not([data-on])").first().click();
+  await page.locator('#crDesigns [data-cr-ask="go"]').click();
+  await expect(page.locator("#crActs")).toBeHidden();
   // printing asks how first
   await next(page);
   await expect(page.locator("#flowNext")).toBeDisabled();

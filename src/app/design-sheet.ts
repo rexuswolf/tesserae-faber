@@ -3,8 +3,8 @@ import { emit } from "./events.ts";
 import type { TokenShape, TokenSpec, MyDesign, TokenOverride, Role, BackMode, PatternSpec, ReliefPart, Token, TokenStyle, SpecColours, SpecInput, CardBack, TokenIcon } from "../types.ts";
 import { DEFAULT_SPEC, reminderSpec, tokenSvg, SHAPE_FEATURES, shapeOf, roleName, shapeSpec, TOKEN_STYLES, FRAME_STYLES, FILAMENTS, BACK_STYLES, PATTERN_MIN, printsBack, cardBackOf, CARD_ICONS, CARD_JOINS, partColours, PATTERNS, patternDefaults, patternFilled, patternFixed, flipFace, reliefOf, hasRelief, FACE_FIELDS, ringBand, ringSize, baseSize, magnetLayout } from "../engine/token-engine.ts";
 import { tokenLang } from "./token-language.ts";
-import { ownIcon, roleIdOf, charKey, textFor, remindersOf, charName } from "./tokens.ts";
-import { myDesigns, myEntry, collEntry, inheritedRef, refOf, originalRef, defaultRef, designOf, collLabel, designFor, uniqueDesignName, lookOf, storeMyDesigns, storeOverrides, shapesHere, tokensOf, designOverridden, defaults, storeDefaults } from "./designs.ts";
+import { ownIcon, roleIdOf, charKey, textFor, remindersOf, charName, specFor } from "./tokens.ts";
+import { ownChanged, myDesigns, myEntry, collEntry, inheritedRef, refOf, originalRef, defaultRef, designOf, collLabel, designFor, uniqueDesignName, lookOf, storeMyDesigns, storeOverrides, shapesHere, tokensOf, designOverridden, defaults, storeDefaults } from "./designs.ts";
 import type { DesignEntry } from "./designs.ts";
 import { appDesigns, APP_NAME, tallerUrl, newId, OWN, isLocked, nameIn } from "../collection.ts";
 import type { OwnToken } from "../collection.ts";
@@ -121,6 +121,58 @@ export function renderQuickDesigns() {
     + `<div class="dstrip">${list.map(({ d, pick, on: o }) => `<button type="button" class="dq-s" data-dq-pick="${esc(pick)}" aria-pressed="${o}" title="${esc(d.name)}" aria-label="${esc(d.name)}">${tokenSvg(state.lib!, role, { ...specWith(applyLook(d.spec, look), key, reminder != null), back: "none", backMode: "design" }, { text })}</button>`).join("")}`
     + `<button type="button" class="dq-s dq-s-more" data-dq-more title="${esc(t("design.change"))}" aria-label="${esc(t("design.change"))}">${rest > 0 ? `+${rest}` : "+"}</button></div>`;
 }
+/**
+ * The editor's Design: the designs the token can take, as a list (its small token in each, the
+ * collection's first), the one in use lit and its description over them. With changes of its own the
+ * token is "Customised", on top and lit; another design then asks first, as it drops them (and its
+ * own design, without them, asks to go back).
+ */
+let crAsk: { pick: string; back: boolean; name: string } | null = null;
+let crAskFor = "";
+export function renderEditorDesigns() {
+  const { key, role, reminder } = state.sel!, sh = shapeOf(role), tweaked = ownChanged(key);
+  if (crAskFor !== key) { crAsk = null; crAskFor = key; }
+  const { coll: all, mine } = sheetDesigns("token", sh), full = [...all, ...mine], list = full.slice(0, QUICK);
+  if (!list.some((x) => x.on)) { const on = full.find((x) => x.on); if (on) list[list.length - 1] = on; }
+  const on = full.find((x) => x.on), text = textFor(key, role, reminder);
+  const help = (d: DesignEntry) => {
+    if (!d.mine) return d.help ?? "";
+    const m = myDesigns[sh].find((x) => `u:${x.id}` === d.ref);
+    return m?.from ? t("dsheet.from", { name: m.from.name }) : t("dsheet.yours");
+  };
+  const mini = (spec: TokenSpec) => tokenSvg(state.lib!, role, { ...spec, back: "none", backMode: "design" }, { text });
+  const row = (body: string, attrs: string, selected: boolean) => `<button type="button" role="option" class="cr-opt" aria-selected="${selected}" ${attrs}>${body}</button>`;
+  const askHtml = (a: NonNullable<typeof crAsk>) => `<div class="cr-ask" role="group"><p>${esc(t(a.back ? "editor.askBack" : "editor.askSwitch", { name: a.name }))}</p>
+    <div><button type="button" class="forge" data-cr-ask="go">${esc(t(a.back ? "design.dropTweaks" : "editor.switchDrop"))}</button><button type="button" class="link" data-cr-ask="">${esc(t("editor.cancel"))}</button></div></div>`;
+  const desc = tweaked || !on ? "" : help(on.d);
+  $("#crDesigns").innerHTML = `<p class="cr-desc${desc ? "" : " cr-desc-none"}"><b>${esc(tweaked ? t("editor.customised") : on?.d.name ?? "")}</b>${esc(desc)}</p>
+    <div class="cr-list" role="listbox" aria-label="${esc(t("editor.design"))}">`
+    + (tweaked ? row(`<span class="cr-mini">${tokenSvg(state.lib!, role, { ...specFor(key, reminder != null), back: "none" }, { text })}</span><span>${esc(t("editor.customised"))}</span><small>${esc(t("editor.yours"))}</small>`, "data-cr-mine", true) : "")
+    + list.map(({ d, pick, first, on: o }) =>
+      row(`<span class="cr-mini">${mini(specWith(d.spec, key, reminder != null))}</span><span>${esc(d.name)}</span>${first ? `<small>${esc(t("editor.fromColl"))}</small>` : ""}`,
+        `data-cr-pick="${esc(pick)}" data-name="${esc(d.name)}"${o ? " data-on" : ""}`, !tweaked && o)
+      + (crAsk && crAsk.pick === pick ? askHtml(crAsk) : "")).join("")
+    + `<button type="button" class="cr-opt cr-more" data-cr-more>${esc(t("editor.seeAll"))} ›</button></div>`;
+}
+export function wireEditorDesigns() {
+  $("#crDesigns").onclick = (e) => {
+    const key = state.sel!.key, sh = shapeOf(state.sel!.role);
+    if (hit(e, "[data-cr-more]")) { openDesignSheet("token", sh, hit(e, "[data-cr-more]")!); return; }
+    const answer = hit(e, "[data-cr-ask]");
+    if (answer) {
+      const a = crAsk; crAsk = null;
+      if (answer.dataset.crAsk && a) { if (a.back) $("#styleDrop").click(); else setTokenDesign(key, a.pick); }
+      else renderEditorDesigns();
+      return;
+    }
+    const b = hit(e, "[data-cr-pick]");
+    if (!b || b.getAttribute("aria-selected") === "true") return;
+    const pick = b.dataset.crPick!;
+    // changes of its own: another design drops them, so it asks first
+    if (ownChanged(key)) { crAsk = { pick, back: b.hasAttribute("data-on"), name: b.dataset.name! }; renderEditorDesigns(); return; }
+    setTokenDesign(key, pick);
+  };
+}
 export function wireQuickDesigns() {
   $("#styleQuick").onclick = (e) => {
     if (hit(e, "[data-dq-more]")) { $("#styleChange").click(); return; }   // the gallery: every design, by where it comes from
@@ -152,7 +204,14 @@ export function wireDesignSheet() {
     const b = hit(e, "[data-dz-pick]"); if (!b) return;
     const ref = b.dataset.dzPick!, { mode, shape } = dz;
     dlg.close();
-    if (mode === "token") setTokenDesign(state.sel!.key, ref);
+    if (mode === "token") {
+      const key = state.sel!.key;
+      // changes of its own: another design (or its own, without them) drops them, so it asks first
+      if (!ownChanged(key)) { setTokenDesign(key, ref); return; }
+      const back = (ref || inheritedRef(key, shape)) === refOf(key, shape), name = designOf(shape, ref || inheritedRef(key, shape))!.name;
+      void ask(t(back ? "editor.askBack" : "editor.askSwitch", { name }), [{ id: "go", label: t(back ? "design.dropTweaks" : "editor.switchDrop"), main: true }])
+        .then((go) => { if (go) setTokenDesign(key, ref); });
+    }
     else void setDefaults({ [shape]: ref }).then(() => document.querySelector<HTMLElement>(`[data-default-shape="${shape}"]`)?.focus());   // the bar is drawn again
   };
   // arrows move over the cards as they're laid out: along a row, and up and down its columns
@@ -198,11 +257,11 @@ export async function saveLookAsDesign(key: string) {
   state.flash = t("design.saved", { name: mine.name });
   setOwn(key, own);
 }
-/** A token's design: kept on the token unless it's the one it has by default (none: back to that). Its own changes stay, as far as the new design hasn't them. */
+/** A token's design: kept on the token unless it's the one it has by default (none: back to that). Another design is a fresh start: the token's own changes go (the editor asks first). */
 function setTokenDesign(key: string, ref: string) {
   const shape = shapeOf(tokenRole(key)), own: TokenOverride = { ...state.overrides.get(key) };
   if (!ref || ref === inheritedRef(key, shape)) delete own.style; else own.style = ref;
-  if (own.look) { const look = prunedLook(designOf(shape, ref || inheritedRef(key, shape))!.spec, own.look); if (look) own.look = look; else delete own.look; }
+  delete own.look;
   state.flash = "";
   setOwn(key, own);
 }

@@ -1645,7 +1645,6 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 .tweak-toggle small { color: var(--dust); font-size: 12.5px; }
 .tweak-toggle .chev { color: var(--brass); font-size: 20px; transition: transform .15s; }
 .tweak-toggle[aria-expanded=true] .chev { transform: rotate(90deg); }
-.app:not([data-step="taller"]) .workshop.tweak-closed :is(#parts, #styleFields) { display: none !important; }
 .ds-quick { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); }
 .dq-tok { width: 54px; height: 54px; }
 /* the strip rings the design in use: the row's own small token would say it twice */
@@ -1887,3 +1886,157 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 :is(.oh-cover, .oh-tile, .oh-make, .oh-empty, .ol-resume, .ol-taller, .tour-cover, .tour-box, .ol-steps a) { border-radius: 4px; }
 :is(.oh-tile, .oh-make, .ol-resume) { border: 0; background: var(--tile); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--bone) 7%, transparent), 0 1px 0 #0006; }
 :is(.oh-tile, .oh-make, .ol-resume):hover { background: var(--tile-hi); }
+
+/* ================================================================ the editor, as a game's creator
+   Desktop: three columns. The menu (a token's Content, Design and Customise ›, each with its value; inside
+   Customise, its parts), the options of the one chosen, the token large. A phone: the token on top, the three as
+   big buttons; one tapped goes into it, with a bar to come back; Customise's parts as joined tabs. The Taller is
+   Customise straight away: its parts in the menu. */
+.cr-nav { display: none; }
+.app[data-step="2"] .cr-nav, .app[data-step="taller"]:not([data-tv="start"]) .cr-nav { grid-area: nav; display: flex; flex-direction: column; min-height: 0; overflow-y: auto; }
+/* what the old head said, the menu says now */
+.app[data-step="2"] :is(.ws-head.design-only, #tweakToggle, .workshop > .ds-tweak) { display: none !important; }
+#lookHead { display: none; }
+/* the middle: the chosen one's panel */
+.app[data-step="2"][data-crc="content"] #styleFields > :not(#crContent),
+.app[data-step="2"][data-crc="design"] #styleFields > :not(#crDesigns),
+.app[data-step="2"][data-crc="part"] #styleFields > :is(#crContent, #crDesigns) { display: none !important; }
+.app[data-step="2"] #contentClosed:not([hidden]) { display: grid; gap: 16px; }
+/* the menu's levels: the three, or (Customise) the way back and the parts; the Taller has only the parts */
+.app[data-step="2"][data-crl="1"] :is(.cr-nav .parts, #crBack) { display: none; }
+.app[data-step="2"][data-crl="2"] .cr-cats { display: none; }
+
+/* ---- the menu's rows: a picture, a name, its value */
+.cr-cats { display: grid; gap: 4px; }
+.cr-item { display: grid; grid-template-columns: 44px minmax(0, 1fr); grid-template-areas: "p l" "p v"; align-items: center; gap: 1px 12px;
+  padding: 12px 14px; margin: 0 10px; border: 0; border-radius: 3px; background: none; color: var(--bone); font: inherit; text-align: left; cursor: pointer; }
+.cr-item:hover { background: color-mix(in srgb, var(--bone) 5%, transparent); }
+.cr-item[aria-current=true] { background: radial-gradient(80% 140% at 30% 100%, color-mix(in srgb, var(--brass) 30%, transparent), transparent 75%), color-mix(in srgb, var(--bone) 5%, transparent);
+  box-shadow: inset 3px 0 0 var(--brass); }
+.cr-pic { grid-area: p; display: grid; place-items: center; width: 44px; height: 44px; overflow: hidden; border-radius: 3px; background: color-mix(in srgb, var(--velvet-deep) 60%, transparent); color: var(--dust); }
+.cr-pic svg { width: 40px; height: 40px; display: block; }
+.cr-pic.cr-pic-ic svg { width: 20px; height: 20px; }
+.cr-pic b { font: 400 18px var(--display); color: var(--bone); }
+.cr-lbl { grid-area: l; font-size: 14.5px; font-weight: 600; }
+.cr-arrow { color: var(--brass); }
+.cr-val { grid-area: v; min-width: 0; color: var(--dust); font-size: 12.5px; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cr-val i { font-style: normal; color: var(--brass); }
+#crBack { display: flex; align-items: center; gap: 8px; margin: 0 10px 10px; padding: 9px 14px; border: 0; border-radius: 3px; background: none; color: var(--bone); font: inherit; font-size: 14.5px; text-align: left; cursor: pointer; }
+#crBack:hover { background: color-mix(in srgb, var(--bone) 5%, transparent); }
+#crBack > span { color: var(--brass); font-size: 18px; line-height: 1; }
+
+/* ---- the middle's panels */
+.cr-desc { margin: 0 0 14px; color: var(--dust); font-size: 13.5px; line-height: 1.5; text-wrap: pretty; }
+.cr-desc b { display: block; margin-bottom: 4px; color: var(--bone); font: 400 22px/1.2 var(--display); }
+.cr-list { display: grid; }
+.cr-opt { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 7px 10px; border: 0; border-bottom: 1px solid var(--seam);
+  background: none; color: var(--bone); font: inherit; font-size: 14.5px; text-align: left; cursor: pointer; }
+.cr-opt:hover { background: color-mix(in srgb, var(--bone) 5%, transparent); }
+.cr-opt small { color: var(--dust); font-size: 12px; }
+.cr-mini svg { width: 34px; height: 34px; display: block; }
+.cr-opt[aria-selected=true] { background: radial-gradient(70% 120% at 40% 100%, color-mix(in srgb, var(--brass) 38%, transparent), transparent 70%); border-bottom-color: var(--brass); font-weight: 600; cursor: default; }
+.cr-more { grid-template-columns: 1fr; color: var(--brass); font-size: 13.5px; border-bottom: 0; }
+.cr-ask { margin: 2px 0 8px; padding: 12px; border-radius: 3px; background: color-mix(in srgb, var(--velvet) 80%, var(--brass)); box-shadow: inset 3px 0 0 var(--brass); }
+.cr-ask p { margin: 0 0 10px; font-size: 13.5px; line-height: 1.4; }
+.cr-ask div { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.cr-ask .forge { padding: 6px 16px; font-size: 13px; }
+.cr-ask .link { font-size: 13px; }
+/* the content's fields: a label in bold, its help under it; the icon shown beside its buttons */
+.cr-fl { display: grid; gap: 1px; }
+.cr-fl b { font-size: 13.5px; font-weight: 600; color: var(--bone); }
+.cr-fl small { font-size: 12px; color: var(--dust); }
+#crContent .text { margin-top: 6px; }
+.cr-iconrow { display: flex; align-items: center; gap: 12px; margin-top: 6px; }
+.cr-icon { flex: none; width: 52px; height: 52px; display: grid; place-items: center; border-radius: 3px; background: color-mix(in srgb, var(--velvet-deep) 70%, transparent); }
+.cr-icon svg { width: 44px; height: 44px; display: block; }
+.cr-iconrow .icon-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+#crContent .pill { background: color-mix(in srgb, var(--bone) 12%, transparent); }
+#crContent .pill:hover { background: color-mix(in srgb, var(--bone) 20%, transparent); }
+
+/* ---- the stage: discard and save, two icons in its corner */
+.cr-acts { position: absolute; right: 12px; bottom: 12px; z-index: 2; display: flex; gap: 6px; }
+.cr-acts[hidden] { display: none; }
+.cr-ic { width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 3px; background: color-mix(in srgb, var(--bone) 12%, transparent); color: var(--bone); cursor: pointer; }
+.cr-ic:hover { background: color-mix(in srgb, var(--bone) 22%, transparent); }
+.cr-ic.cr-save { background: var(--brass); color: var(--velvet-deep); }
+.cr-ic.cr-save:hover { background: color-mix(in srgb, var(--brass) 85%, var(--bone)); }
+
+/* ================= desktop: three columns */
+@media (min-width: 901px) {
+  .app[data-step="2"] { grid-template-columns: 250px 360px minmax(0, 1fr); grid-template-areas: "top top top" "nav ws main" "bar bar bar"; }
+  .app[data-step="taller"]:not([data-tv="start"]) { grid-template-columns: 210px 360px minmax(0, 1fr); grid-template-areas: "top top top" "nav ws main"; }
+  .cr-nav { padding: 16px 0; background: var(--velvet); border-right: 1px solid var(--seam); }
+  .app[data-step="2"] .ws-body { padding: 22px 20px; }
+  /* Customise's parts: a list, the chosen one lit */
+  .cr-nav .parts { display: grid; gap: 2px; padding: 0; margin: 0; border: 0; overflow: visible; }
+  .cr-nav .parts button { clip-path: none; margin: 0 10px; padding: 9px 14px; border: 0; border-radius: 3px; background: none; color: var(--dust); font-size: 14.5px; text-align: left; }
+  .cr-nav .parts button:hover { color: var(--bone); background: color-mix(in srgb, var(--bone) 5%, transparent); }
+  .cr-nav .parts button[aria-selected=true] { color: var(--bone); font-weight: 600; box-shadow: inset 3px 0 0 var(--brass);
+    background: radial-gradient(80% 140% at 30% 100%, color-mix(in srgb, var(--brass) 30%, transparent), transparent 75%), color-mix(in srgb, var(--bone) 5%, transparent); }
+  .cr-nav .parts .sec-adv { margin: 14px 24px 4px; padding: 0; border: 0; font-size: 12px; color: var(--dust); }
+}
+@media (min-width: 901px) and (max-width: 1180px) {
+  .app[data-step="2"] { grid-template-columns: 220px 330px minmax(0, 1fr); }
+  .app[data-step="taller"]:not([data-tv="start"]) { grid-template-columns: 190px 330px minmax(0, 1fr); }
+}
+
+/* ================= a phone */
+@media (max-width: 900px) {
+  .app[data-step="2"][data-crm="menu"] { grid-template-rows: auto auto minmax(0, 1fr) auto; grid-template-areas: "top" "main" "nav" "bar"; }
+  .app[data-step="2"][data-crm="menu"] .workshop { display: none; }
+  .app[data-step="2"][data-crm="in"] { grid-template-rows: auto auto auto minmax(0, 1fr) auto; grid-template-areas: "top" "main" "nav" "ws" "bar"; }
+  .app[data-step="taller"]:not([data-tv="start"]) { grid-template-rows: auto minmax(0, 44%) auto minmax(0, 1fr); grid-template-areas: "top" "main" "nav" "ws"; }
+  .cr-nav { background: var(--velvet-mid); }
+  /* the menu: the three as big buttons, edge to edge, parted by rules */
+  .app[data-step="2"][data-crm="in"] .cr-cats { display: none; }
+  .cr-cats { gap: 0; border-top: 0; }
+  .cr-item { grid-template-columns: 52px minmax(0, 1fr) auto; grid-template-areas: "p l a" "p v a"; gap: 2px 16px; margin: 0; padding: 14px 16px; border-radius: 0; border-bottom: 1px solid var(--seam); }
+  .cr-item::after { content: "›"; grid-area: a; color: var(--dust); font-size: 22px; }
+  .cr-item[aria-current=true] { background: none; box-shadow: none; }
+  .cr-item:active { background: var(--tile); }
+  .cr-in .cr-arrow { display: none; }
+  .cr-pic { width: 52px; height: 52px; }
+  .cr-pic svg { width: 44px; height: 44px; }
+  .cr-pic.cr-pic-ic svg { width: 22px; height: 22px; }
+  .cr-lbl { font-size: 16px; }
+  .cr-val { font-size: 13.5px; }
+  /* inside one: the way back a full-width bar */
+  .app[data-step="2"][data-crm="menu"] #crBack { display: none; }
+  .app[data-step="2"][data-crm="in"] #crBack { display: flex; }
+  #crBack { min-height: 50px; margin: 0; padding: 0 16px; gap: 12px; border-radius: 0; border-bottom: 1px solid var(--seam); background: var(--tile); font-size: 15.5px; font-weight: 600; }
+  #crBack > span { font-size: 24px; margin-top: -3px; }
+  /* Customise's parts (and the Taller's): joined tabs on one line that slides */
+  .cr-nav .parts { display: flex; flex-wrap: nowrap; gap: 0; margin: 0; padding: 0; border: 0; border-bottom: 1px solid var(--seam); overflow-x: auto; scrollbar-width: none;
+    mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); }
+  .cr-nav .parts::-webkit-scrollbar { display: none; }
+  .cr-nav .parts button { flex: none; clip-path: none; margin: 0; padding: 11px 14px 9px; border: 0; border-right: 1px solid var(--seam); border-radius: 0; background: none; color: var(--dust); font-size: 13.5px; white-space: nowrap; }
+  .cr-nav .parts button:first-child { padding-left: 16px; }
+  .cr-nav .parts button[aria-selected=true] { color: var(--bone); font-weight: 600; background: var(--tile); box-shadow: inset 0 -2px 0 var(--brass); }
+  .cr-nav .parts .sec-adv { flex: none; width: 1px; height: 22px; align-self: center; margin: 0 4px; padding: 0; overflow: hidden; color: transparent; background: var(--seam); border: 0; }
+  .app[data-step="2"] .ws-body { padding: 14px 16px; }
+  .app[data-step="2"][data-crc="design"] .ws-body { padding-top: 0; }
+  /* the designs' list edge to edge; no title over it (the bar says where you are) */
+  .cr-desc b, .cr-desc-none { display: none; }
+  .cr-designs .cr-desc { padding-top: 12px; font-size: 13px; margin-bottom: 10px; }
+  .cr-list { margin: 0 -16px; }
+  .cr-opt { padding: 9px 16px; }
+  .cr-ask { margin: 0 0 6px; border-radius: 0; padding: 12px 16px; }
+  /* the token's stage edge to edge, one rule under it */
+  .app[data-step="2"] .view-panel { padding: 0; }
+  .app[data-step="2"] .stage { border-radius: 0; }
+  .app[data-step="2"] .design-stage { border-bottom: 1px solid var(--seam); }
+  .app[data-step="2"] .turn { left: 12px; bottom: 10px; }
+  .cr-acts { right: 12px; bottom: 10px; }
+}
+
+/* the Taller's head: its own place, over the controls (desktop) or over the parts' tabs (a phone) */
+.app[data-step="taller"]:not([data-tv="start"]) #tallerHead { grid-area: head; background: var(--velvet-mid); }
+@media (min-width: 901px) {
+  .app[data-step="taller"]:not([data-tv="start"]) { grid-template-rows: auto auto minmax(0, 1fr); grid-template-areas: "top top top" "nav head main" "nav ws main"; }
+  .app[data-step="taller"]:not([data-tv="start"]) .cr-nav, .app[data-step="taller"]:not([data-tv="start"]) .taller-main { grid-row: 2 / 4; }
+  .app[data-step="taller"]:not([data-tv="start"]) #tallerHead { border-right: 1px solid var(--seam); }
+}
+@media (max-width: 900px) {
+  .app[data-step="taller"]:not([data-tv="start"]) { grid-template-rows: auto minmax(0, 40%) auto auto minmax(0, 1fr); grid-template-areas: "top" "main" "head" "nav" "ws"; }
+}
+.app[data-step="taller"][data-tv="start"] #tallerHead { display: none; }

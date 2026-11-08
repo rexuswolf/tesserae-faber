@@ -157,29 +157,23 @@
   <!-- workshop: how one token looks. On top, what it says (a line) and its design (the collection's default, or one
        chosen for it); then its parts (a coin's FRONT · BACK · COIN · MAGNET), whose changes are this token's only.
        In the Taller the same controls change one of your designs. -->
+  <!-- the editor's menu: what can be changed. A token's: its content, its design, and Customise, which goes into
+       the design's parts; a design's (the Taller): its parts. On a phone, the three are big buttons that go into
+       each one, and the parts are tabs. -->
+  <nav class="cr-nav" id="crNav" data-i18n-attr="aria-label:editor.aria">
+    <div class="cr-cats design-only">
+      <button type="button" class="cr-item" data-cr="content"><span class="cr-pic" id="crPicContent" aria-hidden="true"><b>Aa</b></span><span class="cr-lbl" data-i18n="editor.content"></span><small class="cr-val" id="crValContent"></small></button>
+      <button type="button" class="cr-item" data-cr="design"><span class="cr-pic" id="crPicDesign" aria-hidden="true"></span><span class="cr-lbl" data-i18n="editor.design"></span><small class="cr-val" id="crValDesign"></small></button>
+      <button type="button" class="cr-item cr-in" data-cr="part"><span class="cr-pic cr-pic-ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></span><span class="cr-lbl"><span data-i18n="editor.custom"></span> <span class="cr-arrow" aria-hidden="true">›</span></span><small class="cr-val" id="crValCustom"></small></button>
+    </div>
+    <button type="button" class="cr-back design-only" id="crBack"><span aria-hidden="true">‹</span> <b id="crBackLabel"></b></button>
+    <div class="parts" id="parts" role="tablist" data-i18n-attr="aria-label:ws.sections"></div>
+  </nav>
+  <!-- the Taller's design: its name and what to do with it, over its controls (on a phone, over the parts' tabs too) -->
+  <div class="ws-head taller-only" id="tallerHead"></div>
   <aside class="workshop" id="workshop">
-    <div class="ws-head taller-only" id="tallerHead"></div>
     <div class="ws-head design-only">
       <div class="ws-says" id="saysLine"></div>
-      <!-- a token of Clocktower's or of a closed collection, or a linked token: its printed text, feminine name and icon -->
-      <div class="token-only" id="contentClosed" hidden>
-        <label class="field"><span data-i18n="ws.printedText"></span><input class="text" type="text" id="printed" autocomplete="off"></label>
-        <label class="check" id="femRow" hidden><input type="checkbox" id="fem"> <span id="femLabel"></span></label>
-        <div class="field icon-field" id="iconField">
-          <span data-i18n="icon.label"></span>
-          <div class="icon-actions">
-            <button class="pill" type="button" id="iconSearchOpen" data-i18n="icon.search"></button>
-            <button class="pill" type="button" id="iconUpload" data-i18n="icon.upload"></button>
-            <button class="link" type="button" id="iconReset" data-i18n="icon.reset" hidden></button>
-          </div>
-          <input type="file" id="iconFile" accept=".svg,image/svg+xml" hidden>
-          <p class="hint" id="iconHint"></p>
-          <div class="icon-search" id="iconSearch" hidden>
-            <input class="text" type="search" id="iconQuery" autocomplete="off" data-i18n-attr="placeholder:icon.placeholder">
-            <div class="icon-results" id="iconResults"></div>
-          </div>
-        </div>
-      </div>
       <div class="ws-style" id="styleRow">
         <div class="ds-row">
           <span class="ds-tok" id="styleTok" aria-hidden="true"></span>
@@ -197,8 +191,32 @@
     <!-- the fine changes, folded until asked for (the Taller's editor always shows them) -->
     <button class="tweak-toggle design-only" type="button" id="tweakToggle" aria-expanded="false" aria-controls="styleFields"><span><b data-i18n="tweak.title"></b><small data-i18n="tweak.sub"></small></span><span class="chev" aria-hidden="true">›</span></button>
     <!-- the token's parts: a coin's FRONT · BACK · COIN · MAGNET, a ring's FRONT · RING, a card's FRONT · CARD -->
-    <div class="parts" id="parts" role="tablist" data-i18n-attr="aria-label:ws.sections"></div>
     <div class="ws-body" id="styleFields">
+      <!-- the editor's Content: what the token carries printed (its text, its icon), over the collection's -->
+      <section class="cr-content design-only" id="crContent"><p class="cr-desc" data-i18n="editor.contentDesc"></p>
+        <!-- a token of Clocktower's or of a closed collection, or a linked token: its printed text, feminine name and icon -->
+        <div class="token-only" id="contentClosed" hidden>
+          <label class="field"><span class="cr-fl"><b data-i18n="editor.printed"></b><small data-i18n="editor.printedHelp"></small></span><input class="text" type="text" id="printed" autocomplete="off"></label>
+          <label class="check" id="femRow" hidden><input type="checkbox" id="fem"> <span id="femLabel"></span></label>
+          <div class="field icon-field" id="iconField">
+            <span class="cr-fl"><b data-i18n="icon.label"></b></span>
+            <div class="cr-iconrow"><span class="cr-icon" id="crIcon" aria-hidden="true"></span>
+            <div class="icon-actions">
+              <button class="pill" type="button" id="iconSearchOpen" data-i18n="icon.search"></button>
+              <button class="pill" type="button" id="iconUpload" data-i18n="icon.upload"></button>
+              <button class="link" type="button" id="iconReset" data-i18n="icon.reset" hidden></button>
+            </div></div>
+            <input type="file" id="iconFile" accept=".svg,image/svg+xml" hidden>
+            <p class="hint" id="iconHint"></p>
+            <div class="icon-search" id="iconSearch" hidden>
+              <input class="text" type="search" id="iconQuery" autocomplete="off" data-i18n-attr="placeholder:icon.placeholder">
+              <div class="icon-results" id="iconResults"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <!-- the editor's Design: the designs it can take, a list; "Personalizado" on top when it has changes of its own -->
+      <section class="cr-designs design-only" id="crDesigns"></section>
       <!-- how it looks: its design's, with this token's changes (in the Taller: the design's) -->
       <h3 class="ws-bh" id="lookHead"><span id="lookTitle"></span> <small id="lookSub"></small></h3>
       <div class="ws-warn" id="colourWarn" hidden></div>
@@ -371,6 +389,10 @@
     <div class="view-panel">
       <div class="stage">
         <canvas id="view" data-i18n-attr="aria-label:view.aria"></canvas>
+        <div class="cr-acts design-only" id="crActs" hidden>
+          <button type="button" class="cr-ic" id="crDrop" data-i18n-attr="title:design.dropTweaks aria-label:design.dropTweaks"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg></button>
+          <button type="button" class="cr-ic cr-save" id="crSave" data-i18n-attr="title:design.saveAs aria-label:design.saveAs"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/></svg></button>
+        </div>
         <div class="turn" role="group" data-i18n-attr="aria-label:view.group">
           <button class="pill" type="button" data-view="angle" aria-pressed="true" data-i18n="view.angle"></button>
           <button class="pill" type="button" data-view="top" aria-pressed="false" data-i18n="view.front"></button>

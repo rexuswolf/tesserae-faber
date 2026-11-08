@@ -10,6 +10,7 @@ import { roleIdOf, charKey, textFor } from "./tokens.ts";
 import { persistPicks, editToken, isPicked, setPick, renderQueue, goStep, flow, downloadPdf, downloadBambu, dropFromDesign, designToken, PAPER_BACKS_KEY, testQ, PRINT_WAY_KEY, PRINTER_KEY, NOZZLE_KEY, openQueue, onQueueClick, undoPicks, changePicks } from "./queue.ts";
 import { renderSpine, renderSheet, onCopyStep, openRows, toggleCharacter, openAddMenu, addShown } from "./sheet.ts";
 import { openTokenPanel, wireCollSwitch, wireOwn } from "./creator.ts";
+import { wireEditor } from "./editor.ts";
 import { wireDesignBar, deepenAll, openDesignSheet, wireDesignSheet, saveLookAsDesign, setOwn, rememberReturn, renderSays, setBackMode, changeLook, deepen, resetField, swapRelief, setRelief, changePattern, changeCardBack } from "./design-sheet.ts";
 import { OWN } from "../collection.ts";
 import { TALLER } from "./taller.ts";
@@ -168,6 +169,7 @@ export function wire() {
   // kept as a design of yours or dropped; and the way back to the default
   $("#styleChange").onclick = () => openDesignSheet("token", shapeOf(state.sel!.role), $("#styleChange"));
   wireDesignSheet();
+  wireEditor();
   // the fine changes: folded at first, then as you last left them
   const TWEAK_KEY = "tf-tweak-open";
   const setTweak = (open: boolean) => { $("#workshop").classList.toggle("tweak-closed", !open); $("#tweakToggle").setAttribute("aria-expanded", String(open)); };
