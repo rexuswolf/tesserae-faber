@@ -2140,3 +2140,8 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 #ownTokAddLinked { grid-column: 2; grid-row: 1 / span 2; }
 #ownTokLinked:not(:empty), #ownTokCats { grid-column: 1 / -1; margin-top: 8px; }
 #ownTokLinked:empty { display: none; }
+@media (max-width: 760px) {
+  /* More on a phone: each setting's control under its name and help */
+  #tpMoreOpts .own-fields > .field { grid-template-columns: minmax(0, 1fr); }
+  #ownTokColour, #ownTokAddLinked { grid-column: 1; grid-row: auto; justify-self: start; margin-top: 6px; }
+}
