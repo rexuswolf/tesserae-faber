@@ -168,6 +168,7 @@ export function reminderSpec(spec: TokenSpec): TokenSpec {
     // A reminder needs its word, and on a small coin it fits once: icon-only and two-name
     // designs give their reminders the classic layout.
     style: spec.style === "solo" || spec.style === "double" ? "classic" : spec.style,
+    reminder: true,
     diameter: spec.reminderDiameter ?? 32,
     textSize: 5,
     // the word sized by its length (short ones up to 7 mm, long ones up to 230°), a little more
@@ -2874,12 +2875,25 @@ export function flipFace(role: Role | null | undefined, spec: SpecInput | undefi
  *  layout), with its real size for `diameter`; a coin's is the spec, filled in, and a coin whose
  *  back is a face (backIsFace) has FACE_BACK for its back and its magnet hidden inside: a pocket
  *  would cut into the face. */
+/**
+ * A coin laid out for what its token carries: only its icon, the icon-only layout (a back of its own too);
+ * only its name, the text-only one; both, any layout that shows both (the classic one for the others).
+ * A linked token keeps its word.
+ */
+function withContent(role: Role | null | undefined, spec: TokenSpec): TokenSpec {
+  const c = spec.reminder ? undefined : role?.content;
+  if (!c) return spec;
+  if (c === "both") return spec.style === "solo" || spec.style === "text" ? { ...spec, style: "classic", textSize: LAYOUT_TEXT_SIZE } : spec;
+  const style: TokenStyle = c === "icon" ? "solo" : "text";
+  return { ...spec, style, ...(spec.backFace?.style ? { backFace: { ...spec.backFace, style } } : {}) };
+}
+const LAYOUT_TEXT_SIZE = DEFAULT_SPEC.textSize;
 export function shapeSpec(role: Role | null | undefined, input: SpecInput | undefined): TokenSpec {
   const shape = shapeOf(role);
   if (shape === "card") return cardSpec(input);
   if (shape === "ring") return ringSpec(input);
   if (shape === "base") return baseSpec(input);
-  const spec = { ...DEFAULT_SPEC, ...input, colours: { ...DEFAULT_SPEC.colours, ...input?.colours } };
+  const spec = withContent(role, { ...DEFAULT_SPEC, ...input, colours: { ...DEFAULT_SPEC.colours, ...input?.colours } });
   if (!backIsFace(role, spec)) return spec;
   return { ...spec, back: FACE_BACK, customSvg: null, magnet: spec.magnet === "pocket" ? "hidden" : spec.magnet };
 }

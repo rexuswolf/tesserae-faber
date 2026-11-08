@@ -11,7 +11,7 @@
 // so designing and printing are Clocktower's own. A whole collection goes in and out as one
 // JSON file ("midnight-mint/collection", see CollectionFile). Kept in this browser.
 import { local, readJSON, writeJSON , botcUnlocked} from "./services.ts";
-import type { CardBack, CardIcon, CardJoin, Hex, PatternSpec, Role, SpecInput, Team, TokenIcon, TokenShape } from "./types.ts";
+import type { CardBack, CardIcon, CardJoin, Hex, PatternSpec, Role, SpecInput, Team, TokenContent, TokenIcon, TokenShape } from "./types.ts";
 import { gameIcon } from "./icons.ts";
 import { safeIconMarkup, safeTransform } from "./engine/safe-svg.ts";
 import { DEFAULT_SPEC, FILAMENTS, PATTERNS, CARD_ICONS, CARD_JOINS, CARD_ICON_MM } from "./engine/token-engine.ts";
@@ -69,6 +69,8 @@ export interface OwnToken {
   fixed?: boolean;
   /** Its own colour, over its group's: what "the group's colour" is in its design (its linked tokens' and other state's too). */
   colour?: Hex;
+  /** What it carries (icon and name, icon only, name only), whatever its design; unset, as the design has it. */
+  content?: TokenContent;
 }
 /** A two-state token's other state: a name (in several languages, like the token's) and an icon (like the token's). */
 export interface OwnFlip { name: Names; icon: TokenIcon | null }
@@ -250,7 +252,7 @@ const STARTER = {
 };
 /** The first collection's token, as it came (nobody named it, gave it an icon or anything else): a placeholder to drop once there are real ones. */
 export const isUntouchedStarter = (tk: OwnToken) =>
-  tk.id === "t1" && !tk.icon && !tk.linked.length && !tk.flip && !tk.colour && Object.values(STARTER).some((s) => nameIn(tk.name, "es") === s.token || nameIn(tk.name, "en") === s.token);
+  tk.id === "t1" && !tk.icon && !tk.linked.length && !tk.flip && !tk.colour && !tk.content && Object.values(STARTER).some((s) => nameIn(tk.name, "es") === s.token || nameIn(tk.name, "en") === s.token);
 /** A first collection: one type, two groups, one token, and an open section for the catalogs you make. */
 export const starterCollection = (lang = "es"): Collection => {
   const s = lang === "es" ? STARTER.es : STARTER.en;
@@ -343,18 +345,20 @@ export function tokenRole(c: Collection, t: OwnToken, lang = "es"): Role {
   const type = c.types.find((x) => x.id === t.type);
   // the Edition back: the first closed catalog it's in ("Trouble Brewing"), else the collection's name
   const home = c.sections.find((s) => !s.open && s.catalogs.some((k) => k.tokens.includes(t.id)))?.catalogs.find((k) => k.tokens.includes(t.id));
+  const icon = t.content === "text" ? null : t.icon;   // only its name: its icon kept for later, not drawn
   return {
     id: t.id, en: nameIn(names, "en"), es: nameIn(names, "es"), names: Object.fromEntries([...langs].map((l) => [l, nameIn(names, l)])), fem: t.fem ?? {},
     team: t.group as Team,   // a group of the collection, registered as a team (main.ts, applyGroups)
     ...(t.colour ? { colour: t.colour } : {}),
     edition: "own", editionName: nameIn(home?.name ?? c.name, lang), collectionName: nameIn(c.name, lang),
     reminders: Object.fromEntries([...langs].map((l) => [l, t.linked.map((n) => nameIn(n, l))])),
-    body: t.icon?.body ?? "", d: [], g: t.icon?.g ?? "",
+    body: icon?.body ?? "", d: [], g: icon?.g ?? "",
     ...(type?.shape === "card" ? { kind: "info" as const } : type?.shape === "ring" ? { kind: "ring" as const } : type?.shape === "base" ? { kind: "base" as const } : {}),
     // credited like the library's icons, when it's from game-icons.net
-    ...creditOf(t.icon),
+    ...creditOf(icon),
     // the engine caches shapes by this: a new icon for the same token gets drawn afresh
-    iconKey: `${t.id}:${t.icon?.id ?? "none"}`,
+    iconKey: `${t.id}:${icon?.id ?? "none"}`,
+    ...(t.content ? { content: t.content } : {}),
     ...(t.flip ? { flip: flipRole(t.id, t.flip) } : {}),
   };
 }
@@ -528,6 +532,7 @@ export async function readCollectionFile(data: unknown, onProgress: (done: numbe
       linked: (t.linked ?? []).map((l) => (typeof l === "string" ? l : l?.name)).filter(okName),
       ...(flip ? { flip } : {}),
       ...(isHex(t.colour) ? { colour: t.colour } : {}),
+      ...(t.content === "both" || t.content === "icon" || t.content === "text" ? { content: t.content } : {}),
     });
     if (++done % 20 === 0 || done === f.tokens.length) onProgress(done, f.tokens.length);
   }

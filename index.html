@@ -679,9 +679,11 @@
     </div>
     <div class="tp-fields">
       <div id="tpShape"></div>
+      <!-- what it carries: icon and name, icon only, name only (a coin's; a card's with or without its icon) -->
+      <div id="tpContent"></div>
       <!-- its name, icon, group, catalogs and linked tokens -->
       <div class="own-fields" id="contentOwn">
-        <label class="field"><span data-i18n="own.name"></span><input class="text" id="ownTokName" autocomplete="off" data-i18n-attr="placeholder:own.namePlaceholder"></label>
+        <label class="field"><span data-i18n="own.name"></span><input class="text" id="ownTokName" autocomplete="off" data-i18n-attr="placeholder:own.namePlaceholder"><small class="hint" id="ownTokNameHint" data-i18n="own.content.iconName" hidden></small></label>
         <div class="field" id="ownTokIconRow"><span data-i18n="own.icon"></span>
           <div class="own-icon-bar">
             <input class="text" type="search" id="ownTokIq" autocomplete="off" data-i18n-attr="placeholder:icon.placeholder">

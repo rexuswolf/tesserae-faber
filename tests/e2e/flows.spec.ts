@@ -236,3 +236,20 @@ test("a token first: the front page's maker carries its name to a new token, in 
   expect(new URL(page.url()).pathname).toBe(first);
   expect(errors).toEqual([]);
 });
+
+test("what a token shows is the token's: chosen when made, kept, and the design step leaves it be", async ({ page }) => {
+  const errors = await open(page, "/");
+  await page.locator("#tourName").fill("Lobo");
+  await page.locator("[data-tok-new=maker]").evaluate((b) => (b as HTMLElement).click());
+  await page.waitForURL(/\/c\//);
+  await expect(page.locator("#tokenPanel")).toHaveAttribute("open", "", { timeout: 30_000 });
+  await page.locator("[data-content=text]").click();
+  await expect(page.locator("#ownTokIconRow")).toBeHidden();
+  await page.locator("[data-content=icon]").click();
+  await expect(page.locator("#ownTokNameHint")).toBeVisible();
+  await page.locator("#tpDone").click();
+  await expect(page.locator("#tokenPanel")).not.toHaveAttribute("open", "");
+  await page.locator("[data-own-edit]").first().click();
+  await expect(page.locator("[data-content=icon]")).toHaveAttribute("aria-checked", "true");
+  expect(errors).toEqual([]);
+});

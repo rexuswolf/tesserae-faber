@@ -65,7 +65,11 @@ export interface Role {
   iconKey?: string;
   /** A two-state token's other state, drawn on its back like a second front (a coin's only: see SHAPE_FEATURES). */
   flip?: RoleFlip;
+  /** What the token carries, whatever its design (a token of yours): unset, as its design lays it out. */
+  content?: TokenContent;
 }
+/** What a token carries: its icon and its name, only its icon (the name names it in the lists), or only its name. */
+export type TokenContent = "both" | "icon" | "text";
 
 /** A two-state token's other state: its name (as a character's: English, Spanish, the rest by
  *  language) and its icon (markup placed by `g`, credited like a character's when it's game-icons.net's). */
@@ -125,6 +129,8 @@ export type RingSeparator = "dot" | "diamond" | "star" | "none";
 /** How a token is designed (DEFAULT_SPEC has every field). Lengths are in mm. */
 export interface TokenSpec {
   style: TokenStyle;
+  /** A linked token's (reminderSpec): its word always shows, whatever its token carries. */
+  reminder?: boolean;
   relief: Relief;
   reliefHeight: number;
   /** Raised parts' walls slope in by this much at the top (mm; unset or 0: straight walls). */

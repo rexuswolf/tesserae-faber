@@ -352,7 +352,9 @@ export function deepenAll() {
 function renderStyleTiles(face: { role: Role; text: string }, spec: TokenSpec) {
   // without the background pattern: each would be cut anew (a tenth of a second each), and the tiles show the layout
   const s = { ...spec, diameter: 45, back: "none", backMode: "design" as const, frontPattern: null };
-  $("[data-choice=style]").innerHTML = TOKEN_STYLES.map((st) =>
+  // a token of yours: what it carries is the token's (Edit), the layouts here only how both are laid out
+  const styles = !TALLER && ownTokenOf(face.role.id) ? TOKEN_STYLES.filter((st) => st.id !== "solo" && st.id !== "text") : TOKEN_STYLES;
+  $("[data-choice=style]").innerHTML = styles.map((st) =>
     `<button class="back-tile" type="button" data-v="${st.id}" aria-pressed="${s.style === st.id}">${
       tokenSvg(state.lib!, face.role, { ...s, style: st.id, ...(st.id !== s.style ? { textSize: LAYOUT_TEXT[st.id] } : {}) }, { text: face.text })
     }<span>${esc(t(`style.${st.id}`))}</span></button>`).join("");
@@ -610,13 +612,19 @@ export function syncControls(role: Role, spec: TokenSpec, token: Token) {
   }
   const row = (id: string) => $("#" + id).closest<HTMLElement>(".row")!;
   // Layout: the coin's layouts, drawn on this face
-  if (panel === "layout") { renderStyleTiles(who, face); $("#styleHint").textContent = t(`style.${face.style}.help`); }
+  if (panel === "layout") {
+    const only = !TALLER && ownTokenOf(role.id) ? role.content : undefined;   // a token of yours that carries one thing: nothing to lay out
+    $("[data-choice=style]").hidden = only === "icon" || only === "text";
+    if (only === "icon" || only === "text") { $("[data-choice=style]").innerHTML = ""; $("#styleHint").textContent = t("style.onlyOne", { what: t(`own.content.${only}`).toLowerCase() }); }
+    else { renderStyleTiles(who, face); $("#styleHint").textContent = t(`style.${face.style}.help`); }
+  }
   // Text: the name; a ring's letters are as tall as asked only up to the band between its edge
   // lines (the slider stops there and shows the height they print at); a card's phrase is fitted.
   const textSize = $<HTMLInputElement>("#textSize");
   textSize.max = shape === "ring" ? String(Math.floor(ringBand(face).band * 10) / 10) : "6";
   if (shape === "ring") $("output[data-for=textSize]").textContent = (Math.min(face.textSize, +textSize.max)).toFixed(1).replace(".", dec) + " mm";
-  const coinStyle = (st: TokenStyle) => shape === "coin" && face.style === st;
+  const laid = role.content === "icon" ? "solo" : role.content === "text" ? "text" : face.style;   // a token of yours that carries one thing is laid out for it
+  const coinStyle = (st: TokenStyle) => shape === "coin" && laid === st;
   row("textSize").hidden = !f.textSize || coinStyle("solo") || coinStyle("text");
   row("spacing").hidden = !f.spacing || coinStyle("window") || coinStyle("solo");
   row("maxArc").hidden = !f.maxArc || coinStyle("window") || coinStyle("solo") || coinStyle("text");

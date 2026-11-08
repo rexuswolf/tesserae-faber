@@ -4,13 +4,13 @@ import { OWN, catalogsOf, nameIn, storeCollection, OWN_ID, builtIn, tallerUrl, r
 import type { OwnCatalog, OwnSection, OwnToken, OwnTheme, CollectionEntry } from "../collection.ts";
 import { coll, TEAM_ORDER, TEAM_PLURAL, PLATE_LABEL, PLATE_GROUP, $$, stickyNotice, state, $, esc, READONLY, hit, input, BUILT, COLOUR_CHOICES } from "./context.ts";
 import type { Creating } from "./context.ts";
-import type { Role, Team, Hex, TokenShape, TokenIcon } from "../types.ts";
+import type { Role, Team, Hex, TokenShape, TokenIcon, TokenContent } from "../types.ts";
 import { uiLang, t } from "../i18n.ts";
 import { PRINT_GROUPS, persistPicks, renderDesignStage, setPick, goStep } from "./queue.ts";
 import { TEAMS, saveFile, SHAPE_FEATURES, tokenSvg, shapeOf } from "../engine/token-engine.ts";
 import { UI_ICONS, TEAM_ICONS, uiIcon, SHAPE_ICONS } from "../ui-icons.ts";
 import { renderLangButtons, closeOnBackdrop, tokenLang } from "./token-language.ts";
-import { storeOverrides, designOf, defaultRef, designFor, designOverridden } from "./designs.ts";
+import { storeOverrides, designOf, defaultRef, designFor, designOverridden, lookOf } from "./designs.ts";
 import { roleById } from "./wiring.ts";
 import { charKey, remindersOf, specFor, remKey, sortKeys } from "./tokens.ts";
 import { searchQuery, pickedBadge, selectToken } from "./sheet.ts";
@@ -299,6 +299,7 @@ function ownEdited() {
   state.lib!.roles = ownRoles();
   if (state.sel) { const r = roleById(state.sel.role.id); if (r) state.sel = { ...state.sel, role: r }; }
   if (state.creating) renderPanelShape(state.creating.draft, state.creating.shape);
+  { const tk = editingOwn(); if (tk) renderPanelContent(tk, shapeOfToken(tk)); }
   renderPanelToken();
   if (state.step === 2 && state.sel) { renderWorkshop(); renderDesignStage(); }
   if (!state.creating) { clearTimeout(ownTimer); ownTimer = setTimeout(collectionChanged, 400); }
@@ -318,12 +319,12 @@ export function openTokenPanel(id: string) {
  * shows, and it goes in the catalog open; "Create and another" passes on the last one's shape,
  * type, group and catalogs.
  */
-function startCreate(like?: { shape: TokenShape; type: string; group: string; cats: string[] }, seed?: { name?: string; icon?: TokenIcon }) {
+function startCreate(like?: { shape: TokenShape; type: string; group: string; cats: string[] }, seed?: { name?: string; icon?: TokenIcon; content?: TokenContent }) {
   dropDraft();
   state.editing = null;
   const here = catalogOf(state.edition), shape = like?.shape ?? typeOfView(state.edition)?.shape ?? "coin";
   const group = like?.group ?? (state.team !== "all" && coll.groups.some((g) => g.id === state.team) ? state.team : coll.groups[0].id);
-  const draft: OwnToken = { id: newId("t"), type: like?.type ?? typeFor(shape), group, name: seed?.name ?? "", icon: seed?.icon ?? null, linked: [] };
+  const draft: OwnToken = { id: newId("t"), type: like?.type ?? typeFor(shape), group, name: seed?.name ?? "", icon: seed?.icon ?? null, linked: [], ...(seed?.content ? { content: seed.content } : {}) };
   state.creating = { draft, shape, cats: like?.cats ?? (here ? [here.id] : []) };
   state.lib!.roles = ownRoles();
   panelFor = "";
@@ -377,6 +378,7 @@ function createToken(more: boolean) {
   const c = state.creating; if (!c) return;
   const d = c.draft, lang = tokenLang();
   if (!nameIn(d.name, lang).trim()) { $("#tpFlash").textContent = t("create.needName"); $("#ownTokName").focus(); return; }
+  if (contentNow(d, c.shape) === "icon" && !d.icon) { $("#tpFlash").textContent = t("create.needIcon"); $("#ownTokIq").focus(); return; }
   const flip = SHAPE_FEATURES[c.shape].flip ? d.flip : undefined;
   if (flip && !nameIn(flip.name, lang).trim()) { $("#tpFlash").textContent = t("create.needFlipName"); $("#ownTokFlipName").focus(); return; }
   let type = coll.types.find((x) => x.id === d.type && x.shape === c.shape);
@@ -397,7 +399,7 @@ function createToken(more: boolean) {
   collectionChanged();
   setPick(key, true); tk.linked.forEach((_, i) => setPick(`r:${tk.id}:${i}`, true));
   emit("picks");
-  if (more) { startCreate({ shape: c.shape, type: type.id, group: tk.group, cats: c.cats }); $("#tpFlash").textContent = t("create.doneMore", { name }); return; }
+  if (more) { startCreate({ shape: c.shape, type: type.id, group: tk.group, cats: c.cats }, { content: tk.content }); $("#tpFlash").textContent = t("create.doneMore", { name }); return; }
   closeTokenPanel();
   toast(t("create.done", { name }));
 }
@@ -412,15 +414,18 @@ function renderTokenPanel() {
   $("#ownTokDelete").hidden = !!c;
   $("#tpDone").textContent = t(c ? "create.create" : "panel.done");
   renderPanelShape(tk, shape);
+  renderPanelContent(tk, shape);
   renderPanelToken();
   renderTokenColour(tk);
+  const carries = contentNow(tk, shape);
+  $("#ownTokIconRow").hidden = !SHAPE_FEATURES[shape].icon || carries === "text";
+  $("#ownTokNameHint").hidden = carries !== "icon";
   const sig = [tk.id, shape, tokenLang(), uiLang()].join("|");
   if (sig === panelFor) return;
   panelFor = sig;
   // more options open by themselves only on a token that already uses them
   $<HTMLDetailsElement>("#tpMoreOpts").open = !!(tk.linked.length || tk.flip || tk.colour);
   $<HTMLInputElement>("#ownTokName").value = nameIn(tk.name, tokenLang());
-  $("#ownTokIconRow").hidden = !SHAPE_FEATURES[shape].icon;
   $<HTMLInputElement>("#ownTokIq").value = ""; $("#ownTokHits").innerHTML = "";
   renderGroupPills(tk);
   const openCats = coll.sections.filter((x) => x.open).flatMap((x) => x.catalogs), inCat = (k: OwnCatalog) => (c ? c.cats.includes(k.id) : k.tokens.includes(tk.id));
@@ -446,6 +451,26 @@ function renderPanelShape(tk: OwnToken, shape: TokenShape) {
     const r = draftRole(c, sh), spec = designOf(sh, defaultRef(sh))!.spec;
     return `<button type="button" role="radio" data-shape="${sh}" aria-checked="${sh === c.shape}">${tokenSvg(state.lib!, r, { ...filled(spec), lang: tokenLang(), diameter: 45, back: "none", backMode: "design" }, { text: name })}<span>${esc(t(`own.shape.${sh}`))}</span></button>`;
   }).join("")}</div></div>${typePick}`;
+}
+/** What a shape's token can carry: a coin, its icon and name, either alone; a card, with or without its icon; a ring or a base, its name. */
+const CONTENTS: Record<TokenShape, TokenContent[]> = { coin: ["both", "icon", "text"], card: ["both", "text"], ring: [], base: [] };
+/** What the token carries now: its own choice, else what its design's layout shows (an icon-only or text-only coin). */
+function contentNow(tk: OwnToken, shape: TokenShape): TokenContent {
+  const opts = CONTENTS[shape];
+  if (tk.content && opts.includes(tk.content)) return tk.content;
+  const role = roleById(tk.id), style = role && shape === "coin" ? lookOf(charKey(role)).style : null;
+  return style === "solo" ? "icon" : style === "text" ? "text" : "both";
+}
+/** The token as it would be with each content, in its design: a tap chooses. */
+function renderPanelContent(tk: OwnToken, shape: TokenShape) {
+  const box = $("#tpContent"), opts = CONTENTS[shape], role = roleById(tk.id);
+  box.hidden = opts.length < 2 || !role;
+  if (box.hidden || !role) { box.innerHTML = ""; return; }
+  const now = contentNow(tk, shape), spec = { ...specFor(charKey(role), false), diameter: 45, back: "none" as const, backMode: "design" as const };
+  const text = nameIn(tk.name, tokenLang()).trim() || t("own.namePlaceholder");
+  const as = (content: TokenContent) => (state.creating ? draftRole({ ...state.creating, draft: { ...tk, content } }, shape) : ownRole(coll, { ...tk, content }, uiLang()));
+  box.innerHTML = `<div class="field"><span>${esc(t("own.content"))}</span><div class="shape-cards content-cards" role="radiogroup" aria-label="${esc(t("own.content"))}">${opts.map((c) =>
+    `<button type="button" role="radio" data-content="${c}" aria-checked="${c === now}">${tokenSvg(state.lib!, as(c), spec, { text })}<span>${esc(t(`own.content.${c}`))}</span></button>`).join("")}</div></div>`;
 }
 /** The token as it prints, in its design (front, back, linked tokens), and which design that is. */
 function renderPanelToken() {
@@ -503,6 +528,11 @@ function wireOwnToken() {
   $("#tpMore").onclick = () => createToken(true);
   $("#tpDone").onclick = () => (state.creating ? createToken(false) : closeTokenPanel());
   $("#tpShape").onclick = (e) => { const b = hit(e, "[data-shape]"); if (b) chooseShape(b.dataset.shape as TokenShape); };
+  $("#tpContent").onclick = (e) => {
+    const b = hit(e, "[data-content]"), tk = editingOwn(); if (!b || !tk) return;
+    tk.content = b.dataset.content as TokenContent;
+    ownEdited(); renderTokenPanel();
+  };
   $("#tpShape").onchange = (e) => {
     const el = e.target as HTMLSelectElement, tk = editingOwn();
     if (tk && el.dataset.typePick != null) { tk.type = el.value; ownEdited(); }
