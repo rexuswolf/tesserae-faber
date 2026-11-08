@@ -1772,11 +1772,12 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 #rows .row .who, #rows .row.no-rems .who { grid-area: who; grid-row: auto; align-self: center; gap: 1px 10px; }
 #rows .row .who b { flex-basis: 100%; font-size: 15px; line-height: 1.3; }
 #rows .row .who em { flex-basis: auto; font-size: 12.5px; }
-#rows .row .who .own-edit { padding: 0 10px; font-size: 12px; line-height: 20px; }
+#rows .row .who .own-edit { padding: 0 14px; font-size: 12.5px; font-weight: 500; line-height: 23px; }
 #rows .row .rems { display: contents; }
 #rows .row .rems-fold { grid-area: fold; justify-self: end; white-space: nowrap; }
 #rows .row .rem-list { grid-area: list; margin: 8px 0 4px; }
-#rows .row :is(.own-edit, .rems-fold) { border: 0; }
+#rows .row :is(.own-edit, .rems-fold) { border: 0; background: color-mix(in srgb, var(--bone) 13%, transparent); color: var(--bone); }
+#rows .row :is(.own-edit, .rems-fold):hover { background: color-mix(in srgb, var(--bone) 22%, transparent); }
 .rem-list .rem-chip { border: 0; border-radius: 3px; background: var(--tile-hi); }
 .rem-list .rem[data-on=all] .rem-chip { background: color-mix(in srgb, var(--velvet) 75%, var(--brass)); box-shadow: inset 0 0 0 2px var(--brass); }
 .design-bar .db-chip { flex: none; }
