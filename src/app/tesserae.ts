@@ -35,16 +35,17 @@ export function floor(bg: Rgb, text: Rgb) {
   return url(s + "</svg>");
 }
 
-let painted = "";
-/** Draws the material in the page's current colours (the collection's theme, or Clocktower's velvet). */
-export function paintTesserae(root = document.documentElement) {
+const painted = new WeakMap<HTMLElement, string>();
+/** Draws the material in an element's colours: the page's (the collection's theme, or Clocktower's velvet), or the
+ *  front pages', which keep the app's own. */
+export function paintTesserae(root: HTMLElement = document.documentElement) {
   const cs = getComputedStyle(root);
   const accent = rgb(cs.getPropertyValue("--brass")), text = rgb(cs.getPropertyValue("--bone")), bg = rgb(cs.getPropertyValue("--velvet-deep"));
   // the stylesheet not in yet (the first frame of a dev load): try again on the next
   if (!accent || !text || !bg) { requestAnimationFrame(() => paintTesserae(root)); return; }
   const key = [accent, text, bg].join();
-  if (key === painted) return;
-  painted = key;
+  if (painted.get(root) === key) return;
+  painted.set(root, key);
   // the band in the accent let down into the background, its corners the accent itself: it marks, it doesn't glare
   root.style.setProperty("--band-on", band(mix(accent, bg, 0.3), mix(accent, bg, 0.5), mix(accent, BLACK, 0)));
   root.style.setProperty("--floor", floor(bg, text));

@@ -26,3 +26,4 @@ import { paintTesserae } from "./app/tesserae.ts";
 
 if (OWN && OWN_ID) { applyOwnTheme(); applyOwnBrand(); keepGateLook(); }   // before the loading screen shows: it wears the collection's colours and mark too
 paintTesserae();   // the material in the page's colours (a collection's theme repaints it as it changes)
+for (const page of document.querySelectorAll<HTMLElement>(".own-home")) paintTesserae(page);   // the front pages: the app's own

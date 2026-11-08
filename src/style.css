@@ -1707,7 +1707,8 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
    - The logo's hexagon cuts what you act on: buttons, filters, the steps, the check.
    - One strip of mosaic, under the top bar, frames the app.
    Labels are plain sentence case; headings the theme's face. */
-:root { --tile: color-mix(in srgb, var(--velvet) 93%, var(--bone));
+/* (declared on the home pages too: they keep the app's own colours, and these are worked out where declared) */
+:root, .own-home { --tile: color-mix(in srgb, var(--velvet) 93%, var(--bone));
   --tile-hi: color-mix(in srgb, var(--velvet) 87%, var(--bone));
   --hex: polygon(11px 0, calc(100% - 11px) 0, 100% 50%, calc(100% - 11px) 100%, 11px 100%, 0 50%);
   --hex-s: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
@@ -1857,3 +1858,32 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 .way { border: 0; border-radius: 3px; background: var(--tile); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--bone) 7%, transparent), 0 1px 0 #0006; }
 .way:hover { background: var(--tile-hi); }
 .way[aria-checked=true] { background: color-mix(in srgb, var(--velvet) 80%, var(--brass)); box-shadow: inset 0 0 0 2px var(--brass); }
+
+/* ---- the editor: what the token says is a field (its label over it, the text in a tile, its arrow), not a grey line */
+.ws-says { align-items: stretch; }
+.says-toggle { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "l c" "v c"; align-items: center; gap: 1px 10px;
+  padding: 8px 12px; border-radius: 3px; background: var(--tile); color: var(--bone); }
+.says-toggle:hover { background: var(--tile-hi); }
+.says-toggle .says-l { grid-area: l; font-size: 12.5px; color: var(--dust); }
+.says-toggle b { grid-area: v; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.says-toggle > .chev { grid-area: c; width: 12px; height: 12px; color: var(--dust); transition: transform .15s; }
+.says-what b { font-size: 15px; }
+/* the token's own changes: a bar at the editor's foot, in reach while changing it, saying what it's about */
+.workshop > .ds-tweak { flex: none; position: sticky; bottom: 0; z-index: 3; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px;
+  padding: 12px 16px 14px; border-top: 1px solid var(--seam); background: color-mix(in srgb, var(--velvet-mid) 88%, var(--brass)); }
+.workshop > .ds-tweak .dt-what { flex: 1 1 100%; margin: 0; font-size: 13.5px; }
+.workshop > .ds-tweak .dt-what span:first-child { color: var(--brass); }
+.workshop > .ds-tweak :is(.pill, .forge) { padding: 7px 18px; font-size: 13.5px; }
+.workshop > .ds-tweak .forge { margin-left: auto; }
+
+/* ---- the front page and Collections: the same material, in the app's own colours (the logo's) */
+.own-home { --velvet: #26221f; --velvet-mid: #26221f; --glow: #3a2420;
+  background: radial-gradient(70% 40% at 20% 0%, var(--glow), transparent 70%), var(--floor, none) var(--velvet-deep); }
+.own-home::before { content: ""; display: block; height: 4px; background: var(--strip); opacity: .75; }
+.oh-ready { background: color-mix(in srgb, var(--velvet-deep) 55%, transparent); }
+.oh-top .oh-gh { border: 0; border-radius: 0; clip-path: var(--hex); background: var(--tile); padding-inline: 16px; }
+.oh-top .oh-gh:hover { background: var(--tile-hi); }
+.oh-top .oh-gh:focus-visible { clip-path: none; border-radius: 4px; }
+:is(.oh-cover, .oh-tile, .oh-make, .oh-empty, .ol-resume, .ol-taller, .tour-cover, .tour-box, .ol-steps a) { border-radius: 4px; }
+:is(.oh-tile, .oh-make, .ol-resume) { border: 0; background: var(--tile); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--bone) 7%, transparent), 0 1px 0 #0006; }
+:is(.oh-tile, .oh-make, .ol-resume):hover { background: var(--tile-hi); }

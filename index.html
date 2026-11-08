@@ -199,11 +199,6 @@
     <!-- the token's parts: a coin's FRONT · BACK · COIN · MAGNET, a ring's FRONT · RING, a card's FRONT · CARD -->
     <div class="parts" id="parts" role="tablist" data-i18n-attr="aria-label:ws.sections"></div>
     <div class="ws-body" id="styleFields">
-      <!-- the token's own changes over its design: kept as a design of yours, or dropped -->
-      <div class="ds-tweak design-only" id="styleTweak" hidden>
-        <button class="pill" type="button" id="styleSave" data-i18n="design.saveAs"></button>
-        <button class="pill" type="button" id="styleDrop" data-i18n="design.dropTweaks"></button>
-      </div>
       <!-- how it looks: its design's, with this token's changes (in the Taller: the design's) -->
       <h3 class="ws-bh" id="lookHead"><span id="lookTitle"></span> <small id="lookSub"></small></h3>
       <div class="ws-warn" id="colourWarn" hidden></div>
@@ -361,6 +356,13 @@
         <div class="row" id="reliefHeightRow"><label for="reliefHeight" data-i18n="range.reliefHeight"></label><output data-for="reliefHeight"></output><input type="range" id="reliefHeight" min="0.4" max="1.2" step="0.2" value="0.6"></div>
         <div class="row" id="reliefBevelRow"><label for="reliefBevel" data-i18n="range.reliefBevel"></label><output data-for="reliefBevel"></output><input type="range" id="reliefBevel" min="0" max="0.4" step="0.1" value="0"></div>
       </div>
+    </div>
+    <!-- the token's own changes over its design, at the editor's foot (in reach while changing it): kept as a design
+         of yours, or dropped -->
+    <div class="ds-tweak design-only" id="styleTweak" hidden>
+      <p class="dt-what"><span aria-hidden="true">✎</span> <span data-i18n="design.tweakBar"></span></p>
+      <button class="pill" type="button" id="styleDrop" data-i18n="design.dropTweaks"></button>
+      <button class="forge" type="button" id="styleSave" data-i18n="design.saveAs"></button>
     </div>
   </aside>
 
