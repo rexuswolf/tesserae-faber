@@ -236,11 +236,6 @@
       <section class="ws-panel" data-panel="layout" role="tabpanel" hidden>
         <div class="choices layout-tiles" data-choice="style"></div>
         <p class="hint" id="styleHint"></p>
-        <!-- a coin's back: or nothing on it at all -->
-        <div class="back-design" id="backDesign" hidden>
-          <p class="metal-label" data-i18n="back.plainLabel"></p>
-          <div class="choices" data-choice="back"></div>
-        </div>
         <!-- a card's: where its icon goes and how it sits with the phrase -->
         <div id="cardLayoutBox" hidden>
           <p class="metal-label" data-i18n="cardIcon.label"></p>
@@ -277,7 +272,7 @@
         <!-- a coin's back: what it shows on the tokens without another state (their icon, an ornament, your SVG, nothing) -->
         <div class="back-art" id="backArtBox" hidden>
           <p class="metal-label" data-i18n="back.artLabel"></p>
-          <div class="choices" id="backArt"></div>
+          <div class="choices art-tiles" id="backArt"></div>
           <input type="file" id="upload" accept=".svg,image/svg+xml" hidden data-i18n-attr="aria-label:upload.aria">
           <p class="hint" id="uploadHint" hidden></p>
         </div>
@@ -288,6 +283,8 @@
           <div class="row"><label for="cardIconSize" data-i18n="range.cardIconSize"></label><output data-for="cardIconSize"></output><input type="range" id="cardIconSize" min="12" max="40" step="1" value="30"></div>
           <p class="hint" id="cardIconHint"></p>
         </div>
+        <p class="metal-label" id="iconColourLabel" data-i18n="icon.colour"></p>
+        <div class="metal" data-colour="icon" data-i18n-attr="aria-label:icon.colour"></div>
         <p class="hint" id="iconColourHint"></p>
         <div class="relief-slot" data-relief-part="icon"></div>
       </section>

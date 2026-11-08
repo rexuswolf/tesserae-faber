@@ -119,12 +119,14 @@ export interface BackFace extends Partial<Pick<TokenSpec, FaceField>> {
   /** What a one-state token's back shows for its icon (unset: the token's): an ornament (BACK_ORNAMENTS), the uploaded SVG ("custom"), or nothing. */
   art?: string;
   relief?: Partial<Relief>;
-  colours?: Partial<Pick<SpecColours, "front" | "frame">>;
+  colours?: Partial<Pick<SpecColours, "front" | "frame" | "icon">>;
 }
 
 export interface SpecColours {
   base: ColourRef;
   front: ColourRef;
+  /** The icon's, when it isn't the name's (unset: the name's colour, `front`). */
+  icon?: ColourRef;
   frame: ColourRef;
   back: ColourRef;
   /** A card's back, behind its design: unset, the card's own colour (so every card of a deck can share one back). */
@@ -285,7 +287,8 @@ export interface Library {
  *  front: `back` its name (and window), `backIcon` and `backFrame`. */
 export type PartName = "base" | "front" | "icon" | "frame" | "back" | "backIcon" | "backFrame";
 /** The parts with a filament of their own; `hole` is the preview's pocket. */
-export type PartColours = Record<PartName, Hex> & { hole?: Hex };
+/** Each part's colour; `ink`, the icon's on a face (its own colour, else the name's: `icon` is the window's, the coin's). */
+export type PartColours = Record<PartName, Hex> & { hole?: Hex; ink?: Hex };
 
 export interface TokenParts {
   base: BufferGeometry | null;

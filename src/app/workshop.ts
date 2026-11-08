@@ -107,7 +107,9 @@ export function faceOf(s: TokenSpec, side: Side): TokenSpec {
   const spec = { ...DEFAULT_SPEC, ...s, colours: { ...DEFAULT_SPEC.colours, ...s.colours } };
   if (side === "front") return spec;
   const b = spec.backFace ?? {};
-  return { ...spec, ...backLookOf(spec), relief: reliefOf(b), colours: { ...spec.colours, front: b.colours?.front ?? spec.colours.front, frame: b.colours?.frame ?? spec.colours.frame } };
+  // the back's icon: its own colour, else its name's when that's the back's own, else the front's icon's
+  const icon = b.colours?.icon ?? (b.colours?.front ? undefined : spec.colours.icon);
+  return { ...spec, ...backLookOf(spec), relief: reliefOf(b), colours: { ...spec.colours, front: b.colours?.front ?? spec.colours.front, frame: b.colours?.frame ?? spec.colours.frame, icon } };
 }
 /** Applies a change to a face: the front's goes to the spec; the back's to its own settings, only what changed (what it
  *  never changed keeps following the front). */
@@ -121,7 +123,7 @@ export function changeFace(side: Side, mutate: (f: TokenSpec) => void) {
     if (s.backMode === "match") for (const k of FACE_FIELDS) delete b[k];
     for (const k of FACE_FIELDS) if (v[k] !== before[k]) (b as Fields)[k] = v[k];
     if (s.backMode === "match" && hasOwnLook(b)) s.backMode = "own";
-    for (const k of ["front", "frame"] as const) if (v.colours[k] !== before.colours[k]) b.colours = { ...b.colours, [k]: v.colours[k] };
+    for (const k of ["front", "frame", "icon"] as const) if (v.colours[k] !== before.colours[k]) b.colours = { ...b.colours, [k]: v.colours[k] };
     b.relief = reliefOf(v);
     s.backFace = b;
   });
@@ -131,7 +133,7 @@ export const hasOwnLook = (b: BackFace | undefined) => FACE_FIELDS.some((k) => b
 export const backChanged = (s: TokenSpec) => {
   const c = s.backFace?.colours, f = { ...DEFAULT_SPEC.colours, ...s.colours };
   const b = s.backMode === "design" ? undefined : s.backFace;
-  return hasOwnLook(backLookOf(s)) || (!!c?.front && c.front !== f.front) || (!!c?.frame && c.frame !== f.frame) || !!b?.say || !!b?.art;
+  return hasOwnLook(backLookOf(s)) || (!!c?.front && c.front !== f.front) || (!!c?.frame && c.frame !== f.frame) || (!!c?.icon && c.icon !== f.icon) || !!b?.say || !!b?.art;
 };
 
 /**
@@ -378,7 +380,7 @@ export function buildChoices() {
   for (const box of $$(".metal")) {
     // Every filament the Bambu export knows. The name and icon and the frame can take the team
     // colour; on the coin or the back it would show the team from behind.
-    const opts = [...(["front", "frame"].includes(box.dataset.colour!) ? [{ id: "team", hex: "team" }] : []), ...COLOUR_CHOICES];
+    const opts = [...(["front", "frame", "icon"].includes(box.dataset.colour!) ? [{ id: "team", hex: "team" }] : []), ...COLOUR_CHOICES];
     box.innerHTML = opts.map((o) => `<button type="button" class="${o.id === "team" ? "team" : ""}" data-v="${o.hex}" style="${o.id === "team" ? "" : `background:${o.hex}`}" aria-label="${esc(t(`metal.${o.id}`))}" title="${esc(t(`metal.${o.id}`))}"></button>`).join("");
   }
 }

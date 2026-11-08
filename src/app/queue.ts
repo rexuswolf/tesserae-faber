@@ -98,7 +98,7 @@ export function queuePlan() {
     const shape = shapeOf(role), has = SHAPE_FEATURES[shape], c = partColours(role, spec);
     const hasBack = has.back && spec.back !== "none" && (spec.back !== "custom" || spec.customSvg) && (spec.back !== "seal" || state.lib!.sealSvg) && (spec.back !== "edition" || role.edition);
     // a back that is a face (itemSpec says so) is drawn like a front: its name, icon and frame
-    const face = backFaceOf(role, spec, "")?.spec, iconColour = has.icon && spec.style !== "window" ? c.front : c.base;
+    const face = backFaceOf(role, spec, "")?.spec, iconColour = has.icon && spec.style !== "window" ? c.ink! : c.base;
     return {
       q, title: queueLabel(q, role), group: queueGroup(q, role),
       token: {
@@ -111,7 +111,7 @@ export function queuePlan() {
             backIcon: face && has.icon ? 1 : null, backFrame: face && face.frame !== "none" ? 1 : null },
           // the window's icon is in the coin colour; the classic one in the name's (on a back face, in the back's)
           colours: { base: c.base, front: c.front, icon: iconColour, frame: c.frame, back: c.back,
-            backIcon: face ? (face.style === "window" ? c.base : c.back) : iconColour, backFrame: c.backFrame },
+            backIcon: face ? (face.style === "window" ? c.base : partColours(role, face).ink!) : iconColour, backFrame: c.backFrame },
         }),
       },
     };

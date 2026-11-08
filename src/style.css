@@ -533,14 +533,19 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .reset-f:hover { color: var(--brass); }
 .reset-f.group { align-self: flex-end; margin-top: -8px; }
 .choices .pill { font-size: 13px; padding: 5px 11px; }
-[data-choice=back] { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .back-tile { border: 1px solid transparent; background: none; border-radius: 12px; padding: 6px 2px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11.5px; color: var(--dust); text-align: center; line-height: 1.15; }
 .back-tile svg, .upload-tile { width: 56px; height: 56px; }
 [data-choice=frame] { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 /* Layout (Type section): the two layouts as big tiles, then each face part flat or raised */
-[data-choice=style].layout-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.layout-tiles .back-tile { padding: 10px 4px; font-size: 13px; }
-.layout-tiles .back-tile svg { width: 84px; height: 84px; }
+[data-choice=style].layout-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.layout-tiles .back-tile { padding: 8px 4px; font-size: 12.5px; }
+.layout-tiles .back-tile svg { width: 72px; height: 72px; }
+/* what a back shows: four to a row like the frames, every tile the same width whatever its name */
+.art-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.back-tile { min-width: 0; overflow-wrap: anywhere; }
+/* the back as the front again: at the end of the back's tabs, only when it differs */
+.face-tabs .to-front { margin-left: auto; border: 0; background: none; color: var(--dust); font: inherit; font-size: 12.5px; padding: 4px 2px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--seam); }
+.face-tabs .to-front:hover { color: var(--brass); }
 /* A face part flush or raised, at the foot of its tab; the raised parts' height under it when there are some */
 .relief-slot { display: grid; gap: 8px; }
 .relief-slot:not(:empty) { padding-top: 12px; border-top: 1px solid var(--seam); }

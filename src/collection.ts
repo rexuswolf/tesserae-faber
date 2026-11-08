@@ -419,7 +419,7 @@ function readSpec(v: unknown): SpecInput | null {
   for (const [k, x] of Object.entries(v)) {
     if (k === "colours") {
       if (!x || typeof x !== "object") continue;
-      const c = Object.fromEntries(Object.entries(x).filter(([ck, cv]) => (ck in DEFAULT_SPEC.colours || ck === "backBase") && (cv === "team" || isHex(cv))));
+      const c = Object.fromEntries(Object.entries(x).filter(([ck, cv]) => (ck in DEFAULT_SPEC.colours || ck === "backBase" || ck === "icon") && (cv === "team" || isHex(cv))));
       if (Object.keys(c).length) out.colours = c;
     } else if (k === "relief") {
       if (!x || typeof x !== "object" || Array.isArray(x)) continue;

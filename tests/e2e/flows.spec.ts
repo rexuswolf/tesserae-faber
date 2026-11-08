@@ -134,19 +134,19 @@ test("a token's back is changed like its front: a two-state token's other state,
   await step('.cr-item[data-cr="part"]', seen("#parts"));   // Customise
   await step('#parts [data-part="back"]', seen("#faceTabs"));
   // the design's back, the edition in gold: its other state in gold too, changed from the front
-  await step('#faceTabs [data-face="layout"]', seen("#backNote [data-back-same]"));
-  await step("#backNote [data-back-same]", () => expect(page.locator("#backNote [data-back-same]")).toHaveCount(0, { timeout: 1000 }));
-  await step('[data-choice="style"] [data-v][aria-pressed="false"]', seen("#backNote [data-back-same]"));
+  await step('#faceTabs [data-face="layout"]', seen("#faceTabs [data-back-same]"));
+  await step("#faceTabs [data-back-same]", () => expect(page.locator("#faceTabs [data-back-same]")).toHaveCount(0, { timeout: 1000 }));
+  await step('[data-choice="style"] [data-v][aria-pressed="false"]', seen("#faceTabs [data-back-same]"));
   // what one-state tokens' backs say and show isn't this token's: it says so
   await step('#faceTabs [data-face="text"]', seen("#sayNote"));
   await expect(page.locator("#backSayBox")).toBeHidden();
   // a token without another state, its back plain: its tabs say so, and something can go on it
   await design("c:recovery");
-  await step('#faceTabs [data-face="layout"]', seen('[data-choice="back"] [data-v="none"]'));
-  await step('[data-choice="back"] [data-v="none"]', () => expect(page.locator('[data-choice="back"] [data-v="none"]')).toHaveAttribute("aria-pressed", "true", { timeout: 1000 }));
+  await step('#faceTabs [data-face="layout"]', seen('[data-choice="style"] [data-v="plain"]'));
+  await step('[data-choice="style"] [data-v="plain"]', () => expect(page.locator('[data-choice="style"] [data-v="plain"]')).toHaveAttribute("aria-pressed", "true", { timeout: 1000 }));
   await step('#faceTabs [data-face="text"]', seen("#backNote [data-back-face]"));
   await step("#backNote [data-back-face]", () => expect(page.locator("#backNote [data-back-face]")).toHaveCount(0, { timeout: 1000 }));
-  await step('#faceTabs [data-face="layout"]', () => expect(page.locator('[data-choice="back"] [aria-pressed="true"]')).toHaveCount(0, { timeout: 1000 }));
+  await step('#faceTabs [data-face="layout"]', () => expect(page.locator('[data-choice="style"] [data-v="plain"]')).toHaveAttribute("aria-pressed", "false", { timeout: 1000 }));
   // its pattern, the back's whatever it carries
   await step('#faceTabs [data-face="pattern"]', seen('[data-pat-side="back"] [data-pat-choice]'));
   expect(errors).toEqual([]);
@@ -172,6 +172,8 @@ test("a token's back says words of its own, shows an ornament, and its layout fo
   // an ornament for its icon: the layout has both again; the icon alone keeps the words for later
   await step('#faceTabs [data-face="icon"]', seen('#backArt [data-v="sol"]'));
   await step('#backArt [data-v="sol"]', pressed('#backArt [data-v="sol"]'));
+  // its colour, its own: in Icon, apart from the name's
+  await step('.metal[data-colour="icon"] button[data-v="#ece9e2"]', pressed('.metal[data-colour="icon"] button[data-v="#ece9e2"]'));
   await step('#faceTabs [data-face="layout"]', pressed('[data-choice="style"] [data-v="classic"]'));
   await step('[data-choice="style"] [data-v="solo"]', pressed('[data-choice="style"] [data-v="solo"]'));
   await step('[data-choice="style"] [data-v="classic"]', pressed('[data-choice="style"] [data-v="classic"]'));

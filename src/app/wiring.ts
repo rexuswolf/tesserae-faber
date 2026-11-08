@@ -202,22 +202,25 @@ export function wire() {
     if (hit(e, ".says-toggle")) { state.saysOpen = !state.saysOpen; renderSays(); }
   };
   $("#parts").onclick = (e) => { const b = hit(e, "[data-part]"); if (!b) return; showTab({ part: b.dataset.part as Part, face: b.dataset.face as FaceTab | undefined }); viewTab(); renderWorkshop(); };
-  $("#faceTabs").onclick = (e) => { const b = hit(e, "[data-face]"); if (!b) return; showTab({ face: b.dataset.face as FaceTab }); renderWorkshop(); };
+  $("#faceTabs").onclick = (e) => {
+    if (hit(e, "[data-back-same]")) { backToFront(); return; }
+    const b = hit(e, "[data-face]"); if (!b) return; showTab({ face: b.dataset.face as FaceTab }); renderWorkshop();
+  };
   $("#backNote").onclick = (e) => { if (hit(e, "[data-back-face]")) setBackFace(); else if (hit(e, "[data-back-same]")) backToFront(); };
   // A face's choices and sliders go to the face being edited (the front, or a back of its own); the rest to the token.
   const FACE_KEYS = new Set<string>(FACE_FIELDS);
   const change = (key: string, mutate: (s: TokenSpec) => void) => (FACE_KEYS.has(key) ? changeFace(editSide(), mutate) : changeLook(mutate));
-  for (const key of ["style", "frame", "back", "magnet", "magnetSize", "ringBase", "separator", "edge", "cardIcon", "cardJoin"]) {
+  for (const key of ["style", "frame", "magnet", "magnetSize", "ringBase", "separator", "edge", "cardIcon", "cardJoin"]) {
     $(`[data-choice=${key}]`).onclick = (e) => {
       const b = hit(e, "button"); if (!b) return;
+      // the back's layouts end with Plain: nothing on it
+      if (key === "style" && b.dataset.v === "plain") { changeLook((s) => { s.back = "none"; s.backMode = "design"; }); view3d("setView", "back"); syncView("back"); return; }
       change(key, (s) => {
         // a name size doesn't carry over between layouts: each starts from its own
         if (key === "style" && (s.style ?? DEFAULT_SPEC.style) !== b.dataset.v) s.textSize = LAYOUT_TEXT[b.dataset.v as TokenStyle];
         if (key === "edge" && b.dataset.v === "smooth") delete s.edge;   // smooth is unset: the coin as always
         else (s as unknown as Fields)[key] = b.dataset.v;
-        if (key === "back") s.backMode = "design";   // a drawing behind the tokens without another state
       });
-      if (key === "back") { view3d("setView", "back"); syncView("back"); }
       // a layout for the back: the token behind, no longer plain; and what it says and shows, as that layout has them
       if (key === "style" && editSide() === "back" && editShape() === "coin") {
         const fix = backLayoutContent(b.dataset.v as TokenStyle, editLook().backFace ?? {});
@@ -232,7 +235,7 @@ export function wire() {
     // a card back's phrase and frame: its own colours
     if (box.dataset.side === "cardback") { const k = box.dataset.cbColour as "text" | "frame"; changeCardBack((cb) => { cb.colours = { ...cb.colours, [k]: b.dataset.v! }; }); return; }
     if (box.dataset.side === "back") changeFace("back", mutate);
-    else if (box.closest("[data-panel=text], [data-panel=frame], [data-panel=colours]")) changeFace(editSide(), mutate);
+    else if (box.closest("[data-panel=text], [data-panel=icon], [data-panel=frame], [data-panel=colours]")) changeFace(editSide(), mutate);
     else changeLook(mutate);
   };
   // a bevel of 0 is none: left unset, as in a design without one

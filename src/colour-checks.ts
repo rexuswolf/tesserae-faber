@@ -53,17 +53,20 @@ const LIGHT = 65, DARK = 45, COVERS = 0.4;
  * dark coin. Parts the design doesn't have (no frame, a plain back) aren't checked.
  */
 /** The inlaid parts a colour check looks at ("front" is the name and the icon). */
-export type InlayPart = "front" | "frame" | "back";
+export type InlayPart = "front" | "icon" | "frame" | "back";
 
 export function colourIssues(role: Role, spec: SpecInput): { clash: InlayPart[]; light: InlayPart[] } {
   const c = partColours(role, spec);
   const parts: InlayPart[] = ["front"];
+  // an icon in a colour of its own is checked on its own (else with the name, as "front")
+  if (c.ink && c.ink !== c.front && spec.style !== "window") parts.push("icon");
   if (spec.frame && spec.frame !== "none") parts.push("frame");
   // a back design; or a back face in a colour of its own (in the front's, it's checked with the front)
   if (spec.back && spec.back !== "none" && (spec.back !== FACE_BACK || c.back !== c.front)) parts.push("back");
-  const clash = parts.filter((p) => deltaE(c[p], c.base) < CLASH);
+  const of = (p: InlayPart) => (p === "icon" ? c.ink! : c[p]);
+  const clash = parts.filter((p) => deltaE(of(p), c.base) < CLASH);
   const dark = lightness(c.base) <= DARK;
-  const light = dark && (spec.depth ?? 0.2) < COVERS ? parts.filter((p) => !clash.includes(p) && lightness(c[p]) >= LIGHT) : [];
+  const light = dark && (spec.depth ?? 0.2) < COVERS ? parts.filter((p) => !clash.includes(p) && lightness(of(p)) >= LIGHT) : [];
   return { clash, light };
 }
 

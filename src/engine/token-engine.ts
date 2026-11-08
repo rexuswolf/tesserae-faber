@@ -237,7 +237,7 @@ export function partColours(role: Role, spec: SpecInput): PartColours {
   const pick = (v: ColourRef): Hex => (v === "team" ? team : v);
   // A back that is a face is a second front, in its colours (the back colour is for back designs).
   const face = spec.back === FACE_BACK ? backColours(spec) : null;
-  return { base: pick(c.base), front: pick(c.front), icon: pick(c.base), frame: pick(c.frame), back: pick(face?.front ?? c.back), backIcon: pick(c.base), backFrame: pick(face?.frame ?? c.frame) };
+  return { base: pick(c.base), front: pick(c.front), ink: pick(c.icon ?? c.front), icon: pick(c.base), frame: pick(c.frame), back: pick(face?.front ?? c.back), backIcon: pick(c.base), backFrame: pick(face?.frame ?? c.frame) };
 }
 
 // ---------------------------------------------------------------- geometry helpers
@@ -2745,7 +2745,8 @@ export const backIsFace = (role: Role | null | undefined, spec: SpecInput | unde
 /** A back face's colours: its own, else the front's. */
 function backColours(spec: SpecInput) {
   const c = { ...DEFAULT_SPEC.colours, ...spec.colours }, own = spec.backFace?.colours;
-  return { front: own?.front ?? c.front, frame: own?.frame ?? c.frame };
+  // the icon: its own on the back, else the back's name's when that's the back's own, else the front's icon's
+  return { front: own?.front ?? c.front, frame: own?.frame ?? c.frame, icon: own?.icon ?? (own?.front ? undefined : c.icon) };
 }
 
 /**
@@ -2760,7 +2761,7 @@ export function backFaceOf(role: Role, spec: TokenSpec, text: string): { role: R
   const look = !spec.linked ? backLookOf(spec) : {};
   const c = backColours(spec);
   // the back's pattern behind it, in the back frame's colour (a pattern under a back design is in the design's)
-  const face = windowFrame({ ...spec, ...look, frontPattern: spec.backPattern ? { ...spec.backPattern, colour: "frame" } : undefined, relief: backRelief(spec), colours: { ...spec.colours, front: c.front, frame: c.frame } });
+  const face = windowFrame({ ...spec, ...look, frontPattern: spec.backPattern ? { ...spec.backPattern, colour: "frame" } : undefined, relief: backRelief(spec), colours: { ...spec.colours, front: c.front, frame: c.frame, icon: c.icon } });
   if (other) return { role: other, text: roleName(other, spec.lang), spec: { ...face, icon: undefined } };
   return backContent(role, face, text, spec.backFace ?? {});
 }
@@ -2969,8 +2970,8 @@ export function buildToken(lib: Library, role: Role, input: SpecInput | undefine
   const R = reliefOf(spec), B = reliefOf(backSpec), r = reliefTop(spec), above = (g: THREE.BufferGeometry | null | undefined) => (g && r ? aboveOf.get(g) ?? geometryVolume(g) * r / (spec.depth + r) : 0);
   // The window's icon is in the coin colour, over the window; the classic one in the team
   // colour like the name. Either is its own part, raised or not; on a back face likewise.
-  const iconColour = window ? colours.icon : colours.front;
-  const backIconColour = backSpec?.style === "window" ? colours.icon : backSpec ? colours.back : iconColour;
+  const iconColour = window ? colours.icon : colours.ink!;
+  const backIconColour = backSpec?.style === "window" ? colours.icon : backSpec ? partColours(role, backSpec).ink! : iconColour;
   return {
     parts: {
       base: buildBase(spec), front: frontName, icon: front.icon || null, frame: frameAll,
@@ -3091,9 +3092,9 @@ export function tokenSvg(lib: Library, role: Role, input: SpecInput | undefined,
       body += up("text", TL.lines.map((line) => { const shapes = textShapes(lib, line.text, TL.em), box = boundsOf(shapes); return `<path fill="${c.front}" fill-rule="evenodd" d="${shapesToPath(shapes, -(box.min.x + box.max.x) / 2, line.y)}"/>`; }).join(""));
     } else if (fitsIcon(spec)) {
       const f = fittedIcon(lib, role, spec, label);
-      body += up("icon", `<g fill="${c.front}" transform="${f.dy ? `translate(0 ${(-f.dy).toFixed(3)}) ` : ""}scale(${f.k.toFixed(5)}) translate(${(-f.cx).toFixed(3)} ${(-f.cy).toFixed(3)})"><g transform="${icon.g}">${icon.body}</g></g>`);
+      body += up("icon", `<g fill="${c.ink}" transform="${f.dy ? `translate(0 ${(-f.dy).toFixed(3)}) ` : ""}scale(${f.k.toFixed(5)}) translate(${(-f.cx).toFixed(3)} ${(-f.cy).toFixed(3)})"><g transform="${icon.g}">${icon.body}</g></g>`);
     } else {
-      body += up("icon", `<g fill="${c.front}" transform="translate(0 ${-(spec.iconOffsetY || 0)}) scale(${k}) translate(${-TRACE_VIEW / 2} ${-TRACE_VIEW / 2})"><g transform="${icon.g}">${icon.body}</g></g>`);
+      body += up("icon", `<g fill="${c.ink}" transform="translate(0 ${-(spec.iconOffsetY || 0)}) scale(${k}) translate(${-TRACE_VIEW / 2} ${-TRACE_VIEW / 2})"><g transform="${icon.g}">${icon.body}</g></g>`);
     }
     const L = arcName(lib, label, spec);
     // SVG y points down: angle a in engine space is -a on screen.
