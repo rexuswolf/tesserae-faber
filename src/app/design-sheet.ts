@@ -8,7 +8,7 @@ import { ownChanged, myDesigns, myEntry, collEntry, inheritedRef, refOf, origina
 import type { DesignEntry } from "./designs.ts";
 import { appDesigns, APP_NAME, tallerUrl, newId, OWN, isLocked, nameIn } from "../collection.ts";
 import type { OwnToken } from "../collection.ts";
-import { state, collDesigns, $, esc, hit, $$, READONLY, coll, view3d, LAYOUT_TEXT, RELIEF_PARTS, RANGES } from "./context.ts";
+import { state, collDesigns, $, esc, hit, $$, READONLY, coll, view3d, LAYOUT_TEXT, RANGES } from "./context.ts";
 import type { Side, RangeKey } from "./context.ts";
 import { t, uiLang } from "../i18n.ts";
 import type { Vars } from "../i18n.ts";
@@ -333,7 +333,6 @@ export const backDrawn = () => editLook().backMode === "design" && !selFlip(stat
 /** The token behind, on the tokens without another state: the back is a face (its look what it changed, if anything). */
 export function setBackFace() {
   changeLook((s) => { s.backMode = hasOwnLook(s.backFace) ? "own" : "match"; });
-  state.reliefAsk = null;
   view3d("setView", "back"); syncView("back");
 }
 /** The back as the front again: what it changed of its look and colours goes (its relief stays: only one face stands out). */
@@ -667,45 +666,56 @@ function faceRole(role: Role, side: Side) {
   return other ? { role: other, text: roleName(other, tokenLang()) } : { role, text: textFor(state.sel!.key, role, state.sel!.reminder) };
 }
 
+/** Which face stands out: only one can (the other lies on the bed); none, with nothing raised. */
+const raisedFace = (s: TokenSpec): Side | null => (hasRelief(s) ? "front" : s.backMode !== "design" && hasRelief(s.backFace ?? {}) ? "back" : null);
+/** A face's parts that can stand out: the shape's, but the name in the solo layout and the icon in the text one (they aren't there). */
+function reliefParts(shape: TokenShape, face: TokenSpec): ReliefPart[] {
+  const off = (k: ReliefPart) => shape === "coin" && ((k === "text" && face.style === "solo") || (k === "icon" && face.style === "text"));
+  return (["text", "icon", "frame"] as ReliefPart[]).filter((k) => SHAPE_FEATURES[shape].relief.includes(k) && !off(k));
+}
 /**
- * A face part's relief, flush or raised (the shape's parts only), in a tab's relief slot: in Text,
- * Icon and Frame their own; in a back that matches the front, all three. Only one face can stand
- * out (the other lies on the bed): raising a part while the other face has raised parts asks
- * first, with the way to make that face flush.
+ * Relief, a section of its own: which face stands out (a coin's front or back; a plain back has
+ * nothing to raise), which of that face's parts, how high and how bevelled (the whole token's), and
+ * how it prints.
  */
-function renderRelief(slot: HTMLElement, shape: TokenShape, side: Side, f: TokenSpec, front: TokenSpec) {
-  const has = SHAPE_FEATURES[shape].relief, which = slot.dataset.reliefPart!;
-  const parts = (which === "all" ? RELIEF_PARTS : [which as ReliefPart]).filter((k) => has.includes(k));
-  if (!parts.length) { slot.innerHTML = ""; return; }
-  const relief = reliefOf(f), raised = parts.some((k) => relief[k]);
-  // no name in the solo layout: nothing to raise
-  const off = (k: ReliefPart) => shape === "coin" && ((k === "text" && f.style === "solo") || (k === "icon" && f.style === "text"));
-  const row = (k: ReliefPart) => `<div class="relief-el"><span><b>${esc(which === "all" ? t(`relief.${k}`) : t("relief.title"))}</b><small>${esc(shapeText(`relief.${k}.help`, shape))}</small></span><span class="seg2" role="group" aria-label="${esc(t(`relief.${k}`))}" data-relief="${k}" data-side="${side}"><button type="button" data-v="flat" aria-pressed="${!relief[k]}"${off(k) ? " disabled" : ""}>${esc(t("relief.flat"))}</button><button type="button" data-v="raised" aria-pressed="${relief[k]}"${off(k) ? " disabled" : ""}>${esc(t("relief.raised"))}</button></span></div>`;
-  const ask = state.reliefAsk && state.reliefAsk.side === side && parts.includes(state.reliefAsk.part)
-    ? `<p class="hint warn relief-ask">${esc(t(side === "front" ? "relief.askBack" : "relief.askFront"))} <button class="pill" type="button" data-relief-swap>${esc(t(side === "front" ? "relief.flattenBack" : "relief.flattenFront"))}</button></p>` : "";
-  const total = dec1(front.height + front.reliefHeight);
-  const help = raised ? t(side === "front" ? "relief.raisedHelp" : "relief.raisedBackHelp", { total }) : side === "front" ? shapeText("relief.flatHelp", shape) : t("relief.flatBack");
-  slot.innerHTML = parts.map(row).join("") + ask + `<p class="hint${raised ? " warn" : ""}">${esc(help)}</p>`;
-  // the raised parts' height, shared by every part (only one face stands out)
-  if (raised) { slot.insertBefore($("#reliefHeightBox"), slot.lastElementChild); $("#reliefHeightBox").hidden = false; }
+function renderRelief(role: Role, shape: TokenShape, spec: TokenSpec, back: TokenSpec) {
+  const s = faceOf(spec, "front"), on = raisedFace(s), twoFaces = shape === "coin";
+  const plainBack = s.backMode === "design" && !selFlip(role);
+  $("#reliefFaceBox").hidden = !twoFaces;
+  $("#reliefFace").innerHTML = (["none", "front", "back"] as const).map((v) =>
+    `<button type="button" data-relief-face="${v}" aria-pressed="${(on ?? "none") === v}"${v === "back" && plainBack ? " disabled" : ""}>${esc(t(`relief.face.${v}`))}</button>`).join("");
+  // a one-faced shape: its front's parts, raised or not; a coin: the raised face's (none: nothing to pick)
+  const side: Side = twoFaces ? on ?? "front" : "front", face = side === "back" ? back : s, relief = reliefOf(face);
+  $("#reliefPartsBox").hidden = twoFaces && !on;
+  $("#reliefParts").innerHTML = reliefParts(shape, face).map((k) =>
+    `<button class="pill" type="button" data-relief-part="${k}" aria-pressed="${relief[k]}">${esc(shape === "coin" ? t(`face.${k}`) : shapeText(`relief.${k}.help`, shape))}</button>`).join("");
+  $("#reliefHeightBox").hidden = !on;
+  const total = dec1(s.height + s.reliefHeight);
+  $("#reliefHint").textContent = !on ? shapeText("relief.flatHelp", shape) : t(on === "front" ? "relief.raisedHelp" : "relief.raisedBackHelp", { total });
 }
-/** Raising or flattening a face part; raising one while the other face has raised parts asks first (renderRelief). */
-export function setRelief(side: Side, part: ReliefPart, raised: boolean) {
-  const s = editLook();
-  const other = side === "front" ? hasRelief(s.backFace ?? {}) : hasRelief(s);
-  if (raised && other) { state.reliefAsk = { side, part }; renderWorkshop(); return; }
-  state.reliefAsk = null;
-  changeFace(side, (f) => { f.relief = { ...reliefOf(f), [part]: raised }; });
-  view3d("setView", "side"); syncView("side");
-}
-/** The answer to the question: the other face flush, and the part asked for raised. */
-export function swapRelief() {
-  const ask = state.reliefAsk; if (!ask) return;
-  state.reliefAsk = null;
+/**
+ * The face that stands out: the other made flush, its raised parts carried over (the face's own, if
+ * any were kept; else all it can raise). None: both flush.
+ */
+export function setReliefFace(to: Side | "none") {
+  const role = state.sel!.role, shape = shapeOf(role), FLAT = { text: false, frame: false, icon: false };
   changeLook((s) => {
-    if (ask.side === "front") { s.backFace = { ...s.backFace, relief: { text: false, frame: false, icon: false } }; s.relief = { ...reliefOf(s), [ask.part]: true }; }
-    else { s.relief = { text: false, frame: false, icon: false }; s.backFace = { ...s.backFace, relief: { ...reliefOf(s.backFace ?? {}), [ask.part]: true } }; }
+    const f = faceOf(s, "front"), b = faceOf(s, "back"), was = raisedFace(f);
+    const carried = was ? reliefOf(was === "front" ? f : b) : null;
+    const shownBack = shape === "coin" && !selFlip(role) && s.backMode !== "design" ? backShown(role, b, textFor(state.sel!.key, role, state.sel!.reminder)).spec : b;
+    const target = to === "back" ? shownBack : f, parts = reliefParts(shape, target);
+    const want = { ...FLAT, ...Object.fromEntries(parts.map((k) => [k, carried ? carried[k] : true])) };
+    if (!parts.some((k) => want[k])) for (const k of parts) want[k] = true;
+    s.relief = to === "front" ? want : FLAT;
+    s.backFace = { ...s.backFace, relief: to === "back" ? want : FLAT };
   });
+  const view = to === "back" ? "back" : "side";
+  view3d("setView", view); syncView(view);
+}
+/** A part of the raised face up or flush (on a one-faced shape, its front's); with none left up, nothing stands out. */
+export function toggleReliefPart(part: ReliefPart) {
+  const side = raisedFace(faceOf(editLook(), "front")) ?? "front";
+  changeFace(side, (f) => { const r = reliefOf(f); f.relief = { ...r, [part]: !r[part] }; });
   view3d("setView", "side"); syncView("side");
 }
 
@@ -839,12 +849,9 @@ export function syncControls(role: Role, spec: TokenSpec, token: Token) {
     const v = from.colours[k] ?? (k === "icon" ? from.colours.front : undefined);   // an icon without a colour of its own: the name's
     $$("button", box).forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === v)));
   });
-  // Relief: in the open tab's slot, for the face being edited
-  $("#reliefHeightBox").hidden = true; $("#styleFields").append($("#reliefHeightBox"));
-  for (const slot of $$<HTMLElement>(".relief-slot")) {
-    if (slot.closest<HTMLElement>(".ws-panel")!.dataset.panel !== panel) { slot.innerHTML = ""; continue; }
-    renderRelief(slot, shape, side, face, s);
-  }
+  // Relief: its own section, for the whole token
+  // the back as it prints: a one-state token's with what it says and shows (its layout follows them)
+  if (panel === "relief") renderRelief(role, shape, spec, shape === "coin" && !selFlip(role) && s.backMode !== "design" ? backShown(role, faceOf(spec, "back"), textFor(state.sel!.key, role, state.sel!.reminder)).spec : faceOf(spec, "back"));
   // Reset buttons: shown where a field differs from what it resets to (see resetBase), never on a
   // hidden field, and not on a back face (its fields follow the front until changed).
   for (const btn of $$("[data-reset]")) {

@@ -2075,3 +2075,8 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 .back-say input.text { width: 100%; }
 .back-art { margin: 0 0 14px; }
 .back-art[hidden] { display: none; }
+/* Relief, a section of its own: which face, which of its parts, how high */
+[data-panel=relief]:not([hidden]) { display: grid; gap: 18px; }
+#reliefFaceBox, #reliefPartsBox { display: grid; gap: 8px; justify-items: start; }
+#reliefFaceBox[hidden], #reliefPartsBox[hidden], #reliefHeightBox[hidden] { display: none; }
+#reliefHeightBox { display: grid; gap: 12px; }

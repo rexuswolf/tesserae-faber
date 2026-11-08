@@ -76,7 +76,7 @@ interface Selection { key: string; role: Role; reminder: number | null }
 /** A design saved in this browser before styles (one per character): it became a style of its type. */
 export interface SavedDesign { id: string; roleId: string; text: string | null; fem: boolean; spec: TokenSpec; title: string; updatedAt: number; shape?: TokenShape }
 /** The workshop's tabs: level 1, the token's parts ("body" is the coin, ring or card itself); level 2, a face's. */
-export type Part = "front" | "colours" | "back" | "body" | "magnet";
+export type Part = "front" | "colours" | "back" | "body" | "relief" | "magnet";
 export type FaceTab = "layout" | "text" | "icon" | "frame" | "pattern";
 export type Side = "front" | "back";
 
@@ -89,7 +89,6 @@ export const state: {
   /** The open part of each type, and the open tab of each face. */
   part: Record<TokenShape, Part>; faceTab: Record<Side, FaceTab>;
   /** A part asked to be raised while the other face has raised parts: the question is shown. */
-  reliefAsk: { side: Side; part: ReliefPart } | null;
   /** The 3D view's side ("back" shows the strip's coins from behind too). */
   view: string;
   /** What each token has of its own (see loadDesigns). */
@@ -108,7 +107,7 @@ export const state: {
   edition: "all", team: "all",   // the sheet opens on every character
   sel: null,              // { key, role, reminder: index | null }
   part: { coin: "front", ring: "front", card: "front", base: "front" }, faceTab: { front: "layout", back: "layout" },   // the first tab: Layout (Text where a shape has no layouts)
-  reliefAsk: null, view: "angle",
+  view: "angle",
   overrides: new Map(),   // read by loadDesigns once the tokens are known
   flash: "",
   editing: null, creating: null, saysOpen: false,

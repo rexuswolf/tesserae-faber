@@ -266,7 +266,6 @@
         </div>
         <p class="metal-label" id="frontColourLabel"></p>
         <div class="metal" data-colour="front" data-i18n-attr="aria-label:front.colour"></div>
-        <div class="relief-slot" data-relief-part="text"></div>
       </section>
       <section class="ws-panel" data-panel="icon" role="tabpanel" hidden>
         <!-- a coin's back: what it shows on the tokens without another state (their icon, an ornament, your SVG, nothing) -->
@@ -286,13 +285,11 @@
         <p class="metal-label" id="iconColourLabel" data-i18n="icon.colour"></p>
         <div class="metal" data-colour="icon" data-i18n-attr="aria-label:icon.colour"></div>
         <p class="hint" id="iconColourHint"></p>
-        <div class="relief-slot" data-relief-part="icon"></div>
       </section>
       <section class="ws-panel" data-panel="frame" role="tabpanel" hidden>
         <div class="choices" data-choice="frame"></div>
         <div class="row"><label for="frameWidth" data-i18n="range.frameWidth"></label><output data-for="frameWidth"></output><input type="range" id="frameWidth" min="0.4" max="2" step="0.1" value="0.8"></div>
         <div class="metal" data-colour="frame" data-i18n-attr="aria-label:frame.aria"></div>
-        <div class="relief-slot" data-relief-part="frame"></div>
       </section>
       <!-- a face's background pattern (patternGroupHtml): the front's, or the back's -->
       <section class="ws-panel" data-panel="pattern" role="tabpanel" hidden>
@@ -369,16 +366,27 @@
           <p class="hint" data-i18n="edge.help"></p>
         </div>
       </section>
+      <!-- relief: which face stands out (only one can: the other lies on the bed), which of its parts, how high, how bevelled -->
+      <section class="ws-panel" data-panel="relief" role="tabpanel" hidden>
+        <div id="reliefFaceBox">
+          <p class="metal-label" data-i18n="relief.faceLabel"></p>
+          <span class="seg2" role="group" id="reliefFace" data-i18n-attr="aria-label:relief.faceLabel"></span>
+        </div>
+        <div id="reliefPartsBox">
+          <p class="metal-label" data-i18n="relief.partsLabel"></p>
+          <div class="choices" id="reliefParts"></div>
+        </div>
+        <div class="relief-height" id="reliefHeightBox">
+          <div class="row" id="reliefHeightRow"><label for="reliefHeight" data-i18n="range.reliefHeight"></label><output data-for="reliefHeight"></output><input type="range" id="reliefHeight" min="0.4" max="1.2" step="0.2" value="0.6"></div>
+          <div class="row" id="reliefBevelRow"><label for="reliefBevel" data-i18n="range.reliefBevel"></label><output data-for="reliefBevel"></output><input type="range" id="reliefBevel" min="0" max="0.4" step="0.1" value="0"></div>
+        </div>
+        <p class="hint" id="reliefHint"></p>
+      </section>
       <section class="ws-panel" data-panel="magnet" role="tabpanel" hidden>
         <div class="choices" data-choice="magnet"></div>
         <div class="choices" data-choice="magnetSize" id="magnetSizeRow"></div>
         <p class="hint" id="magnetHint"></p>
       </section>
-      <!-- the raised parts' height: moved into the open tab's relief slot when something there is raised -->
-      <div class="relief-height" id="reliefHeightBox" hidden>
-        <div class="row" id="reliefHeightRow"><label for="reliefHeight" data-i18n="range.reliefHeight"></label><output data-for="reliefHeight"></output><input type="range" id="reliefHeight" min="0.4" max="1.2" step="0.2" value="0.6"></div>
-        <div class="row" id="reliefBevelRow"><label for="reliefBevel" data-i18n="range.reliefBevel"></label><output data-for="reliefBevel"></output><input type="range" id="reliefBevel" min="0" max="0.4" step="0.1" value="0"></div>
-      </div>
     </div>
     <!-- the token's own changes over its design, at the editor's foot (in reach while changing it): kept as a design
          of yours, or dropped -->

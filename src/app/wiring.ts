@@ -11,7 +11,7 @@ import { persistPicks, editToken, isPicked, setPick, renderQueue, goStep, flow, 
 import { renderSpine, renderSheet, onCopyStep, openRows, toggleCharacter, openAddMenu, addShown } from "./sheet.ts";
 import { openTokenPanel, wireCollSwitch, wireOwn } from "./creator.ts";
 import { wireEditor } from "./editor.ts";
-import { wireDesignBar, deepenAll, openDesignSheet, wireDesignSheet, saveLookAsDesign, setOwn, rememberReturn, renderSays, setBackFace, backToFront, backDrawn, changeLook, deepen, resetField, swapRelief, setRelief, changePattern, changeCardBack, changeBackContent } from "./design-sheet.ts";
+import { wireDesignBar, deepenAll, openDesignSheet, wireDesignSheet, saveLookAsDesign, setOwn, rememberReturn, renderSays, setBackFace, backToFront, backDrawn, changeLook, deepen, resetField, setReliefFace, toggleReliefPart, changePattern, changeCardBack, changeBackContent } from "./design-sheet.ts";
 import { OWN } from "../collection.ts";
 import { TALLER } from "./taller.ts";
 import { designFor, rereadMyDesigns } from "./designs.ts";
@@ -250,9 +250,10 @@ export function wire() {
   $("#styleFields").addEventListener("click", (e) => {
     const r = hit(e, "[data-reset]");
     if (r) { resetField(r.dataset.reset!); return; }
-    if (hit(e, "[data-relief-swap]")) { swapRelief(); return; }
-    const v = hit(e, "[data-relief] [data-v]"), seg = hit(e, "[data-relief]");
-    if (v && seg) setRelief(seg.dataset.side as Side, seg.dataset.relief as ReliefPart, v.dataset.v === "raised");
+    // relief: which face stands out, and which of its parts
+    const face = hit(e, "[data-relief-face]"), part = hit(e, "[data-relief-part]");
+    if (face) setReliefFace(face.dataset.reliefFace as Side | "none");
+    else if (part) toggleReliefPart(part.dataset.reliefPart as ReliefPart);
   });
   // a pattern: its tiles and colours on a click, its sliders when let go (each cut takes a moment), their value as they move
   for (const side of ["front", "back"] as const) {

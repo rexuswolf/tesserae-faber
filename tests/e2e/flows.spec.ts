@@ -182,6 +182,29 @@ test("a token's back says words of its own, shows an ornament, and its layout fo
   expect(errors).toEqual([]);
 });
 
+test("relief is a section of its own: which face stands out, which of its parts, how high", async ({ page }) => {
+  const errors = await open(page, "/c/drawsteel?admin");
+  await page.evaluate((key) => { const mm = (window as unknown as { __mm: { goStep(n: number): void; designToken(k: string): void } }).__mm; mm.goStep(2); mm.designToken(key); }, "c:recovery");
+  const step = (s: string, then: () => Promise<void>) => expect(async () => {
+    await page.locator(s).first().evaluate((b) => (b as HTMLElement).click());
+    await then();
+  }).toPass();
+  const pressed = (s: string, v = "true") => () => expect(page.locator(s)).toHaveAttribute("aria-pressed", v, { timeout: 1000 });
+  await step('.cr-item[data-cr="part"]', () => expect(page.locator("#parts")).toBeVisible({ timeout: 1000 }));
+  await step('#parts [data-part="relief"]', pressed('[data-relief-face="none"]'));
+  await expect(page.locator("#reliefHeightBox")).toBeHidden();
+  // the front up: its parts, and the height they stand
+  await step('[data-relief-face="front"]', pressed('[data-relief-part="text"]'));
+  await expect(page.locator("#reliefHeightBox")).toBeVisible();
+  await step('[data-relief-part="frame"]', pressed('[data-relief-part="frame"]', "false"));
+  // the back up instead: the front flush, what stood out carried over (the back's words alone: no icon to raise)
+  await step('[data-relief-face="back"]', pressed('[data-relief-face="back"]'));
+  await expect(page.locator('[data-relief-part="icon"]')).toHaveCount(0);
+  await expect(page.locator('[data-relief-part="frame"]')).toHaveAttribute("aria-pressed", "false");
+  await step('[data-relief-face="none"]', () => expect(page.locator("#reliefPartsBox")).toBeHidden({ timeout: 1000 }));
+  expect(errors).toEqual([]);
+});
+
 test("a change redraws everything that shows it", async ({ page }) => {
   const errors = await open(page, "/botc?admin");
   // picking: the queue's count follows

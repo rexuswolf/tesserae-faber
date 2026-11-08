@@ -35,7 +35,9 @@ export const editShape = (): TokenShape => shapeOf(state.sel!.role);
 export const partsOf = (shape: TokenShape): Part[] => {
   const f = SHAPE_FEATURES[shape];
   // a shape with two sides: its front and back, each with its tabs (the colours are where their parts are, the coin's in its body)
-  return f.back ? ["front", "back", "body", ...(f.magnet ? ["magnet" as const] : [])] : ["front", "colours", "body", ...(f.magnet ? ["magnet" as const] : [])];
+  // relief, where the shape has parts that can stand out: which face, which parts, how high (the whole token's)
+  const relief = f.relief.length ? ["relief" as const] : [];
+  return f.back ? ["front", "back", "body", ...relief, ...(f.magnet ? ["magnet" as const] : [])] : ["front", "colours", "body", ...relief, ...(f.magnet ? ["magnet" as const] : [])];
 };
 /** Whether a shape's front has its tabs inside it (a shape with a back: Front and Back, each with its own), not in the list of sections. */
 export const twoSided = (shape: TokenShape) => SHAPE_FEATURES[shape].back;
@@ -172,7 +174,7 @@ export function startedFrom(spec: TokenSpec, shape: TokenShape) {
   return { def, modified: !!def && differsFrom(def, spec, shape) };
 }
 /** What each tab shows in the 3D view: a face straight on, the body at an angle, the magnet from behind. */
-const PART_VIEW: Record<Part, ViewKind> = { front: "top", colours: "angle", back: "back", body: "angle", magnet: "back" };
+const PART_VIEW: Record<Part, ViewKind> = { front: "top", colours: "angle", back: "back", body: "angle", relief: "side", magnet: "back" };
 /** Opens a tab: a part, and inside a face one of its tabs. */
 export function showTab({ part, face }: { part?: Part; face?: FaceTab } = {}) {
   // into the back of a token without another state whose back is a drawing: its layout, where the drawing is chosen
@@ -181,7 +183,6 @@ export function showTab({ part, face }: { part?: Part; face?: FaceTab } = {}) {
     && !flipFace(state.sel.role, { linked: state.sel.reminder != null })) state.faceTab.back = "layout";
   if (part) state.part[editShape()] = part;
   if (face) state.faceTab[editSide()] = face;
-  state.reliefAsk = null;
   $("#styleFields").scrollTop = 0;
 }
 /** Turns the 3D view to what the open tab changes. */
