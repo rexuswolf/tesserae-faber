@@ -384,5 +384,15 @@ test("a token of yours is changed where it's designed: Content has its front and
   // its name changed here is the token's
   await page.locator("#crOwn #ownTokName").fill("Lobo gris");
   await expect(page.locator("#crValContent")).toContainText("Lobo gris");
+  // its front's layouts are what it carries: Symbol only makes it its icon alone, and back to both
+  await page.locator('.cr-item[data-cr="part"]').evaluate((b) => (b as HTMLElement).click());
+  await page.locator('#parts [data-part="front"]').evaluate((b) => (b as HTMLElement).click());
+  await page.locator('#faceTabs [data-face="layout"]').evaluate((b) => (b as HTMLElement).click());
+  await page.locator('[data-choice="style"] [data-v="solo"]').click();
+  await expect(page.locator('[data-choice="style"] [data-v="solo"]')).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator('#faceTabs [data-face="text"]')).toHaveCount(0);   // no name on it: nothing to set
+  await page.locator('[data-choice="style"] [data-v="classic"]').click();
+  await expect(page.locator('[data-choice="style"] [data-v="classic"]')).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator('#tpFields [data-content="both"]')).toHaveAttribute("aria-pressed", "true");
   expect(errors).toEqual([]);
 });

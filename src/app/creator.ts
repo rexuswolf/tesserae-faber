@@ -371,6 +371,19 @@ async function arriveToMake() {
   if (path && /^[\w-]+\/[\w-]+$/.test(path)) try { icon = { ...(await gameIcon(path)), id: path }; } catch { /* offline: without it */ }
   startCreate(undefined, { name, icon });
 }
+/** A token of yours as a character with another content (what it carries): drawn so in the designer's layouts. */
+export function roleWithContent(id: string, content: TokenContent): Role | null {
+  const tk = coll.tokens.find((x) => x.id === id) ?? (state.creating?.draft.id === id ? state.creating.draft : undefined);
+  if (!tk) return null;
+  return state.creating?.draft === tk ? draftRole({ ...state.creating, draft: { ...tk, content } }) : ownRole(coll, { ...tk, content }, uiLang());
+}
+/** What a token of yours carries, chosen in the designer (its layouts): the token's, as "What it shows" in its content. */
+export function setOwnContent(id: string, content: TokenContent) {
+  const tk = coll.tokens.find((x) => x.id === id); if (!tk || tk.content === content) return;
+  tk.content = content;
+  panelFor = "";
+  ownEdited();
+}
 /** The token being made is dropped. */
 function dropDraft() {
   if (!state.creating) return;

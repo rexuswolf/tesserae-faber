@@ -1,6 +1,6 @@
 // Wiring: the page's event handlers, set once when the app starts.
 import { emit } from "./events.ts";
-import { $, hit, input, state, MY_DESIGNS_KEY, $$, storeJSON, view3d, LAYOUT_TEXT, RANGES, MAX_SVG } from "./context.ts";
+import { $, hit, input, state, MY_DESIGNS_KEY, $$, storeJSON, view3d, LAYOUT_TEXT, RANGES, MAX_SVG, coll } from "./context.ts";
 import type { Part, FaceTab, Fields, RangeKey, Side } from "./context.ts";
 import { openScriptDialog, goEdition, drawer, saveFromDialog, scriptCustomizes, shareScript, scriptOf, scriptJsonWithOwn, syncHomebrew, openSharedScript, PHONE } from "./scripts-ui.ts";
 import { saveFile, shapeOf, FACE_FIELDS, DEFAULT_SPEC, PATTERN_MIN, backLayoutContent } from "../engine/token-engine.ts";
@@ -9,7 +9,7 @@ import { storeScripts, loadScripts } from "../scripts.ts";
 import { roleIdOf, charKey, textFor } from "./tokens.ts";
 import { persistPicks, editToken, isPicked, setPick, renderQueue, goStep, flow, downloadPdf, downloadBambu, dropFromDesign, designToken, PAPER_BACKS_KEY, testQ, PRINT_WAY_KEY, PRINTER_KEY, NOZZLE_KEY, openQueue, onQueueClick, undoPicks, changePicks } from "./queue.ts";
 import { renderSpine, renderSheet, onCopyStep, openRows, toggleCharacter, openAddMenu, addShown } from "./sheet.ts";
-import { openTokenPanel, wireCollSwitch, wireOwn } from "./creator.ts";
+import { openTokenPanel, wireCollSwitch, wireOwn, setOwnContent } from "./creator.ts";
 import { wireEditor, openContent } from "./editor.ts";
 import { wireDesignBar, deepenAll, openDesignSheet, wireDesignSheet, saveLookAsDesign, setOwn, rememberReturn, renderSays, setBackFace, backToFront, backDrawn, changeLook, deepen, resetField, setReliefFace, toggleReliefPart, changePattern, changeCardBack, changeBackContent } from "./design-sheet.ts";
 import { OWN } from "../collection.ts";
@@ -19,7 +19,7 @@ import { adminSignIn } from "./boot.ts";
 import { printerOf, nozzleOf } from "../bambu/plates.ts";
 import type { ViewKind } from "../engine/viewer.ts";
 import { syncView, editShape, openPart, showTab, renderWorkshop, viewTab, changeFace, editSide, editLook, wireIcons, wireCardBack } from "./workshop.ts";
-import type { TokenOverride, TokenSpec, TokenStyle, ReliefPart, BackSay } from "../types.ts";
+import type { TokenOverride, TokenSpec, TokenStyle, ReliefPart, BackSay, TokenContent } from "../types.ts";
 import { signOut as signOutUser, local } from "../services.ts";
 import { openAdmin } from "./admin.ts";
 
@@ -215,6 +215,13 @@ export function wire() {
       const b = hit(e, "button"); if (!b) return;
       // the back's layouts end with Plain: nothing on it
       if (key === "style" && b.dataset.v === "plain") { changeLook((s) => { s.back = "none"; s.backMode = "design"; }); view3d("setView", "back"); syncView("back"); return; }
+      // a token of yours: its front's layout chooses what it carries (its icon alone, its name alone, both), and a card's icon place too
+      const own = !TALLER && editSide() === "front" && state.sel && state.sel.reminder == null && coll.tokens.some((x) => x.id === state.sel!.role.id) ? state.sel.role.id : null;
+      if (own && (key === "style" || key === "cardIcon")) {
+        const v = b.dataset.v!, content: TokenContent = key === "style" ? (v === "solo" ? "icon" : v === "text" ? "text" : "both") : v === "only" ? "icon" : v === "none" ? "text" : "both";
+        setOwnContent(own, content);
+        if (content !== "both" && key === "style") return;   // its icon or its name alone: the layout is what it carries
+      }
       change(key, (s) => {
         // a name size doesn't carry over between layouts: each starts from its own
         if (key === "style" && (s.style ?? DEFAULT_SPEC.style) !== b.dataset.v) s.textSize = LAYOUT_TEXT[b.dataset.v as TokenStyle];

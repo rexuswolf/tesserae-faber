@@ -1,6 +1,6 @@
 // Choosing a design (the design sheet), and each shape's default design.
 import { emit } from "./events.ts";
-import type { TokenShape, TokenSpec, MyDesign, TokenOverride, Role, PatternSpec, ReliefPart, Token, TokenStyle, SpecColours, SpecInput, CardBack, TokenIcon, BackFace, BackSay } from "../types.ts";
+import type { TokenShape, TokenSpec, MyDesign, TokenOverride, Role, PatternSpec, ReliefPart, Token, TokenStyle, SpecColours, SpecInput, CardBack, TokenIcon, BackFace, BackSay, TokenContent } from "../types.ts";
 import { DEFAULT_SPEC, reminderSpec, tokenSvg, SHAPE_FEATURES, shapeOf, roleName, shapeSpec, TOKEN_STYLES, FRAME_STYLES, BACK_ORNAMENTS, migrateBack, backShown, backLayoutContent, PATTERN_MIN, printsBack, cardBackOf, CARD_ICONS, CARD_JOINS, partColours, PATTERNS, patternDefaults, patternFilled, patternFixed, flipFace, reliefOf, hasRelief, FACE_FIELDS, ringBand, ringSize, baseSize, magnetLayout } from "../engine/token-engine.ts";
 import { tokenLang } from "./token-language.ts";
 import { ownIcon, roleIdOf, charKey, textFor, remindersOf, charName, specFor } from "./tokens.ts";
@@ -20,6 +20,7 @@ import { TALLER, tallerMine, renderTaller } from "./taller.ts";
 import { colourIssues, LIGHT_DEPTH } from "../colour-checks.ts";
 import type { InlayPart } from "../colour-checks.ts";
 import { roleById } from "./wiring.ts";
+import { roleWithContent } from "./creator.ts";
 import { writeJSON, session, readJSON } from "../services.ts";
 
 // ------------------------------------------------------------ choosing a design (the sheet)
@@ -423,16 +424,24 @@ function renderBackStyleTiles(role: Role, spec: TokenSpec, text: string, pressed
     + `<button class="back-tile" type="button" data-v="plain" aria-pressed="${s.backMode === "design"}">${tokenSvg(state.lib!, plain, { ...s, back: "none", backMode: "design" }, { side: "back" })}<span>${esc(t("back.none"))}</span></button>`;
 }
 
+/** What a layout carries: Symbol only its icon, Text only its name, the others both. */
+const contentOfStyle = (style: TokenStyle): TokenContent => (style === "solo" ? "icon" : style === "text" ? "text" : "both");
+/** The layout a token's content makes of its design's: its icon alone, its name alone, or the design's (one with both). */
+const styleOfContent = (content: TokenContent | undefined, style: TokenStyle): TokenStyle =>
+  content === "icon" ? "solo" : content === "text" ? "text" : content === "both" && (style === "solo" || style === "text") ? "classic" : style;
 /** The layouts, each drawn on the token (the back's: on what its back shows) in the face's current colours. */
 function renderStyleTiles(face: { role: Role; text: string }, spec: TokenSpec) {
   // without the background pattern: each would be cut anew (a tenth of a second each), and the tiles show the layout
   const s = { ...spec, diameter: 45, back: "none", backMode: "design" as const, frontPattern: null };
-  // a token of yours: what it carries is the token's (Edit), the layouts here only how both are laid out
-  const styles = !TALLER && ownTokenOf(face.role.id) ? TOKEN_STYLES.filter((st) => st.id !== "solo" && st.id !== "text") : TOKEN_STYLES;
-  $("[data-choice=style]").innerHTML = styles.map((st) =>
-    `<button class="back-tile" type="button" data-v="${st.id}" aria-pressed="${s.style === st.id}">${
-      tokenSvg(state.lib!, face.role, { ...s, style: st.id, ...(st.id !== s.style ? { textSize: LAYOUT_TEXT[st.id] } : {}) }, { text: face.text })
-    }<span>${esc(t(`style.${st.id}`))}</span></button>`).join("");
+  // a token of yours: what it carries is the token's, and a layout chooses it (Symbol only, its icon; Text only, its
+  // name; the others, both): each tile drawn with what it would carry
+  const own = !TALLER && ownTokenOf(face.role.id), pressed = own ? styleOfContent(face.role.content, s.style) : s.style;
+  $("[data-choice=style]").innerHTML = TOKEN_STYLES.map((st) => {
+    const role = own ? roleWithContent(face.role.id, contentOfStyle(st.id)) ?? face.role : face.role;
+    return `<button class="back-tile" type="button" data-v="${st.id}" aria-pressed="${pressed === st.id}">${
+      tokenSvg(state.lib!, role, { ...s, style: st.id, ...(st.id !== s.style ? { textSize: LAYOUT_TEXT[st.id] } : {}) }, { text: face.text })
+    }<span>${esc(t(`style.${st.id}`))}</span></button>`;
+  }).join("");
 }
 
 /** The frame designs, each drawn on the token in the face's current colours. A card or a ring
@@ -462,10 +471,8 @@ function lineFrames(shape: TokenShape, frame: string): [string, string][] {
 function renderCardIconTiles(role: Role, text: string, spec: TokenSpec, hasIcon: boolean) {
   const tile = (key: "cardIcon" | "cardJoin", v: string) =>
     `<button class="back-tile" type="button" data-v="${v}" aria-pressed="${spec[key] === v}">${tokenSvg(state.lib!, role, { ...spec, [key]: v, ...(key === "cardJoin" && spec.cardIcon === "none" ? { cardIcon: "left" } : {}) }, { text })}<span>${esc(t(`${key}.${v}`))}</span></button>`;
-  // a card of yours: what it carries is the token's; with both, only the side its icon goes
-  const content = !TALLER && ownTokenOf(role.id) ? role.content : undefined;
-  $("[data-choice=cardIcon]").innerHTML = CARD_ICONS.filter((v) => content !== "both" || v === "left" || v === "right").map((v) => tile("cardIcon", v)).join("");
-  $("[data-choice=cardIcon]").hidden = ($("[data-choice=cardIcon]").previousElementSibling as HTMLElement).hidden = content === "icon" || content === "text";
+  // a card of yours: where its icon goes chooses what it carries too (none, its phrase; alone, its icon; beside it, both)
+  $("[data-choice=cardIcon]").innerHTML = CARD_ICONS.map((v) => tile("cardIcon", v)).join("");
   $("[data-choice=cardJoin]").innerHTML = CARD_JOINS.map((v) => tile("cardJoin", v)).join("");
   // the join for an icon beside the phrase, the size for any icon
   $("#cardJoinBox").hidden = spec.cardIcon === "none" || spec.cardIcon === "only";
@@ -747,11 +754,13 @@ export function syncControls(role: Role, spec: TokenSpec, token: Token) {
   $("#cardLayoutBox").hidden = shape !== "card";
   if (panel === "layout" && shape === "card") { $("[data-choice=style]").hidden = true; $("#styleHint").textContent = ""; }
   if (panel === "layout" && shape !== "card") {
-    const only = !TALLER && ownTokenOf(role.id) ? role.content : undefined;   // a token of yours that carries one thing: nothing to lay out
-    $("[data-choice=style]").hidden = only === "icon" || only === "text";
-    if (only === "icon" || only === "text") { $("[data-choice=style]").innerHTML = ""; $("#styleHint").textContent = t("style.onlyOne", { what: t(`own.content.${only}`).toLowerCase() }); }
-    else if (oneBack) { renderBackStyleTiles(role, s, who.text, shown?.spec.style ?? null); $("#styleHint").textContent = shown ? t(`style.${shown.spec.style}.help`) : t("back.plainHelp"); }
-    else { renderStyleTiles(tileWho, tileFace); $("#styleHint").textContent = t(`style.${face.style}.help`); }
+    $("[data-choice=style]").hidden = false;
+    if (oneBack) { renderBackStyleTiles(role, s, who.text, shown?.spec.style ?? null); $("#styleHint").textContent = shown ? t(`style.${shown.spec.style}.help`) : t("back.plainHelp"); }
+    else {
+      renderStyleTiles(tileWho, tileFace);
+      const laidOut = side === "front" && !TALLER && ownTokenOf(role.id) ? styleOfContent(role.content, face.style) : face.style;
+      $("#styleHint").textContent = t(`style.${laidOut}.help`);
+    }
   }
   // Text: the name; a ring's letters are as tall as asked only up to the band between its edge
   // lines (the slider stops there and shows the height they print at); a card's phrase is fitted.
@@ -838,7 +847,7 @@ export function syncControls(role: Role, spec: TokenSpec, token: Token) {
     const key = b.parentElement!.dataset.choice as keyof TokenSpec, from = key === "style" || key === "frame" ? face : s;
     // the back's layout and its drawing: one or the other is chosen (a drawing, on a token without another state)
     const drawn = s.backMode === "design" && !selFlip(role);
-    if (key === "style" && oneBack) continue;   // renderBackStyleTiles: the layout its content makes, or Plain
+    if (key === "style" && (oneBack || side === "front")) continue;   // the tiles say it (renderBackStyleTiles, renderStyleTiles)
     if ((key === "back" && !drawn) || (key === "style" && side === "back" && drawn)) { b.setAttribute("aria-pressed", "false"); continue; }
     const v = key === "magnet" && faceBack && s.magnet === "pocket" ? "hidden" : from[key] ?? DEFAULT_SPEC[key] ?? (key === "edge" ? "smooth" : undefined);
     b.setAttribute("aria-pressed", String(v === b.dataset.v));
