@@ -19,7 +19,7 @@ import { printerOf, nozzleOf } from "../bambu/plates.ts";
 import type { ViewKind } from "../engine/viewer.ts";
 import { syncView, editShape, openPart, showTab, renderWorkshop, viewTab, changeFace, editSide, editLook, wireIcons, wireCardBack } from "./workshop.ts";
 import type { TokenOverride, BackMode, TokenSpec, TokenStyle, ReliefPart } from "../types.ts";
-import { signOut as signOutUser } from "../services.ts";
+import { signOut as signOutUser, local } from "../services.ts";
 import { openAdmin } from "./admin.ts";
 
 // ------------------------------------------------------------ wiring
@@ -168,6 +168,15 @@ export function wire() {
   // kept as a design of yours or dropped; and the way back to the default
   $("#styleChange").onclick = () => openDesignSheet("token", shapeOf(state.sel!.role), $("#styleChange"));
   wireDesignSheet();
+  // the fine changes: folded at first, then as you last left them
+  const TWEAK_KEY = "tf-tweak-open";
+  const setTweak = (open: boolean) => { $("#workshop").classList.toggle("tweak-closed", !open); $("#tweakToggle").setAttribute("aria-expanded", String(open)); };
+  setTweak(local.get(TWEAK_KEY) === "1");
+  $("#tweakToggle").onclick = () => {
+    const open = $("#tweakToggle").getAttribute("aria-expanded") !== "true";
+    setTweak(open); local.set(TWEAK_KEY, open ? "1" : "0");
+    if (open) viewTab();
+  };
   $("#styleSave").onclick = () => void saveLookAsDesign(state.sel!.key);
   $("#styleDrop").onclick = () => {
     const key = state.sel!.key, own: TokenOverride = { ...state.overrides.get(key) };

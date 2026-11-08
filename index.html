@@ -182,6 +182,8 @@
           <span class="ds-txt"><span class="ws-style-l" data-i18n="design.label"></span><b id="styleName"></b><small id="styleCount"></small></span>
           <button class="pill ds-change" type="button" id="styleChange" aria-haspopup="dialog" aria-controls="designDlg" data-i18n="design.change"></button>
         </div>
+        <!-- the first designs it can take, a tap away (the sheet has them all) -->
+        <div class="ds-quick" id="styleQuick" role="group" data-i18n-attr="aria-label:design.quickAria"></div>
         <!-- the token's own changes over its design: kept as a design of yours, or dropped -->
         <div class="ds-tweak" id="styleTweak" hidden>
           <button class="pill" type="button" id="styleSave" data-i18n="design.saveAs"></button>
@@ -192,6 +194,8 @@
         <p class="hint" id="designFlash" aria-live="polite" hidden></p>
       </div>
     </div>
+    <!-- the fine changes, folded until asked for (the Taller's editor always shows them) -->
+    <button class="tweak-toggle design-only" type="button" id="tweakToggle" aria-expanded="false" aria-controls="styleFields"><span><b data-i18n="tweak.title"></b><small data-i18n="tweak.sub"></small></span><span class="chev" aria-hidden="true">›</span></button>
     <!-- the token's parts: a coin's FRONT · BACK · COIN · MAGNET, a ring's FRONT · RING, a card's FRONT · CARD -->
     <div class="parts" id="parts" role="tablist" data-i18n-attr="aria-label:ws.sections"></div>
     <div class="ws-body" id="styleFields">

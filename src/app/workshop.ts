@@ -5,7 +5,7 @@ import { shapeOf, SHAPE_FEATURES, DEFAULT_SPEC, FACE_FIELDS, reliefOf, buildToke
 import { state, LAYOUT_TEXT, defSpec, STYLE_KEEPS, knownStyles, $, view3d, esc, input, hit, $$, SEPARATOR_MARKS, COLOUR_CHOICES } from "./context.ts";
 import type { Part, Side, FaceTab, Fields } from "./context.ts";
 import { lookOf, designFor, ownChanged, designOf, inheritedRef, collLabel } from "./designs.ts";
-import { changeLook, renderSays, renderTabs, syncControls, renderColourWarn, dz, renderDesignSheet, setOwn, patternGroupHtml, setCardBack, changeCardBack, setCardBackIcon } from "./design-sheet.ts";
+import { changeLook, renderSays, renderTabs, syncControls, renderColourWarn, dz, renderDesignSheet, setOwn, patternGroupHtml, setCardBack, changeCardBack, setCardBackIcon, renderQuickDesigns } from "./design-sheet.ts";
 import { APP_NAME, tallerUrl } from "../collection.ts";
 import type { StyleDef } from "../collection.ts";
 import { BOTC_STYLES } from "../botc-styles.ts";
@@ -210,6 +210,7 @@ function renderDesignRow(key: string, shape: TokenShape) {
   $<HTMLAnchorElement>("#designTaller").href = tallerUrl(location.pathname, { shape, d: d.ref });
   $("#designFlash").hidden = !state.flash;
   $("#designFlash").textContent = state.flash;
+  renderQuickDesigns();
   if (dz.open && dz.mode === "token") renderDesignSheet();
 }
 

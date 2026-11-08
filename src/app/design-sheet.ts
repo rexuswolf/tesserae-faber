@@ -42,17 +42,17 @@ function specWith(base: TokenSpec, key: string, isReminder: boolean): TokenSpec 
  * with what choosing it sets ("": a token's default), whether it's the first (marked) and whether
  * it's in use. A hidden style of the collection's in use (or the default) is shown with its own.
  */
-function sheetDesigns() {
-  const sh = dz.shape, mine = myDesigns[sh].map(myEntry), app = appDesigns(sh).map((x) => collEntry(sh, x, `a:${x.id}`));
+function sheetDesigns(mode = dz.mode, sh = dz.shape) {
+  const mine = myDesigns[sh].map(myEntry), app = appDesigns(sh).map((x) => collEntry(sh, x, `a:${x.id}`));
   let first: string, cur: string;
-  if (dz.mode === "token") {
+  if (mode === "token") {
     const key = state.sel!.key;
     first = inheritedRef(key, sh); cur = refOf(key, sh);
   } else { first = originalRef(sh); cur = defaultRef(sh); }
   const own = collDesigns(sh).map((x) => collEntry(sh, x));
   for (const r of new Set([first, cur])) if (r.startsWith("c:") && !own.some((d) => d.ref === r)) own.push(designOf(sh, r)!);
   const lead = (list: DesignEntry[]) => [...list.filter((d) => d.ref === first), ...list.filter((d) => d.ref !== first)];
-  const item = (d: DesignEntry) => ({ d, pick: dz.mode === "token" && d.ref === first ? "" : d.ref, first: d.ref === first, on: d.ref === cur });
+  const item = (d: DesignEntry) => ({ d, pick: mode === "token" && d.ref === first ? "" : d.ref, first: d.ref === first, on: d.ref === cur });
   return { own: lead(own).map(item), app: lead(app).map(item), coll: [...lead(own), ...lead(app)].map(item), mine: lead(mine).map(item), cur };
 }
 export function openDesignSheet(mode: "token" | "default", shape: TokenShape, opener: HTMLElement) {
@@ -101,7 +101,31 @@ export function renderDesignSheet() {
   $("#dzFor").textContent = tokenMode ? text : t("dsheet.sample", { name: text });
   $<HTMLAnchorElement>("#dzTaller").href = tallerUrl(location.pathname, { shape: sh, d: cur });
 }
+/**
+ * The design step's quick choice: the token drawn in the first designs it can take (its default
+ * first, the one in use ringed, then yours), a tap away; "More designs" opens the sheet with them all.
+ */
+const QUICK = 7;
+let quickFor = "";
+export function renderQuickDesigns() {
+  const { key, role, reminder } = state.sel!, sh = shapeOf(role), look = state.overrides.get(key)?.look;
+  const { coll: all, mine, cur } = sheetDesigns("token", sh);
+  const list = [...all, ...mine].slice(0, QUICK);
+  if (!list.some((x) => x.on)) { const on = [...all, ...mine].find((x) => x.on); if (on) list[list.length - 1] = on; }
+  const text = textFor(key, role, reminder);
+  const sig = [key, cur, JSON.stringify(look ?? null), tokenLang(), text, list.map((x) => x.d.ref).join()].join("|");
+  if (sig === quickFor) return;
+  quickFor = sig;
+  $("#styleQuick").innerHTML = list.map(({ d, pick, on }) => {
+    const spec = specWith(applyLook(d.spec, look), key, reminder != null);
+    return `<button type="button" class="dq" data-dq-pick="${esc(pick)}" aria-pressed="${on}" title="${esc(d.name)}"><span class="dq-tok">${tokenSvg(state.lib!, role, { ...spec, back: "none", backMode: "design" }, { text })}</span><small>${esc(d.name)}</small></button>`;
+  }).join("");
+}
+export function wireQuickDesigns() {
+  $("#styleQuick").onclick = (e) => { const b = hit(e, "[data-dq-pick]"); if (b && b.getAttribute("aria-pressed") !== "true") setTokenDesign(state.sel!.key, b.dataset.dqPick!); };
+}
 export function wireDesignSheet() {
+  wireQuickDesigns();
   const dlg = $<HTMLDialogElement>("#designDlg");
   dlg.addEventListener("close", () => {
     dz.open = false;

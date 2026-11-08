@@ -153,7 +153,8 @@ export const plateEstimates = (plan: PlatePlan<QueueItem>) => plan.plates.map((p
 // ------------------------------------------------------------ steps
 
 export const PRINT_WAY_KEY = "midnight-mint-print-way", PRINTER_KEY = "midnight-mint-printer", NOZZLE_KEY = "midnight-mint-nozzle", PAPER_BACKS_KEY = "midnight-mint-paper-backs";
-export const flow: { way: string; printer: string; nozzle: string; backs: boolean; undo: Map<string, number> | null } = { way: loadJSON<string>(PRINT_WAY_KEY, "3d") === "paper" ? "paper" : "3d", printer: printerOf(loadJSON(PRINTER_KEY, "a1")).id,
+export const flow: { way: string; printer: string; nozzle: string; backs: boolean; undo: Map<string, number> | null } = { way: ((w) => (w === "paper" || w === "3d" ? w : ""))(loadJSON<string>(PRINT_WAY_KEY, "")),   // "": not chosen yet (asked first)
+  printer: printerOf(loadJSON(PRINTER_KEY, "a1")).id,
   nozzle: nozzleOf(loadJSON(NOZZLE_KEY, "0.4")).id,   // 3D: the printer's nozzle, 0.4 mm (standard) or 0.2 mm
   backs: loadJSON<boolean>(PAPER_BACKS_KEY, true) !== false,   // paper: print the backs too (double-sided)
   undo: null };
@@ -195,8 +196,8 @@ export function renderQueue() {
   $("#flowBack").innerHTML = step > 1 ? `<span aria-hidden="true">‹</span> <span class="fb-l">${esc(t(`flow.step${step - 1}`))}</span>` : "";
   $("#flowBack").setAttribute("aria-label", step > 1 ? t(`flow.step${step - 1}`) : "");
   const next = $<HTMLButtonElement>("#flowNext");
-  next.textContent = step === 1 ? `${t("flow.step2")} ›` : step === 2 ? `${t("flow.step3")} ›` : (flow.way === "paper" ? t("queue.downloadPdf") : t("queue.download", { printer: `Bambu ${printerOf(flow.printer).short}` }));
-  next.disabled = !n;
+  next.textContent = step === 1 ? `${t("flow.step2")} ›` : step === 2 ? `${t("flow.step3")} ›` : (!flow.way ? t("print.chooseFirst") : flow.way === "paper" ? t("queue.downloadPdf") : t("queue.download", { printer: `Bambu ${printerOf(flow.printer).short}` }));
+  next.disabled = !n || (step === 3 && !flow.way);
   if ($<HTMLDialogElement>("#queueDrawer").open) renderQueueList();
   if (step === 2) renderDesignStage();
   if (step === 3) renderPrintStep();
@@ -328,6 +329,8 @@ function renderPrintStep() {
   const printer = printerOf(flow.printer);
   $("#way3dSub").textContent = plan ? t("queue.way3dSub", { printer: printer.name, n: plan.plates.length }) : t("queue.way3dError", { printer: printer.name });
   $("#wayPaperSub").textContent = t("queue.wayPaperSub", { n: sheets.length, backs: flow.backs });
+  // not chosen yet: what each way needs, before any of their settings
+  if (!way) { $<HTMLButtonElement>("#flowNext").disabled = true; detail.innerHTML = `<p class="q-note way-ask"><span aria-hidden="true">?</span><span>${esc(t("print.wayAsk"))}</span></p>`; return; }
   if (way === "3d") {
     $<HTMLButtonElement>("#flowNext").disabled = !plan;
     // which printer: the A1 or the A1 mini (same AMS lite, a smaller bed)

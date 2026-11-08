@@ -1625,3 +1625,27 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 .tp-more[open] > summary::before { transform: rotate(90deg); }
 .tp-more > summary small { color: var(--dust); }
 .tp-more > .own-fields { margin-top: 8px; }
+
+/* the design step: the first designs a token can take, a tap away */
+.ds-quick { flex-basis: 100%; display: grid; grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); gap: 6px; margin-top: 4px; }
+.ds-quick:empty { display: none; }
+.dq { display: grid; justify-items: center; gap: 3px; padding: 6px 2px 5px; border: 1px solid transparent; border-radius: 10px; background: none; color: var(--dust); font: inherit; cursor: pointer; min-width: 0; }
+.dq:hover { background: rgba(239, 230, 214, .05); color: var(--bone); }
+.dq[aria-pressed=true] { border-color: var(--brass); background: color-mix(in srgb, var(--brass) 10%, transparent); color: var(--bone); }
+.dq-tok { width: 46px; height: 46px; display: grid; place-items: center; }
+.dq-tok svg { max-width: 100%; max-height: 100%; display: block; }
+.dq small { font-size: 11px; line-height: 1.2; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* "Adjust this token": the parts and their fields, folded until asked for */
+.tweak-toggle { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; border: 0; border-top: 1px solid var(--seam); background: none; color: var(--bone); padding: 12px 16px; font: inherit; text-align: left; cursor: pointer; }
+.tweak-toggle:hover { background: rgba(239, 230, 214, .04); }
+.tweak-toggle > span:first-child { display: grid; gap: 1px; }
+.tweak-toggle small { color: var(--dust); font-size: 12.5px; }
+.tweak-toggle .chev { color: var(--brass); font-size: 20px; transition: transform .15s; }
+.tweak-toggle[aria-expanded=true] .chev { transform: rotate(90deg); }
+.app:not([data-step="taller"]) .workshop.tweak-closed :is(#parts, #styleFields) { display: none !important; }
+.ds-quick { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); }
+.dq-tok { width: 54px; height: 54px; }
+/* the strip rings the design in use: the row's own small token would say it twice */
+.ws-style:has(.ds-quick:not(:empty)) .ds-tok { display: none; }
+/* a long notice wraps on a narrow screen instead of running off it */
+.toast { white-space: normal; width: max-content; max-width: min(560px, calc(100vw - 32px)); border-radius: 20px; line-height: 1.35; }

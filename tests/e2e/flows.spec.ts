@@ -199,3 +199,23 @@ test("the front page walks through the app: its chapters draw as they come near,
   await expect(page.locator("#tourLegend li")).not.toHaveCount(0);
   expect(errors).toEqual([]);
 });
+
+test("designing, simply: the token's designs a tap away, the fine changes folded until asked for", async ({ page }) => {
+  const errors = await open(page, "/c/senado");
+  await pick(page, 1, '#rows [data-pick^="c:"]');
+  await next(page);
+  const quick = page.locator("#styleQuick [data-dq-pick]");
+  await expect(quick.nth(1)).toBeVisible();
+  await expect(page.locator("#parts")).toBeHidden();
+  const other = page.locator("#styleQuick [data-dq-pick][aria-pressed=false]").first(), name = (await other.getAttribute("title"))!;
+  await other.click();
+  await expect(page.locator("#styleName")).toContainText(name);
+  await page.locator("#tweakToggle").click();
+  await expect(page.locator("#parts")).toBeVisible();
+  // printing asks how first
+  await next(page);
+  await expect(page.locator("#flowNext")).toBeDisabled();
+  await page.locator('#printPage [data-way="paper"]').click();
+  await expect(page.locator("#flowNext")).toBeEnabled();
+  expect(errors).toEqual([]);
+});
