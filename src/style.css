@@ -1672,3 +1672,6 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 .os-ccc[hidden] { display: none; }
 /* the front page's token, made for real: under the maker, the whole row */
 .tour-make { grid-column: 1 / -1; justify-self: start; }
+/* the many-coloured swatch, said in words under the colours */
+.team-hint { display: flex; gap: 8px; align-items: center; margin-top: 12px; }
+.team-dot { flex: none; width: 14px; height: 14px; border-radius: 50%; background: conic-gradient(#2f86e0 0 25%, #b3191e 0 50%, #8a3d9e 0 75%, #d4a72c 0); }

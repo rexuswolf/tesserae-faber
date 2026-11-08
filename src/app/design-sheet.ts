@@ -616,6 +616,10 @@ export function syncControls(role: Role, spec: TokenSpec, token: Token) {
     $(`output[data-for=${id}]`).textContent = (+v).toFixed(dp).replace(".", dec) + unit;
   }
   const row = (id: string) => $("#" + id).closest<HTMLElement>(".row")!;
+  // the many-coloured swatch: a collection of yours with one group, the collection's colour; else each token's group's
+  const oneColour = OWN && !TALLER && coll.groups.length < 2, teamLabel = t(oneColour ? "metal.collection" : "metal.team");
+  for (const b of $$(".metal button.team")) { b.title = teamLabel; b.setAttribute("aria-label", teamLabel); }
+  $("#teamHint span").textContent = t(oneColour ? "metal.teamHintOne" : "metal.teamHint");
   // Layout: the coin's layouts, drawn on this face
   if (panel === "colours") {   // its colours together: the body's, the name's and icon's, the frame's
     $("#coloursBaseLabel").textContent = shapeText("coin.colour", shape);
