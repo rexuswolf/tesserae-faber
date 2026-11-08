@@ -174,10 +174,11 @@ export function renderSheet() {
     const list = roles.filter((r) => r.team === team).sort((a, b) => collator().compare(catalogText(a, null), catalogText(b, null)));
     if (!list.length) return "";
     const teamOn = list.every((r) => isPicked(charKey(r)));
-    if (oneGroup) return list.map((r) => rowHtml(r, q, hits.get(r.id))).join("");
-    return `<div class="team-h"><i style="background:${TEAMS[team].colour}"></i><span>${esc(TEAM_PLURAL[lang][team])}</span><small>${list.length}</small>
-      <button class="pick-team" type="button" data-pick-team="${team}">${esc(t(teamOn ? "pick.teamOff" : "pick.team"))}</button></div>` +
-      list.map((r) => rowHtml(r, q, hits.get(r.id))).join("");
+    const rows = `<div class="team-rows">${list.map((r) => rowHtml(r, q, hits.get(r.id))).join("")}</div>`;
+    if (oneGroup) return `<section class="team">${rows}</section>`;
+    // a group of one: "pick the group" would only pick that token, so it isn't offered
+    return `<section class="team"><div class="team-h"><i style="background:${TEAMS[team].colour}"></i><span>${esc(TEAM_PLURAL[lang][team])}</span><small>${list.length}</small>
+      ${list.length > 1 ? `<button class="pick-team" type="button" data-pick-team="${team}">${esc(t(teamOn ? "pick.teamOff" : "pick.team"))}</button>` : ""}</div>${rows}</section>`;
   }).join("");
   peekHint();
 }

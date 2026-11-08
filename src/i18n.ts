@@ -17,6 +17,7 @@ const STR: Record<string, Record<string, Entry>> = {
     // script sheet and workshop
     "spine.aria": "Ediciones",
     "spine.editions": "Ediciones",
+    "spine.byType": "Por tipo",
     "spine.scripts": "Guiones",
     "script.new": "Añadir un guion",
     "script.empty": "Tus guiones se guardan en este navegador.",
@@ -977,6 +978,7 @@ const STR: Record<string, Record<string, Entry>> = {
     // script sheet and workshop
     "spine.aria": "Editions",
     "spine.editions": "Editions",
+    "spine.byType": "By type",
     "spine.scripts": "Scripts",
     "script.new": "Add a script",
     "script.empty": "Your scripts are kept in this browser.",

@@ -1,5 +1,6 @@
 // Collections of your own: the creator, a token's panel, the collection's look and the list.
 import { emit } from "./events.ts";
+import { paintTesserae } from "./tesserae.ts";
 import { OWN, catalogsOf, nameIn, storeCollection, OWN_ID, builtIn, tallerUrl, readTokenList, newId, withName, copyBuiltIn, collectionUrl, collectionFile, readCollectionFile, addCollection, GROUP_COLOURS, SHAPES, collectionRoles, tokenRole as ownRole, isLocked, THEMES, APP_LOGO, APP_LOGO_SMALL, APP_ICON, APP_NAME, hasCcc, THEME_FONTS, okLogo, builtInCollections, listCollections, lastCollection, openUrl, OWN_VIEW, LIST_URL, starterCollection, loadCollection, deleteCollection, isUntouchedStarter } from "../collection.ts";
 import type { OwnCatalog, OwnSection, OwnToken, OwnTheme, CollectionEntry } from "../collection.ts";
 import { coll, TEAM_ORDER, TEAM_PLURAL, PLATE_LABEL, PLATE_GROUP, $$, stickyNotice, state, $, esc, READONLY, hit, input, BUILT, COLOUR_CHOICES } from "./context.ts";
@@ -641,6 +642,7 @@ export function applyOwnTheme() {
   for (const k of ["--velvet", "--velvet-mid", "--velvet-deep", "--brass", "--bone", "--dust", "--seam", "--glow", "--display"]) {
     if (vars[k]) root.style.setProperty(k, vars[k]!); else root.style.removeProperty(k);
   }
+  paintTesserae(root);
 }
 
 /** The collection's mark: its logo on the top bar, the loading screen and the tab, and its name beside it. */

@@ -22,5 +22,7 @@ import "./app/creator.ts";
 import { OWN, OWN_ID } from "./collection.ts";
 import { keepGateLook } from "./app/context.ts";
 import { applyOwnTheme, applyOwnBrand } from "./app/creator.ts";
+import { paintTesserae } from "./app/tesserae.ts";
 
 if (OWN && OWN_ID) { applyOwnTheme(); applyOwnBrand(); keepGateLook(); }   // before the loading screen shows: it wears the collection's colours and mark too
+paintTesserae();   // the material in the page's colours (a collection's theme repaints it as it changes)

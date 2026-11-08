@@ -26,7 +26,7 @@ body { color: var(--bone); font: 15px/1.5 var(--ui); background: var(--velvet-de
 button, input, select, textarea { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
 
-.pill { border: 1px solid var(--seam); background: rgba(23, 8, 18, .5); border-radius: 999px; padding: 6px 14px; cursor: pointer; font-size: 14px; white-space: nowrap; }
+.pill { border: 1px solid var(--seam); background: color-mix(in srgb, var(--velvet-deep) 50%, transparent); border-radius: 999px; padding: 6px 14px; cursor: pointer; font-size: 14px; white-space: nowrap; }
 .pill[aria-pressed=true] { background: var(--bone); color: var(--velvet-deep); border-color: var(--bone); }
 .pill:disabled { opacity: .5; cursor: default; }
 .forge { border: 0; border-radius: 999px; padding: 11px 18px; background: var(--brass); color: var(--velvet-deep); font-weight: 600; cursor: pointer; }
@@ -109,7 +109,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .topbar .tlang-trigger { flex: none; padding: 4px 14px 4px 4px; }
 .topbar .tlang-trigger .lb-flags { width: 28px; height: 28px; }
 .topbar .tlang-trigger b { font-size: 14px; }
-.scrim { display: none; position: fixed; inset: 0; z-index: 29; background: rgba(10, 3, 8, .66); }
+.scrim { display: none; position: fixed; inset: 0; z-index: 29; background: color-mix(in srgb, var(--velvet-deep) 50%, #000c); }
 /* An edition or script in the sidebar: its name and count; the current one gets a gold bar. */
 .ed { position: relative; display: block; text-align: left; border: 0; background: none; padding: 8px 10px 8px 14px; border-radius: 10px; cursor: pointer; color: inherit; font: inherit; }
 .ed:hover { background: rgba(239, 230, 214, .04); }
@@ -144,7 +144,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .pill.add .chev { font-size: 12px; transition: rotate .15s; }
 .pill.add[aria-expanded=true] .chev { rotate: 180deg; }
 .addmenu { position: relative; }
-.addmenu .menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; min-width: 300px; background: #2a1222; border: 1px solid var(--seam); border-radius: 14px; padding: 6px; box-shadow: 0 14px 34px rgba(0, 0, 0, .55); }
+.addmenu .menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; min-width: 300px; background: var(--velvet); border: 1px solid var(--seam); border-radius: 14px; padding: 6px; box-shadow: 0 14px 34px rgba(0, 0, 0, .55); }
 .addmenu .menu button { display: grid; grid-template-columns: 26px 1fr auto; align-items: center; gap: 4px 8px; width: 100%; text-align: left; border: 0; background: none; border-radius: 10px; padding: 9px 10px; cursor: pointer; }
 .addmenu .menu button:hover, .addmenu .menu button:focus-visible { background: rgba(239, 230, 214, .08); outline: none; }
 .addmenu .menu button .gi { font-size: 18px; color: var(--brass); }
@@ -209,7 +209,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .tl-item .tl-both img + img { left: auto; top: auto; right: 0; bottom: 0; }
 .tl-item.tl-same small { white-space: normal; }   /* what it falls back to, and why, said in full */
 /* the Interface tab's preview: the steps, the sidebar and a title, in the language pointed at */
-.ui-mini { position: relative; width: min(380px, 100%); border: 1px solid var(--seam); border-radius: 14px; overflow: hidden; background: rgba(23, 8, 18, .7); }
+.ui-mini { position: relative; width: min(380px, 100%); border: 1px solid var(--seam); border-radius: 4px; overflow: hidden; background: color-mix(in srgb, var(--velvet-deep) 80%, transparent); }
 .um-steps { display: flex; justify-content: center; gap: 6px; padding: 10px; border-bottom: 1px solid var(--seam); font-size: 13px; color: var(--dust); }
 .um-steps > * { display: flex; align-items: center; gap: 6px; padding: 3px 10px 3px 4px; border-radius: 999px; }
 .um-steps b { background: rgba(239, 230, 214, .1); color: var(--bone); font-weight: 600; }
@@ -588,7 +588,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 /* queue */
 .queuebar { grid-area: bar; display: flex; align-items: center; gap: 16px; padding: 10px 20px; background: var(--velvet); border-top: 1px solid var(--seam); position: relative; z-index: 6; }
-.qb-toggle { display: flex; align-items: center; gap: 12px; border: 1px solid var(--seam); background: rgba(23, 8, 18, .5); border-radius: 999px; padding: 4px 16px 4px 6px; cursor: pointer; }
+.qb-toggle { display: flex; align-items: center; gap: 12px; border: 1px solid var(--seam); background: var(--tile); border-radius: 999px; padding: 4px 16px 4px 6px; cursor: pointer; }
 .qb-toggle[aria-expanded=true] { border-color: var(--brass); }
 .stack { display: flex; padding-left: 10px; }
 .stack svg { width: 30px; height: 30px; margin-left: -10px; border-radius: 50%; box-shadow: 0 0 0 2px var(--velvet); }
@@ -630,7 +630,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .qdrawer { position: fixed; inset: 0 0 0 auto; margin: 0; width: min(540px, 100%); height: 100%; max-height: none; max-width: 100%; padding: 0; border: 0; border-left: 1px solid var(--seam); border-radius: 0; background: var(--velvet-mid); color: var(--bone); box-shadow: -20px 0 50px rgba(0, 0, 0, .5); }
 .qdrawer[open] { display: grid; grid-template-rows: auto minmax(0, 1fr); animation: qd-in .22s ease-out; }
 /* fixed rows, so a hidden steps line or foot doesn't shift the others */
-.qdrawer::backdrop { background: rgba(10, 3, 8, .6); }
+.qdrawer::backdrop { background: #000a; }
 @keyframes qd-in { from { transform: translateX(30px); opacity: 0; } }
 .qd-head { display: flex; align-items: center; gap: 10px; padding: 16px 20px 12px; border-bottom: 1px solid var(--seam); }
 .qd-head h2 { margin: 0 auto 0 0; font-family: var(--display); font-weight: 400; font-size: 27px; }
@@ -750,7 +750,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 /* admin */
 dialog { background: var(--velvet-deep); color: var(--bone); border: 1px solid var(--seam); border-radius: 16px; padding: 24px; width: min(540px, calc(100% - 32px)); }
-dialog::backdrop { background: rgba(10, 3, 8, .7); }
+dialog::backdrop { background: #000b; }
 dialog h2 { margin: 0 0 16px; font-family: var(--display); font-weight: 400; font-size: 30px; }
 dialog h3 { margin: 18px 0 8px; font-size: 15px; font-weight: 600; }
 dialog .close { float: right; }
@@ -1696,3 +1696,163 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 .dq-s[aria-pressed=true] { border-color: var(--brass); }
 .dq-s-more { border: 1px dashed var(--seam); color: var(--brass); font-size: 20px; }
 .dstrip-all { margin-left: auto; font-size: 13px; }
+
+/* ================================================================ Tesserae
+   The app's material, after its mark: small stones set in grout. The colours stay each collection's (its theme); this
+   says only what things are made of and how they're cut.
+   - The list is a mosaic: each token a tile, set on a floor of small stones (--floor, drawn from the theme by
+     tesserae.ts), the gap between tiles its grout.
+   - Boldness in one place: a picked token wears the band of tesserae with hexagons at its corners (--band-on), as the
+     logo does. Nothing else is edged like that.
+   - The logo's hexagon cuts what you act on: buttons, filters, the steps, the check.
+   - One strip of mosaic, under the top bar, frames the app.
+   Labels are plain sentence case; headings the theme's face. */
+:root { --tile: color-mix(in srgb, var(--velvet) 93%, var(--bone));
+  --tile-hi: color-mix(in srgb, var(--velvet) 87%, var(--bone));
+  --hex: polygon(11px 0, calc(100% - 11px) 0, 100% 50%, calc(100% - 11px) 100%, 11px 100%, 0 50%);
+  --hex-s: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+  --strip: repeating-linear-gradient(90deg, var(--brass) 0 6px, transparent 6px 8px, var(--bone) 8px 14px, transparent 14px 16px, var(--dust) 16px 22px, transparent 22px 24px);
+  --measure: 940px; }
+
+/* ---- the frame: one strip of tesserae under the top bar */
+.topbar::after { content: ""; position: absolute; left: 0; right: 0; bottom: -4px; height: 4px; background: var(--strip); opacity: .75; pointer-events: none; }
+.topbar { border-bottom: 0; }
+.sheet, .taller-main { background: radial-gradient(80% 50% at 25% 0%, var(--glow, transparent), transparent 70%), var(--floor, none) var(--velvet-deep); }
+.sheet { padding-top: 4px; }
+
+/* ---- labels: sentence case, never shouted */
+:is(.spine-h, .tlang-trigger small, .um-side small, .ds-txt .ws-style-l, .ws-bh, .cb-h, .q-team, .q-h, .own-coll small, .tl-sec h3, .th-shape, .tw-gl, .tw-tag, .dz-sec, .dsel-l) {
+  text-transform: none; letter-spacing: 0; }
+.spine-h { font-size: 12.5px; color: var(--dust); }
+:is(.ws-bh, .cb-h, .q-team, .q-h, .tl-sec h3, .tw-gl, .dz-sec) { font-size: 13px; }
+
+/* ---- the sheet's head: the title and "Pick to print" on one line, one quiet line under it, then one toolbar */
+.sheet-head, .filter-row, #rows { max-width: calc(var(--measure) + 68px); }
+.sheet-head { padding: 22px 34px 0; }
+.head-row { align-items: center; margin-bottom: 0; }
+.sheet-title { min-height: 0; }
+.sheet-title h1 { font-size: 38px; }
+.head-row .lead { margin-top: 4px; font-size: 14px; }
+.head-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin: 14px 0 0; padding: 12px 0 14px; border-top: 1px solid var(--seam); }
+.head-tools .design-bar-wrap { margin: 0; flex: 1 1 auto; min-width: 0; }
+.head-tools .built-copy { margin: 0; font-size: 13px; }
+.design-bar .db-taller { margin-left: 8px; }
+
+/* ---- the filters: one bar that stays on top of the list; the groups on one line that slides */
+.filters { position: sticky; top: 0; z-index: 5; padding: 10px 34px; border: 0; border-radius: 0;
+  border-block: 1px solid var(--seam); background: color-mix(in srgb, var(--velvet-deep) 84%, transparent); backdrop-filter: blur(14px); }
+.filter-row { display: flex; align-items: center; gap: 12px; }
+.search-box { flex: 0 0 230px; }
+.search { padding-block: 6px; }
+.chips { display: flex; flex-wrap: nowrap; gap: 6px; overflow-x: auto; scrollbar-width: none; min-width: 0; flex: 1;
+  mask-image: linear-gradient(90deg, #000 calc(100% - 32px), transparent); padding-right: 32px; }
+.chips::-webkit-scrollbar { display: none; }
+.chips .pill { flex: none; padding: 5px 15px 5px 13px; font-size: 13.5px; }
+.chips .pill small { margin-left: 3px; }
+
+/* ---- the list: groups, each a heading and its tiles */
+#rows { padding: 6px 34px 48px; }
+#rows .team { margin-top: 20px; }
+#rows .team-h { margin: 0 0 8px; padding: 0 2px; border: 0; gap: 9px; }
+#rows .team-h span { font-size: 21px; }
+#rows .team-h i { width: 12px; height: 11px; border-radius: 0; clip-path: var(--hex-s); }
+.team-rows { display: grid; gap: 5px; }
+/* a row: the token small, its name over its type and "Design", the linked tokens at the end; opened, they unfold
+   under the name, in the row, so nothing around it moves */
+#rows .row { grid-template-columns: 64px minmax(0, 1fr) auto; grid-template-areas: "tok who fold" "tok list list";
+  gap: 0 14px; align-items: center; padding: 7px 50px 7px 8px; border: 0; border-radius: 3px;
+  background: var(--tile); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--bone) 7%, transparent), 0 1px 0 #0006; }
+#rows .row:hover { background: var(--tile-hi); }
+#rows .row > .tok-w { grid-area: tok; align-self: start; }
+#rows .row > .tok-w svg, #rows .row .tok svg { width: 60px; height: 60px; }
+/* cards are wider than coins: where the list has any, the token's column fits a card and coins sit centred in it,
+   so every name starts at the same place */
+#rows:has(.tok.card) .row { grid-template-columns: 94px minmax(0, 1fr) auto; }
+#rows .row > .tok-w .tok.card svg { width: 92px; height: auto; border-radius: 3px; }
+#rows .row .who, #rows .row.no-rems .who { grid-area: who; grid-row: auto; align-self: center; gap: 1px 10px; }
+#rows .row .who b { flex-basis: 100%; font-size: 15px; line-height: 1.3; }
+#rows .row .who em { flex-basis: auto; font-size: 12.5px; }
+#rows .row .who .own-edit { padding: 0 10px; font-size: 12px; line-height: 20px; }
+#rows .row .rems { display: contents; }
+#rows .row .rems-fold { grid-area: fold; justify-self: end; white-space: nowrap; }
+#rows .row .rem-list { grid-area: list; margin: 8px 0 4px; }
+#rows .row :is(.own-edit, .rems-fold) { border: 0; }
+.rem-list .rem-chip { border: 0; border-radius: 3px; background: var(--tile-hi); }
+.rem-list .rem[data-on=all] .rem-chip { background: color-mix(in srgb, var(--velvet) 75%, var(--brass)); box-shadow: inset 0 0 0 2px var(--brass); }
+.design-bar .db-chip { flex: none; }
+#rows .row .tok-w .cp { margin-top: 3px; }
+/* picked: the band of tesserae, hexagons at the corners; the check a hexagon */
+#rows .row[data-picked=true] { background: color-mix(in srgb, var(--velvet) 80%, var(--brass)); }
+#rows .row[data-picked=true]::before { content: ""; position: absolute; inset: -2px; border: 7px solid transparent; border-image: var(--band-on) 8 / 7px repeat; pointer-events: none; }
+#rows .row[data-picked=true]::after { right: 16px; width: 26px; height: 24px; border-radius: 0; clip-path: var(--hex-s); }
+#rows .row:has(.tok:focus-visible) { outline: 2px solid var(--brass); outline-offset: 2px; }
+
+/* ---- controls cut like the mark: hexagonal ends, no borders (the cut is the edge). Focused, the cut gives way to a
+   plain outline, so focus always shows. */
+:is(.pill, .forge, .db-chip, .rems-fold, .own-edit, .qb-toggle, .parts button) { border-radius: 0; clip-path: var(--hex); }
+/* the cut is the edge: a border would only show as stray lines above and below it */
+:is(.pill, .forge, .db-chip, .rems-fold, .own-edit, .qb-toggle, .parts button):not(:focus-visible) { border-color: transparent !important; }
+:is(.pill, .db-chip, .rems-fold, .own-edit, .qb-toggle, .parts button):not([aria-pressed=true], [aria-selected=true]) { background: var(--tile); }
+:is(.pill, .db-chip, .rems-fold, .own-edit, .qb-toggle, .parts button):not([aria-pressed=true], [aria-selected=true]):hover { background: var(--tile-hi); }
+/* "Pick to print" is a shortcut (picking is tapping the tokens): quiet, so each screen has one main action, Print */
+.pill.add.main { background: var(--tile); color: var(--brass); font-weight: 600; }
+.pill.add.main:hover { background: var(--tile-hi); }
+:is(.pill, .forge, .db-chip, .rems-fold, .own-edit, .qb-toggle, .parts button):focus-visible { clip-path: none; border-radius: 4px; }
+.pill, .parts button, .rems-fold { padding-inline: 16px; }
+.db-chip { padding: 4px 16px 4px 10px; }
+.forge { padding-inline: 24px; }
+.chips .pill[aria-pressed=true]:not([data-team=all]) { background: color-mix(in srgb, var(--c) 32%, var(--velvet)); }
+.flow-step i, .ed .got, .tlang-trigger .lb-flags + * .got { border-radius: 0; clip-path: var(--hex-s); }
+.flow-step i { border: 0; background: color-mix(in srgb, var(--bone) 10%, transparent); }
+.flow-step[aria-current=step] i { background: var(--brass); }
+.search, .text { border-radius: 3px; }
+
+/* ---- the sidebar: the current entry marked by a short column of tesserae */
+.ed { border-radius: 3px; }
+.ed[aria-current=true] { background: repeating-linear-gradient(180deg, var(--brass) 0 5px, transparent 5px 8px) 2px 50% / 4px 64% no-repeat, color-mix(in srgb, var(--bone) 6%, transparent); }
+.ed[aria-current=true]::before { display: none; }
+.spine-h.own-only { margin-top: 2px; }
+
+/* ---- the Designer: its parts' tabs wrap (none off the edge), the preview a stage with the token large */
+.parts { flex-wrap: wrap; overflow: visible; row-gap: 6px; }
+.parts .sec-adv { flex-basis: 100%; margin: 4px 0 0; padding: 0; border: 0; }
+.tm-preview { justify-content: center; gap: 18px 40px; padding-block: 26px 20px; border-bottom: 1px solid var(--seam);
+  background: radial-gradient(60% 90% at 50% 30%, color-mix(in srgb, var(--brass) 9%, transparent), transparent 70%), color-mix(in srgb, var(--velvet-deep) 92%, transparent); }
+.tv-hero { gap: 28px; }
+.tv-hero svg { width: 184px; height: 184px; filter: drop-shadow(0 10px 18px #0008); }
+.tv-rest { padding: 10px 14px; border-radius: 3px; background: color-mix(in srgb, var(--velvet) 60%, transparent); }
+.tm-list { margin-top: 24px; }
+
+@media (max-width: 900px) {
+  .sheet-head { padding: 16px 16px 0; }
+  .sheet-title h1 { font-size: 30px; }
+  .head-row { flex-direction: column; align-items: stretch; gap: 12px; }
+  .head-text { flex: none; }
+  .head-row .lead { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .head-tools { padding-bottom: 10px; }
+  .head-tools .built-copy { display: none; }   /* on a phone it's in the collection's menu */
+  .design-bar .db-l { display: none; }
+  .filters { padding: 8px 16px; }
+  .filter-row { flex-direction: column; align-items: stretch; gap: 8px; }
+  .search-box { flex: none; }
+  .chips { display: flex; grid-template-columns: none; }
+  #rows { padding: 4px 16px 32px; }
+  #rows .row { grid-template-columns: 56px minmax(0, 1fr) auto; padding: 6px 44px 6px 6px; gap: 0 10px; }
+  #rows .row > .tok-w svg, #rows .row .tok svg { width: 54px; height: 54px; }
+  #rows:has(.tok.card) .row { grid-template-columns: 76px minmax(0, 1fr) auto; }
+  #rows .row > .tok-w .tok.card svg { width: 74px; }
+  #rows .row .rems-fold .rf-minis { display: none; }
+  #rows .row .rem-list { grid-column: 1 / -1; }
+  .app[data-step="taller"]:not([data-tv="start"]) .tm-list { display: none; }
+  .app[data-step="taller"]:not([data-tv="start"]) .tm-preview { min-height: calc(100% + 10px); align-content: center; }
+  .tm-preview { padding-block: 14px 12px; }
+  .tv-hero svg { width: 132px; height: 132px; }
+  .tv-rest { padding: 0; background: none; }
+}
+@media (prefers-reduced-motion: reduce) { .chips { scroll-behavior: auto; } }
+
+/* ---- print: on the floor too; the two ways are tiles */
+.print-page { background: radial-gradient(80% 50% at 25% 0%, var(--glow, transparent), transparent 70%), var(--floor, none) var(--velvet-deep); }
+.way { border: 0; border-radius: 3px; background: var(--tile); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--bone) 7%, transparent), 0 1px 0 #0006; }
+.way:hover { background: var(--tile-hi); }
+.way[aria-checked=true] { background: color-mix(in srgb, var(--velvet) 80%, var(--brass)); box-shadow: inset 0 0 0 2px var(--brass); }
