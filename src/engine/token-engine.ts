@@ -2018,7 +2018,7 @@ export const SMALL_LETTERS_MM = 2.5;
 export function nameLetterHeight(lib: Library, input: SpecInput, text: string, role: Role | null = null): number {
   if (isCard(role)) return cardFaceOf(lib, role!, cardContent(role, cardSpec(input)), "front", text)!.L.cap;
   if (isRing(role)) return ringLayout(lib, text, ringSpec(input)).letterHeight;
-  if (isBase(role)) return baseLayout(lib, text, baseSpec(input)).cap;
+  if (isBase(role)) return role?.content === "none" ? Infinity : baseLayout(lib, text, baseSpec(input)).cap;
   const spec = windowFrame({ ...DEFAULT_SPEC, ...input, colours: { ...DEFAULT_SPEC.colours, ...input?.colours } });
   const front = spec.style === "window" ? windowLayout(lib, text, spec).cap
     : spec.style === "text" ? textLayout(lib, text, spec).cap || Infinity
@@ -2578,6 +2578,8 @@ export function baseSpec(input: SpecInput | undefined): TokenSpec {
 export function baseLayout(lib: Library, text: string | null | undefined, spec: TokenSpec) {
   const { ri, ro } = baseSize(spec);
   const chars = [...(text || "").toUpperCase().trim()];
+  // nothing to say: no tab, the tray alone
+  if (!chars.length) return { ri, ro, R: ro, ext: 0, cap: 0, em: 0, foot: ro, half: 0, letters: [] as { ch: string; a: number }[], line: spec.frame === "none" ? null : Math.min(Math.max(spec.frameWidth * 0.55, 0.45), 0.8), tab: false };
   const adv = chars.map((c) => (c === " " ? Math.max(glyph(lib, " ").advance, 0.45) : glyph(lib, c).advance) * spec.spacing);
   const word = adv.reduce((a, b) => a + b, 0);
   let cap = chars.length <= 2 ? 6 : 4.5;
@@ -2589,7 +2591,7 @@ export function baseLayout(lib: Library, text: string | null | undefined, spec: 
       let at = -(word * em) / 2;
       chars.forEach((ch, i) => { const w = adv[i] * em; if (ch !== " ") letters.push({ ch, a: -Math.PI / 2 + (at + w / 2) / mid }); at += w; });
       const line = spec.frame === "none" ? null : Math.min(Math.max(spec.frameWidth * 0.55, 0.45), 0.8);
-      return { ri, ro, R, ext, cap, em, foot, half, letters, line };
+      return { ri, ro, R, ext, cap, em, foot, half, letters, line, tab: true };
     }
     cap = Math.max(3, cap - 0.25);
   }
@@ -2599,6 +2601,7 @@ export function baseLayout(lib: Library, text: string | null | undefined, spec: 
 function baseOutline(L: ReturnType<typeof baseLayout>, inset = 0) {
   const ro = L.ro - inset, R = L.R - inset, rc = Math.max(0.2, Math.min(2, L.ext / 2 - 0.2) - inset);
   const s = new THREE.Shape(), xs = L.R * Math.sin(Math.min(L.half, Math.PI / 2)) - inset;
+  if (!L.tab) { s.absarc(0, 0, ro, 0, TAU, false); return s; }   // no tab: the rim's circle
   if (xs < L.ro - 1 - inset) {
     // sides parallel, straight down to the rim; the outer corners rounded
     const yc = -Math.sqrt((R - rc) ** 2 - (xs - rc) ** 2), yj = -Math.sqrt(ro * ro - xs * xs);
@@ -2635,7 +2638,7 @@ function baseLines(L: ReturnType<typeof baseLayout>): THREE.Shape[] {
 function buildTray(lib: Library, role: Role, input: SpecInput | undefined, text?: string | null): Token {
   const s = baseSpec(input);
   text ??= roleName(role, s.lang);
-  const L = baseLayout(lib, text, s), H = BASE_FLOOR + s.height, spec: TokenSpec = { ...s, height: H }, top = H - spec.depth;
+  const L = baseLayout(lib, role.content === "none" ? "" : text, s), H = BASE_FLOOR + s.height, spec: TokenSpec = { ...s, height: H }, top = H - spec.depth;
   const floor = extrude([baseOutline(L)], BASE_FLOOR, T(0, 0, 0), 24);
   const rim = baseOutline(L); rim.holes.push(pocketHole(L.ri));
   const wall = extrude([rim], H - BASE_FLOOR, T(0, 0, BASE_FLOOR), 24);
@@ -2656,7 +2659,7 @@ function buildTray(lib: Library, role: Role, input: SpecInput | undefined, text?
 
 function baseSvg(lib: Library, role: Role, input: SpecInput | undefined, side: "front" | "back", text?: string | null) {
   const spec = baseSpec(input), c = partColours(role, spec), label = text ?? roleName(role, spec.lang);
-  const L = baseLayout(lib, label, spec), v = L.R + 0.5;
+  const L = baseLayout(lib, role.content === "none" ? "" : label, spec), v = L.R + 0.5;
   // the tray in the coin colour first (print-pdf.ts reads its colour from it), the pocket shaded
   let body = `<path fill="${c.base}" d="${shapesToPath([baseOutline(L)], 0, 0, 24)}"/><circle r="${L.ri.toFixed(2)}" fill="#000" fill-opacity=".28"/>`;
   if (side === "front") {

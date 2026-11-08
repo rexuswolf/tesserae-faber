@@ -456,7 +456,7 @@ function renderTokenPanel() {
   renderTokenColour(tk);
   const carries = contentNow(tk, shape);
   $("#ownTokIconRow").hidden = !SHAPE_FEATURES[shape].icon || carries === "text";
-  $("#ownTokNameHint").hidden = carries !== "icon";
+  $("#ownTokNameHint").hidden = carries !== "icon" && carries !== "none";
   renderIconChip("ownTok", tk.icon);
   renderOwnFlip(tk);
   const sig = [tk.id, shape, tokenLang(), uiLang()].join("|");
@@ -502,13 +502,14 @@ function renderPanelShape(tk: OwnToken, shape: TokenShape) {
   }).join("")}</div></div>${typePick}`;
 }
 /** What a shape's token can carry: a coin, its icon and name, either alone; a card, with or without its icon; a ring or a base, its name. */
-const CONTENTS: Record<TokenShape, TokenContent[]> = { coin: ["both", "icon", "text"], card: ["both", "icon", "text"], ring: [], base: [] };
+const CONTENTS: Record<TokenShape, TokenContent[]> = { coin: ["both", "icon", "text"], card: ["both", "icon", "text"], ring: [], base: ["text", "none"] };
 /** What the token carries now: its own choice, else what its design's layout shows (an icon-only or text-only coin). */
 function contentNow(tk: OwnToken, shape: TokenShape): TokenContent {
   const opts = CONTENTS[shape];
   if (tk.content && opts.includes(tk.content)) return tk.content;
   const role = roleById(tk.id), look = role ? lookOf(charKey(role)) : null;
   if (shape === "card") return look?.cardIcon === "only" ? "icon" : !look?.cardIcon || look.cardIcon === "none" ? "text" : "both";
+  if (shape === "base") return "text";
   const style = shape === "coin" ? look?.style : null;
   return style === "solo" ? "icon" : style === "text" ? "text" : "both";
 }
@@ -520,7 +521,7 @@ function renderPanelContent(tk: OwnToken, shape: TokenShape) {
   // beside the name, small: the token on the left shows what each gives
   const now = contentNow(tk, shape);
   box.innerHTML = `<div class="field"><span>${esc(t("own.content"))}</span><span class="seg2 tp-carries" role="group" aria-label="${esc(t("own.content"))}">${opts.map((c) =>
-    `<button type="button" data-content="${c}" aria-pressed="${c === now}">${esc(t(`own.content.${c}`))}</button>`).join("")}</span></div>`;
+    `<button type="button" data-content="${c}" aria-pressed="${c === now}">${esc(t(shape === "base" ? `own.content.${c}.base` : `own.content.${c}`))}</button>`).join("")}</span></div>`;
 }
 /** The token as it prints, in its design (front, back, linked tokens), and which design that is. */
 function renderPanelToken() {

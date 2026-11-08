@@ -544,7 +544,7 @@ export async function readCollectionFile(data: unknown, onProgress: (done: numbe
       linked: (t.linked ?? []).map((l) => (typeof l === "string" ? l : l?.name)).filter(okName),
       ...(flip ? { flip } : {}),
       ...(isHex(t.colour) ? { colour: t.colour } : {}),
-      ...(t.content === "both" || t.content === "icon" || t.content === "text" ? { content: t.content } : {}),
+      ...(t.content === "both" || t.content === "icon" || t.content === "text" || t.content === "none" ? { content: t.content } : {}),
     });
     if (++done % 20 === 0 || done === f.tokens.length) onProgress(done, f.tokens.length);
   }

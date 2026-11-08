@@ -71,7 +71,8 @@ export interface Role {
   keptIcon?: Pick<TokenIcon, "id" | "g" | "body">;
 }
 /** What a token carries: its icon and its name, only its icon (the name names it in the lists), or only its name. */
-export type TokenContent = "both" | "icon" | "text";
+/** What a token of yours carries: its icon and name, either alone, or (a base) nothing: the tray alone, its colour saying which. */
+export type TokenContent = "both" | "icon" | "text" | "none";
 
 /** A two-state token's other state: its name (as a character's: English, Spanish, the rest by
  *  language) and its icon (markup placed by `g`, credited like a character's when it's game-icons.net's). */

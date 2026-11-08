@@ -34,4 +34,10 @@ describe("a base tray", () => {
     expect(baseSpec({ height: 0.5 }).height).toBe(1.5);
     expect(baseSpec({ height: 9 }).height).toBe(4);
   });
+  it("has no tab when it says nothing: the tray alone", () => {
+    const L = layout("");
+    expect(L.tab).toBe(false);
+    expect(L.letters).toEqual([]);
+    expect(L.R).toBe(L.ro);
+  });
 });

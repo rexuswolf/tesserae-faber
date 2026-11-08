@@ -43,7 +43,7 @@ export const partsOf = (shape: TokenShape): Part[] => {
 export const twoSided = (shape: TokenShape) => SHAPE_FEATURES[shape].back;
 /** The front's tabs: a token of yours that carries only its icon (or only its text) has no layout, nor text (or icon), to change. */
 export const frontTabsOf = (shape: TokenShape, content?: TokenContent): FaceTab[] =>
-  faceTabsOf(shape).filter((f) => !(content === "icon" || content === "text") || f !== (content === "icon" ? "text" : "icon"));
+  faceTabsOf(shape).filter((f) => !(content === "icon" || content === "text" || content === "none") || f !== (content === "text" ? "icon" : "text"));
 /** One of the design's sections: a part, or a tab of the front. */
 export interface Section { part: Part; face?: FaceTab }
 /**
