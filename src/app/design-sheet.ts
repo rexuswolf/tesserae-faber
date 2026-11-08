@@ -450,7 +450,7 @@ function lineFrames(shape: TokenShape, frame: string): [string, string][] {
   return [["none", t("frame.none")], [line, t(`frame.line.${shape}`)], ...(SHAPE_FEATURES[shape].corners ? [["corners", t("frame.corners")], ["laurel", t("frame.laurelCard")]] as [string, string][] : [])];
 }
 
-/** A card's icon places and joins (in CARA's Icon tab), each drawn on the token as it would come out. */
+/** A card's icon places and joins (its Layout tab) and its icon's size (its Icon tab), the tiles drawn on the token as it would come out. */
 function renderCardIconTiles(role: Role, text: string, spec: TokenSpec, hasIcon: boolean) {
   const tile = (key: "cardIcon" | "cardJoin", v: string) =>
     `<button class="back-tile" type="button" data-v="${v}" aria-pressed="${spec[key] === v}">${tokenSvg(state.lib!, role, { ...spec, [key]: v, ...(key === "cardJoin" && spec.cardIcon === "none" ? { cardIcon: "left" } : {}) }, { text })}<span>${esc(t(`${key}.${v}`))}</span></button>`;
@@ -462,7 +462,8 @@ function renderCardIconTiles(role: Role, text: string, spec: TokenSpec, hasIcon:
   // the join for an icon beside the phrase, the size for any icon
   $("#cardJoinBox").hidden = spec.cardIcon === "none" || spec.cardIcon === "only";
   $("#cardIconSize").closest<HTMLElement>(".row")!.hidden = spec.cardIcon === "none";
-  $("#cardIconHint").textContent = !hasIcon ? t("cardIcon.noIcon") : spec.cardJoin === "together" && spec.cardIcon !== "none" && spec.cardIcon !== "only" ? t("cardJoin.together.help") : "";
+  $("#cardLayoutHint").textContent = !hasIcon ? t("cardIcon.noIcon") : spec.cardJoin === "together" && spec.cardIcon !== "none" && spec.cardIcon !== "only" ? t("cardJoin.together.help") : "";
+  $("#cardIconHint").textContent = !hasIcon ? t("cardIcon.noIcon") : "";
 }
 
 /**
@@ -685,12 +686,14 @@ export function syncControls(role: Role, spec: TokenSpec, token: Token) {
   const oneColour = OWN && !TALLER && coll.groups.length < 2, teamLabel = t(oneColour ? "metal.collection" : "metal.team");
   for (const b of $$(".metal button.team")) { b.title = teamLabel; b.setAttribute("aria-label", teamLabel); }
   $("#teamHint span").textContent = t(oneColour ? "metal.teamHintOne" : "metal.teamHint");
-  // Layout: the coin's layouts, drawn on this face
   if (panel === "colours") {   // its colours together: the body's, the name's and icon's, the frame's
     $("#coloursBaseLabel").textContent = shapeText("coin.colour", shape);
     $("#coloursFrontLabel").textContent = shape === "coin" ? t(face.style === "window" && role.content !== "icon" && role.content !== "text" ? "front.colourWindow" : role.content === "text" ? "front.colourName" : "front.colour") : t("front.colourName");
   }
-  if (panel === "layout") {
+  // Layout: a coin's layouts, drawn on this face; a card's, where its icon goes and how it sits with the phrase
+  $("#cardLayoutBox").hidden = shape !== "card";
+  if (panel === "layout" && shape === "card") { $("[data-choice=style]").hidden = true; $("#styleHint").textContent = ""; }
+  if (panel === "layout" && shape !== "card") {
     const only = !TALLER && ownTokenOf(role.id) ? role.content : undefined;   // a token of yours that carries one thing: nothing to lay out
     $("[data-choice=style]").hidden = only === "icon" || only === "text";
     if (only === "icon" || only === "text") { $("[data-choice=style]").innerHTML = ""; $("#styleHint").textContent = t("style.onlyOne", { what: t(`own.content.${only}`).toLowerCase() }); }
@@ -724,10 +727,10 @@ export function syncControls(role: Role, spec: TokenSpec, token: Token) {
   $("#nameHint").textContent = side === "back" && b ? (other ? `${t("name.flip", { name: roleName(other, tokenLang()) })} ` : `${t("name.back")} `) + hint(b)
     : hint(token.name) + (names[1] && other ? ` ${t("name.flip", { name: roleName(other, tokenLang()) })} ${hint(names[1])}` : "");
   $("#iconColourHint").textContent = t(shape === "card" ? "icon.colourCard" : face.style === "window" ? "icon.colourWindow" : "icon.colourName");
-  // Icon: a coin's size; a card's place, join and size, drawn on the card
+  // Icon: a coin's size, a card's (where it goes and how it sits with the phrase are its Layout)
   row("iconScale").hidden = shape === "card";
   $("#cardIconBox").hidden = shape !== "card";
-  if (panel === "icon" && shape === "card") {
+  if ((panel === "icon" || panel === "layout") && shape === "card") {
     const own = ownIcon(role.id), hasIcon = !!(own?.body || role.body || role.d?.length);
     renderCardIconTiles(who.role, who.text, { ...face, icon: own }, hasIcon);
   }

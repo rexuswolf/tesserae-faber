@@ -2814,9 +2814,9 @@ export const SHAPE_FEATURES: Record<TokenShape, ShapeFeatures> = {
   // A coin has everything the workshop offers (some layouts leave a control out: see main.ts).
   coin: { layout: true, icon: true, textSize: true, spacing: true, maxArc: true, frame: "designs", relief: ["text", "frame", "icon"], back: true, magnet: true, diameter: true, ringBase: false, flip: true, separator: false, corners: false, pattern: true },
   // A card (85 × 55 mm, Clocktower's Grimoire): the phrase as large as fits, beside the token's icon
-  // or without it, the frame a line inside the edge, all flush (cardSpec); no magnet; a back of its
+  // or without it (where, in its Layout), the frame a line inside the edge, all flush (cardSpec); no magnet; a back of its
   // own, laid out like a face (cardBack).
-  card: { layout: false, icon: true, textSize: false, spacing: false, maxArc: false, frame: "line", relief: [], back: true, magnet: false, diameter: false, ringBase: false, flip: false, separator: false, corners: true, pattern: false },
+  card: { layout: true, icon: true, textSize: false, spacing: false, maxArc: false, frame: "line", relief: [], back: true, magnet: false, diameter: false, ringBase: false, flip: false, separator: false, corners: true, pattern: false },
   // A condition ring: the name round and round at the height asked for (as far as its band
   // allows, ringBand), a fine line along each edge, either raised (ringSpec); no icon, back or
   // magnet, and sized by its base.

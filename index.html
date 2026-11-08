@@ -236,6 +236,16 @@
       <section class="ws-panel" data-panel="layout" role="tabpanel" hidden>
         <div class="choices layout-tiles" data-choice="style"></div>
         <p class="hint" id="styleHint"></p>
+        <!-- a card's: where its icon goes and how it sits with the phrase -->
+        <div id="cardLayoutBox" hidden>
+          <p class="metal-label" data-i18n="cardIcon.label"></p>
+          <div class="choices card-tiles" data-choice="cardIcon" data-i18n-attr="aria-label:cardIcon.label"></div>
+          <div id="cardJoinBox">
+            <p class="metal-label" data-i18n="cardJoin.label"></p>
+            <div class="choices card-tiles" data-choice="cardJoin" data-i18n-attr="aria-label:cardJoin.label"></div>
+          </div>
+          <p class="hint" id="cardLayoutHint"></p>
+        </div>
       </section>
       <section class="ws-panel" data-panel="text" role="tabpanel" hidden>
         <p class="hint" id="nameHint"></p>
@@ -253,14 +263,8 @@
       </section>
       <section class="ws-panel" data-panel="icon" role="tabpanel" hidden>
         <div class="row"><label for="iconScale" data-i18n="range.iconScale"></label><output data-for="iconScale"></output><input type="range" id="iconScale" min="0.6" max="1.2" step="0.05" value="1"></div>
-        <!-- a card's: where its icon goes, how it sits with the phrase and how big it is -->
+        <!-- a card's: how big its icon is (where it goes is in Layout) -->
         <div id="cardIconBox" hidden>
-          <p class="metal-label" data-i18n="cardIcon.label"></p>
-          <div class="choices card-tiles" data-choice="cardIcon" data-i18n-attr="aria-label:cardIcon.label"></div>
-          <div id="cardJoinBox">
-            <p class="metal-label" data-i18n="cardJoin.label"></p>
-            <div class="choices card-tiles" data-choice="cardJoin" data-i18n-attr="aria-label:cardJoin.label"></div>
-          </div>
           <div class="row"><label for="cardIconSize" data-i18n="range.cardIconSize"></label><output data-for="cardIconSize"></output><input type="range" id="cardIconSize" min="12" max="40" step="1" value="30"></div>
           <p class="hint" id="cardIconHint"></p>
         </div>
