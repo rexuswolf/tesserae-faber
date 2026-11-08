@@ -259,7 +259,8 @@ export const starterCollection = (lang = "es"): Collection => {
   return {
     name: s.name,
     types: [{ id: "fichas", name: s.type, title: s.title, shape: "coin", icon: "two-coins" }],
-    groups: [{ id: "g1", name: `${s.group} 1`, colour: GROUP_COLOURS[0] }, { id: "g2", name: `${s.group} 2`, colour: GROUP_COLOURS[1] }],
+    // one group, unseen until you make more (from the menu's Groups)
+    groups: [{ id: "g1", name: `${s.group} 1`, colour: GROUP_COLOURS[0] }],
     // one token to start from: the app always has something to show and design
     tokens: [{ id: "t1", type: "fichas", group: "g1", name: s.token, icon: null, linked: [] }],
     sections: [{ id: "s1", title: s.section, open: true, catalogs: [] }],

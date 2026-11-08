@@ -220,7 +220,7 @@ export function renderSays() {
   const own = state.overrides.get(key), name = textFor(key, role, reminder);
   const mine = !!(own?.text || own?.fem || own?.icon);
   $("#saysLine").innerHTML = tk
-    ? `<span class="says-what"><b>${esc(name)}</b><small>${esc([nameIn(coll.groups.find((g) => g.id === tk.group)?.name, lang), nameIn(coll.types.find((x) => x.id === tk.type)?.name, lang)].filter(Boolean).join(" · "))}</small></span><button class="pill" type="button" data-content-edit="${esc(tk.id)}">${esc(t("content.edit"))}</button>`
+    ? `<span class="says-what"><b>${esc(name)}</b><small>${esc([coll.groups.length > 1 ? nameIn(coll.groups.find((g) => g.id === tk.group)?.name, lang) : "", nameIn(coll.types.find((x) => x.id === tk.type)?.name, lang)].filter(Boolean).join(" · "))}</small></span><button class="pill" type="button" data-content-edit="${esc(tk.id)}">${esc(t("content.edit"))}</button>`
     : `<button class="says-toggle" type="button" aria-expanded="${state.saysOpen}" aria-controls="contentClosed"><span>${esc(t("content.says"))}: <b>${esc(name)}</b>${mine ? ` <i class="own-dot" title="${esc(t("sheet.own"))}">✎</i>` : ""}</span>${CHEVRON}</button>`;
   const box = $("#contentClosed");
   box.hidden = !!tk || !state.saysOpen;

@@ -428,8 +428,10 @@ function renderTokenPanel() {
   $<HTMLInputElement>("#ownTokName").value = nameIn(tk.name, tokenLang());
   $<HTMLInputElement>("#ownTokIq").value = ""; $("#ownTokHits").innerHTML = "";
   renderGroupPills(tk);
+  $("#ownTokGroupRow").hidden = coll.groups.length < 2;   // one group (a new collection's): nothing to choose, nor to explain yet
   const openCats = coll.sections.filter((x) => x.open).flatMap((x) => x.catalogs), inCat = (k: OwnCatalog) => (c ? c.cats.includes(k.id) : k.tokens.includes(tk.id));
   $("#ownTokCats").innerHTML = openCats.map((k) => `<label class="check"><input type="checkbox" value="${esc(k.id)}"${inCat(k) ? " checked" : ""}> ${esc(nameIn(k.name, uiLang()))}</label>`).join("") || `<p class="hint">${esc(t("own.noCatalogs"))}</p>`;
+  $("#ownTokCatsRow").hidden = !openCats.length;   // no catalogs of yours yet: nothing to put it in
   renderOwnLinked(tk);
   $("#contentFlip").hidden = !SHAPE_FEATURES[shape].flip;
   renderOwnFlip(tk);
@@ -490,10 +492,12 @@ function renderPanelToken() {
  * the group's first, then the colours a group can have.
  */
 function renderTokenColour(tk: OwnToken) {
+  const one = coll.groups.length < 2, usual = t(one ? "own.colourUsual" : "own.colourGroup");   // one group: the collection's colour, groups unsaid
+  $("#ownTokColourHelp").textContent = t(one ? "own.colourHelpOne" : "own.colourHelp");
   const group = coll.groups.find((g) => g.id === tk.group)?.colour ?? GROUP_COLOURS[0], now = tk.colour ?? group;
   const name = (hex: string) => { const c = COLOUR_CHOICES.find((x) => x.hex === hex.toLowerCase()); return c ? t(`metal.${c.id}`) : hex; };
-  $("#ownTokColour summary").innerHTML = `<i style="--c: ${now}"></i><span>${esc(tk.colour ? name(tk.colour) : t("own.colourGroup"))}</span><b aria-hidden="true">▾</b>`;
-  $("#ownTokColour .tok-colour-menu").innerHTML = `<button class="pill group-pill" type="button" data-tcolour="" aria-pressed="${!tk.colour}" style="--c: ${group}"><i></i>${esc(t("own.colourGroup"))}</button>`
+  $("#ownTokColour summary").innerHTML = `<i style="--c: ${now}"></i><span>${esc(tk.colour ? name(tk.colour) : usual)}</span><b aria-hidden="true">▾</b>`;
+  $("#ownTokColour .tok-colour-menu").innerHTML = `<button class="pill group-pill" type="button" data-tcolour="" aria-pressed="${!tk.colour}" style="--c: ${group}"><i></i>${esc(usual)}</button>`
     + `<span class="own-swatches">${GROUP_COLOURS.map((c) => `<button type="button" style="background:${c}" data-tcolour="${c}" aria-pressed="${c === tk.colour}" aria-label="${esc(name(c))}" title="${esc(name(c))}"></button>`).join("")}</span>`;
 }
 /** The groups as their colours, the token's pressed, and a new one. */

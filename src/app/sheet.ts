@@ -144,6 +144,9 @@ export function renderSheet() {
   $("#teamChips").innerHTML = ([["all", t("team.all"), roles.length], ...teamsHere.map((tm) => [tm, TEAM_PLURAL[lang][tm], roles.filter((r) => r.team === tm).length])] as [Team | "all", string, number][])
     .map(([id, label, n]) => `<button class="pill" type="button" data-team="${id}" aria-pressed="${state.team === id}"${id === "all" ? "" : ` style="--c: ${TEAMS[id].colour}"`}>${id === "all" ? "" : uiIcon(TEAM_ICONS[id])}<span class="lbl">${esc(label)}</span><small>${n}</small></button>`).join("");
   if (state.team !== "all") roles = roles.filter((r) => r.team === state.team);
+  // a collection of yours with one group (a new one's): no groups to show yet
+  const oneGroup = OWN && coll.groups.length < 2;
+  $("#teamChips").hidden = oneGroup;
 
   // search matches the name (English, Spanish, the token language or your own text) or any reminder text (yours too)
   const hits = new Map<string, Set<number>>();
@@ -171,6 +174,7 @@ export function renderSheet() {
     const list = roles.filter((r) => r.team === team).sort((a, b) => collator().compare(catalogText(a, null), catalogText(b, null)));
     if (!list.length) return "";
     const teamOn = list.every((r) => isPicked(charKey(r)));
+    if (oneGroup) return list.map((r) => rowHtml(r, q, hits.get(r.id))).join("");
     return `<div class="team-h"><i style="background:${TEAMS[team].colour}"></i><span>${esc(TEAM_PLURAL[lang][team])}</span><small>${list.length}</small>
       <button class="pick-team" type="button" data-pick-team="${team}">${esc(t(teamOn ? "pick.teamOff" : "pick.team"))}</button></div>` +
       list.map((r) => rowHtml(r, q, hits.get(r.id))).join("");
