@@ -123,6 +123,8 @@ export function renderQuickDesigns() {
 }
 export function wireQuickDesigns() {
   $("#styleQuick").onclick = (e) => { const b = hit(e, "[data-dq-pick]"); if (b && b.getAttribute("aria-pressed") !== "true") setTokenDesign(state.sel!.key, b.dataset.dqPick!); };
+  // the design chosen for this token, for all the collection's tokens of its shape
+  $("#styleAll").onclick = () => { const key = state.sel!.key, sh = shapeOf(state.sel!.role); void setDefaults({ [sh]: designFor(key, sh).ref }, key); };
 }
 export function wireDesignSheet() {
   wireQuickDesigns();
@@ -797,10 +799,11 @@ export function renderDesignBar() {
  * New defaults for some shapes (the original: none kept). Tokens of those shapes with a design of
  * their own or changes to it are asked about: kept as they are, or given the new default too.
  */
-async function setDefaults(next: Partial<Record<TokenShape, string>>) {
+async function setDefaults(next: Partial<Record<TokenShape, string>>, from?: string) {
   const shapes = (Object.keys(next) as TokenShape[]).filter((sh) => next[sh] !== defaultRef(sh));
   if (!shapes.length) return;
-  const touched = shapes.flatMap((sh) => tokensOf(sh).filter(designOverridden));
+  // `from`: the token whose design becomes everyone's (it then simply follows the default, its changes kept)
+  const touched = shapes.flatMap((sh) => tokensOf(sh).filter(designOverridden)).filter((k) => k !== from);
   let clear = false;
   if (touched.length) {
     const name = shapes.length === 1 ? designOf(shapes[0], next[shapes[0]])!.name : t("bar.originalName");
@@ -809,6 +812,7 @@ async function setDefaults(next: Partial<Record<TokenShape, string>>) {
     clear = a === "clear";
   }
   for (const sh of shapes) { if (next[sh] === originalRef(sh)) delete defaults[sh]; else defaults[sh] = next[sh]; }
+  if (from) { const o = { ...state.overrides.get(from) }; delete o.style; if (Object.keys(o).length) state.overrides.set(from, o); else state.overrides.delete(from); }
   if (clear) for (const k of touched) { const o = { ...state.overrides.get(k) }; delete o.style; delete o.look; if (Object.keys(o).length) state.overrides.set(k, o); else state.overrides.delete(k); }
   storeDefaults(); storeOverrides();
   toast(shapes.length === 1 ? t("bar.done", { shape: t(`type.${shapes[0]}.many`).toLowerCase(), name: designOf(shapes[0], defaultRef(shapes[0]))!.name }) : t("bar.doneOriginal"));

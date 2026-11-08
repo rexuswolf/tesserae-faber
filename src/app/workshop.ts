@@ -4,7 +4,7 @@ import type { TokenShape, TokenSpec, BackFace, TokenStyle, SpecInput, SpecColour
 import { shapeOf, SHAPE_FEATURES, DEFAULT_SPEC, FACE_FIELDS, reliefOf, buildToken, TEAMS, tokenSvg, MAGNET_SIZES, RING_SEPARATORS, RING_BASES, cardBackOf } from "../engine/token-engine.ts";
 import { state, LAYOUT_TEXT, defSpec, STYLE_KEEPS, knownStyles, $, view3d, esc, input, hit, $$, SEPARATOR_MARKS, COLOUR_CHOICES } from "./context.ts";
 import type { Part, Side, FaceTab, Fields } from "./context.ts";
-import { lookOf, designFor, ownChanged, designOf, inheritedRef, collLabel } from "./designs.ts";
+import { lookOf, designFor, ownChanged, designOf, inheritedRef, collLabel, defaultRef } from "./designs.ts";
 import { changeLook, renderSays, renderTabs, syncControls, renderColourWarn, dz, renderDesignSheet, setOwn, patternGroupHtml, setCardBack, changeCardBack, setCardBackIcon, renderQuickDesigns } from "./design-sheet.ts";
 import { APP_NAME, tallerUrl } from "../collection.ts";
 import type { StyleDef } from "../collection.ts";
@@ -204,6 +204,10 @@ function renderDesignRow(key: string, shape: TokenShape) {
   $("#styleCount").textContent = d.ref === def.ref ? t("design.isDefault") : d.mine ? t("design.yours") : t("design.fromSrc", { name: d.ref.startsWith("a:") ? APP_NAME : collLabel() });
   $("#styleChange").setAttribute("aria-label", `${t("design.change")}: ${t("design.label")} ${d.name}`);
   $("#styleTweak").hidden = !tweaked;
+  // a design chosen for this token (not its shape's default): offered for all of them
+  const all = $<HTMLButtonElement>("#styleAll");
+  all.hidden = reminder != null || d.ref === defaultRef(shape);
+  all.textContent = t("design.useAll", { name: d.name, shape });
   const back = $<HTMLButtonElement>("#styleBack");
   back.hidden = d.ref === def.ref;
   back.innerHTML = `<span aria-hidden="true">✎</span> ${esc(t("design.chosen"))} · <u>${esc(t("design.back"))}</u>`;

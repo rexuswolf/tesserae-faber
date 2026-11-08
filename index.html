@@ -132,6 +132,8 @@
         <button class="pill" type="button" id="ownCatRename" data-i18n="own.renameCatalog"></button>
         <button class="pill danger" type="button" id="ownCatDelete" data-i18n="own.deleteCatalog"></button>
       </div>
+      <!-- one of the app's: the way to make it yours, to change its tokens -->
+      <p class="built-copy built-only"><span data-i18n="own.copyLead"></span> <button class="link" type="button" data-coll="copy" data-i18n="own.copyAction"></button></p>
       <!-- a new collection of yours: what to do first (gone once it has more tokens) -->
       <div class="own-welcome" id="ownWelcome" hidden>
         <h3 data-i18n="own.welcomeH"></h3>
@@ -184,6 +186,7 @@
         </div>
         <!-- the first designs it can take, a tap away (the sheet has them all) -->
         <div class="ds-quick" id="styleQuick" role="group" data-i18n-attr="aria-label:design.quickAria"></div>
+        <button class="pill ds-all" type="button" id="styleAll" hidden></button>
         <!-- the token's own changes over its design: kept as a design of yours, or dropped -->
         <div class="ds-tweak" id="styleTweak" hidden>
           <button class="pill" type="button" id="styleSave" data-i18n="design.saveAs"></button>

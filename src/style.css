@@ -1653,3 +1653,14 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 /* the Taller: what a design is, and how one reaches a collection */
 .tw-lead { margin: -6px 0 18px; color: var(--dust); max-width: 62ch; line-height: 1.5; }
 .tl-use { margin-top: 14px; max-width: 62ch; }
+.ds-all { margin-top: 2px; }
+/* one of the app's collections: making it yours */
+.built-copy { margin: 8px 0 0; font-size: 13.5px; color: var(--dust); }
+.built-copy .link { color: var(--brass); font-weight: 600; }
+/* the front page's buttons: a link styled as a pill reads as one (no underline, the page's text colour) */
+.ol-cta a.pill { color: var(--bone); text-decoration: none; display: inline-block; }
+/* a phone: the front page's header on one row (the wordmark gives way to the logo alone) */
+@media (max-width: 480px) {
+  .oh-top { flex-wrap: nowrap; gap: 8px; }
+  .oh-top .faber-wm { display: none; }
+}
