@@ -2040,3 +2040,23 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
   .app[data-step="taller"]:not([data-tv="start"]) { grid-template-rows: auto minmax(0, 40%) auto auto minmax(0, 1fr); grid-template-areas: "top" "main" "head" "nav" "ws"; }
 }
 .app[data-step="taller"][data-tv="start"] #tallerHead { display: none; }
+
+/* the editor's designs: a grid of two, each the token drawn large with its name under it (not a list of rows) */
+.cr-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.cr-opt { grid-template-columns: 1fr; justify-items: center; align-content: start; gap: 6px; padding: 14px 8px 10px; border: 0; border-radius: 3px;
+  background: var(--tile); text-align: center; font-size: 13.5px; line-height: 1.25; }
+.cr-opt:hover { background: var(--tile-hi); }
+.cr-opt .cr-mini { display: grid; place-items: center; height: 96px; }
+.cr-opt .cr-mini svg { width: 92px; height: 92px; }
+/* cards are wider than coins: the card fills the cell's width */
+.cr-opt .cr-mini svg[viewBox$=" 55"], .cr-opt .cr-mini svg[height="55"] { width: 100%; height: auto; }
+.cr-opt small { font-size: 11.5px; }
+.cr-opt[aria-selected=true] { border-bottom: 0; background: color-mix(in srgb, var(--velvet) 82%, var(--brass)); box-shadow: inset 0 0 0 2px var(--brass); }
+.cr-more { grid-column: 1 / -1; justify-items: start; padding: 10px 4px; background: none; font-size: 13.5px; }
+.cr-more:hover { background: none; text-decoration: underline; text-underline-offset: 3px; }
+.cr-ask { grid-column: 1 / -1; margin: 0; }
+@media (max-width: 900px) {
+  .cr-list { margin: 0; gap: 8px; }
+  .cr-opt { padding: 14px 8px 10px; }
+  .cr-ask { border-radius: 3px; }
+}
