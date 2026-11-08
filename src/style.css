@@ -923,8 +923,8 @@ html[data-mode=own]:not([data-theme=botc]) h1, html[data-mode=own]:not([data-the
 .own-welcome h3 { margin: 0 0 6px; font-family: var(--display); font-weight: 400; font-size: 20px; }
 .own-welcome ol { margin: 0 0 8px; padding-left: 20px; line-height: 1.6; }
 .own-welcome p { margin: 0; color: var(--dust); font-size: 13.5px; }
-.who .own-edit { margin-top: 4px; justify-self: start; border: 1px solid var(--seam); background: none; border-radius: 999px; padding: 1px 10px; font-size: 12.5px; color: var(--dust); cursor: pointer; }
-.who .own-edit:hover { color: var(--bone); border-color: var(--dust); }
+.row-acts .own-edit { border: 1px solid var(--seam); background: none; border-radius: 999px; padding: 1px 10px; font-size: 12.5px; color: var(--dust); cursor: pointer; }
+.row-acts .own-edit:hover { color: var(--bone); border-color: var(--dust); }
 .own-dialog { width: min(640px, calc(100% - 32px)); }
 .own-fields { display: grid; gap: 10px; }
 .own-icon-bar { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
@@ -1278,7 +1278,7 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 .tw-gl { margin: 10px 0 2px 6px; color: var(--dust); font-size: 11.5px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; }
 .tw-gl:first-child { margin-top: 0; }
 .tw-gl small { font-size: 12px; font-weight: 400; letter-spacing: 0; text-transform: none; margin-left: 6px; }
-.tw-opt { display: grid; grid-template-columns: 46px minmax(0, 1fr) 18px; align-items: center; gap: 0 12px; padding: 7px 10px 7px 7px; border: 1px solid transparent; border-radius: 12px; background: none; color: var(--bone); font: inherit; text-align: left; cursor: pointer; }
+.tw-opt { width: 100%; display: grid; grid-template-columns: 46px minmax(0, 1fr) 18px; align-items: center; gap: 0 12px; padding: 7px 10px 7px 7px; border: 1px solid transparent; border-radius: 12px; background: none; color: var(--bone); font: inherit; text-align: left; cursor: pointer; }
 .tw-opt:hover { background: rgba(239, 230, 214, .04); }
 .tw-opt[aria-checked=true] { border-color: var(--brass); background: rgba(201, 162, 39, .1); }
 .tw-opt .style-sw svg { display: block; width: 46px; height: 46px; }
@@ -1756,9 +1756,9 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 #rows .team-h span { font-size: 21px; }
 #rows .team-h i { width: 12px; height: 11px; border-radius: 0; clip-path: var(--hex-s); }
 .team-rows { display: grid; gap: 5px; }
-/* a row: the token small, its name over its type and "Design", the linked tokens at the end; opened, they unfold
-   under the name, in the row, so nothing around it moves */
-#rows .row { grid-template-columns: 64px minmax(0, 1fr) auto; grid-template-areas: "tok who fold" "tok list list";
+/* a row: the token small, its name over its type; at the end the linked tokens and what's done with it (Edit,
+   Redesign); opened, the linked tokens unfold under the name, in the row, so nothing around it moves */
+#rows .row { grid-template-columns: 64px minmax(0, 1fr) auto auto; grid-template-areas: "tok who fold acts" "tok list list list";
   gap: 0 14px; align-items: center; padding: 7px 50px 7px 8px; border: 0; border-radius: 3px;
   background: var(--tile); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--bone) 7%, transparent), 0 1px 0 #0006; }
 #rows .row:hover { background: var(--tile-hi); }
@@ -1766,12 +1766,15 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 #rows .row > .tok-w svg, #rows .row .tok svg { width: 60px; height: 60px; }
 /* cards are wider than coins: where the list has any, the token's column fits a card and coins sit centred in it,
    so every name starts at the same place */
-#rows:has(.tok.card) .row { grid-template-columns: 94px minmax(0, 1fr) auto; }
+#rows:has(.tok.card) .row { grid-template-columns: 94px minmax(0, 1fr) auto auto; }
 #rows .row > .tok-w .tok.card svg { width: 92px; height: auto; border-radius: 3px; }
 #rows .row .who, #rows .row.no-rems .who { grid-area: who; grid-row: auto; align-self: center; gap: 1px 10px; }
 #rows .row .who b { flex-basis: 100%; font-size: 15px; line-height: 1.3; }
 #rows .row .who em { flex-basis: auto; font-size: 12.5px; }
-#rows .row .who .own-edit { padding: 0 14px; font-size: 12.5px; font-weight: 500; line-height: 23px; }
+#rows .row .row-acts { grid-area: acts; display: flex; gap: 6px; justify-self: end; }
+#rows .row .row-acts:empty { display: none; }
+#rows .row .own-edit { display: inline-flex; align-items: center; gap: 6px; padding: 0 16px; font-size: 12.5px; font-weight: 500; line-height: 25px; white-space: nowrap; }
+#rows .row .own-edit .pen { width: 13px; height: 13px; flex: none; }
 #rows .row .rems { display: contents; }
 #rows .row .rems-fold { grid-area: fold; justify-self: end; white-space: nowrap; }
 #rows .row .rem-list { grid-area: list; margin: 8px 0 4px; }
@@ -1839,6 +1842,9 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
   #rows .row { grid-template-columns: 56px minmax(0, 1fr) auto; padding: 6px 44px 6px 6px; gap: 0 10px; }
   #rows .row > .tok-w svg, #rows .row .tok svg { width: 54px; height: 54px; }
   #rows:has(.tok.card) .row { grid-template-columns: 76px minmax(0, 1fr) auto; }
+  /* on a phone what's done with it goes under the name */
+  #rows .row { grid-template-areas: "tok who fold" "tok acts acts" "list list list"; }
+  #rows .row .row-acts { justify-self: start; margin-top: 4px; }
   #rows .row > .tok-w .tok.card svg { width: 74px; }
   #rows .row .rems-fold .rf-minis { display: none; }
   #rows .row .rem-list { grid-column: 1 / -1; }

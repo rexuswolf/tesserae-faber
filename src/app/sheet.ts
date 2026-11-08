@@ -263,10 +263,14 @@ function rowHtml(r: Role, q: string, remHits: Set<number> | undefined) {
   const fold = rems.length && !isCard(r) ? `<button class="rems-fold" type="button" data-rems-fold="${ck}" aria-expanded="${open}"><span class="rf-minis" aria-hidden="true">${minis}</span><span>${esc(t("sheet.linked", { n: rems.length }))}</span>${inN ? `<b class="rf-in">${esc(inN === rems.length ? t("sheet.linkedAll") : t("sheet.linkedSome", { n: inN, of: rems.length }))}</b>` : ""}${CHEVRON}</button>` : "";
   return `<div class="row${isCard(r) ? " info" : ""}${rems.length ? "" : " no-rems"}${open ? " open" : ""}" data-picked="${isPicked(ck)}" data-row="${ck}">
     ${thumb(ck, null)}
-    <div class="who" data-pick="${ck}"><b>${esc(catalogText(r, null))}${flip ? `<span class="flip-sep" title="${esc(t("sheet.flip"))}"> ⇄ </span>${esc(roleName(flip, tokenLang()))}` : ""}</b>${OWN ? (ownHome(r) && (q || catalogOf(state.edition) !== ownHomeCatalog(r.id)) ? `<em>${esc(ownHome(r))}</em>` : "") : q || state.edition === "all" || (state.edition.startsWith("s:") && r.kind !== "homebrew") ? `<em>${esc(editionName(r, lang))}</em>` : ""}${r.loading ? `<small>${esc(t("sheet.iconLoading"))}</small>` : ""}${OWN && !READONLY && !isLocked(coll, r.id) ? `<button class="own-edit" type="button" data-own-edit="${esc(r.id)}">${esc(t("own.edit"))}</button>` : ""}${r.loading ? "" : `<button class="own-edit" type="button" data-design-row="${ck}">${esc(t("sheet.design"))}</button>`}</div>
+    <div class="who" data-pick="${ck}"><b>${esc(catalogText(r, null))}${flip ? `<span class="flip-sep" title="${esc(t("sheet.flip"))}"> ⇄ </span>${esc(roleName(flip, tokenLang()))}` : ""}</b>${OWN ? (ownHome(r) && (q || catalogOf(state.edition) !== ownHomeCatalog(r.id)) ? `<em>${esc(ownHome(r))}</em>` : "") : q || state.edition === "all" || (state.edition.startsWith("s:") && r.kind !== "homebrew") ? `<em>${esc(editionName(r, lang))}</em>` : ""}${r.loading ? `<small>${esc(t("sheet.iconLoading"))}</small>` : ""}</div>
     ${rems.length ? `<div class="rems">${fold}${open ? `<div class="rem-list">${chips}</div>` : ""}</div>` : ""}
+    <div class="row-acts">${OWN && !READONLY && !isLocked(coll, r.id) ? `<button class="own-edit" type="button" data-own-edit="${esc(r.id)}">${esc(t("own.edit"))}</button>` : ""}${r.loading ? "" : `<button class="own-edit" type="button" data-design-row="${ck}">${PEN}${esc(t("sheet.design"))}</button>`}</div>
   </div>`;
 }
+
+/** A pencil, before the word of the row's Redesign. */
+const PEN = `<svg class="pen" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M11 2.5l2.5 2.5L5.5 13H3v-2.5z"/><path d="M9.5 4l2.5 2.5"/></svg>`;
 
 /** The token the workshop shows (step 2). */
 export function selectToken(key: string | undefined) {
