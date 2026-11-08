@@ -107,7 +107,7 @@ export const state: {
   user: null, lib: null,
   edition: "all", team: "all",   // the sheet opens on every character
   sel: null,              // { key, role, reminder: index | null }
-  part: { coin: "front", ring: "front", card: "front", base: "front" }, faceTab: { front: "text", back: "layout" },
+  part: { coin: "colours", ring: "colours", card: "colours", base: "colours" }, faceTab: { front: "text", back: "layout" },
   reliefAsk: null, view: "angle",
   overrides: new Map(),   // read by loadDesigns once the tokens are known
   flash: "",
