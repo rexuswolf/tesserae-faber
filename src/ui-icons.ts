@@ -32,3 +32,9 @@ export const TEAM_ICONS: Record<Team, string> = {
 
 /** Each token shape's icon, for a type without one of its own. */
 export const SHAPE_ICONS: Record<TokenShape, string> = { coin: "two-coins", card: "id-card", ring: "ring", base: "metal-disc" };
+
+/** One of the interface's icons as a token's icon, where the library places them (sample tokens, previews before a token has one). */
+export function uiTokenIcon(id: string): import("./types.ts").TokenIcon | null {
+  const ui = UI_ICONS[id];
+  return ui ? { id: `ui:${id}`, source: "game-icons", name: id, author: ui.author, g: "translate(28.063 19.134) scale(0.139518)", body: ui.body.replace(/\sfill="[^"]*"/g, "") } : null;
+}

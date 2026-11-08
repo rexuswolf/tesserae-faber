@@ -8,7 +8,7 @@ import type { Role, Team, Hex, TokenShape, TokenIcon, TokenContent } from "../ty
 import { uiLang, t } from "../i18n.ts";
 import { PRINT_GROUPS, persistPicks, renderDesignStage, setPick, goStep } from "./queue.ts";
 import { TEAMS, saveFile, SHAPE_FEATURES, tokenSvg, shapeOf } from "../engine/token-engine.ts";
-import { UI_ICONS, TEAM_ICONS, uiIcon, SHAPE_ICONS } from "../ui-icons.ts";
+import { UI_ICONS, TEAM_ICONS, uiIcon, SHAPE_ICONS, uiTokenIcon } from "../ui-icons.ts";
 import { renderLangButtons, closeOnBackdrop, tokenLang } from "./token-language.ts";
 import { storeOverrides, designOf, defaultRef, designFor, designOverridden, lookOf } from "./designs.ts";
 import { roleById } from "./wiring.ts";
@@ -324,7 +324,7 @@ function startCreate(like?: { shape: TokenShape; type: string; group: string; ca
   state.editing = null;
   const here = catalogOf(state.edition), shape = like?.shape ?? typeOfView(state.edition)?.shape ?? "coin";
   const group = like?.group ?? (state.team !== "all" && coll.groups.some((g) => g.id === state.team) ? state.team : coll.groups[0].id);
-  const draft: OwnToken = { id: newId("t"), type: like?.type ?? typeFor(shape), group, name: seed?.name ?? "", icon: seed?.icon ?? null, linked: [], ...(seed?.content ? { content: seed.content } : {}) };
+  const draft: OwnToken = { id: newId("t"), type: like?.type ?? typeFor(shape), group, name: seed?.name ?? "", icon: seed?.icon ?? null, linked: [], content: seed?.content ?? "both" };   // a new token shows its icon and its name until told otherwise, whatever the design
   state.creating = { draft, shape, cats: like?.cats ?? (here ? [here.id] : []) };
   state.lib!.roles = ownRoles();
   panelFor = "";
@@ -455,12 +455,14 @@ function renderPanelShape(tk: OwnToken, shape: TokenShape) {
   }).join("")}</div></div>${typePick}`;
 }
 /** What a shape's token can carry: a coin, its icon and name, either alone; a card, with or without its icon; a ring or a base, its name. */
-const CONTENTS: Record<TokenShape, TokenContent[]> = { coin: ["both", "icon", "text"], card: ["both", "text"], ring: [], base: [] };
+const CONTENTS: Record<TokenShape, TokenContent[]> = { coin: ["both", "icon", "text"], card: ["both", "icon", "text"], ring: [], base: [] };
 /** What the token carries now: its own choice, else what its design's layout shows (an icon-only or text-only coin). */
 function contentNow(tk: OwnToken, shape: TokenShape): TokenContent {
   const opts = CONTENTS[shape];
   if (tk.content && opts.includes(tk.content)) return tk.content;
-  const role = roleById(tk.id), style = role && shape === "coin" ? lookOf(charKey(role)).style : null;
+  const role = roleById(tk.id), look = role ? lookOf(charKey(role)) : null;
+  if (shape === "card") return look?.cardIcon === "only" ? "icon" : !look?.cardIcon || look.cardIcon === "none" ? "text" : "both";
+  const style = shape === "coin" ? look?.style : null;
   return style === "solo" ? "icon" : style === "text" ? "text" : "both";
 }
 /** The token as it would be with each content, in its design: a tap chooses. */
@@ -470,7 +472,8 @@ function renderPanelContent(tk: OwnToken, shape: TokenShape) {
   if (box.hidden || !role) { box.innerHTML = ""; return; }
   const now = contentNow(tk, shape), spec = { ...specFor(charKey(role), false), diameter: 45, back: "none" as const, backMode: "design" as const };
   const text = nameIn(tk.name, tokenLang()).trim() || t("own.namePlaceholder");
-  const as = (content: TokenContent) => (state.creating ? draftRole({ ...state.creating, draft: { ...tk, content } }, shape) : ownRole(coll, { ...tk, content }, uiLang()));
+  // before it has an icon, the choices with one show a stand-in, so they look as they will
+  const as = (content: TokenContent) => { const d = { ...tk, content, icon: tk.icon ?? (content === "text" ? null : uiTokenIcon("two-coins")) }; return state.creating ? draftRole({ ...state.creating, draft: d }, shape) : ownRole(coll, d, uiLang()); };
   box.innerHTML = `<div class="field"><span>${esc(t("own.content"))}</span><div class="shape-cards content-cards" role="radiogroup" aria-label="${esc(t("own.content"))}">${opts.map((c) =>
     `<button type="button" role="radio" data-content="${c}" aria-checked="${c === now}">${tokenSvg(state.lib!, as(c), spec, { text })}<span>${esc(t(`own.content.${c}`))}</span></button>`).join("")}</div></div>`;
 }

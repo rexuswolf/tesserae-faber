@@ -16,6 +16,13 @@ describe("a token's content", () => {
     expect(styleOf("both", "window")).toBe("window");
     expect(styleOf(undefined, "solo")).toBe("solo");   // unset: as its design has it
   });
+  it("places a card's icon for it: beside the phrase, alone, or none", () => {
+    const card = (content: TokenContent) => shapeSpec({ ...coin(content), kind: "info" } as Role, { ...DEFAULT_SPEC, cardIcon: "none" }).cardIcon;
+    expect(card("both")).toBe("left");
+    expect(card("icon")).toBe("only");
+    expect(card("text")).toBe("none");
+    expect(shapeSpec({ ...coin("both"), kind: "info" } as Role, { ...DEFAULT_SPEC, cardIcon: "right" }).cardIcon).toBe("right");
+  });
   it("leaves a linked token its word", () => {
     expect(shapeSpec(coin("icon"), reminderSpec({ ...DEFAULT_SPEC, style: "classic" })).style).toBe("classic");
   });

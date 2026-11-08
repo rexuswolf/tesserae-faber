@@ -1,7 +1,7 @@
 // The Taller: your designs, for every collection.
 import { OWN_VIEW, builtIn, APP_LOGO, APP_LOGO_SMALL, APP_NAME, SHAPES, readBuiltIn, loadCollection, nameIn, basicStyles, ownStylesOf, builtInStyles, appDesigns, collectionRoles, APP_ICON, LIST_URL, listCollections, newId } from "../collection.ts";
 import type { StyleDef, Collection, CollectionStyles } from "../collection.ts";
-import type { TokenShape, TokenSpec, TokenIcon, Role, MyDesign, TokenOverride } from "../types.ts";
+import type { TokenShape, TokenSpec, Role, MyDesign, TokenOverride } from "../types.ts";
 import { myDesigns, collEntry, uniqueDesignName, storeMyDesigns, myEntry, droppedDesigns, rereadMyDesigns } from "./designs.ts";
 import type { DesignEntry } from "./designs.ts";
 import { tokenRole, tokenRem } from "./queue.ts";
@@ -9,7 +9,7 @@ import { DEFAULT_SPEC, tokenSvg, reminderSpec, shapeOf, loadLibrary, SHAPE_FEATU
 import { tokenLang } from "./token-language.ts";
 import { ownIcon, roleIdOf, textFor, charKey, remKey } from "./tokens.ts";
 import { state, $, esc, loadJSON, storeJSON, hit, setColl, setGateState } from "./context.ts";
-import { UI_ICONS, uiIcon, SHAPE_ICONS } from "../ui-icons.ts";
+import { uiIcon, SHAPE_ICONS, uiTokenIcon } from "../ui-icons.ts";
 import { uiLang, t } from "../i18n.ts";
 import { applyGroups, applyOwnTheme } from "./creator.ts";
 import { BOTC_STYLES } from "../botc-styles.ts";
@@ -93,11 +93,6 @@ function sampleTokens(groups: string[]): Collection {
       { id: "sample-b2", type: "sample-base", group: g2, name: n("Orco 2", "Orc 2"), icon: null, linked: [] },
     ],
   };
-}
-/** One of the interface's game-icons.net icons as a token's icon, where the library places them. */
-function uiTokenIcon(id: string): TokenIcon | null {
-  const ui = UI_ICONS[id];
-  return ui ? { id: `ui:${id}`, source: "game-icons", name: id, author: ui.author, g: "translate(28.063 19.134) scale(0.139518)", body: ui.body.replace(/\sfill="[^"]*"/g, "") } : null;
 }
 /**
  * Opens the Taller: the collection it was opened from (its tokens to draw on, its look, its designs

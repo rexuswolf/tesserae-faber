@@ -392,7 +392,10 @@ function lineFrames(shape: TokenShape, frame: string): [string, string][] {
 function renderCardIconTiles(role: Role, text: string, spec: TokenSpec, hasIcon: boolean) {
   const tile = (key: "cardIcon" | "cardJoin", v: string) =>
     `<button class="back-tile" type="button" data-v="${v}" aria-pressed="${spec[key] === v}">${tokenSvg(state.lib!, role, { ...spec, [key]: v, ...(key === "cardJoin" && spec.cardIcon === "none" ? { cardIcon: "left" } : {}) }, { text })}<span>${esc(t(`${key}.${v}`))}</span></button>`;
-  $("[data-choice=cardIcon]").innerHTML = CARD_ICONS.map((v) => tile("cardIcon", v)).join("");
+  // a card of yours: what it carries is the token's; with both, only the side its icon goes
+  const content = !TALLER && ownTokenOf(role.id) ? role.content : undefined;
+  $("[data-choice=cardIcon]").innerHTML = CARD_ICONS.filter((v) => content !== "both" || v === "left" || v === "right").map((v) => tile("cardIcon", v)).join("");
+  $("[data-choice=cardIcon]").hidden = ($("[data-choice=cardIcon]").previousElementSibling as HTMLElement).hidden = content === "icon" || content === "text";
   $("[data-choice=cardJoin]").innerHTML = CARD_JOINS.map((v) => tile("cardJoin", v)).join("");
   // the join for an icon beside the phrase, the size for any icon
   $("#cardJoinBox").hidden = spec.cardIcon === "none" || spec.cardIcon === "only";

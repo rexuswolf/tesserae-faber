@@ -2121,7 +2121,7 @@ export const SMALL_LETTERS_MM = 2.5;
 
 /** How tall the name's letters come out (mm), without building any geometry. */
 export function nameLetterHeight(lib: Library, input: SpecInput, text: string, role: Role | null = null): number {
-  if (isCard(role)) return cardFaceOf(lib, role!, cardSpec(input), "front", text)!.L.cap;
+  if (isCard(role)) return cardFaceOf(lib, role!, cardContent(role, cardSpec(input)), "front", text)!.L.cap;
   if (isRing(role)) return ringLayout(lib, text, ringSpec(input)).letterHeight;
   if (isBase(role)) return baseLayout(lib, text, baseSpec(input)).cap;
   const spec = windowFrame({ ...DEFAULT_SPEC, ...input, colours: { ...DEFAULT_SPEC.colours, ...input?.colours } });
@@ -2428,7 +2428,7 @@ function cardFaceGeom(lib: Library, f: CardFace, z: number, d: number, m: THREE.
 }
 
 function buildCard(lib: Library, role: Role, input: SpecInput | undefined, text?: string | null): Token {
-  const spec = cardSpec(input);
+  const spec = cardContent(role, cardSpec(input));
   text ??= roleName(role, spec.lang);
   const H = spec.height, d = spec.depth;
   const front = cardFaceOf(lib, role, spec, "front", text)!, back = cardFaceOf(lib, role, spec, "back", text);
@@ -2462,7 +2462,7 @@ function buildCard(lib: Library, role: Role, input: SpecInput | undefined, text?
  * as the design has them.
  */
 export function cardPlan(lib: Library, role: Role, input: SpecInput): { parts: Record<PartName, 1 | null>; colours: Record<PartName, Hex> } {
-  const spec = cardSpec(input), text = roleName(role, spec.lang), c = partColours(role, spec);
+  const spec = cardContent(role, cardSpec(input)), text = roleName(role, spec.lang), c = partColours(role, spec);
   const front = cardFaceOf(lib, role, spec, "front", text)!, back = cardFaceOf(lib, role, spec, "back", text), plate = cardBackBase(spec);
   const lines = (f: CardFace | null) => !!f && (f.frame.frame !== "none" || !!f.L.rule), icon = (f: CardFace | null) => !!(f?.art && f.L.icon);
   const one = (yes: boolean) => (yes ? 1 : null);
@@ -2497,7 +2497,7 @@ function cardFaceSvg(lib: Library, f: CardFace) {
 }
 
 function cardSvg(lib: Library, role: Role, input: SpecInput | undefined, side: "front" | "back", text?: string | null) {
-  const spec = cardSpec(input);
+  const spec = cardContent(role, cardSpec(input));
   const c = partColours(role, spec), label = text ?? roleName(role, spec.lang);
   const { w, h, r } = CARD, i = CARD_FACE_INSET;
   // the card's colour all round: a back of its own colour makes the card that colour, its face a plate of its own
@@ -2888,9 +2888,16 @@ function withContent(role: Role | null | undefined, spec: TokenSpec): TokenSpec 
   return { ...spec, style, ...(spec.backFace?.style ? { backFace: { ...spec.backFace, style } } : {}) };
 }
 const LAYOUT_TEXT_SIZE = DEFAULT_SPEC.textSize;
+/** A card laid out for what its token carries: only its phrase, no icon; only its icon, the icon alone; both, the icon beside the phrase (at the left, unless the design puts it at the right). */
+function cardContent(role: Role | null | undefined, spec: TokenSpec): TokenSpec {
+  const c = spec.reminder ? undefined : role?.content;
+  if (!c) return spec;
+  const cardIcon = c === "text" ? "none" : c === "icon" ? "only" : spec.cardIcon === "right" ? "right" : "left";
+  return { ...spec, cardIcon };
+}
 export function shapeSpec(role: Role | null | undefined, input: SpecInput | undefined): TokenSpec {
   const shape = shapeOf(role);
-  if (shape === "card") return cardSpec(input);
+  if (shape === "card") return cardContent(role, cardSpec(input));
   if (shape === "ring") return ringSpec(input);
   if (shape === "base") return baseSpec(input);
   const spec = withContent(role, { ...DEFAULT_SPEC, ...input, colours: { ...DEFAULT_SPEC.colours, ...input?.colours } });
