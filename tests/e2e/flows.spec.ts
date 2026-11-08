@@ -26,12 +26,13 @@ async function pick(page: Page, n: number, which = "#rows [data-pick]") {
 }
 const next = (page: Page) => page.locator("#flowNext").evaluate((b) => (b as HTMLElement).click());
 
-test("Clocktower: pick characters, see them designed, print them on paper", async ({ page }) => {
+test("Clocktower: pick characters, design one from its row, print them on paper", async ({ page }) => {
   const errors = await open(page, "/botc?admin");
   await pick(page, 3, '#rows [data-pick^="c:"]');
-  await next(page);
+  await page.locator("#rows [data-design-row]").first().evaluate((b) => (b as HTMLElement).click());
   await expect(page.locator("#app")).toHaveAttribute("data-step", "2");
   await next(page);
+  await expect(page.locator("#app")).toHaveAttribute("data-step", "3");
   // the way chosen and the button ready before asking for the file
   await expect(async () => {
     await page.locator('#printPage [data-way="paper"]').click();
@@ -47,7 +48,7 @@ test("Clocktower: pick characters, see them designed, print them on paper", asyn
 test("printing in 3D: the Bambu project", async ({ page }) => {
   const errors = await open(page, "/botc?admin");
   await pick(page, 2, '#rows [data-pick^="c:"]');
-  await next(page); await next(page);
+  await next(page);
   // the way chosen and the button ready before asking for the file
   await expect(async () => {
     await page.locator('#printPage [data-way="3d"]').click();
@@ -201,16 +202,16 @@ test("the front page walks through the app: its chapters draw as they come near,
   expect(errors).toEqual([]);
 });
 
-test("designing, simply: the token's designs a tap away, the fine changes folded until asked for", async ({ page }) => {
+test("designing, simply: a token's designs a tap away from its row, the fine changes folded until asked for", async ({ page }) => {
   const errors = await open(page, "/c/senado");
   await pick(page, 1, '#rows [data-pick^="c:"]');
-  await next(page);
+  await page.locator("#rows [data-design-row]").first().evaluate((b) => (b as HTMLElement).click());
   const quick = page.locator("#styleQuick [data-dq-pick]");
   await expect(quick.nth(1)).toBeVisible();
   await expect(page.locator("#parts")).toBeHidden();
   const other = page.locator("#styleQuick [data-dq-pick][aria-pressed=false]").first(), name = (await other.getAttribute("title"))!;
   await other.click();
-  await expect(page.locator("#styleName")).toContainText(name);
+  await expect(page.locator("#styleQuick .dstrip-h b")).toContainText(name);
   await page.locator("#tweakToggle").click();
   await expect(page.locator("#parts")).toBeVisible();
   // printing asks how first
@@ -248,9 +249,10 @@ test("what a token shows is the token's: chosen when made, kept, and the design 
   await expect(page.locator("#ownTokIconRow")).toBeHidden();
   await page.locator("[data-content=icon]").click();
   await expect(page.locator("#ownTokNameHint")).toBeVisible();
+  await page.locator("[data-content=text]").click();
   await page.locator("#tpDone").click();
   await expect(page.locator("#tokenPanel")).not.toHaveAttribute("open", "");
   await page.locator("[data-own-edit]").first().click();
-  await expect(page.locator("[data-content=icon]")).toHaveAttribute("aria-checked", "true");
+  await expect(page.locator("[data-content=text]")).toHaveAttribute("aria-checked", "true");
   expect(errors).toEqual([]);
 });

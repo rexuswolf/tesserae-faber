@@ -187,11 +187,6 @@
         <!-- the first designs it can take, a tap away (the sheet has them all) -->
         <div class="ds-quick" id="styleQuick" role="group" data-i18n-attr="aria-label:design.quickAria"></div>
         <button class="pill ds-all" type="button" id="styleAll" hidden></button>
-        <!-- the token's own changes over its design: kept as a design of yours, or dropped -->
-        <div class="ds-tweak" id="styleTweak" hidden>
-          <button class="pill" type="button" id="styleSave" data-i18n="design.saveAs"></button>
-          <button class="pill" type="button" id="styleDrop" data-i18n="design.dropTweaks"></button>
-        </div>
         <button class="own-mark" type="button" id="styleBack" hidden></button>
         <a class="ws-taller" id="designTaller" href="/taller"><span data-i18n="design.editInTaller"></span> <span aria-hidden="true">›</span></a>
         <p class="hint" id="designFlash" aria-live="polite" hidden></p>
@@ -202,6 +197,11 @@
     <!-- the token's parts: a coin's FRONT · BACK · COIN · MAGNET, a ring's FRONT · RING, a card's FRONT · CARD -->
     <div class="parts" id="parts" role="tablist" data-i18n-attr="aria-label:ws.sections"></div>
     <div class="ws-body" id="styleFields">
+      <!-- the token's own changes over its design: kept as a design of yours, or dropped -->
+      <div class="ds-tweak design-only" id="styleTweak" hidden>
+        <button class="pill" type="button" id="styleSave" data-i18n="design.saveAs"></button>
+        <button class="pill" type="button" id="styleDrop" data-i18n="design.dropTweaks"></button>
+      </div>
       <!-- how it looks: its design's, with this token's changes (in the Taller: the design's) -->
       <h3 class="ws-bh" id="lookHead"><span id="lookTitle"></span> <small id="lookSub"></small></h3>
       <div class="ws-warn" id="colourWarn" hidden></div>

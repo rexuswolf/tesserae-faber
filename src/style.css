@@ -1678,3 +1678,21 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 /* the tokens' colour, under the page's colours */
 .os-tokcolour { margin-top: 16px; }
 .os-tokcolour .own-swatches { margin-top: 6px; }
+
+/* the design step's head: the design's name, and a row of small designs that slides (the gallery at its end) */
+#styleRow .ds-row, #designTaller { display: none !important; }
+#styleQuick { display: block; min-width: 0; width: 100%; }
+#styleQuick:empty { display: none; }
+.ws-style { min-width: 0; }
+#styleFields > #styleTweak { margin: 0 0 12px; }
+.dsel-l { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--dust); }
+.dq-own-i { font-style: normal; color: var(--brass); margin-left: 2px; }
+.dstrip-h { display: flex; gap: 10px; align-items: baseline; margin-bottom: 6px; }
+.dstrip-h b { color: var(--bone); }
+.dstrip { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 2px 0 4px; }
+.dstrip::-webkit-scrollbar { display: none; }
+.dq-s { flex: none; width: 46px; height: 46px; padding: 3px; border: 1.5px solid transparent; border-radius: 50%; background: none; cursor: pointer; display: grid; place-items: center; }
+.dq-s svg { width: 100%; height: 100%; display: block; }
+.dq-s[aria-pressed=true] { border-color: var(--brass); }
+.dq-s-more { border: 1px dashed var(--seam); color: var(--brass); font-size: 20px; }
+.dstrip-all { margin-left: auto; font-size: 13px; }

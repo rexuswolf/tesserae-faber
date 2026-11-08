@@ -72,8 +72,8 @@ export function wire() {
   $("#rows").onclick = (e) => {
     const ownEdit = hit(e, "[data-own-edit]");
     if (ownEdit) { openTokenPanel(ownEdit.dataset.ownEdit!); return; }
-    const pen = hit(e, "[data-edit]");
-    if (pen) { editToken(pen.dataset.edit!); return; }
+    const pen = hit(e, "[data-edit]") ?? hit(e, "[data-design-row]");
+    if (pen) { editToken(pen.dataset.edit ?? pen.dataset.designRow!); return; }
     if (onCopyStep(e)) return;
     const fold = hit(e, "[data-rems-fold]");
     if (fold) { const k = fold.dataset.remsFold!; if (openRows.has(k)) openRows.delete(k); else openRows.add(k); renderSheet(); $(`[data-rems-fold="${CSS.escape(k)}"]`)?.focus(); return; }
@@ -115,8 +115,8 @@ export function wire() {
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("#addMenu").hidden) { openAddMenu(false); $("#addBtn").focus(); } });
   // the steps
   $("#flowSteps").onclick = (e) => { const b = hit(e, "[data-goto]") as HTMLButtonElement | null; if (b && !b.disabled) goStep(+b.dataset.goto!); };
-  $("#flowBack").onclick = () => goStep(state.step - 1);
-  $("#flowNext").onclick = () => (state.step < 3 ? goStep(state.step + 1) : flow.way === "paper" ? downloadPdf() : downloadBambu());
+  $("#flowBack").onclick = () => goStep(1);
+  $("#flowNext").onclick = () => (state.step < 3 ? goStep(3) : flow.way === "paper" ? downloadPdf() : downloadBambu());
   // step 2: your tokens; tap one to give it its own design
   $("#designGrid").onclick = (e) => {
     const drop = hit(e, "[data-drop]");

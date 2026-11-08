@@ -105,24 +105,27 @@ export function renderDesignSheet() {
  * The design step's quick choice: the token drawn in the first designs it can take (its default
  * first, the one in use ringed, then yours), a tap away; "More designs" opens the sheet with them all.
  */
-const QUICK = 7;
+const QUICK = 8;
 let quickFor = "";
 export function renderQuickDesigns() {
   const { key, role, reminder } = state.sel!, sh = shapeOf(role), look = state.overrides.get(key)?.look;
   const { coll: all, mine, cur } = sheetDesigns("token", sh);
-  const list = [...all, ...mine].slice(0, QUICK);
-  if (!list.some((x) => x.on)) { const on = [...all, ...mine].find((x) => x.on); if (on) list[list.length - 1] = on; }
-  const text = textFor(key, role, reminder);
-  const sig = [key, cur, JSON.stringify(look ?? null), tokenLang(), text, list.map((x) => x.d.ref).join()].join("|");
+  // the first designs it can take, the one it has among them; the rest, counted, in the gallery
+  const full = [...all, ...mine], list = full.slice(0, QUICK);
+  if (!list.some((x) => x.on)) { const on = full.find((x) => x.on); if (on) list[list.length - 1] = on; }
+  const text = textFor(key, role, reminder), on = full.find((x) => x.on), rest = full.length - list.length;
+  const sig = [key, cur, JSON.stringify(look ?? null), tokenLang(), uiLang(), text, list.map((x) => x.d.ref).join(), rest].join("|");
   if (sig === quickFor) return;
   quickFor = sig;
-  $("#styleQuick").innerHTML = list.map(({ d, pick, on }) => {
-    const spec = specWith(applyLook(d.spec, look), key, reminder != null);
-    return `<button type="button" class="dq" data-dq-pick="${esc(pick)}" aria-pressed="${on}" title="${esc(d.name)}"><span class="dq-tok">${tokenSvg(state.lib!, role, { ...spec, back: "none", backMode: "design" }, { text })}</span><small>${esc(d.name)}</small></button>`;
-  }).join("");
+  $("#styleQuick").innerHTML = `<div class="dstrip-h"><span class="dsel-l">${esc(t("design.label"))}</span><b>${esc(on?.d.name ?? "")}${look ? ` <i class="dq-own-i" title="${esc(t("design.custom"))}">✎</i>` : ""}</b><button type="button" class="link dstrip-all" data-dq-more>${esc(t("design.seeAll", { n: full.length }))} ›</button></div>`
+    + `<div class="dstrip">${list.map(({ d, pick, on: o }) => `<button type="button" class="dq-s" data-dq-pick="${esc(pick)}" aria-pressed="${o}" title="${esc(d.name)}" aria-label="${esc(d.name)}">${tokenSvg(state.lib!, role, { ...specWith(applyLook(d.spec, look), key, reminder != null), back: "none", backMode: "design" }, { text })}</button>`).join("")}`
+    + `<button type="button" class="dq-s dq-s-more" data-dq-more title="${esc(t("design.change"))}" aria-label="${esc(t("design.change"))}">${rest > 0 ? `+${rest}` : "+"}</button></div>`;
 }
 export function wireQuickDesigns() {
-  $("#styleQuick").onclick = (e) => { const b = hit(e, "[data-dq-pick]"); if (b && b.getAttribute("aria-pressed") !== "true") setTokenDesign(state.sel!.key, b.dataset.dqPick!); };
+  $("#styleQuick").onclick = (e) => {
+    if (hit(e, "[data-dq-more]")) { $("#styleChange").click(); return; }   // the gallery: every design, by where it comes from
+    const b = hit(e, "[data-dq-pick]"); if (b && b.getAttribute("aria-pressed") !== "true") setTokenDesign(state.sel!.key, b.dataset.dqPick!);
+  };
   // the design chosen for this token, for all the collection's tokens of its shape
   $("#styleAll").onclick = () => { const key = state.sel!.key, sh = shapeOf(state.sel!.role); void setDefaults({ [sh]: designFor(key, sh).ref }, key); };
 }
@@ -220,7 +223,8 @@ export function renderSays() {
   const own = state.overrides.get(key), name = textFor(key, role, reminder);
   const mine = !!(own?.text || own?.fem || own?.icon);
   $("#saysLine").innerHTML = tk
-    ? `<span class="says-what"><b>${esc(name)}</b><small>${esc([coll.groups.length > 1 ? nameIn(coll.groups.find((g) => g.id === tk.group)?.name, lang) : "", nameIn(coll.types.find((x) => x.id === tk.type)?.name, lang)].filter(Boolean).join(" · "))}</small></span><button class="pill" type="button" data-content-edit="${esc(tk.id)}">${esc(t("content.edit"))}</button>`
+    ? `<span class="says-what"><b>${esc(name)}</b><small>${esc([coll.groups.length > 1 ? nameIn(coll.groups.find((g) => g.id === tk.group)?.name, lang) : "", coll.types.length < 2 ? "" : nameIn(coll.types.find((x) => x.id === tk.type)?.name, lang)].filter(Boolean).join(" · "))}</small></span>`
+      + `<button class="pill" type="button" data-content-edit="${esc(tk.id)}">${esc(t("content.edit"))}</button>`
     : `<button class="says-toggle" type="button" aria-expanded="${state.saysOpen}" aria-controls="contentClosed"><span>${esc(t("content.says"))}: <b>${esc(name)}</b>${mine ? ` <i class="own-dot" title="${esc(t("sheet.own"))}">✎</i>` : ""}</span>${CHEVRON}</button>`;
   const box = $("#contentClosed");
   box.hidden = !!tk || !state.saysOpen;

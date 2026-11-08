@@ -2,8 +2,8 @@
 import { on, emit } from "./events.ts";
 import { loadJSON, PICK_KEY, QUEUE_KEY, storeJSON, state, PLATE_LABEL, PLATE_GROUP, $, esc, hit, TEAM_ORDER, TEAM_PLURAL, $$ } from "./context.ts";
 import { roleById } from "./wiring.ts";
-import { remKey, charKey, textFor, ownIcon, sortKeys, specFor, filamentName } from "./tokens.ts";
-import { renderSheet, hasOwn, selectToken, ownPen, BIN } from "./sheet.ts";
+import { remKey, charKey, textFor, ownIcon, sortKeys, specFor, filamentName, remindersOf } from "./tokens.ts";
+import { renderSheet, hasOwn, selectToken, ownPen } from "./sheet.ts";
 import type { QueueEntry, Role, TokenSpec, PlateItem, PlanToken, PartName, Hex, PlatePlan, Volumes, MagnetLayout, Token } from "../types.ts";
 import { lookOf } from "./designs.ts";
 import { tokenLang } from "./token-language.ts";
@@ -165,13 +165,12 @@ const queuePic = (q: QueueEntry, role = roleById(q.roleId)!) => tokenSvg(state.l
 
 /** Moves to step 1 (pick), 2 (design) or 3 (print). Steps 2 and 3 need something picked. */
 export function goStep(step: number) {
-  if (step > 1 && !state.pick.size) step = 1;
+  if (step === 3 && !state.pick.size) step = 1;   // printing needs a selection
+  if (step === 2 && !state.sel) step = 1;          // designing, a token
   state.step = step;
   $("#app").dataset.step = String(step);
   drawer(false);
   if (step === 2) {
-    // the workshop shows a picked token, preferably the one already selected
-    if (!state.sel || !isPicked(state.sel!.key)) { const k = state.pick.keys().next().value; selectToken(k); }
     renderWorkshop(); renderDesignStage();
     revealPicked();
   }
@@ -185,7 +184,9 @@ export function renderQueue() {
   if (!state.lib) return;
   const queue = queueNow(), n = queue.length, step = state.step;
   const chars = new Set([...state.pick.keys()].filter((k) => k.startsWith("c:"))).size, rems = queue.filter(isReminder).length;
-  $("#flowSteps").innerHTML = [1, 2, 3].map((i) => `<button class="flow-step${step > i ? " done" : ""}" type="button" data-goto="${i}" ${step === i ? 'aria-current="step"' : ""} ${i > 1 && !n ? "disabled" : ""}><i>${step > i ? "✓" : i}</i><b>${esc(t(`flow.step${i}`))}</b></button>`).join("");
+  // two steps: your tokens (designing one is part of it) and printing the ones picked
+  const at = step === 3 ? 3 : 1;
+  $("#flowSteps").innerHTML = [1, 3].map((i, k) => `<button class="flow-step${at > i ? " done" : ""}" type="button" data-goto="${i}" ${at === i ? 'aria-current="step"' : ""} ${i > 1 && !n ? "disabled" : ""}><i>${at > i ? "✓" : k + 1}</i><b>${esc(t(`flow.step${i}`))}</b></button>`).join("");
   $("#queueCount").textContent = n ? t("queue.count", { n }) : t("pick.nothing");
   $("#queueStack").innerHTML = [...state.pick.keys()].slice(-5).map((k) => queuePic({ pick: k, ...queueEntry(tokenRole(k), tokenRem(k)) })).join("");
   $<HTMLButtonElement>("#queueToggle").disabled = !n;
@@ -193,10 +194,10 @@ export function renderQueue() {
   $("#queueSummary").textContent = !n ? t("pick.help") : rems || chars !== n ? t("queue.summary", { c: chars, r: rems }) : step === 1 ? t("pick.next") : "";
   $("#flowBack").hidden = step === 1;
   // on a phone only the chevron shows; the step's name stays as the label
-  $("#flowBack").innerHTML = step > 1 ? `<span aria-hidden="true">‹</span> <span class="fb-l">${esc(t(`flow.step${step - 1}`))}</span>` : "";
-  $("#flowBack").setAttribute("aria-label", step > 1 ? t(`flow.step${step - 1}`) : "");
+  $("#flowBack").innerHTML = step > 1 ? `<span aria-hidden="true">‹</span> <span class="fb-l">${esc(t("flow.step1"))}</span>` : "";
+  $("#flowBack").setAttribute("aria-label", step > 1 ? t("flow.step1") : "");
   const next = $<HTMLButtonElement>("#flowNext");
-  next.textContent = step === 1 ? `${t("flow.step2")} ›` : step === 2 ? `${t("flow.step3")} ›` : (!flow.way ? t("print.chooseFirst") : flow.way === "paper" ? t("queue.downloadPdf") : t("queue.download", { printer: `Bambu ${printerOf(flow.printer).short}` }));
+  next.textContent = step < 3 ? `${t("flow.step3")} ›` : (!flow.way ? t("print.chooseFirst") : flow.way === "paper" ? t("queue.downloadPdf") : t("queue.download", { printer: `Bambu ${printerOf(flow.printer).short}` }));
   next.disabled = !n || (step === 3 && !flow.way);
   if ($<HTMLDialogElement>("#queueDrawer").open) renderQueueList();
   if (step === 2) renderDesignStage();
@@ -276,13 +277,16 @@ function renderQueueList() {
 
 export function renderDesignStage() {
   // the coins on the side the 3D view shows: from behind when it's turned over
-  const keys = sortKeys(state.pick.keys()), side = state.view === "back" ? "back" : "front";
+  // the token being designed and its linked tokens (each designed on its own); alone, no strip
+  const r0 = state.sel?.role, side = state.view === "back" ? "back" : "front";
+  const keys = r0 ? [charKey(r0), ...remindersOf(r0).map((_, i) => remKey(r0, i))] : [];
+  $("#designGrid").hidden = keys.length < 2;
   $("#designGrid").innerHTML = keys.map((k) => {
     const role = tokenRole(k), ri = tokenRem(k), text = textFor(k, role, ri);
     const spec = specFor(k, ri != null);
     const label = ri != null ? `${textFor(charKey(role), role, null)}: ${text}` : text;
     // the copies stepper sits beside the button (a button can't hold buttons), over the coin's foot
-    return `<div class="ds-item${ri != null ? " r" : ""}"><button class="ds-cell${ri != null ? " r" : ""}${isCard(role) ? " card" : ""}" type="button" data-design="${k}" aria-current="${state.sel?.key === k}" title="${esc(t("design.tap"))}">${tokenSvg(state.lib!, role, spec, { text, side: shapeOf(role) === "coin" ? side : "front" })}${hasOwn(k) ? `<span class="mark" title="${esc(t("sheet.own"))}">✎</span>` : ""}<span>${esc(label)}</span></button><button type="button" class="ds-drop" data-drop="${k}" aria-label="${esc(t("queue.removeAria", { name: label }))}">${BIN}</button></div>`;
+    return `<div class="ds-item${ri != null ? " r" : ""}"><button class="ds-cell${ri != null ? " r" : ""}${isCard(role) ? " card" : ""}" type="button" data-design="${k}" aria-current="${state.sel?.key === k}" title="${esc(t("design.tap"))}">${tokenSvg(state.lib!, role, spec, { text, side: shapeOf(role) === "coin" ? side : "front" })}${hasOwn(k) ? `<span class="mark" title="${esc(t("sheet.own"))}">✎</span>` : ""}<span>${esc(label)}</span></button></div>`;
   }).join("");
 }
 /** Takes a token out of the selection from step 2, with Undo. The workshop moves on to another
@@ -305,9 +309,8 @@ export function designToken(key: string) {
 }
 /** Keeps the selected token in view in the strip. */
 function revealPicked() { $("#designGrid .ds-cell[aria-current=true]")?.scrollIntoView({ inline: "nearest", block: "nearest" }); }
-/** The pen on a token with its own changes: to step 2, showing it. Step 2 only holds picked tokens, so it picks it first. */
+/** "Design" on a token (its row, or the pen on one with its own changes): its design, picked or not. */
 export function editToken(key: string) {
-  if (!isPicked(key)) { setPick(key, true); emit("picks"); }
   if ($<HTMLDialogElement>("#queueDrawer").open) $<HTMLDialogElement>("#queueDrawer").close();
   selectToken(key);
   showTab({ part: "front" });
