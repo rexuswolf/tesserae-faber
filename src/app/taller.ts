@@ -252,23 +252,36 @@ document.addEventListener("toggle", (e) => {
   if (!(d instanceof HTMLDetailsElement) || !d.dataset.twGroup) return;
   if (d.open) tallerOpenGroups.add(d.dataset.twGroup); else tallerOpenGroups.delete(d.dataset.twGroup);
 }, true);
+/** The first template of a shape: the collection you came from's, else the first collection's that has one. */
+function firstTemplate(sh: TokenShape) {
+  const i = [...taller.groups.keys()].sort((a, b) => Number(taller.groups[b].kind === "from") - Number(taller.groups[a].kind === "from")).find((k) => taller.groups[k].kind !== "blank" && taller.groups[k].designs[sh]?.length);
+  return i == null ? null : `g${i}:${taller.groups[i].designs[sh]![0].id}`;
+}
+/** How to start: from scratch (the basic design, straight to the editor) or from a template (the collections' designs). */
+function renderTallerStart() {
+  const sh = taller.shape, tok = taller.samples[sh][0], blank = tallerBase(sh, firstBase(sh))!, tpl = firstTemplate(sh);
+  const n = taller.groups.filter((g) => g.kind !== "blank").reduce((a, g) => a + (g.designs[sh]?.length ?? 0), 0);
+  const way = (attr: string, spec: TokenSpec, title: string, sub: string, cnt = "") => `<button class="tw-shape tw-way" type="button" ${attr}><span class="tw-tok ${sh}">${tallerPic(tok, spec)}</span><span><b>${esc(title)}</b><small>${esc(sub)}</small>${cnt ? `<span class="cnt">${esc(cnt)}</span>` : ""}</span></button>`;
+  $("#tallerWizard").innerHTML = `${tallerSteps(2)}
+    <div class="tw-titlebar"><button class="link" type="button" data-tw-back>‹ ${esc(t("taller.step.shape"))}</button><h2 class="tw-title">${esc(t("taller.startQ"))}</h2></div>
+    <div class="tw-shapes tw-ways">${way("data-tw-scratch", blank.spec, t("taller.fromScratch"), t("taller.fromScratchSub"))}${tpl ? way("data-tw-templates", tallerBase(sh, tpl)!.spec, t("taller.fromTemplate"), t("taller.fromTemplateSub"), t("taller.groupCount", { n })) : ""}</div>`;
+}
 function renderTallerBases() {
   const sh = taller.shape, role = tokenRole(taller.samples[sh][0]);
   if (!tallerBase(sh, taller.pick)) taller.pick = firstBase(sh);
+  if (taller.pick === firstBase(sh)) { renderTallerStart(); return; }   // the basic one: the two ways to start
   const pick = tallerBase(sh, taller.pick)!;
   const more = (spec: TokenSpec) => `<span class="tw-more">${taller.samples[sh].slice(1, sh === "card" ? 3 : 4).map((k) => tallerPic(k, spec)).join("")}${SHAPE_FEATURES[sh].back ? tallerPic(taller.samples[sh][0], spec, "back") : ""}</span>`;
   const row = (g: TallerGroup, i: number, def: StyleDef) => {
     const d = tallerBase(sh, `g${i}:${def.id}`)!, on = d.ref === pick.ref;
     return `<button class="tw-opt" type="button" role="radio" aria-checked="${on}" data-tw-pick="${esc(d.ref)}"><span class="tw-sw">${designSwatch(d.spec, role)}${SHAPE_FEATURES[sh].back && printsBack(role, filled(d.spec)) ? `<span class="tw-swb">${tokenSvg(state.lib!, role, { ...filled(d.spec), lang: tokenLang(), icon: ownIcon(role.id), diameter: 45 }, { side: "back" })}</span>` : ""}</span><span class="tw-ot"><b>${esc(d.name)}${g.kind === "blank" ? ` <span class="tw-tag">${esc(t("taller.blankTag"))}</span>` : ""}</b>${d.help ? `<small>${esc(d.help)}</small>` : ""}</span><span class="rad" aria-hidden="true"></span>${on ? more(d.spec) : ""}</button>`;
   };
-  const label = (g: TallerGroup) => (g.kind === "blank" ? t("taller.blankGroup") : g.kind === "app" ? g.name : t("taller.of", { name: g.name }));
   const note = (g: TallerGroup) => (g.kind === "blank" ? t("taller.blankNote") : g.kind === "from" ? t("taller.fromNote") : g.kind === "app" ? t("taller.appNote") : "");
   // the starting base in the open; each collection's designs folded (open where the chosen base is)
   const opts = taller.groups.map((g, i) => {
     const list = g.designs[sh];
-    if (!list?.length) return "";
-    const head = `${esc(label(g))}${note(g) ? ` <small>${esc(note(g))}</small>` : ""}`, rows = list.map((def) => row(g, i, def)).join("");
-    if (g.kind === "blank") return `<p class="tw-gl">${head}</p>${rows}`;
+    if (!list?.length || g.kind === "blank") return "";   // the templates: the basic one is "from scratch"
+    const rows = list.map((def) => row(g, i, def)).join("");
     const open = tallerOpenGroups.has(`${sh}:${i}`) || list.some((def) => `g${i}:${def.id}` === pick.ref);
     // folded, it looks like the collection's cover: its colours, logo and name, and its designs on the sample token
     const lk = g.look ?? {}, minis = list.slice(0, 6).map((def) => designSwatch(tallerBase(sh, `g${i}:${def.id}`)!.spec, role)).join("");
@@ -277,7 +290,7 @@ function renderTallerBases() {
   }).join("");
   const go = esc(t("taller.go", { name: pick.name }));
   $("#tallerWizard").innerHTML = `${tallerSteps(2)}
-    <div class="tw-titlebar"><button class="link" type="button" data-tw-back>‹ ${esc(t("taller.step.shape"))}</button><h2 class="tw-title">${esc(t(`taller.baseQ.${sh}`))}</h2></div>
+    <div class="tw-titlebar"><button class="link" type="button" data-tw-start>‹ ${esc(t("taller.startBack"))}</button><h2 class="tw-title">${esc(t("taller.templateQ"))}</h2></div>
     <div class="tw-blist">
       <div class="tw-opts" role="radiogroup" aria-label="${esc(t("taller.step.base"))}">${opts}</div>
       <div class="tw-side">
@@ -399,6 +412,9 @@ function wireTaller() {
     else if (pick) { tallerGo({ pick: pick.dataset.twPick! }, false); $<HTMLElement>(`[data-tw-pick="${CSS.escape(taller.pick)}"]`).focus({ preventScroll: true }); }
     else if (mine) open(mine);
     else if (hit(e, "[data-tw-back]")) tallerGo({ view: "shape" });
+    else if (hit(e, "[data-tw-start]")) tallerGo({ pick: firstBase(taller.shape) });
+    else if (hit(e, "[data-tw-templates]")) { const tpl = firstTemplate(taller.shape); if (tpl) tallerGo({ pick: tpl }); }
+    else if (hit(e, "[data-tw-scratch]")) { const base = tallerBase(taller.shape, firstBase(taller.shape))!; tallerCopy(base, t("taller.mineName", { name: base.name })); }
     else if (hit(e, "[data-tw-go]")) { const base = tallerBase(taller.shape, taller.pick)!; tallerCopy(base, t("taller.mineName", { name: base.name })); }
   };
   $("#tallerList").onclick = (e) => {

@@ -80,6 +80,7 @@ test("designing a token: another frame changes its preview", async ({ page }) =>
 test("the Taller: start a design of your own from one of the app's, and duplicate it", async ({ page }) => {
   const errors = await open(page, "/taller");
   await page.locator('[data-tw-shape="coin"]').click();
+  await page.locator("[data-tw-templates]").click();
   await page.locator("[data-tw-pick]").first().evaluate((b) => (b as HTMLElement).click());
   await page.locator("[data-tw-go]").first().evaluate((b) => (b as HTMLElement).click());
   await expect(page.locator('[data-taller-act="delete"]')).toBeVisible();
