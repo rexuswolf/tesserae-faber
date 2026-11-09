@@ -2199,3 +2199,23 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
   .head-tools .addmenu { flex: 1 1 140px; }
 }
 .filters .filter-row { max-width: var(--measure); }
+
+/* ---- a row's Edit and Redesign: one column at its end, the row's height, split in two (Redesign alone: all of it),
+   each just its icon; no check: the band and the tint say it's picked */
+#rows .row { padding-right: 0; }
+#rows .row[data-picked=true]::after { content: none; }
+#rows .row .row-acts { grid-area: acts; grid-row: 1 / -1; align-self: stretch; margin: -7px 0; display: flex; flex-direction: column; gap: 0; width: 52px;
+  border-left: 1px solid var(--seam); border-radius: 0 3px 3px 0; overflow: hidden; }
+#rows .row .row-acts .own-edit { flex: 1; width: 100%; padding: 0; display: grid; place-items: center; clip-path: none; border-radius: 0; line-height: 1;
+  background: color-mix(in srgb, var(--bone) 4%, transparent); color: var(--dust); }
+#rows .row .row-acts .own-edit + .own-edit { border-top: 1px solid var(--seam); }
+#rows .row .row-acts .own-edit:hover { background: color-mix(in srgb, var(--bone) 12%, transparent); color: var(--bone); }
+#rows .row .row-acts .own-edit .pen { width: 18px; height: 18px; }
+#rows .row.open { grid-template-areas: "tok who fold acts" "tok list list acts"; }
+#rows .row .rems-fold { margin-right: 12px; }
+@media (max-width: 900px) {
+  #rows .row { grid-template-columns: 56px minmax(0, 1fr) auto 48px; padding-right: 0; }
+  #rows:has(.tok.card) .row { grid-template-columns: 76px minmax(0, 1fr) auto 48px; }
+  #rows .row, #rows .row.open { grid-template-areas: "tok who fold acts" "list list list acts"; }
+  #rows .row .row-acts { width: 48px; margin: -6px 0; justify-self: stretch; }
+}
