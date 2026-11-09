@@ -10,6 +10,15 @@ describe("a collection file", () => {
     const c = starterCollection();
     expect(await readCollectionFile(JSON.parse(JSON.stringify(collectionFile(c))))).toEqual(c);
   });
+  it("keeps a token's own design (one of the collection's, by id), and writes it back", async () => {
+    const c = await readCollectionFile(file({ tokens: [
+      { id: "jefe", name: "Jefe", linked: [], design: "oro" },
+      { id: "otro", name: "Otro", linked: [], design: 'mal"o' },
+      { id: "sin", name: "Sin", linked: [], design: 7 },
+    ] }));
+    expect(c.tokens.map((t) => t.design)).toEqual(["oro", "mal_o", undefined]);
+    expect(await readCollectionFile(JSON.parse(JSON.stringify(collectionFile(c))))).toEqual(c);
+  });
   it("is refused when it isn't a collection", async () => {
     for (const d of [null, [], { format: "other" }, { format: COLLECTION_FORMAT, tokens: [] }]) await expect(readCollectionFile(d)).rejects.toThrow("not-collection");
   });

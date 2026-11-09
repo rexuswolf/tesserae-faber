@@ -66,10 +66,11 @@ export function designOf(shape: TokenShape, ref: string | undefined): DesignEntr
 export const originalRef = (shape: TokenShape) => designOf(shape, `c:${startingStyles(shape)[0].id}`)!.ref;
 /** The collection's default for a shape: the one chosen for it, while it's there, else its own first. */
 export const defaultRef = (shape: TokenShape) => designOf(shape, defaults[shape])?.ref ?? originalRef(shape);
-/** The design a token has by default: its shape's default; a linked token's, its character's. */
+/** The design a token has by default: a linked token's, its character's; one its collection gives it ("design"); else its shape's default. */
 export function inheritedRef(key: string, shape: TokenShape) {
   const char = key.startsWith("r:") ? state.overrides.get(`c:${roleIdOf(key)}`)?.style : undefined;
-  return designOf(shape, char)?.ref ?? defaultRef(shape);
+  const own = OWN && !key.startsWith("r:") ? tokenRole(key)?.design : undefined;
+  return designOf(shape, char)?.ref ?? designOf(shape, own ? `c:${own}` : undefined)?.ref ?? defaultRef(shape);
 }
 /** The design a token uses: one chosen for it, else the one it has by default. */
 export function refOf(key: string, shape = shapeOf(tokenRole(key))): string {

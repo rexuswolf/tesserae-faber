@@ -70,6 +70,8 @@ export interface Role {
   listNames?: Record<string, string>;
   /** What the token carries, whatever its design (a token of yours): unset, as its design lays it out. */
   content?: TokenContent;
+  /** A collection's token: the collection's design it has unless you choose another (its id, of its shape's). */
+  design?: string;
   /** A token of yours that shows only its name: the icon it keeps (not drawn on its front), for a back laid out with one. */
   keptIcon?: Pick<TokenIcon, "id" | "g" | "body">;
 }

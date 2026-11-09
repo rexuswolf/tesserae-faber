@@ -77,6 +77,8 @@ export interface OwnToken {
   colour?: Hex;
   /** What it carries (icon and name, icon only, name only), whatever its design; unset, as the design has it. */
   content?: TokenContent;
+  /** The collection's design it's drawn in unless you choose another (one of its shape's, by id); unset, its shape's first. */
+  design?: string;
 }
 /** A two-state token's other state: a name (in several languages, like the token's) and an icon (like the token's). */
 export interface OwnFlip { name: Names; icon: TokenIcon | null }
@@ -439,6 +441,7 @@ export function tokenRole(c: Collection, t: OwnToken, lang = "es"): Role {
     ...(t.text != null ? { listNames: Object.fromEntries([...langs].map((l) => [l, nameIn(own, l)])) } : {}),
     team: t.group as Team,   // a group of the collection, registered as a team (main.ts, applyGroups)
     ...(t.colour ? { colour: t.colour } : {}),
+    ...(t.design ? { design: t.design } : {}),
     edition: "own", editionName: nameIn(home?.name ?? c.name, lang), collectionName: nameIn(c.name, lang),
     reminders: Object.fromEntries([...langs].map((l) => [l, t.linked.map((n) => nameIn(n, l))])),
     body: icon?.body ?? "", d: [], g: icon?.g ?? "",
@@ -638,6 +641,7 @@ export async function readCollectionFile(data: unknown, onProgress: (done: numbe
       linked: (t.linked ?? []).map((l) => (typeof l === "string" ? l : l?.name)).filter(okName),
       ...(flip ? { flip } : {}),
       ...(isHex(t.colour) ? { colour: t.colour } : {}),
+      ...(typeof t.design === "string" && t.design ? { design: okId(t.design) } : {}),
       ...(t.content === "both" || t.content === "icon" || t.content === "text" || t.content === "none" ? { content: t.content } : {}),
     });
     if (++done % 20 === 0 || done === f.tokens.length) onProgress(done, f.tokens.length);
