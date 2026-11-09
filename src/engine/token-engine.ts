@@ -1820,9 +1820,11 @@ const aboveOf = new WeakMap<THREE.BufferGeometry, number>();
  * through its face; when raised with a bevel, its relief in layers (bevelLayers).
  */
 function partExtrude(shapes: THREE.Shape[], spec: TokenSpec, part: ReliefPart, face: Face, m: THREE.Matrix4, curveSegments = 5) {
-  const h = faceHeight(spec, part, face), b = bevelOf(spec, part, face);
+  const h = faceHeight(spec, part, face), b = bevelOf(spec, part, face), e = m.elements, k = Math.sqrt(Math.abs(e[0] * e[5] - e[4] * e[1])) || 1;
+  // each curve cut by its printed length, not a set count: a large one stays round
+  shapes = smoothShapes(shapes, k, curveSegments); curveSegments = 1;
   if (!b || !shapes.length) return extrude(shapes, h, m, curveSegments);
-  const r = reliefTop(spec), d = h - r, e = m.elements, k = Math.sqrt(Math.abs(e[0] * e[5] - e[4] * e[1])) || 1;
+  const r = reliefTop(spec), d = h - r;
   const n = Math.max(1, Math.round(r / BEVEL_STEP)), step = r / n;
   const layers = bevelLayers(shapes, b / k, BEVEL_MIN_TOP / k, BEVEL_GRID / k, n, curveSegments);
   // the relief is local z [d, h] on the top face, [0, r] on the bottom one (its outside at 0)
@@ -1830,6 +1832,31 @@ function partExtrude(shapes: THREE.Shape[], spec: TokenSpec, part: ReliefPart, f
   const g = merge([extrude(shapes, d, face.bottom ? chain(m, T(0, 0, r)) : m, curveSegments), ...up]);
   if (g) aboveOf.set(g, up.reduce((s, l) => s + geometryVolume(l), 0));
   return g;
+}
+
+/** The longest straight piece a curve is cut into, printed (mm): finer than the nozzle draws. */
+const CURVE_STEP = 0.35;
+const smoothCache = new WeakMap<THREE.Shape[], Map<string, THREE.Shape[]>>();
+/**
+ * Shapes with their curves cut into straight pieces by their printed size (`k` mm per unit): at
+ * least `least` a curve, one every CURVE_STEP mm, at most 96; lines stay one piece.
+ */
+function smoothShapes(shapes: THREE.Shape[], k: number, least: number): THREE.Shape[] {
+  const key = `${k.toFixed(4)}|${least}`, memo = smoothCache.get(shapes) ?? new Map<string, THREE.Shape[]>();
+  smoothCache.set(shapes, memo);
+  const hit = memo.get(key); if (hit) return hit;
+  const outline = (p: THREE.Path) => {
+    const pts: THREE.Vector2[] = [];
+    for (const c of p.curves) {
+      const n = (c as THREE.LineCurve).isLineCurve ? 1 : Math.min(96, Math.max(least, Math.ceil((c.getLength() * k) / CURVE_STEP)));
+      for (const q of c.getPoints(n)) if (!pts.length || !pts[pts.length - 1].equals(q)) pts.push(q);
+    }
+    if (pts.length > 2 && pts[0].distanceTo(pts[pts.length - 1]) < 1e-9) pts.pop();
+    return pts;
+  };
+  const out = shapes.map((s) => { const o = new THREE.Shape(outline(s)); o.holes = s.holes.map((hole) => new THREE.Path(outline(hole))); return o; });
+  memo.set(key, out);
+  return out;
 }
 
 /** One block of a bevelled part's relief: its outline, from layer `from` up to (not with) `to`. */
