@@ -18,6 +18,7 @@ for (const [path, adapters, minTokens] of [
   ["/c/drawsteel", [], 10],
   ["/c/srd5e", [], 10],
   ["/c/senado", [], 3],
+  ["/c/werewolf", [], 10],
   ["/taller", [], 1],
   ["/", [], 0],
 ] as const) {
@@ -36,7 +37,7 @@ test("?admin signs the admin in", async ({ page }) => {
 });
 
 test.describe("with the browser's storage blocked", () => {
-  for (const path of ["/c/drawsteel", "/c/srd5e", "/c/senado", "/taller"]) {
+  for (const path of ["/c/drawsteel", "/c/srd5e", "/c/senado", "/c/werewolf", "/taller"]) {
     test(`${path} still opens`, async ({ page }) => {
       await page.addInitScript(() => {
         for (const n of ["localStorage", "sessionStorage"]) Object.defineProperty(window, n, { get() { throw new DOMException("blocked", "SecurityError"); } });

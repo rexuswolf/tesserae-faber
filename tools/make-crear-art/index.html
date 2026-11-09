@@ -86,11 +86,18 @@ for (const [name, path, colour] of SEN) senTokens.push(await own(name, path, col
 const senStrip = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${s + step * (SEN.length - 1) + 20} ${s + 24}" role="img" aria-label="Fichas de El Senado">${defs}${senTokens.map((svg, j) => place(svg, 10 + j * step, 6, s, "cell", j)).join("")}</svg>`;
 document.querySelector("#strip").insertAdjacentHTML("afterend", `<div>${senStrip}</div>`);
 
+// The Werewolves' cover strip: the Seer, the Werewolf, Night, the Alpha Wolf and the Witch, in their sides' colours
+const WW = [["Vidente", "lorc/crystal-ball", "#2f86e0"], ["Hombre lobo", "lorc/werewolf", "#b3191e"], ["Noche", "lorc/night-sky", "#d4a72c"], ["Lobo alfa", "lorc/wolf-head", "#b3191e"], ["Bruja", "lorc/cauldron", "#2f86e0"]];
+const wwTokens = [];
+for (const [name, path, colour] of WW) wwTokens.push(await own(name, path, colour));
+const wwStrip = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${s + step * (WW.length - 1) + 20} ${s + 24}" role="img" aria-label="Fichas de Hombres lobo">${defs}${wwTokens.map((svg, j) => place(svg, 10 + j * step, 6, s, "cell", j)).join("")}</svg>`;
+document.querySelector("#strip").insertAdjacentHTML("afterend", `<div>${wwStrip}</div>`);
+
 document.querySelector("#hero").innerHTML = hero;
 document.querySelector("#strip").innerHTML = strip;
 const link = (id, text) => { document.querySelector(id).href = URL.createObjectURL(new Blob([text], { type: "image/svg+xml" })); };
 link("#dlHero", hero); link("#dlStrip", strip);
-window.__art = { hero, strip, dsStrip, srdStrip, senStrip };
+window.__art = { hero, strip, dsStrip, srdStrip, senStrip, wwStrip };
 document.body.dataset.done = "1";
 </script>
 </body>
