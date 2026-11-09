@@ -13,9 +13,9 @@ import { infoRoles } from "../info-tokens.ts";
 import { syncHomebrew, scriptOf, openSharedScript, resumeHomebrew } from "./scripts-ui.ts";
 import { openAdmin } from "./admin.ts";
 import { wire } from "./wiring.ts";
-import { charKey } from "./tokens.ts";
+import { charKey, sortKeys } from "./tokens.ts";
 import { buildChoices } from "./workshop.ts";
-import { loadPicks, persistPicks, goStep, isPicked } from "./queue.ts";
+import { loadPicks, persistPicks, goStep, isPicked, stepInUrl } from "./queue.ts";
 import { takeReturn } from "./design-sheet.ts";
 import { selectToken } from "./sheet.ts";
 import { guide, wireGuide } from "./guide.ts";
@@ -147,10 +147,14 @@ function startApp() {
   state.pick = loadPicks();
   persistPicks();
   emit("all");
-  goStep(1);
+  // the step the address says (?disenar, ?imprimir), on the first token picked
+  const asked = stepInUrl();
+  goStep(1, "keep");
   // back from the Taller: where it was opened from (the design step, on the same token)
   const back = takeReturn();
-  if (back?.step === 2 && state.pick.size) { if (back.sel && isPicked(back.sel)) selectToken(back.sel); goStep(2); }
+  if (back?.step === 2 && state.pick.size) { if (back.sel && isPicked(back.sel)) selectToken(back.sel); goStep(2, "replace"); }
+  else toStep(asked, "replace");
+  if (!stepsWired) { stepsWired = true; window.addEventListener("popstate", () => { if (!TALLER) toStep(stepInUrl(), "keep"); }); }
   if (!OWN) { openSharedScript(); resumeHomebrew(); }
   if (!guide.wired) { guide.wired = true; wireGuide(); }
 }
@@ -163,3 +167,10 @@ function renderAccount() {
   if (admin) { $<HTMLImageElement>("#avatar").src = state.user!.photoURL || ""; $("#meEmail").textContent = state.user!.email ?? ""; }
 }
 
+
+let stepsWired = false;
+/** To a step from the address (arriving, or Back and Forward): designing, the token shown or the first picked. */
+function toStep(step: number, address: "replace" | "keep") {
+  if (step === 2 && !(state.sel && isPicked(state.sel.key)) && state.pick.size) selectToken(sortKeys(state.pick.keys())[0]);
+  goStep(step, address);
+}

@@ -163,11 +163,27 @@ export const smallLetters = () => (flow.way === "3d" ? nozzleOf(flow.nozzle).sma
 export const nozzleMm = () => String(flow.way === "3d" ? nozzleOf(flow.nozzle).mm : 0.4).replace(".", uiLang() === "es" ? "," : ".");
 const queuePic = (q: QueueEntry, role = roleById(q.roleId)!) => tokenSvg(state.lib!, role, itemSpec(q), { text: queueTitle(q, role) });
 
-/** Moves to step 1 (pick), 2 (design) or 3 (print). Steps 2 and 3 need something picked. */
-export function goStep(step: number) {
+/** The step in the address: ?disenar (Redesign), ?imprimir (Print); neither, the tokens. */
+const STEP_WORDS: Record<number, string> = { 2: "disenar", 3: "imprimir" };
+export const stepInUrl = () => { const q = new URLSearchParams(location.search); return q.has(STEP_WORDS[3]) ? 3 : q.has(STEP_WORDS[2]) ? 2 : 1; };
+function stepUrl(step: number) {
+  const q = new URLSearchParams(location.search);
+  for (const w of Object.values(STEP_WORDS)) q.delete(w);
+  const rest = q.toString().replace(/=(&|$)/g, "$1");   // ?admin stays ?admin
+  const query = [rest, STEP_WORDS[step]].filter(Boolean).join("&");
+  return location.pathname + (query ? `?${query}` : "") + location.hash;
+}
+/**
+ * Moves to step 1 (pick), 2 (design) or 3 (print). Steps 2 and 3 need something picked. The address
+ * says it, a new entry in the history (so Back goes back a step), or the same one ("replace": arriving,
+ * "keep": come to by Back or Forward).
+ */
+export function goStep(step: number, address: "push" | "replace" | "keep" = "push") {
   if (step === 3 && !state.pick.size) step = 1;   // printing needs a selection
   if (step === 2 && !state.sel) step = 1;          // designing, a token
   state.step = step;
+  const url = stepUrl(step);
+  if (address !== "keep" && url !== location.pathname + location.search + location.hash) history[address === "push" ? "pushState" : "replaceState"](history.state, "", url);
   $("#app").dataset.step = String(step);
   drawer(false);
   if (step === 2) {

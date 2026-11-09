@@ -26,6 +26,25 @@ async function pick(page: Page, n: number, which = "#rows [data-pick]") {
 }
 const next = (page: Page) => page.locator("#flowNext").evaluate((b) => (b as HTMLElement).click());
 
+test("the address says the step: ?disenar, ?imprimir; Back goes back a step, and a reload stays", async ({ page }) => {
+  const errors = await open(page, "/botc?admin");
+  await pick(page, 2, '#rows [data-pick^="c:"]');
+  await page.locator("#rows [data-design-row]").first().evaluate((b) => (b as HTMLElement).click());
+  await expect(page.locator("#app")).toHaveAttribute("data-step", "2");
+  await expect(page).toHaveURL(/\/botc\?admin&disenar$/);
+  await next(page);
+  await expect(page.locator("#app")).toHaveAttribute("data-step", "3");
+  await expect(page).toHaveURL(/\/botc\?admin&imprimir$/);
+  await page.goBack();
+  await expect(page.locator("#app")).toHaveAttribute("data-step", "2");
+  await page.reload();
+  await expect(page.locator("#app")).toHaveAttribute("data-step", "2", { timeout: 30_000 });
+  await page.goBack();
+  await expect(page.locator("#app")).toHaveAttribute("data-step", "1");
+  await expect(page).toHaveURL(/\/botc\?admin$/);
+  expect(errors).toEqual([]);
+});
+
 test("Clocktower: pick characters, design one from its row, print them on paper", async ({ page }) => {
   const errors = await open(page, "/botc?admin");
   await pick(page, 3, '#rows [data-pick^="c:"]');
