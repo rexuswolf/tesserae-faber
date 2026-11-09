@@ -20,16 +20,18 @@ const INSET = 0.8;
 const EDITION = { style: "classic", frame: "rim", frameWidth: 0.8, frameInset: INSET, back: "edition", depth: 0.4, colours: dark } as const;
 
 export const BOTC_STYLES: Record<TokenShape, StyleDef[]> = {
+  // Edition, the one offered: the others are hidden (no longer offered), kept so a token already
+  // in one of them still draws as it did
   coin: [
     { id: "edicion", name: { es: "Edición", en: "Edition" }, help: { es: "Negra con el color del equipo y el nombre de la edición en oro al reverso.", en: "Black with the team colour and the edition's name in gold on the back." }, spec: EDITION },
-    { id: "noche", name: { es: "Noche cerrada", en: "Pitch-black night" }, help: { es: "Negra, con las fases de la luna en el marco y una luna con estrellas en oro al reverso.", en: "Black, with the moon's phases round the rim and a moon with stars in gold on the back." },
+    { id: "noche", hidden: true, name: { es: "Noche cerrada", en: "Pitch-black night" }, help: { es: "Negra, con las fases de la luna en el marco y una luna con estrellas en oro al reverso.", en: "Black, with the moon's phases round the rim and a moon with stars in gold on the back." },
       spec: { style: "classic", frame: "fases", frameWidth: 0.8, frameInset: INSET, back: "eclipse", depth: 0.4, colours: dark } },
     // the gold midnight clock on the back is light on a dark coin: 0.4 mm covers it
-    { id: "medianoche", name: { es: "Medianoche", en: "Midnight" }, help: { es: "Negra, con estrellas en el marco y el reloj de medianoche en oro al reverso.", en: "Black, with stars round the rim and the midnight clock in gold on the back." },
+    { id: "medianoche", hidden: true, name: { es: "Medianoche", en: "Midnight" }, help: { es: "Negra, con estrellas en el marco y el reloj de medianoche en oro al reverso.", en: "Black, with stars round the rim and the midnight clock in gold on the back." },
       spec: { style: "classic", frame: "firmamento", frameWidth: 0.8, frameInset: INSET, back: "medianoche", depth: 0.4, colours: dark } },
     // harlequin rhombi behind everything: fine lines in the team colour (with the frame) on the
     // front, a gold checkerboard behind the medallion on the back; no filament of their own
-    { id: "arlequin", name: { es: "Arlequín de medianoche", en: "Midnight Harlequin" }, help: { es: "Negra, con una rejilla fina de rombos del color del equipo detrás del icono y el nombre, y un damero de rombos en oro alrededor de un medallón con la luna y la edición al reverso.", en: "Black, with a fine harlequin grid in the team colour behind the icon and the name, and a gold harlequin checkerboard round a medallion with the moon and the edition on the back." },
+    { id: "arlequin", hidden: true, name: { es: "Arlequín de medianoche", en: "Midnight Harlequin" }, help: { es: "Negra, con una rejilla fina de rombos del color del equipo detrás del icono y el nombre, y un damero de rombos en oro alrededor de un medallón con la luna y la edición al reverso.", en: "Black, with a fine harlequin grid in the team colour behind the icon and the name, and a gold harlequin checkerboard round a medallion with the moon and the edition on the back." },
       spec: { style: "classic", frame: "rim", frameWidth: 0.6, frameInset: INSET, back: "medallon", depth: 0.4, colours: dark,
         frontPattern: { id: "rombos-lineas", scale: 5.1, line: 0.6, halo: 0.8, colour: "frame" },
         backPattern: { id: "damero-rombos", scale: 4.2, line: 0.7, halo: 0.8 } } },

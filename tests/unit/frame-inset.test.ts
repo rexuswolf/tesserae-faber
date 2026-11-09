@@ -37,3 +37,12 @@ describe("Clocktower's coin designs", () => {
     expect(keptBefore({ ...design, frameInset: 0 }, design).frameInset).toBe(0);
   });
 });
+
+describe("Clocktower's coin designs", () => {
+  it("offer Edition alone; the others are hidden, still there for a token that has one", async () => {
+    const { BOTC_STYLES } = await import("../../src/botc-styles.ts");
+    const { ownStylesOf } = await import("../../src/collection.ts");
+    expect(ownStylesOf({ styles: BOTC_STYLES }, "coin").map((d) => d.id)).toEqual(["edicion"]);
+    expect(BOTC_STYLES.coin.filter((d) => d.hidden).map((d) => d.id)).toEqual(["noche", "medianoche", "arlequin"]);
+  });
+});

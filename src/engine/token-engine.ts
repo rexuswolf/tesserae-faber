@@ -489,7 +489,8 @@ function editionBack(lib: Library, role: Role, spec: TokenSpec) {
   // a script's own (homebrew) characters carry their script's name instead
   const ed = backEdition(role, spec);
   if (!ed) return null;
-  const R = spec.diameter / 2, out = R - 0.7;
+  // its gold rims as far in as the front's frame (frameInset), never nearer the edge than 0.7 mm: the coin's side all the base's
+  const R = spec.diameter / 2, out = R - Math.max(0.7, frameInsetOf(spec));
   const shapes: THREE.Shape[] = [annulus(out, out - 0.6), annulus(out - 1.2, out - 1.65)];
   const words = (ed.name[spec.lang] || ed.name[spec.lang?.split("-")[0]] || ed.name.en).toUpperCase().split(/\s+/);
   const track = 0.08;                                     // letter spacing, in em
