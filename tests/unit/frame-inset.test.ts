@@ -51,13 +51,12 @@ describe("Clocktower's back", () => {
   it("is the same on every token: the midnight clock without its border, in a plain rim", async () => {
     const { BOTC_STYLES } = await import("../../src/botc-styles.ts");
     const spec = BOTC_STYLES.coin.find((d) => d.id === "edicion")!.spec as { back?: string; backFace?: { frame?: string } };
-    expect(spec.back).toBe("reloj");
+    expect(spec.back).toBe("medianoche");
     expect(spec.backFace?.frame).toBe("rim");
   });
-  it("its clock reaches no nearer the edge than the midnight one's inner ring did", async () => {
-    const { backDesign } = await import("../../src/engine/token-engine.ts");
+  it("no back drawing has a border of its own: its frame is the face's, never drawn twice", async () => {
+    const { backDesign, BACK_ORNAMENTS } = await import("../../src/engine/token-engine.ts");
     const far = (id: string) => Math.max(...backDesign(id, 20)!.flatMap((sh) => sh.getPoints().map((p) => Math.hypot(p.x, p.y))));
-    expect(far("medianoche")).toBeCloseTo(20 - 0.7, 1);   // its beaded border at the edge
-    expect(far("reloj")).toBeLessThan(20 - 2.7);          // the clock alone, inside where its rings were
+    for (const id of BACK_ORNAMENTS) expect(far(id), id).toBeLessThan(20 - 1.6);   // clear of a rim 0.8 mm wide, 0.8 mm in
   });
 });

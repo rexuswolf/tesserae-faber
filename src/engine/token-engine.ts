@@ -85,7 +85,6 @@ export const FRAME_STYLES = [
 export const BACK_STYLES = [
   { id: "none", label: "Plain" },
   { id: "medianoche", label: "Midnight" },
-  { id: "reloj", label: "Midnight clock" },
   { id: "guilloche", label: "Guilloché" },
   { id: "rosa", label: "Compass rose" },
   { id: "sol", label: "Sunburst" },
@@ -95,7 +94,7 @@ export const BACK_STYLES = [
   { id: "custom", label: "Your SVG" },
 ];
 /** The drawings a back face can carry for its icon (BackFace.art): the back designs that are pictures. */
-export const BACK_ORNAMENTS = ["medianoche", "reloj", "guilloche", "rosa", "sol", "eclipse", "orbitas"];
+export const BACK_ORNAMENTS = ["medianoche", "guilloche", "rosa", "sol", "eclipse", "orbitas"];
 /** The back designs kept before the back was a face, and what each became (migrateBack): a picture its icon, the edition (or the medallion or shield round it) its words. */
 const OLD_BACKS: Record<string, BackFace> = {
   ...Object.fromEntries(BACK_ORNAMENTS.map((id) => [id, { say: "none" as const, art: "none" }])),
@@ -1267,15 +1266,15 @@ export function backDesign(id: string, R: number): THREE.Shape[] | null {
   return backShapes(id, R)?.map(ccw) ?? null;
 }
 
-// Same winding for every outline (ccw), so overlapping hands and hub merge in 2D.
+// Same winding for every outline (ccw), so overlapping hands and hub merge in 2D. None has a border of
+// its own: a back's frame is its face's (its Frame setting), so it's never drawn twice.
 function backShapes(id: string, R: number): THREE.Shape[] | null {
   const out = R - 0.7;
   switch (id) {
     case "medianoche":
-    case "reloj": {
-      // Beaded border, a fine inner ring, weighted hour markers, a small crescent
-      // moon at XII and tapered hands at five to midnight. The clock alone ("reloj"): no border nor rings.
-      const sh = id === "reloj" ? [] : [annulus(out, out - 0.55), ...beads(out - 1.45, 64, 0.32), annulus(out - 2.2, out - 2.7)];
+    case "reloj": {   // ("reloj", the clock alone, was its borderless twin for a day)
+      // Weighted hour markers, a small crescent moon at XII and tapered hands at five to midnight.
+      const sh: THREE.Shape[] = [];
       for (let h = 0; h < 12; h++) {
         const a = Math.PI / 2 - (h * TAU) / 12;
         if (h === 0) continue;                                     // XII holds the moon
@@ -1289,16 +1288,16 @@ function backShapes(id: string, R: number): THREE.Shape[] | null {
       return sh;
     }
     case "guilloche": {
-      // Engraved lace: interlocking rings around the centre, framed by a double rim.
-      const sh = [annulus(out, out - 0.6), annulus(out - 1.3, out - 1.8)];
+      // Engraved lace: interlocking rings around the centre.
+      const sh: THREE.Shape[] = [];
       const n = 16, c = R * 0.34, r = R * 0.36;
       for (let i = 0; i < n; i++) sh.push(annulus(r, r - 0.5, ...ptXY(c, (i * TAU) / n)));
       sh.push(annulus(R * 0.2, R * 0.2 - 0.5), disc(1.2));
       return sh;
     }
     case "rosa": {
-      // Sixteen-point compass rose inside a ring of beads.
-      const sh = [annulus(out, out - 0.6), ...beads(out - 1.4, 48, 0.3)];
+      // Sixteen-point compass rose.
+      const sh: THREE.Shape[] = [];
       const long = out - 2.6, mid = long * 0.62, short = long * 0.42, inner = 1.6;
       const star = (n: number, r: number, w: number, rot: number) => {
         const pts: THREE.Vector2[] = [];
@@ -1314,7 +1313,7 @@ function backShapes(id: string, R: number): THREE.Shape[] | null {
     }
     case "sol": {
       // Art-deco sunburst: alternating long and short rays around a ringed disc.
-      const sh = [annulus(out, out - 0.6)];
+      const sh: THREE.Shape[] = [];
       const n = 32, r0 = R * 0.24, rl = out - 1.4, rs = out - 4.2;
       for (let i = 0; i < n; i++) {
         const a = (i * TAU) / n;
@@ -1324,8 +1323,8 @@ function backShapes(id: string, R: number): THREE.Shape[] | null {
       return sh;
     }
     case "eclipse": {
-      // A crescent moon with a few stars, inside a fine double rim.
-      const sh = [annulus(out, out - 0.6), annulus(out - 1.2, out - 1.65)];
+      // A crescent moon with a few stars.
+      const sh: THREE.Shape[] = [];
       const mr = R * 0.44;
       sh.push(crescent(-R * 0.06, -R * 0.02, mr, R * 0.1, R * 0.08, mr * 0.9));
       for (const [x, y, s] of [[0.42, 0.34, 1.0], [0.4, -0.4, 0.7], [0.5, -0.06, 0.55], [-0.08, 0.55, 0.5], [0.3, 0.58, 0.4]])
@@ -1333,8 +1332,8 @@ function backShapes(id: string, R: number): THREE.Shape[] | null {
       return sh;
     }
     case "orbitas": {
-      // A rayed sun, three orbits with their planets (the middle one ringed), in a beaded rim.
-      const sh = [annulus(out, out - 0.6), ...beads(out - 1.4, 48, 0.3), disc(R * 0.13)];
+      // A rayed sun, three orbits with their planets (the middle one ringed).
+      const sh = [disc(R * 0.13)];
       for (let i = 0; i < 12; i++) sh.push(taper(R * 0.17, R * 0.25, (i * TAU) / 12, 1.0, 0.45));
       const orbits = [R * 0.4, R * 0.6, R * 0.8];
       for (const r of orbits) sh.push(annulus(r + 0.25, r - 0.25));
@@ -2904,6 +2903,9 @@ function svgIcon(svg: string | null | undefined): TokenIcon | null {
  */
 export function migrateBack<T extends SpecInput | undefined>(spec: T): T {
   if (!spec) return spec;
+  // the clock without its border ("reloj", for a day) is Midnight: no drawing has a border now
+  if (spec.back === "reloj") spec = { ...spec, back: "medianoche" };
+  if (spec.backPattern?.id === "ill-reloj") spec = { ...spec, backPattern: { ...spec.backPattern, id: "ill-medianoche" as PatternId } };
   // a back face whose icon was one of the pictures (as it was for a day): the picture is its background now
   const art = spec.backFace?.art;
   if (art && BACK_ORNAMENTS.includes(art)) {

@@ -17,9 +17,9 @@ const dark = { base: FILAMENTS.black, front: "team", frame: "team", back: FILAME
 // Every one's frame starts 0.8 mm in from the coin's edge (frameInset): the frame's colour no longer
 // shows on the coin's side, which is all the base's (black).
 const INSET = 0.8;
-// The back is the same on every token, the midnight clock (without its own border) behind a plain gold
-// rim, as far in as the front's: turned over, a token says neither its edition (people mix them) nor its team.
-const EDITION = { style: "classic", frame: "rim", frameWidth: 0.8, frameInset: INSET, back: "reloj", backFace: { frame: "rim" }, depth: 0.4, colours: dark } as const;   // the back's rim: gold, plain
+// The back is the same on every token, the midnight clock behind a plain gold rim, as far in as the
+// front's: turned over, a token says neither its edition (people mix them) nor its team.
+const EDITION = { style: "classic", frame: "rim", frameWidth: 0.8, frameInset: INSET, back: "medianoche", backFace: { frame: "rim" }, depth: 0.4, colours: dark } as const;   // the back's rim: gold, plain
 
 export const BOTC_STYLES: Record<TokenShape, StyleDef[]> = {
   // Edition, the one offered: the others are hidden (no longer offered), kept so a token already
