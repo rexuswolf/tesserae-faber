@@ -230,7 +230,9 @@ export async function loadLibrary(roles: Role[], { sealSvg = null, assetBase = "
 }
 
 /** The name printed for a role in a translation ("en", "es", "ca", "es-castelgard"…; see translations.ts). */
-export const roleName = (role: Role, lang: string): string => role.names?.[lang] || (role as unknown as Partial<Record<string, string>>)[lang] || role.en;
+export const roleName = (role: Role, lang: string): string =>
+  // a token of yours says what you wrote in that language, nothing included (not another language's)
+  role.edition === "own" && role.names && lang in role.names ? role.names[lang] : role.names?.[lang] || (role as unknown as Partial<Record<string, string>>)[lang] || role.en;
 
 /** Resolves "team" colour references: the token's own colour, else its team's (its group's). */
 export function partColours(role: Role, spec: SpecInput): PartColours {

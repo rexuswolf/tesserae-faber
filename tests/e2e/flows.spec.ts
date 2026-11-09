@@ -434,16 +434,19 @@ test("a token of yours without an icon: the layouts that show one wait for it, a
   // its text is its name, written in the field; emptied, it says nothing (not its name again)
   await expect(page.locator("#crOwn #ownTokText")).toHaveValue("Lobo");
   await page.locator("#crOwn #ownTokText").fill("");
-  await go('[data-choice="style"] [data-v="text"]', () => expect(page.locator('[data-choice="style"] [data-v="text"]')).toHaveAttribute("aria-pressed", "true", { timeout: 1000 }));
+  // with neither a text nor an icon, only Plain is there
+  await expect(page.locator('[data-choice="style"] [data-v="text"]')).toBeDisabled();
+  await expect(page.locator('[data-choice="style"] [data-v="text"] small')).toHaveText(/./);
+  await expect(page.locator('[data-choice="style"] [data-v="none"]')).toHaveAttribute("aria-pressed", "true");   // what it prints now
   await expect(page.locator("#crOwn #ownTokText")).toHaveValue("");
-  await expect(page.locator('[data-choice="style"] [data-v="text"] text')).toHaveCount(0);
   // Plain: nothing on it, said under its text
   await go('[data-choice="style"] [data-v="none"]', () => expect(page.locator('[data-choice="style"] [data-v="none"]')).toHaveAttribute("aria-pressed", "true", { timeout: 1000 }));
   await expect(page.locator("#ownTokNameHint")).toBeVisible();
   // an icon given: it shows, and the layouts with one are there again
   await page.locator("#ownTokSvg").setInputFiles({ name: "wolf.svg", mimeType: "image/svg+xml", buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M1 1h8v8H1z"/></svg>') });
   await expect(page.locator('[data-choice="style"] [data-v="solo"]')).toHaveAttribute("aria-pressed", "true");
-  await expect(page.locator('[data-choice="style"] [data-v="classic"]')).toBeEnabled();
+  await expect(page.locator('[data-choice="style"] [data-v="solo"]')).toBeEnabled();
+  await expect(page.locator('[data-choice="style"] [data-v="classic"]')).toBeDisabled();   // its text is still empty
   expect(errors).toEqual([]);
 });
 

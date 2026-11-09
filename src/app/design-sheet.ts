@@ -438,6 +438,13 @@ function renderBackStyleTiles(role: Role, spec: TokenSpec, text: string, pressed
     + `<button class="back-tile" type="button" data-v="plain" aria-pressed="${s.backMode === "design"}">${tokenSvg(state.lib!, plain, { ...s, back: "none", backMode: "design" }, { side: "back" })}<span>${esc(t("back.none"))}</span></button>`;
 }
 
+/** A text in a text's place: the words a layout waits for. */
+const SAMPLE_TEXT = "Lorem ipsum";
+/** A question mark in an icon's place (in the 127.56-unit square, drawn at 512): the icon a layout waits for. */
+const ASK_ICON = {
+  body: '<path d="M136 190A120 120 0 1 1 316 294L286 314L286 350L226 350L226 284L286 244A60 60 0 1 0 196 190Z"/><path d="M256 384A36 36 0 1 1 255.9 384Z"/>',
+  g: "scale(0.24914)", d: [], iconKey: "ask",
+};
 /** What a layout carries: Symbol only its icon, Text only its name, the others both. */
 const contentOfStyle = (style: TokenStyle): TokenContent => (style === "solo" ? "icon" : style === "text" ? "text" : "both");
 /** The layout a token's content makes of its design's: its icon alone, its name alone, or the design's (one with both). */
@@ -450,18 +457,23 @@ function renderStyleTiles(face: { role: Role; text: string }, spec: TokenSpec) {
   // a token of yours: what it carries is the token's, and a layout chooses it (Symbol only, its icon; Text only, its
   // name; the others, both): each tile drawn with what it would carry
   // (the front's only: a back's other state is drawn as it is, its own icon and text)
-  const own = !TALLER && editSide() === "front" && ownTokenOf(face.role.id), pressed = own ? (face.role.content === "none" ? "none" : styleOfContent(face.role.content, s.style)) : s.style;
-  // a token of yours without an icon: the layouts that show one wait for it (Text only and Plain don't), drawn as they'd be
-  const noIcon = !!own && !ownTokenOf(face.role.id)?.icon;
+  const own = !TALLER && editSide() === "front" && ownTokenOf(face.role.id);
+  let pressed: string = own ? (face.role.content === "none" ? "none" : styleOfContent(face.role.content, s.style)) : s.style;
+  // a token of yours without an icon or a text: the layouts that show one wait for it (Plain never does), drawn as they'd be
+  const noIcon = !!own && !ownTokenOf(face.role.id)?.icon, noText = !!own && !face.text.trim();
+  // its text alone, emptied: it prints plain, and says so
+  if (own && noText && pressed === "text") pressed = "none";
+  const needs = (st: TokenStyle) => { const icon = noIcon && st !== "text", text = noText && st !== "solo"; return icon && text ? "style.needsBoth" : icon ? "style.needsIcon" : text ? "style.needsText" : ""; };
   $("[data-choice=style]").innerHTML = TOKEN_STYLES.map((st) => {
-    const waits = noIcon && st.id !== "text";
-    const role = own ? roleWithContent(face.role.id, waits && st.id === "solo" ? "none" : contentOfStyle(st.id)) ?? face.role : face.role;
-    return `<button class="back-tile" type="button" data-v="${st.id}" aria-pressed="${pressed === st.id}"${waits ? ` disabled title="${esc(t("style.needsIcon"))}"` : ""}>${
-      tokenSvg(state.lib!, role, { ...s, style: st.id, ...(st.id !== s.style ? { textSize: LAYOUT_TEXT[st.id] } : {}) }, { text: face.text })
-    }<span>${esc(t(`style.${st.id}`))}</span>${waits ? `<small>${esc(t("style.needsIcon"))}</small>` : ""}</button>`;
+    const need = needs(st.id), waits = !!need;
+    const drawn = own ? roleWithContent(face.role.id, need && st.id === "solo" ? "none" : contentOfStyle(st.id)) ?? face.role : face.role;
+    const role = noIcon && st.id !== "text" ? { ...drawn, ...ASK_ICON } : drawn;   // the icon it waits for, a question mark
+    return `<button class="back-tile" type="button" data-v="${st.id}" aria-pressed="${pressed === st.id}"${waits ? ` disabled title="${esc(t(need))}"` : ""}>${
+      tokenSvg(state.lib!, role, { ...s, style: st.id, ...(st.id !== s.style ? { textSize: LAYOUT_TEXT[st.id] } : {}) }, { text: noText && st.id !== "solo" ? SAMPLE_TEXT : face.text })
+    }<span>${esc(t(`style.${st.id}`))}</span>${waits ? `<small>${esc(t(need))}</small>` : ""}</button>`;
   }).join("")
     // a coin of yours can carry nothing: Plain (its frame, background and colours only)
-    + (own && shapeOf(face.role) === "coin" ? `<button class="back-tile" type="button" data-v="none" aria-pressed="${face.role.content === "none"}">${
+    + (own && shapeOf(face.role) === "coin" ? `<button class="back-tile" type="button" data-v="none" aria-pressed="${pressed === "none"}">${
       tokenSvg(state.lib!, roleWithContent(face.role.id, "none") ?? face.role, s, { text: face.text })}<span>${esc(t("style.none"))}</span></button>` : "");
 }
 
