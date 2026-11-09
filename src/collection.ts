@@ -244,8 +244,8 @@ export function loadMyLists(id: string): OwnCatalog[] {
 export const storeMyLists = (id: string, lists: OwnCatalog[]) => writeJSON(myListsKey(id), lists.filter((k) => !k.fixed));
 /** A collection that comes with the app (src/builtins.ts): what it says about itself is code. */
 export interface BuiltInEntry { id: string; file?: string; name: Names; logo?: string; accent?: string; tokens: number; text?: Names;
-  /** A picture of some of its tokens, for its cover; and what it holds, in a line. */
-  preview?: string; facts?: Names;
+  /** A picture of some of its tokens, for its cover, one per language (their names drawn in it); and what it holds, in a line. */
+  preview?: Names; facts?: Names;
   /** Where it opens when it has an app of its own (Clocktower: /botc, Midnight Mint), instead of /c/<id>. */
   href?: string;
   /** Its About, and whether it carries the Community Created Content mark. */

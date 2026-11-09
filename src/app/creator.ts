@@ -954,13 +954,18 @@ function showOwnPage(id: string) {
   $<HTMLLinkElement>("#favicon").href = APP_ICON;
   document.documentElement.dataset.theme = "";
 }
+/** The front page's honeycomb of tokens, drawn once by the engine (tools/make-crear-art.mjs) in Spanish and in
+ *  English: the one in the interface's language, inline, so its cells can be laid in turn. Again when the language changes. */
+export function drawOwnComb() {
+  const file = uiLang().startsWith("es") ? "/crear-hero.svg" : "/crear-hero-en.svg";
+  fetch(file).then((r) => (r.ok ? r.text() : "")).then((svg) => { $("#ownComb").innerHTML = svg; $("#ownComb").classList.add("play"); }).catch(() => {});
+}
 /** The front page (/): what the app is, the ways in, and back to the last collection you had open. */
 export async function renderOwnLanding() {
   showOwnPage("ownLanding");
   // the walk through what the app does, below the fold: its own module (three.js, the collections' tokens)
   void import("./landing-tour.ts").then((m) => m.startTour());
-  // the honeycomb of tokens, drawn once by the engine (tools/make-crear-art.mjs); inline, so its cells can be laid in turn
-  fetch("/crear-hero.svg").then((r) => (r.ok ? r.text() : "")).then((svg) => { $("#ownComb").innerHTML = svg; $("#ownComb").classList.add("play"); }).catch(() => {});
+  drawOwnComb();
   const last = lastCollection(), lang = uiLang();
   if (!last) return;
   const { built, mine } = await collectionsByKind();
@@ -983,7 +988,7 @@ export async function renderOwnHome() {
   $("#ownHomeBuilt").innerHTML = built.map(({ b }) => `<article class="oh-cover" style="--acc:${esc(b.accent ?? "#c9963a")}${b.cover ? `;--cover:${esc(b.cover)}` : ""}">
       <a class="oh-cover-link" href="${b.href ?? collectionUrl(b.id)}">
         <span class="who"><img src="${esc(b.logo ?? APP_LOGO)}" alt=""><span><h3>${esc(nameIn(b.name, lang))}</h3><p>${esc(nameIn(b.text, lang))}</p></span></span>
-        ${b.preview ? `<img class="strip" src="${esc(b.preview)}" alt="">` : ""}
+        ${b.preview ? `<img class="strip" src="${esc(nameIn(b.preview, lang))}" alt="">` : ""}
         <span class="go"><span class="forge">${esc(t("own.open"))}</span>
           ${b.ccc ? `<img class="oh-ccc" src="/ccc-sleeve.png" alt="Community Created Content" width="172" height="68">` : ""}
           ${b.mark ? `<img class="oh-ccc oh-mark${b.mark.invert ? " invert" : ""}" src="${esc(b.mark.src)}" alt="${esc(b.mark.alt)}">` : ""}</span>

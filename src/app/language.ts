@@ -8,7 +8,7 @@ import { APP_NAME, OWN } from "../collection.ts";
 import { buildChoices } from "./workshop.ts";
 import { gate } from "./boot.ts";
 import { renderInvite } from "./scripts-ui.ts";
-import { renderOwnHome } from "./creator.ts";
+import { renderOwnHome, drawOwnComb } from "./creator.ts";
 import { local } from "../services.ts";
 import { toast } from "./design-sheet.ts";
 
@@ -39,7 +39,7 @@ export function setLang(lang: string) {
   }
   else if (state.lib) { buildChoices(); emit("all"); if ($<HTMLDialogElement>("#scriptInvite").open) renderInvite(); }
   else if (OWN && !$("#ownHome").hidden) void renderOwnHome();   // the collections page draws its covers in the language
-  else if (OWN && !$("#ownLanding").hidden) void import("./landing-tour.ts").then((m) => m.redrawTour());   // the front page's tokens, in the language
+  else if (OWN && !$("#ownLanding").hidden) { drawOwnComb(); void import("./landing-tour.ts").then((m) => m.redrawTour()); }   // the front page's tokens, in the language
   else if (gateState) gate(gateState());
   if ($<HTMLDialogElement>("#tlangDialog").open) drawLangDialog();
 }

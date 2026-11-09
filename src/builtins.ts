@@ -16,7 +16,7 @@ export const BUILT_INS: BuiltInEntry[] = [
     logo: "/logo-mark.svg",
     accent: "#c9a227",
     tokens: botc.tokens,
-    preview: "/collections/botc-preview.svg",   // tools/make-crear-art.mjs
+    preview: { es: "/collections/botc-preview.svg", en: "/collections/botc-preview-en.svg" },   // tools/make-crear-art.mjs
     href: "/botc",   // it opens as Midnight Mint, the Clocktower app
     facts: { es: `${botc.characters} personajes · ${botc.reminders} recordatorios · ${botc.languages} idiomas`, en: `${botc.characters} characters · ${botc.reminders} reminders · ${botc.languages} languages` },
     text: { es: "Todas las ediciones, el Grimorio y tus guiones.", en: "Every edition, the Grimoire and your scripts." },
@@ -37,7 +37,7 @@ export const BUILT_INS: BuiltInEntry[] = [
     logo: "/collections/senado-logo.svg",
     accent: "#d4a72c",
     tokens: 11,
-    preview: "/collections/senado-preview.svg",   // tools/make-crear-art.mjs
+    preview: { es: "/collections/senado-preview.svg", en: "/collections/senado-preview-en.svg" },   // tools/make-crear-art.mjs
     file: "/collections/senado.json",   // tools/make-senado-collection.mjs
     cover: "radial-gradient(120% 140% at 0% 0%, #5c1d15 0%, #2e110d 55%, #160a08 100%)",
     theme: { accent: "#d4a72c", background: "#1b0c0a", surface: "#2a1411", text: "#f3e8dc", muted: "#c4a99c", glow: "#7a1e16", font: "Marcellus" },
@@ -59,7 +59,7 @@ export const BUILT_INS: BuiltInEntry[] = [
     logo: "/collections/werewolf-logo.svg",
     accent: "#d4a72c",
     tokens: 20,
-    preview: "/collections/werewolf-preview.svg",   // tools/make-crear-art.mjs
+    preview: { es: "/collections/werewolf-preview.svg", en: "/collections/werewolf-preview-en.svg" },   // tools/make-crear-art.mjs
     file: "/collections/werewolf.json",   // tools/make-werewolf-collection.mjs
     cover: "radial-gradient(120% 140% at 0% 0%, #1f3352 0%, #121b2b 55%, #0a0e16 100%)",
     theme: { accent: "#d4a72c", background: "#0d121b", surface: "#172030", text: "#ebe7df", muted: "#a3acbb", glow: "#22385a", font: "Marcellus" },
@@ -81,7 +81,7 @@ export const BUILT_INS: BuiltInEntry[] = [
     logo: "/collections/srd5e-logo.svg",
     accent: "#c9463d",
     tokens: 50,
-    preview: "/collections/srd5e-preview.svg",   // tools/make-crear-art.mjs
+    preview: { es: "/collections/srd5e-preview.svg", en: "/collections/srd5e-preview-en.svg" },   // tools/make-crear-art.mjs
     file: "/collections/srd5e.json",   // tools/make-srd5e-collection.mjs
     cover: "radial-gradient(120% 140% at 0% 0%, #4a2a22 0%, #2a1c18 55%, #150f0d 100%)",
     theme: { accent: "#c9463d", background: "#17110f", surface: "#231a17", text: "#efe6da", muted: "#b2a294", glow: "#3a1f1a", font: "Gloock" },
@@ -101,7 +101,7 @@ export const BUILT_INS: BuiltInEntry[] = [
     logo: "/collections/drawsteel-logo.svg",
     accent: "#d4a017",
     tokens: 39,
-    preview: "/collections/drawsteel-preview.svg",   // tools/make-drawsteel-collection.mjs
+    preview: { es: "/collections/drawsteel-preview.svg", en: "/collections/drawsteel-preview-en.svg" },   // tools/make-crear-art.mjs
     file: "/collections/drawsteel.json",   // tools/make-drawsteel-collection.mjs
     cover: "radial-gradient(120% 140% at 0% 0%, #3a3f47 0%, #23262b 55%, #141619 100%)",
     theme: { accent: "#d4a017", background: "#16181b", surface: "#202328", text: "#e8e6e1", muted: "#a3a7ad", glow: "#2b2f36", font: "Bricolage Grotesque" },

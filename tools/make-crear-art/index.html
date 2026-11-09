@@ -6,14 +6,14 @@
 <style>body { background: #1c1a18; color: #ece3d0; font: 15px system-ui; padding: 20px; } .out { display: flex; gap: 20px; align-items: start; flex-wrap: wrap; } .out > div { width: 460px; }</style>
 </head>
 <body>
-<!-- Draws the generic creator's front-page art with the app's engine, as two standalone SVG
-     files: public/crear-hero.svg (a honeycomb of tokens with the Tesserae Faber mark in the
-     middle) and public/collections/botc-preview.svg (a strip of Clocktower tokens for its
-     cover). Open it on the UI test server (port 5198) and use the links, or run
-     tools/make-crear-art.mjs, which saves both into public/. Names are outlines, so the files
-     need no font. -->
-<p>Arte de la portada de Crear. <a id="dlHero" download="crear-hero.svg">crear-hero.svg</a> · <a id="dlStrip" download="botc-preview.svg">botc-preview.svg</a></p>
-<div class="out"><div id="hero"></div><div id="strip"></div></div>
+<!-- Draws the generic creator's front-page art with the app's engine, as standalone SVG files, in
+     Spanish and in English (the page shows the one in the interface's language): public/crear-hero.svg
+     (a honeycomb of tokens with the Tesserae Faber mark in the middle) and each collection's cover
+     strip, public/collections/<id>-preview.svg; the English ones end in -en. Open it on the UI test
+     server (port 5198) to see them, or run tools/make-crear-art.mjs, which saves them into public/.
+     Names are outlines, so the files need no font. -->
+<p>Arte de la portada de Crear y las tiras de las colecciones, en español y en inglés.</p>
+<div class="out" id="out"></div>
 <script type="module">
 import { loadLibrary, tokenSvg, DEFAULT_SPEC, FILAMENTS } from "/src/engine/token-engine.ts";
 import { firestoreRoles } from "/tools/ui-test/mock-roles.js";
@@ -21,83 +21,72 @@ import { gameIcon } from "/src/icons.ts";
 
 const lib = await loadLibrary(await firestoreRoles.list());
 const role = (en) => lib.roles.find((r) => r.en === en);
-const base = { ...DEFAULT_SPEC, lang: "es", frame: "rim", frameWidth: 0.8, back: "edition", depth: 0.4, colours: { ...DEFAULT_SPEC.colours, base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } };
-// a range of designs, so the honeycomb shows what the app can do
-const D = {
-  edicion: base,
-  marfil: { ...base, frameWidth: 1, colours: { ...base.colours, base: FILAMENTS.white } },
-  noche: { ...base, frame: "fases" },
-  medianoche: { ...base, frame: "firmamento" },
-  ventana: { ...base, style: "window", textSize: 6, frame: "none", colours: { ...base.colours, base: FILAMENTS.white } },
-  doble: { ...base, style: "double" },
-  solo: { ...base, style: "solo" },
-};
-const own = async (name, path, colour, spec = base) => {
-  const icon = await gameIcon(path);
-  const r = { id: `own_${name}`, en: name, es: name, team: "townsfolk", edition: "own", editionName: "Tesserae Faber", d: [], body: "", g: "" };
-  return tokenSvg(lib, r, { ...spec, icon, colours: { ...spec.colours, front: colour, frame: colour } }, { text: name });
-};
-const botc = (en, spec = base) => tokenSvg(lib, role(en), spec);
 const logo = await (await fetch("/tesserae-faber.svg")).text();
-
-const COMB = [
-  await own("Dragón", "lorc/dragon-head", "#b3191e"), await own("Vidente", "lorc/crystal-ball", "#2f86e0"), await own("Mapa", "lorc/treasure-map", "#9a6a3a", D.marfil), await own("Lobo", "lorc/wolf-head", "#b3191e", D.noche),
-  await own("Oro", "delapouite/gold-stack", "#d4a72c", D.marfil), await own("Senador", "delapouite/greek-temple", "#ece9e2", { ...D.edicion, frame: "laurel" }), logo, await own("Envenenado", "lorc/poison-bottle", "#3f9651", D.solo), await own("Fuego", "lorc/fire-ring", "#e07a2f", D.medianoche),
-  await own("Jugador inicial", "lorc/crown", "#c9a227", D.doble), await own("Pócima", "lorc/potion-ball", "#8a3d9e", D.ventana), await own("Protegido", "lorc/eye-shield", "#8a3d9e", D.medianoche), await own("Ronda", "lorc/sands-of-time", "#2f86e0", D.ventana),
-];
 /** A token's SVG placed as a cell of a bigger one (its own viewBox kept). */
 const place = (svg, x, y, s, cls, i) => `<g class="${cls}" style="--i:${i}" filter="url(#lift)">${svg.replace(/<title>[\s\S]*?<\/title>/, "").replace(/<svg[^>]*?viewBox="([^"]+)"[^>]*>/, (_, vb) => `<svg x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${s}" height="${s}" viewBox="${vb}">`)}</g>`;
 const defs = `<defs><filter id="lift" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="9" stdDeviation="8" flood-color="#000" flood-opacity=".55"/></filter></defs>`;
+const icons = new Map(), iconOf = async (path) => { if (!icons.has(path)) icons.set(path, await gameIcon(path)); return icons.get(path); };
 
-// the honeycomb: 4 + 5 + 4 cells, 1000 × 926
-const W = 1000, H = 926, cell = 195, rows = [[0, 4], [4, 5], [9, 4]];
-let i = 0, cells = "";
-rows.forEach(([start, n], r) => {
-  for (let k = 0; k < n; k++, i++) {
-    const cx = W / 2 + (k - (n - 1) / 2) * 204, cy = H * (.24 + r * .26);
-    cells += place(COMB[start + k], cx - cell / 2, cy - cell / 2, cell, start + k === 6 ? "cell mark" : "cell", i);
-  }
-});
-const hero = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Fichas hechas con Tesserae Faber">${defs}${cells}</svg>`;
+// Everything in one language: names are [es, en]
+async function art(lang) {
+  const n = (names) => names[lang === "es" ? 0 : 1];
+  const base = { ...DEFAULT_SPEC, lang, frame: "rim", frameWidth: 0.8, back: "edition", depth: 0.4, colours: { ...DEFAULT_SPEC.colours, base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } };
+  // a range of designs, so the honeycomb shows what the app can do
+  const D = {
+    edicion: base,
+    marfil: { ...base, frameWidth: 1, colours: { ...base.colours, base: FILAMENTS.white } },
+    noche: { ...base, frame: "fases" },
+    medianoche: { ...base, frame: "firmamento" },
+    ventana: { ...base, style: "window", textSize: 6, frame: "none", colours: { ...base.colours, base: FILAMENTS.white } },
+    doble: { ...base, style: "double" },
+    solo: { ...base, style: "solo" },
+  };
+  const own = async (names, path, colour, spec = base) => {
+    const name = n(names), icon = await iconOf(path);
+    const r = { id: `own_${name}`, en: name, es: name, team: "townsfolk", edition: "own", editionName: "Tesserae Faber", d: [], body: "", g: "" };
+    return tokenSvg(lib, r, { ...spec, icon, colours: { ...spec.colours, front: colour, frame: colour } }, { text: name });
+  };
+  const botc = (en, spec = base) => tokenSvg(lib, role(en), spec);
 
-// the Clocktower cover's strip: five tokens, overlapping
-const STRIP = ["Fortune Teller", "Imp", "Empath", "Poisoner", "Undertaker"];
-const s = 120, step = 96;
-const strip = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${s + step * (STRIP.length - 1) + 20} ${s + 24}" role="img" aria-label="Fichas de Blood on the Clocktower">${defs}${STRIP.map((en, j) => place(botc(en), 10 + j * step, 6, s, "cell", j)).join("")}</svg>`;
+  const COMB = [
+    await own(["Dragón", "Dragon"], "lorc/dragon-head", "#b3191e"), await own(["Vidente", "Seer"], "lorc/crystal-ball", "#2f86e0"), await own(["Mapa", "Map"], "lorc/treasure-map", "#9a6a3a", D.marfil), await own(["Lobo", "Wolf"], "lorc/wolf-head", "#b3191e", D.noche),
+    await own(["Oro", "Gold"], "delapouite/gold-stack", "#d4a72c", D.marfil), await own(["Senador", "Senator"], "delapouite/greek-temple", "#ece9e2", { ...D.edicion, frame: "laurel" }), logo, await own(["Envenenado", "Poisoned"], "lorc/poison-bottle", "#3f9651", D.solo), await own(["Fuego", "Fire"], "lorc/fire-ring", "#e07a2f", D.medianoche),
+    await own(["Jugador inicial", "First player"], "lorc/crown", "#c9a227", D.doble), await own(["Pócima", "Potion"], "lorc/potion-ball", "#8a3d9e", D.ventana), await own(["Protegido", "Protected"], "lorc/eye-shield", "#8a3d9e", D.medianoche), await own(["Ronda", "Round"], "lorc/sands-of-time", "#2f86e0", D.ventana),
+  ];
+  // the honeycomb: 4 + 5 + 4 cells, 1000 × 926
+  const W = 1000, H = 926, cell = 195, rows = [[0, 4], [4, 5], [9, 4]];
+  let i = 0, cells = "";
+  rows.forEach(([start, k0], r) => {
+    for (let k = 0; k < k0; k++, i++) {
+      const cx = W / 2 + (k - (k0 - 1) / 2) * 204, cy = H * (.24 + r * .26);
+      cells += place(COMB[start + k], cx - cell / 2, cy - cell / 2, cell, start + k === 6 ? "cell mark" : "cell", i);
+    }
+  });
+  const hero = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="${n(["Fichas hechas con Tesserae Faber", "Tokens made with Tesserae Faber"])}">${defs}${cells}</svg>`;
 
-// Draw Steel's cover strip: some of its resources and a condition, in their groups' colours
-const DS = [["Impulso", "lorc/power-lightning", "#d4a72c"], ["Ira", "delapouite/enrage", "#b3191e"], ["Malicia", "lorc/imp-laugh", "#8a3d9e"], ["Victoria", "lorc/laurel-crown", "#d4a72c"], ["Sangrando", "lorc/bleeding-wound", "#a7adb4"]];
-const dsTokens = [];
-for (const [name, path, colour] of DS) dsTokens.push(await own(name, path, colour));
-const dsStrip = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${s + step * (DS.length - 1) + 20} ${s + 24}" role="img" aria-label="Fichas de Draw Steel">${defs}${dsTokens.map((svg, j) => place(svg, 10 + j * step, 6, s, "cell", j)).join("")}</svg>`;
-document.querySelector("#strip").insertAdjacentHTML("afterend", `<div>${dsStrip}</div>`);
+  // a cover strip: five tokens, overlapping
+  const s = 120, step = 96;
+  const strip = (svgs, label) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${s + step * (svgs.length - 1) + 20} ${s + 24}" role="img" aria-label="${n(label)}">${defs}${svgs.map((svg, j) => place(svg, 10 + j * step, 6, s, "cell", j)).join("")}</svg>`;
+  const ownStrip = async (list, label, spec = base) => { const svgs = []; for (const [names, path, colour] of list) svgs.push(await own(names, path, colour, spec)); return strip(svgs, label); };
 
-// 5e Fantasy's cover strip: a two-sided marker, three conditions and Bloodied, in their colours
-const SRD = [["Ventaja", "delapouite/dice-twenty-faces-twenty", "#d4a72c"], ["Asustado", "lorc/terror", "#8a3d9e"], ["Ensangrentado", "lorc/bleeding-heart", "#b3191e"], ["Envenenado", "lorc/poison-bottle", "#3f9651"], ["Paralizado", "delapouite/frozen-body", "#2f86e0"]];
-const srdTokens = [];
-for (const [name, path, colour] of SRD) srdTokens.push(await own(name, path, colour));
-const srdStrip = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${s + step * (SRD.length - 1) + 20} ${s + 24}" role="img" aria-label="Fichas de Fantasía 5e">${defs}${srdTokens.map((svg, j) => place(svg, 10 + j * step, 6, s, "cell", j)).join("")}</svg>`;
-document.querySelector("#strip").insertAdjacentHTML("afterend", `<div>${srdStrip}</div>`);
+  return {
+    hero,
+    // Clocktower's: its characters, in the language (the library has their names)
+    botc: strip(["Fortune Teller", "Imp", "Empath", "Poisoner", "Undertaker"].map((en) => botc(en)), ["Fichas de Blood on the Clocktower", "Blood on the Clocktower tokens"]),
+    // Draw Steel's: some of its resources and a condition, in their groups' colours
+    drawsteel: await ownStrip([[["Impulso", "Surge"], "lorc/power-lightning", "#d4a72c"], [["Ira", "Wrath"], "delapouite/enrage", "#b3191e"], [["Malicia", "Malice"], "lorc/imp-laugh", "#8a3d9e"], [["Victoria", "Victory"], "lorc/laurel-crown", "#d4a72c"], [["Sangrando", "Bleeding"], "lorc/bleeding-wound", "#a7adb4"]], ["Fichas de Draw Steel", "Draw Steel tokens"]),
+    // 5e Fantasy's: a two-sided marker, three conditions and Bloodied, in their colours
+    srd5e: await ownStrip([[["Ventaja", "Advantage"], "delapouite/dice-twenty-faces-twenty", "#d4a72c"], [["Asustado", "Frightened"], "lorc/terror", "#8a3d9e"], [["Ensangrentado", "Bloodied"], "lorc/bleeding-heart", "#b3191e"], [["Envenenado", "Poisoned"], "lorc/poison-bottle", "#3f9651"], [["Paralizado", "Paralyzed"], "delapouite/frozen-body", "#2f86e0"]], ["Fichas de Fantasía 5e", "5e Fantasy tokens"]),
+    // The Senate's: the three sides, the vote and the Consul, in their colours, in its laurel wreath
+    senado: await ownStrip([[["Republicano", "Republican"], "delapouite/greek-temple", "#ece9e2"], [["Conspirador", "Conspirator"], "lorc/cloak-dagger", "#b3191e"], [["Aspirante a César", "Aspiring Caesar"], "delapouite/caesar", "#8a3d9e"], [["Placet", "Placet"], "delapouite/thumb-up", "#2f86e0"], [["Cónsul", "Consul"], "lorc/laurel-crown", "#a7adb4"]], ["Fichas de El Senado", "The Senate tokens"], { ...base, frame: "laurel" }),
+    // The Werewolves': the Seer, the Werewolf, the Mayor, the Alpha Wolf and the Witch, in their sides' colours
+    werewolf: await ownStrip([[["Vidente", "Seer"], "lorc/crystal-ball", "#2f86e0"], [["Hombre lobo", "Werewolf"], "lorc/werewolf", "#b3191e"], [["Alcalde", "Mayor"], "delapouite/star-medal", "#d4a72c"], [["Lobo alfa", "Alpha Wolf"], "lorc/wolf-head", "#b3191e"], [["Bruja", "Witch"], "lorc/cauldron", "#2f86e0"]], ["Fichas de Hombres lobo", "Werewolves tokens"]),
+  };
+}
 
-// The Senate's cover strip: the three sides, the vote and the Consul, in their colours, in its laurel wreath
-const SEN = [["Republicano", "delapouite/greek-temple", "#ece9e2"], ["Conspirador", "lorc/cloak-dagger", "#b3191e"], ["Aspirante a César", "delapouite/caesar", "#8a3d9e"], ["Placet", "delapouite/thumb-up", "#2f86e0"], ["Cónsul", "lorc/laurel-crown", "#a7adb4"]];
-const senTokens = [];
-for (const [name, path, colour] of SEN) senTokens.push(await own(name, path, colour, { ...base, frame: "laurel" }));
-const senStrip = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${s + step * (SEN.length - 1) + 20} ${s + 24}" role="img" aria-label="Fichas de El Senado">${defs}${senTokens.map((svg, j) => place(svg, 10 + j * step, 6, s, "cell", j)).join("")}</svg>`;
-document.querySelector("#strip").insertAdjacentHTML("afterend", `<div>${senStrip}</div>`);
-
-// The Werewolves' cover strip: the Seer, the Werewolf, the Mayor, the Alpha Wolf and the Witch, in their sides' colours
-const WW = [["Vidente", "lorc/crystal-ball", "#2f86e0"], ["Hombre lobo", "lorc/werewolf", "#b3191e"], ["Alcalde", "delapouite/star-medal", "#d4a72c"], ["Lobo alfa", "lorc/wolf-head", "#b3191e"], ["Bruja", "lorc/cauldron", "#2f86e0"]];
-const wwTokens = [];
-for (const [name, path, colour] of WW) wwTokens.push(await own(name, path, colour));
-const wwStrip = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${s + step * (WW.length - 1) + 20} ${s + 24}" role="img" aria-label="Fichas de Hombres lobo">${defs}${wwTokens.map((svg, j) => place(svg, 10 + j * step, 6, s, "cell", j)).join("")}</svg>`;
-document.querySelector("#strip").insertAdjacentHTML("afterend", `<div>${wwStrip}</div>`);
-
-document.querySelector("#hero").innerHTML = hero;
-document.querySelector("#strip").innerHTML = strip;
-const link = (id, text) => { document.querySelector(id).href = URL.createObjectURL(new Blob([text], { type: "image/svg+xml" })); };
-link("#dlHero", hero); link("#dlStrip", strip);
-window.__art = { hero, strip, dsStrip, srdStrip, senStrip, wwStrip };
+const ART = { es: await art("es"), en: await art("en") };
+for (const [lang, a] of Object.entries(ART)) document.querySelector("#out").insertAdjacentHTML("beforeend", Object.values(a).map((svg) => `<div>${svg}</div>`).join(""));
+window.__art = ART;
 document.body.dataset.done = "1";
 </script>
 </body>
