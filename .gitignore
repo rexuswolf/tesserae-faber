@@ -25,3 +25,4 @@ tools/icon-review/
 tools/logo-options/
 tools/phone/
 tools/print-pdf/
+.env

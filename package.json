@@ -20,6 +20,7 @@
     "imagetracerjs": "^1.2.6",
     "jspdf": "^4.2.1",
     "jszip": "^3.10.1",
+    "posthog-js": "^1.447.4",
     "svg2pdf.js": "^2.9.0",
     "three": "^0.160.0"
   },

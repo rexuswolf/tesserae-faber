@@ -19,6 +19,7 @@ import { loadPicks, persistPicks, goStep, isPicked, stepInUrl } from "./queue.ts
 import { takeReturn } from "./design-sheet.ts";
 import { selectToken } from "./sheet.ts";
 import { guide, wireGuide } from "./guide.ts";
+import { posthogAppLogger } from "../posthog-logger.ts";
 
 // ------------------------------------------------------------ gate
 
@@ -157,6 +158,10 @@ function startApp() {
   if (!stepsWired) { stepsWired = true; window.addEventListener("popstate", () => { if (!TALLER) toStep(stepInUrl(), "keep"); }); }   // Back, Forward
   if (!OWN) { openSharedScript(); resumeHomebrew(); }
   if (!guide.wired) { guide.wired = true; wireGuide(); }
+  posthogAppLogger.info("application ready", {
+    collection_source: OWN ? "own" : "library",
+    role_count: state.lib!.roles.length,
+  });
 }
 
 /** The account corner: the admin's menu when signed in, a sign-in button only on ?admin. */

@@ -1,5 +1,6 @@
 // The app's entry: every part of it (src/app/), each wiring its own part of the page as it loads;
 // the app itself starts when sign-in answers (boot.ts).
+import "./posthog.ts";
 import "./handoff.ts";   // first: a browser arriving from midnight-mint.web.app brings its keepings
 import "./app/context.ts";
 import "./app/looks.ts";
