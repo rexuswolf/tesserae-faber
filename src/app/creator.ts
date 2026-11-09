@@ -1,7 +1,7 @@
 // Collections of your own: the creator, a token's panel, the collection's look and the list.
 import { emit } from "./events.ts";
 import { paintTesserae } from "./tesserae.ts";
-import { OWN, catalogsOf, nameIn, storeCollection, OWN_ID, builtIn, tallerUrl, readTokenList, newId, withName, copyBuiltIn, collectionUrl, collectionFile, readCollectionFile, addCollection, GROUP_COLOURS, SHAPES, collectionRoles, tokenRole as ownRole, isLocked, coinContent, THEMES, APP_LOGO, APP_LOGO_SMALL, APP_ICON, APP_NAME, hasCcc, THEME_FONTS, okLogo, builtInCollections, listCollections, lastCollection, openUrl, OWN_VIEW, LIST_URL, starterCollection, loadCollection, deleteCollection, isUntouchedStarter } from "../collection.ts";
+import { OWN, catalogsOf, nameIn, foldAbout, storeCollection, OWN_ID, builtIn, tallerUrl, readTokenList, newId, withName, copyBuiltIn, collectionUrl, collectionFile, readCollectionFile, addCollection, GROUP_COLOURS, SHAPES, collectionRoles, tokenRole as ownRole, isLocked, coinContent, THEMES, APP_LOGO, APP_LOGO_SMALL, APP_ICON, APP_NAME, hasCcc, THEME_FONTS, okLogo, builtInCollections, listCollections, lastCollection, openUrl, OWN_VIEW, LIST_URL, starterCollection, loadCollection, deleteCollection, isUntouchedStarter } from "../collection.ts";
 import type { OwnCatalog, OwnSection, OwnToken, OwnTheme, CollectionEntry, OwnFlip } from "../collection.ts";
 import { FILAMENT_SLOTS } from "../bambu/plates.ts";
 import { coll, TEAM_ORDER, TEAM_PLURAL, PLATE_LABEL, PLATE_GROUP, $$, stickyNotice, state, $, esc, READONLY, hit, input, BUILT } from "./context.ts";
@@ -765,8 +765,6 @@ function openOwnSettings() {
   $<HTMLInputElement>("#osCcc").checked = hasCcc(coll);
   $(".os-ccc").hidden = !hasCcc(coll);   // Clocktower's mark: only where a collection already carries it
   $<HTMLTextAreaElement>("#osAbout").value = nameIn(coll.about?.text, lang);
-  $<HTMLTextAreaElement>("#osCredits").value = nameIn(coll.about?.credits, lang);
-  $<HTMLTextAreaElement>("#osLinks").value = (coll.about?.links ?? []).map((l) => `${nameIn(l.label, lang)} | ${l.url}`).join("\n");
   renderOwnThemes();
   $<HTMLDialogElement>("#ownSettings").showModal();
 }
@@ -816,8 +814,8 @@ function wireOwnSettings() {
     delete coll.loader.ccc;   // the mark has its own field now
     if ($<HTMLInputElement>("#osCcc").checked) coll.ccc = true; else delete coll.ccc;
     if (!v("#osLoader")) delete coll.loader.text;
-    const links = v("#osLinks").split("\n").map((l) => l.split("|").map((x) => x.trim())).filter(([label, url]) => label && /^https?:\/\//.test(url ?? "")).map(([label, url]) => ({ label, url }));
-    coll.about = { text: withName(coll.about?.text ?? "", lang, v("#osAbout")), credits: withName(coll.about?.credits ?? "", lang, v("#osCredits")), links };
+    const about = foldAbout({ text: withName(coll.about?.text ?? "", lang, v("#osAbout")) });   // its other languages' as they were
+    if (about) coll.about = about; else delete coll.about;
     dlg.close();
     collectionChanged();
   };

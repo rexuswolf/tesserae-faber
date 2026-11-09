@@ -980,7 +980,13 @@ html[data-mode=own] .own-spine-h { display: none; }   /* the creator's sections 
 .os-custom > label:not(.field) { display: flex; gap: 6px; align-items: center; font-size: 13px; color: var(--dust); }
 .os-custom input[type=color] { width: 32px; height: 28px; border: 1px solid var(--seam); border-radius: 6px; background: none; padding: 0; }
 .own-about h3 { margin-top: 0; }
-.about-links a { color: var(--brass); }
+/* what a collection says about itself, in Markdown (src/markdown.ts) */
+.about-md > p:first-child { font-size: 15.5px; }
+.about-md a { color: var(--brass); overflow-wrap: anywhere; }
+.about-md h4 { margin: 16px 0 6px; font-size: 14px; letter-spacing: .02em; }
+.about-md :is(ul, ol) { margin: 0 0 10px; padding-left: 20px; }
+.about-md li { margin-bottom: 4px; }
+.os-about { resize: vertical; min-height: 9em; }
 .brand-title { font: 700 20px/1.1 var(--display); letter-spacing: -.01em; color: var(--bone); }
 .brand .brand-title { margin-left: 2px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gate-title-brand { margin: 6px 0 0; font-size: 28px; text-align: center; }

@@ -874,9 +874,8 @@
   <label class="field"><span data-i18n="own.loaderText"></span><input class="text" id="osLoader" autocomplete="off" data-i18n-attr="placeholder:gate.opening"></label>
   <label class="check os-ccc"><input type="checkbox" id="osCcc"> <span><span data-i18n="own.cccLabel"></span><small data-i18n="own.cccHelp"></small></span></label>
   <h3 data-i18n="own.aboutH"></h3>
-  <label class="field"><span data-i18n="own.aboutText"></span><textarea class="text" id="osAbout" rows="4"></textarea></label>
-  <label class="field"><span data-i18n="own.aboutCredits"></span><textarea class="text" id="osCredits" rows="2"></textarea></label>
-  <label class="field"><span data-i18n="own.aboutLinks"></span><textarea class="text" id="osLinks" rows="2" spellcheck="false" placeholder="Web | https://…"></textarea></label>
+  <!-- one block of Markdown: what it is, its credits and its links (src/markdown.ts) -->
+  <label class="field"><span data-i18n="own.aboutText"></span><textarea class="text os-about" id="osAbout" rows="10"></textarea><small class="hint" data-i18n="own.aboutHelp"></small></label>
   </details>
   <div class="dialog-actions"><button class="pill" type="button" id="osCancel" data-i18n="script.cancel"></button><button class="forge" type="button" id="osSave" data-i18n="own.save"></button></div>
 </dialog>

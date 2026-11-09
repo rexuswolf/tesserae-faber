@@ -82,8 +82,23 @@ export interface OwnSection { id: string; title: Names; open: boolean; catalogs:
 export const hasCcc = (c: { ccc?: boolean; loader?: { ccc?: boolean } }) => !!(c.ccc || c.loader?.ccc);
 /** A collection's colours: the app's surfaces, text and accent (see THEMES for ready ones). */
 export interface OwnTheme { accent: Hex; background: Hex; surface: Hex; text: Hex; muted: Hex; glow?: Hex; font?: string }
-/** What the collection says about itself, at the top of "About". */
-export interface OwnAbout { text?: Names; credits?: Names; links?: { label: Names; url: string }[] }
+/** What the collection says about itself, at the top of "About": one block of Markdown (src/markdown.ts), what it is, its credits and its links. */
+export interface OwnAbout { text?: Names }
+/**
+ * An About as it's kept now, from one as it may come (a file or a browser from before): its credits
+ * and its links were apart, and follow its text now, the links as Markdown on a line of their own.
+ * Nothing in it: none.
+ */
+export function foldAbout(a: unknown): OwnAbout | undefined {
+  if (!a || typeof a !== "object") return undefined;
+  const { text, credits, links } = a as { text?: unknown; credits?: unknown; links?: unknown };
+  const okLinks = (Array.isArray(links) ? links : []).filter((l): l is { label: Names; url: string } => !!l && okName(l.label) && /^https?:\/\/\S+$/.test(String(l.url)));
+  const parts = [okName(text) ? text : undefined, okName(credits) ? credits : undefined].filter((n): n is Names => n != null);
+  const langs = [...new Set([...parts, ...okLinks.map((l) => l.label)].flatMap((n) => (typeof n === "string" ? [] : Object.keys(n))))];
+  const one = (lang: string) => [...parts.map((n) => nameIn(n, lang).trim()), okLinks.map((l) => `[${nameIn(l.label, lang)}](${l.url})`).join(" · ")].filter(Boolean).join("\n\n");
+  const folded: Names = langs.length ? Object.fromEntries(langs.map((l) => [l, one(l)])) : one("");
+  return (typeof folded === "string" ? folded : Object.values(folded).join("")).trim() ? { text: folded } : undefined;
+}
 /** Its mark: a logo (an image as a data: URI, an https address, or one of the app's own files) and a name to show beside it instead of the collection's. */
 export interface OwnBrand { logo?: string; title?: Names }
 /** A logo a collection may carry: an uploaded image, or one on the web. */
@@ -284,6 +299,7 @@ function upgrade(c: Collection & { catalogs?: OwnCatalog[] }): Collection {
   }
   if (!c.sections) { c.sections = [{ id: "s1", title: "Catálogos", open: true, catalogs: c.catalogs ?? [] }]; delete c.catalogs; }
   upgradeBasicStyles(c.styles);
+  if (c.about) { const about = foldAbout(c.about); if (about) c.about = about; else delete c.about; }   // its credits and links: in its text now
   return c;
 }
 export function listCollections(): CollectionEntry[] {
@@ -576,10 +592,7 @@ export async function readCollectionFile(data: unknown, onProgress: (done: numbe
     name: okName(f.name) ? f.name : "Mi colección",
     ...(f.ccc || f.loader?.ccc ? { ccc: true } : {}),
     ...(readTheme(f.theme) ? { theme: readTheme(f.theme) } : {}),
-    ...(f.about && typeof f.about === "object" ? { about: {
-      ...(okName(f.about.text) ? { text: f.about.text } : {}), ...(okName(f.about.credits) ? { credits: f.about.credits } : {}),
-      ...(Array.isArray(f.about.links) ? { links: f.about.links.filter((l) => l && okName(l.label) && /^https?:\/\//.test(String(l.url))).map((l) => ({ label: l.label, url: String(l.url) })) } : {}),
-    } } : {}),
+    ...(foldAbout(f.about) ? { about: foldAbout(f.about) } : {}),
     ...(f.brand && typeof f.brand === "object" ? { brand: { ...(okLogo(f.brand.logo) ? { logo: f.brand.logo } : {}), ...(okName(f.brand.title) ? { title: f.brand.title } : {}) } } : {}),
     ...(f.loader && typeof f.loader === "object" ? { loader: { ...(okName(f.loader.text) ? { text: f.loader.text } : {}), ...(okName(f.loader.footer) ? { footer: f.loader.footer } : {}), ...(f.loader.ccc ? { ccc: true } : {}) } } : {}),
     ...(Array.isArray(f.languages) ? { languages: f.languages.map(String).filter((l) => /^[a-z]{2,3}(-[a-z0-9]+)*$/.test(l)) } : {}),

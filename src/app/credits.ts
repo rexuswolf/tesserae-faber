@@ -7,6 +7,7 @@ import type { TokenIcon } from "../types.ts";
 import { UI_ICONS } from "../ui-icons.ts";
 import { builtIn, OWN, OWN_ID, nameIn, hasCcc } from "../collection.ts";
 import { drawer } from "./scripts-ui.ts";
+import { markdown } from "../markdown.ts";
 
 // ------------------------------------------------------------ credits
 
@@ -44,12 +45,10 @@ function openCredits() {
     <summary><b>${esc(authorName(a))}</b> <small>${esc(t("credits.count", { n: set.size }))}</small></summary>
     <p>${[...set].sort().map((i) => link(`https://game-icons.net/1x1/${encodeURIComponent(a)}/${encodeURIComponent(i)}.html`, i)).join(", ")}</p></details></li>`).join("");
 
-  // First the collection: what it says about itself (a built-in one: in the code, src/builtins.ts), its links and its mark
+  // First the collection: what it says about itself, its credits and links in it (Markdown; a built-in one's: in the code, src/builtins.ts), and its mark
   const lang = uiLang(), built = builtIn(OWN ? OWN_ID ?? "" : "botc");
   const a = built?.about ?? (OWN ? coll.about : undefined), cname = nameIn(built?.name ?? coll.name, lang);
-  const paras = (n: Parameters<typeof nameIn>[0] | undefined, cls = "") => nameIn(n, lang).split(/\n\s*\n/).filter((x) => x.trim()).map((x) => `<p${cls}>${esc(x.trim())}</p>`).join("");
-  const own = a ? `<section class="about own-about"><h3>${esc(cname)}</h3>${paras(a?.text)}${paras(a?.credits, ' class="hint"')}
-      ${a?.links?.length ? `<p class="about-links">${a.links.map((l) => link(l.url, nameIn(l.label, lang))).join(" · ")}</p>` : ""}</section>` : "";
+  const own = a?.text ? `<section class="about own-about"><h3>${esc(cname)}</h3><div class="about-md">${markdown(nameIn(a.text, lang))}</div></section>` : "";
   const mark = built?.mark ? `<div class="about-ccc about-mark"><img src="${esc(built.mark.src)}" alt="${esc(built.mark.alt)}"${built.mark.invert ? ' class="invert"' : ""}><p>${esc(nameIn(built.mark.notice, lang))}</p></div>` : "";
   const ccc = (built ? built.ccc : hasCcc(coll)) ? `<div class="about-ccc"><img src="/ccc-sleeve.png" alt="Community Created Content"><p>${esc(t("ccc.app"))}</p></div>` : "";
   // About: what the app is and how it treats your things, then the credits
