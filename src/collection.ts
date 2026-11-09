@@ -348,6 +348,17 @@ const namesOf = (n: Names) => (typeof n === "string" ? { en: n, es: n } : n);
 /** An icon's credit, when it's from game-icons.net. */
 const creditOf = (icon: TokenIcon | null) => (icon?.source === "game-icons" ? { icon: icon.name, author: icon.author } : {});
 
+/** Whether a token's text says nothing (emptied, in every language); none written, it says its name. */
+export const emptyText = (t: OwnToken) => t.text != null && !Object.values(namesOf(t.text)).some((v) => v.trim());
+/** What a coin of yours prints: what it carries, less what it lacks (an icon, a text). */
+export function coinContent(t: OwnToken): TokenContent | undefined {
+  const c = t.content ?? "both", icon = !!t.icon, text = !emptyText(t);
+  if (c === "none" || (!icon && !text)) return "none";
+  if (c === "both") return !icon ? "text" : !text ? "icon" : t.content;
+  if (c === "icon" && !icon) return "text";
+  if (c === "text" && !text) return "icon";
+  return t.content;
+}
 export function tokenRole(c: Collection, t: OwnToken, lang = "es"): Role {
   // what it prints: its text (empty: nothing), else its name; its name names it in your lists (listNames) when they differ
   const names = namesOf(t.text ?? t.name), own = namesOf(t.name);
@@ -355,8 +366,8 @@ export function tokenRole(c: Collection, t: OwnToken, lang = "es"): Role {
   const type = c.types.find((x) => x.id === t.type);
   // the Edition back: the first closed catalog it's in ("Trouble Brewing"), else the collection's name
   const home = c.sections.find((s) => !s.open && s.catalogs.some((k) => k.tokens.includes(t.id)))?.catalogs.find((k) => k.tokens.includes(t.id));
-  // its icon alone, without one: its name (not a blank token)
-  const content = t.content === "icon" && !t.icon && type?.shape !== "base" ? "text" : t.content;
+  // a coin carries what it has: without an icon, its text alone; without a text, its icon alone; without either, nothing
+  const content = type?.shape === "coin" ? coinContent(t) : t.content === "icon" && !t.icon && type?.shape !== "base" ? "text" : t.content;
   const icon = content === "text" || content === "none" ? null : t.icon;   // only its name, or nothing: its icon kept for later, not drawn
   return {
     id: t.id, en: nameIn(names, "en"), es: nameIn(names, "es"), names: Object.fromEntries([...langs].map((l) => [l, nameIn(names, l)])), fem: t.fem ?? {},

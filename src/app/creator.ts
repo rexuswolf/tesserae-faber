@@ -1,7 +1,7 @@
 // Collections of your own: the creator, a token's panel, the collection's look and the list.
 import { emit } from "./events.ts";
 import { paintTesserae } from "./tesserae.ts";
-import { OWN, catalogsOf, nameIn, storeCollection, OWN_ID, builtIn, tallerUrl, readTokenList, newId, withName, copyBuiltIn, collectionUrl, collectionFile, readCollectionFile, addCollection, GROUP_COLOURS, SHAPES, collectionRoles, tokenRole as ownRole, isLocked, THEMES, APP_LOGO, APP_LOGO_SMALL, APP_ICON, APP_NAME, hasCcc, THEME_FONTS, okLogo, builtInCollections, listCollections, lastCollection, openUrl, OWN_VIEW, LIST_URL, starterCollection, loadCollection, deleteCollection, isUntouchedStarter } from "../collection.ts";
+import { OWN, catalogsOf, nameIn, storeCollection, OWN_ID, builtIn, tallerUrl, readTokenList, newId, withName, copyBuiltIn, collectionUrl, collectionFile, readCollectionFile, addCollection, GROUP_COLOURS, SHAPES, collectionRoles, tokenRole as ownRole, isLocked, coinContent, THEMES, APP_LOGO, APP_LOGO_SMALL, APP_ICON, APP_NAME, hasCcc, THEME_FONTS, okLogo, builtInCollections, listCollections, lastCollection, openUrl, OWN_VIEW, LIST_URL, starterCollection, loadCollection, deleteCollection, isUntouchedStarter } from "../collection.ts";
 import type { OwnCatalog, OwnSection, OwnToken, OwnTheme, CollectionEntry, OwnFlip } from "../collection.ts";
 import { coll, TEAM_ORDER, TEAM_PLURAL, PLATE_LABEL, PLATE_GROUP, $$, stickyNotice, state, $, esc, READONLY, hit, input, BUILT, COLOUR_CHOICES } from "./context.ts";
 import type { Creating } from "./context.ts";
@@ -510,6 +510,7 @@ const CONTENTS: Record<TokenShape, TokenContent[]> = { coin: ["both", "icon", "t
 /** What the token carries now: its own choice, else what its design's layout shows (an icon-only or text-only coin). */
 function contentNow(tk: OwnToken, shape: TokenShape): TokenContent {
   const opts = CONTENTS[shape];
+  if (shape === "coin") { const c = coinContent(tk); if (c && c !== tk.content) return c; }   // what it lacks, it doesn't carry
   if (tk.content === "icon" && !tk.icon && shape !== "base") return "text";   // its icon alone, without one: its name
   if (tk.content && opts.includes(tk.content)) return tk.content;
   const role = roleById(tk.id), look = role ? lookOf(charKey(role)) : null;

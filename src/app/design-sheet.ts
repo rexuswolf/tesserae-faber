@@ -471,7 +471,8 @@ function renderStyleTiles(face: { role: Role; text: string }, spec: TokenSpec) {
   $("[data-choice=style]").innerHTML = TOKEN_STYLES.map((st) => {
     const need = needs(st.id), waits = !!need;
     const drawn = own ? roleWithContent(face.role.id, need && st.id === "solo" ? "none" : contentOfStyle(st.id)) ?? face.role : face.role;
-    const role = noIcon && st.id !== "text" ? { ...drawn, ...ASK_ICON } : drawn;   // the icon it waits for, a die of question marks
+    // a layout that waits, drawn as it will be: the icon it waits for a die of question marks (its text, Lorem ipsum)
+    const role = need ? { ...drawn, ...(noIcon && st.id !== "text" ? ASK_ICON : {}), content: contentOfStyle(st.id) } : drawn;
     return `<button class="back-tile" type="button" data-v="${st.id}" aria-pressed="${pressed === st.id}"${waits ? ` disabled title="${esc(t(need))}"` : ""}>${
       tokenSvg(state.lib!, role, { ...s, style: st.id, ...(st.id !== s.style ? { textSize: LAYOUT_TEXT[st.id] } : {}) }, { text: noText && st.id !== "solo" ? SAMPLE_TEXT : face.text })
     }<span>${esc(t(`style.${st.id}`))}</span>${waits ? `<small>${esc(t(need))}</small>` : ""}</button>`;
