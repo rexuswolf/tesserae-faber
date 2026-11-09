@@ -295,16 +295,24 @@ const S = (x: number, y: number, z: number) => M().makeScale(x, y, z);
 const RZ = (a: number) => M().makeRotationZ(a);
 const chain = (...ms: THREE.Matrix4[]) => ms.reduce((acc, m) => acc.multiply(m), M());
 
+/**
+ * A full circle as arcs, one every ~3 mm of radius: each curve is cut into a set number of segments
+ * (curveSegments, getPoints), so one arc for a 20 mm circle leaves it a polygon you can see; a bead stays one arc.
+ */
+function circlePath<T extends THREE.Path>(p: T, x: number, y: number, r: number, cw: boolean): T {
+  const n = Math.max(1, Math.ceil(r / 3));
+  for (let i = 0; i < n; i++) {
+    const a0 = (cw ? -1 : 1) * (i * TAU) / n, a1 = (cw ? -1 : 1) * ((i + 1) * TAU) / n;
+    p.absarc(x, y, r, a0, a1, cw);
+  }
+  return p;
+}
 function circleShape(r: number) {
-  const s = new THREE.Shape();
-  s.absarc(0, 0, r, 0, Math.PI * 2, false);
-  return s;
+  return circlePath(new THREE.Shape(), 0, 0, r, false);
 }
 function ringShape(rOuter: number, rInner: number) {
   const s = circleShape(rOuter);
-  const hole = new THREE.Path();
-  hole.absarc(0, 0, rInner, 0, Math.PI * 2, true);
-  s.holes.push(hole);
+  s.holes.push(circlePath(new THREE.Path(), 0, 0, rInner, true));
   return s;
 }
 function rectShape(x0: number, y0: number, x1: number, y1: number) {
@@ -989,11 +997,10 @@ const pt = (r: number, a: number) => new THREE.Vector2(r * Math.cos(a), r * Math
 /** pt as [x, y], to spread into a shape's position. */
 const ptXY = (r: number, a: number) => pt(r, a).toArray() as [number, number];
 const polygon = (points: THREE.Vector2[]) => new THREE.Shape(points);
-function disc(r: number, x = 0, y = 0) { const sh = new THREE.Shape(); sh.absarc(x, y, r, 0, TAU, false); return sh; }
+function disc(r: number, x = 0, y = 0) { return circlePath(new THREE.Shape(), x, y, r, false); }
 function annulus(rOut: number, rIn: number, x = 0, y = 0) {
   const sh = disc(rOut, x, y);
-  const hole = new THREE.Path(); hole.absarc(x, y, rIn, 0, TAU, true);
-  sh.holes.push(hole);
+  sh.holes.push(circlePath(new THREE.Path(), x, y, rIn, true));
   return sh;
 }
 /** A tapered hand or ray from r0 to r1 at angle a: width w0 at the base, w1 at the tip. */
