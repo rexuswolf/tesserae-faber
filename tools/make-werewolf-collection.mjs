@@ -4,8 +4,8 @@
 // the common roles by their plain names, none of a commercial edition's, and game-icons.net icons.
 //   node tools/make-werewolf-collection.mjs
 // Groups: the village (blue), the werewolves (red), the loners (purple) and the markers (gold): the
-// Mayor, the Lovers, Protected, Dead, the Witch's two potions (two-sided: turned over when used) and
-// Night / Day (two-sided). The icons were chosen in tools/werewolf-protos.
+// Mayor, the Lovers, Protected, Dead and the Witch's two potions (two-sided: turned over when used).
+// No Night / Day: the narrator says the phase aloud, with everyone's eyes shut. The icons were chosen in tools/werewolf-protos.
 import fs from "node:fs";
 import path from "node:path";
 import { BUILT_INS } from "../src/builtins.ts";   // its theme, loading line and About: one place
@@ -57,8 +57,6 @@ const MARKERS = [
   // the Witch's: each turned over when she uses it
   tok("pocion-vida", "marcas", { es: "Poción de vida", en: "Healing potion" }, "health-potion", flip({ es: "Usada", en: "Used" }, "broken-bottle")),
   tok("pocion-muerte", "marcas", { es: "Poción de muerte", en: "Poison potion" }, "poison-bottle", flip({ es: "Usada", en: "Used" }, "broken-bottle")),
-  // the phase, for the table: turned over at dawn and at dusk
-  tok("noche", "marcas", { es: "Noche", en: "Night" }, "night-sky", flip({ es: "Día", en: "Day" }, "sun")),
 ];
 const tokens = [...VILLAGE, ...WOLVES, ...LONERS, ...MARKERS];
 const ids = (list) => list.map((t) => t.id);
@@ -93,13 +91,13 @@ const collection = {
     { id: "aldea", name: { es: "La aldea", en: "Village" }, colour: C.blue, iconBody: bare("village") },
     { id: "lobos", name: { es: "Los lobos", en: "Werewolves" }, colour: C.red, iconBody: bare("werewolf") },
     { id: "solos", name: { es: "Por su cuenta", en: "Loners" }, colour: C.purple, iconBody: bare("leather-vest") },
-    { id: "marcas", name: { es: "Marcadores", en: "Markers" }, colour: C.gold, iconBody: bare("night-sky") },
+    { id: "marcas", name: { es: "Marcadores", en: "Markers" }, colour: C.gold, iconBody: bare("star-medal") },
   ],
   tokens,
   sections: [
     { id: "hombres-lobo", title: { es: "Hombres lobo", en: "Werewolves" }, open: false, catalogs: [
       // the classic game: the first three roles there were, the Doctor, and the table's markers
-      { id: "clasica", name: { es: "Partida clásica", en: "Classic game" }, tokens: ["aldeano", "lobo", "vidente", "medico", "alcalde", "muerto", "protegido", "noche"] },
+      { id: "clasica", name: { es: "Partida clásica", en: "Classic game" }, tokens: ["aldeano", "lobo", "vidente", "medico", "alcalde", "muerto", "protegido"] },
       // every role and marker, to queue in one go
       { id: "completa", name: { es: "Todo", en: "Everything" }, tokens: [...ids(VILLAGE), ...ids(WOLVES), ...ids(LONERS), ...ids(MARKERS)] },
     ] },
