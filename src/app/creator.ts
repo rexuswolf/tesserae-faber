@@ -269,14 +269,18 @@ const colourSwatches = (now: string | undefined, data: (hex: string) => string) 
     `<button type="button" class="swatch${metal(c)}" style="--c: ${c}" ${data(c)} aria-pressed="${c === cur}" aria-label="${esc(colourName(c))}" title="${esc(colourName(c))}"></button>`).join("");
 };
 
-/** The settings' Categories: each one's name, colour and how many tokens it has; a new one; one taken out (its tokens go to another, said first). */
+/**
+ * The settings' Categories, a line each: its colour (a dot: the swatches open under it), its name,
+ * how many tokens it has, and Remove (its tokens go to another, said first); then a new one.
+ */
 function renderOwnGroups() {
   const lang = uiLang();
   $("#ownGroupList").innerHTML = coll.groups.map((g) => `<div class="own-group">
+    <details class="og-colour"><summary class="og-dot${metal(g.colour)}" style="--c: ${g.colour}" title="${esc(colourName(g.colour))}" aria-label="${esc(t("own.colour"))}: ${esc(colourName(g.colour))}"></summary>
+      <span class="own-swatches og-menu">${colourSwatches(g.colour, (c) => `data-colour="${c}" data-for="${esc(g.id)}"`)}</span></details>
     <input class="text" value="${esc(nameIn(g.name, lang))}" data-gname="${esc(g.id)}" aria-label="${esc(t("own.groupNameLabel"))}">
-    <span class="own-swatches">${colourSwatches(g.colour, (c) => `data-colour="${c}" data-for="${esc(g.id)}"`)}</span>
     <small>${esc(t("own.groupCount", { n: coll.tokens.filter((tk) => tk.group === g.id).length }))}</small>
-    ${coll.groups.length > 1 ? `<button class="link" type="button" data-gdel="${esc(g.id)}">${esc(t("own.deleteGroup"))}</button>` : ""}
+    ${coll.groups.length > 1 ? `<button class="link" type="button" data-gdel="${esc(g.id)}">${esc(t("own.deleteGroup"))}</button>` : "<span></span>"}
   </div>`).join("");
 }
 
@@ -888,6 +892,14 @@ function wireOwnSettings() {
       coll.groups = coll.groups.filter((x) => x.id !== id); groupsChanged();
     }
   };
+  // a category's swatches: one open at a time, closed by a click elsewhere
+  document.addEventListener("click", (e) => {
+    for (const d of $$<HTMLDetailsElement>("#ownGroupList .og-colour[open]")) if (!d.contains(e.target as Node)) d.open = false;
+  });
+  $("#ownGroupList").addEventListener("toggle", (e) => {
+    const d = e.target as HTMLDetailsElement;
+    if (d.open) for (const x of $$<HTMLDetailsElement>("#ownGroupList .og-colour[open]")) if (x !== d) x.open = false;
+  }, true);
   $("#ownGroupList").oninput = (e) => {
     const el = e.target as HTMLInputElement, g = coll.groups.find((x) => x.id === el.dataset.gname); if (!g || !el.value.trim()) return;
     g.name = withName(g.name, uiLang(), el.value.trim()); applyGroups(); changed();

@@ -993,9 +993,17 @@ html[data-mode=own]:not([data-theme=botc]) h1, html[data-mode=own]:not([data-the
 .own-linked { display: grid; gap: 6px; margin: 6px 0; }
 .own-link { display: flex; gap: 6px; align-items: center; }
 .own-cats { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 4px; }
-.own-groups { display: grid; gap: 10px; margin: 8px 0 12px; }
-.own-group { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 10px; align-items: center; padding-bottom: 10px; border-bottom: 1px solid var(--seam); }
-.own-group small { color: var(--dust); }
+.own-groups { display: grid; margin: 8px 0 12px; }
+/* a category, a line: its colour (a dot, its swatches under it), its name, its count, Remove */
+.own-group { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--seam); }
+.own-group small { color: var(--dust); white-space: nowrap; }
+.own-group .text { padding-block: 6px; }
+.og-colour { position: relative; }
+.og-dot { display: block; width: 26px; height: 26px; border-radius: 50%; background-color: var(--c); background-origin: border-box; cursor: pointer; list-style: none; border: 2px solid color-mix(in srgb, var(--bone) 25%, transparent); }
+.og-dot::-webkit-details-marker { display: none; }
+.og-colour[open] .og-dot { outline: 2px solid var(--bone); outline-offset: 2px; }
+.og-dot.metal { background-image: linear-gradient(135deg, rgb(255 255 255 / .6) 0%, rgb(255 255 255 / 0) 42%, rgb(0 0 0 / .32) 100%); }
+.og-menu { position: absolute; z-index: 5; top: calc(100% + 8px); left: -6px; width: max-content; max-width: min(320px, 80vw); padding: 10px; border: 1px solid var(--seam); border-radius: 10px; background: var(--velvet); box-shadow: 0 8px 24px rgb(0 0 0 / .4); }
 .own-swatches { display: flex; gap: 9px; flex-wrap: wrap; grid-column: 1 / -1; }
 .own-swatches button { width: 24px; height: 24px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; padding: 0; }
 .own-swatches .swatch { background-color: var(--c); background-origin: border-box; background-repeat: no-repeat; }   /* the metals' sheen over the whole disc, its edge too (not a square inside it) */
