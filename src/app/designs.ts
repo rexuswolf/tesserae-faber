@@ -197,7 +197,7 @@ function keptStyles(place: (v: TokenOverride) => TokenOverride): { styles: Recor
   return { styles, overrides };
 }
 /** The collection's name, after a design of yours that came from it whose name was taken. */
-export const collLabel = () => (OWN ? nameIn(coll.brand?.title, uiLang()) || nameIn(coll.name, uiLang()) : "Clocktower");
+export const collLabel = () => (OWN ? nameIn(coll.name, uiLang()) : "Clocktower");
 /** A collection's styles and its tokens' own, as designs, defaults and overrides (see loadDesigns). */
 function fromStyles(styles: Record<TokenShape, Style[]>, overrides: Map<string, TokenOverride>) {
   const looks = [...overrides.values()].flatMap((v) => (v.look ? [v.look] : []));

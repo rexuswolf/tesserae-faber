@@ -103,7 +103,7 @@ export async function openTaller() {
   const params = new URLSearchParams(location.search), path = params.get("from") ?? "";
   const id = /^\/botc(\/|$)/.test(path) ? "botc" : path.match(/^\/c\/([\w-]+)/)?.[1] ?? null;
   const c = id ? (builtIn(id) ? await readBuiltIn(id) : loadCollection(id)) : null;
-  const label = (x: Collection) => (id === "botc" ? "Blood on the Clocktower" : nameIn(x.brand?.title, uiLang()) || nameIn(x.name, uiLang()));
+  const label = (x: Collection) => (id === "botc" ? "Blood on the Clocktower" : nameIn(x.name, uiLang()));
   if (c && id) { setColl(c); taller.from = { path, id, name: label(c) }; applyGroups(); }
   applyOwnTheme();   // the collection's colours (Clocktower's velvet), else Tesserae Faber's
   // the bases: Basic first (each shape's first basic design, named Basic), then the collection's own

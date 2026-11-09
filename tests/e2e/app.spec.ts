@@ -61,7 +61,8 @@ test("a collection that doesn't fit says so, until a save fits again", async ({ 
     for (const size of [400000, 40000, 4000, 400, 40]) { const s = "x".repeat(size); try { for (;;) localStorage.setItem("junk" + n++, s); } catch { /* full */ } }
     (window as unknown as { junk: number }).junk = n;
     (document.querySelector('[data-coll="settings"]') as HTMLElement).click();
-    (document.querySelector("#osAbout") as HTMLTextAreaElement).value = "y".repeat(5000);
+    const about = document.querySelector("#osAbout") as HTMLTextAreaElement;
+    about.value = "y".repeat(5000); about.dispatchEvent(new Event("input"));
     (document.querySelector("#osSave") as HTMLElement).click();
   });
   const notice = page.locator('.update-toast[data-kind="storage"]');
@@ -69,7 +70,8 @@ test("a collection that doesn't fit says so, until a save fits again", async ({ 
   // room again: the next save fits and the notice goes
   await page.evaluate(() => {
     for (let i = 0; i < (window as unknown as { junk: number }).junk; i++) localStorage.removeItem("junk" + i);
-    (document.querySelector('[data-coll="settings"]') as HTMLElement).click();
+    const about = document.querySelector("#osAbout") as HTMLTextAreaElement;
+    about.value = "z"; about.dispatchEvent(new Event("input"));
     (document.querySelector("#osSave") as HTMLElement).click();
   });
   await expect(notice).toHaveCount(0);

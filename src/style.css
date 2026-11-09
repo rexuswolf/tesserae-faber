@@ -45,10 +45,10 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .app { height: 100%; display: grid; grid-template-rows: auto minmax(0, 1fr) auto;
   grid-template-columns: var(--spine-w) minmax(0, 1fr); grid-template-areas: "top top" "spine main" "spine bar"; }
 .app[data-step="2"] { grid-template-columns: 400px minmax(0, 1fr); grid-template-areas: "top top" "ws main" "bar bar"; }
-.app[data-step="3"] { grid-template-columns: minmax(0, 1fr); grid-template-areas: "top" "main" "bar"; }
+.app[data-step="3"], .app[data-step="4"] { grid-template-columns: minmax(0, 1fr); grid-template-areas: "top" "main" "bar"; }
 .app:not([data-step="1"]) .spine, .app:not([data-step="1"]) .sheet,
 .app:not([data-step="2"]) .workshop, .app:not([data-step="2"]) .design-stage,
-.app:not([data-step="3"]) .print-page { display: none; }
+.app:not([data-step="3"]) .print-page, .app:not([data-step="4"]) .settings-page { display: none; }
 
 /* spine */
 .spine { grid-area: spine; background: var(--velvet); border-right: 1px solid var(--seam); display: flex; flex-direction: column; min-height: 0; }
@@ -637,6 +637,32 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 /* step 3: how to print */
 .print-page { grid-area: main; overflow-y: auto; min-width: 0; padding: 26px 28px 40px; }
+/* a collection's settings: a page, its parts as tabs, Save at its foot */
+.settings-page { grid-area: main; overflow-y: auto; min-width: 0; display: flex; flex-direction: column; padding: 26px 28px 0;
+  background: radial-gradient(80% 50% at 25% 0%, var(--glow, transparent), transparent 70%), var(--velvet-deep); }
+.sp-in { width: 100%; max-width: 1040px; margin: 0 auto; flex: 1; }
+.sp-in > h2 { font: 400 34px/1.1 var(--display); margin: 0 0 4px; }
+.sp-lead { margin: 0 0 14px; max-width: 70ch; }
+.sp-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--seam); margin-bottom: 20px; overflow-x: auto; }
+.sp-tabs button { border: 0; background: none; padding: 10px 14px; color: var(--dust); font-size: 15px; white-space: nowrap; cursor: pointer; }
+.sp-tabs button[aria-selected=true] { color: var(--bone); font-weight: 600; box-shadow: inset 0 -2px 0 var(--brass); }
+.sp-panel { max-width: 720px; padding-bottom: 28px; }
+.sp-panel[data-sp="about"] { max-width: none; }
+.sp-panel h3 { margin: 22px 0 10px; font-size: 16px; }
+.sp-panel h3:first-child { margin-top: 0; }
+.sp-actions { position: sticky; bottom: 0; display: flex; align-items: center; justify-content: flex-end; gap: 10px; width: 100%; max-width: 1040px; margin: 0 auto;
+  padding: 12px 0 14px; border-top: 1px solid var(--seam); background: var(--velvet-deep); }
+.sp-actions .hint { margin: 0 auto 0 0; }
+.sp-actions .hint[data-dirty] { color: var(--brass); }
+/* About: what's written beside how it reads */
+.md-edit { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); border: 1px solid var(--seam); border-radius: 8px; overflow: hidden; }
+.md-edit textarea { border: 0; border-right: 1px solid var(--seam); border-radius: 0; resize: vertical; min-height: 420px; font: 13.5px/1.6 ui-monospace, "SF Mono", Menlo, monospace; padding: 14px; }
+.md-edit textarea:focus { outline: 2px solid color-mix(in srgb, var(--brass) 60%, transparent); outline-offset: -2px; }
+.md-preview { padding: 14px 18px; background: var(--velvet); overflow: auto; max-height: 640px; }
+.md-preview::before { content: attr(data-label); display: block; color: var(--dust); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 8px; }
+.md-preview p { margin: 0 0 10px; }
+.md-tabs { display: none; }
+.md-help { margin-top: 8px; }
 .pp-in { max-width: 880px; margin: 0 auto; }
 .pp-in > h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 32px; }
 .pp-in > .hint { margin: 4px 0 0; }
@@ -786,7 +812,7 @@ dialog .import { margin-top: 10px; }
   #rows .row > .tok-w svg { width: 84px; height: 84px; }
 }
 @media (max-width: 900px) {
-  .app, .app[data-step="2"], .app[data-step="3"] { grid-template-columns: minmax(0, 1fr); grid-template-areas: "top" "main" "bar"; }
+  .app, .app[data-step="2"], .app[data-step="3"], .app[data-step="4"] { grid-template-columns: minmax(0, 1fr); grid-template-areas: "top" "main" "bar"; }
   /* step 2: the 3D token and a strip of your tokens on top, the controls under them */
   .app[data-step="2"] { grid-template-rows: auto auto minmax(0, 1fr) auto; grid-template-areas: "top" "main" "ws" "bar"; }
   .chips { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -842,6 +868,15 @@ dialog .import { margin-top: 10px; }
   .ds-cell.card svg, .ds-cell.card.r svg { width: 64px; }
   .ds-cell .mark { top: 0; right: 0; }
   .print-page { padding: 16px 14px 30px; }
+  .settings-page { padding: 16px 16px 0; }
+  .sp-in > h2 { font-size: 28px; }
+  .md-edit { grid-template-columns: 1fr; }
+  .md-tabs { display: flex; border-bottom: 1px solid var(--seam); }
+  .md-tabs button { flex: 1; border: 0; background: none; padding: 9px; font-size: 14px; color: var(--dust); cursor: pointer; }
+  .md-tabs button[aria-pressed=true] { color: var(--bone); font-weight: 600; box-shadow: inset 0 -2px 0 var(--brass); }
+  .md-edit textarea { border-right: 0; min-height: 320px; }
+  .md-edit:not(.show-preview) .md-preview, .md-edit.show-preview textarea { display: none; }
+  .md-preview::before { display: none; }
   .ways { grid-template-columns: 1fr; }
 }
 /* a short phone keeps room to edit under the 3D token */
@@ -986,7 +1021,6 @@ html[data-mode=own] .own-spine-h { display: none; }   /* the creator's sections 
 .about-md h4 { margin: 16px 0 6px; font-size: 14px; letter-spacing: .02em; }
 .about-md :is(ul, ol) { margin: 0 0 10px; padding-left: 20px; }
 .about-md li { margin-bottom: 4px; }
-.os-about { resize: vertical; min-height: 9em; }
 .brand-title { font: 700 20px/1.1 var(--display); letter-spacing: -.01em; color: var(--bone); }
 .brand .brand-title { margin-left: 2px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gate-title-brand { margin: 6px 0 0; font-size: 28px; text-align: center; }
@@ -1649,7 +1683,6 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
   .oh-top .faber-wm { display: none; }
 }
 .own-welcome .link { color: var(--brass); font-weight: 600; }
-.os-more { margin-top: 18px; }
 .os-ccc[hidden] { display: none; }
 /* the front page's token, made for real: under the maker, the whole row */
 .tour-make { grid-column: 1 / -1; justify-self: start; }

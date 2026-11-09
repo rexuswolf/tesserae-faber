@@ -135,7 +135,7 @@ export function keepGateLook() {
     const lang = uiLang();
     writeJSON(`midnight-mint-gate:${location.pathname}`, {
       theme: root.dataset.theme ?? "", vars, logo,
-      name: nameIn(coll.brand?.title, lang) || nameIn(coll.name, lang),
+      name: nameIn(coll.name, lang),
       title: coll.loader?.text ? nameIn(coll.loader.text, lang) : t("gate.opening"),
       footer: coll.loader?.footer ? nameIn(coll.loader.footer, lang) : "",
     });

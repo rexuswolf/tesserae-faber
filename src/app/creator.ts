@@ -7,7 +7,8 @@ import { FILAMENT_SLOTS } from "../bambu/plates.ts";
 import { coll, TEAM_ORDER, TEAM_PLURAL, PLATE_LABEL, PLATE_GROUP, $$, stickyNotice, state, $, esc, READONLY, hit, input, BUILT } from "./context.ts";
 import type { Role, Team, Hex, TokenShape, TokenIcon, TokenContent } from "../types.ts";
 import { uiLang, t } from "../i18n.ts";
-import { PRINT_GROUPS, persistPicks, renderDesignStage, setPick, goStep, editToken } from "./queue.ts";
+import { PRINT_GROUPS, persistPicks, renderDesignStage, setPick, goStep, editToken, settingsStep } from "./queue.ts";
+import { markdown } from "../markdown.ts";
 import { openPartTab } from "./editor.ts";
 import { TEAMS, saveFile, SHAPE_FEATURES, tokenSvg, ICON_VIEW } from "../engine/token-engine.ts";
 import { safeIconMarkup, safeTransform } from "../engine/safe-svg.ts";
@@ -59,7 +60,7 @@ export function applyGroups() {
 
 /** What depends on the collection itself: its name, its look, and the language button (its token languages). */
 export function syncOwnChrome() {
-  for (const el of $$(".coll-name")) el.textContent = nameIn(coll.brand?.title, uiLang()) || nameIn(coll.name, uiLang());
+  for (const el of $$(".coll-name")) el.textContent = nameIn(coll.name, uiLang());
   applyOwnTheme(); applyOwnBrand();
   renderLangButtons();
 }
@@ -194,7 +195,7 @@ export function wireOwn() {
       void copyBuiltIn(BUILT.id, t("own.copyName", { name: nameIn(BUILT.name, uiLang()) })).then((id) => { if (id) location.href = collectionUrl(id); else n.textContent = t("own.storageFull"); });
       return;
     }
-    if (what === "settings") openOwnSettings();
+    if (what === "settings") goStep(4);
     if (what === "groups") { renderOwnGroups(); $<HTMLDialogElement>("#ownGroupsDlg").showModal(); }
     if (what === "export") saveFile(new Blob([JSON.stringify(collectionFile(coll), null, 2)], { type: "application/json" }), `${nameIn(coll.name, "en").replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase() || "collection"}.json`);
     if (what === "import") $("#ownImportFile").click();
@@ -742,7 +743,7 @@ export function applyOwnTheme() {
 
 /** The collection's mark: its logo on the top bar, the loading screen and the tab, and its name beside it. */
 export function applyOwnBrand() {
-  const own = coll.brand?.logo, name = nameIn(coll.brand?.title, uiLang()) || nameIn(coll.name, uiLang());
+  const own = coll.brand?.logo, name = nameIn(coll.name, uiLang());
   $<HTMLImageElement>(".gate-logo").src = own || APP_LOGO;
   for (const img of $$<HTMLImageElement>(".coll-logo")) img.src = own || APP_LOGO_SMALL;
   const icon = $<HTMLLinkElement>("#favicon");
@@ -754,19 +755,49 @@ export function applyOwnBrand() {
   document.title = name ? `${name} · ${APP_NAME}` : APP_NAME;
 }
 
-function openOwnSettings() {
+// ------------------------------------------------------------ a collection's settings: a page (?ajustes)
+//
+// What's changed there is seen at once (its name on the top bar, its colours, its logo) and kept on
+// Save; Discard, or leaving and saying so, puts the collection back as it was.
+
+/** What the settings change, as it was when opened or last saved. */
+const SETTINGS_KEYS = ["name", "brand", "theme", "loader", "ccc", "about"] as const;
+let settingsWas = "";
+const settingsNow = () => JSON.stringify(SETTINGS_KEYS.map((k) => coll[k] ?? null));
+const settingsDirty = () => state.step === 4 && settingsNow() !== settingsWas;
+
+/** The page's fields, from the collection. */
+function fillSettings() {
   const lang = uiLang();
   $<HTMLImageElement>("#osLogo").src = coll.brand?.logo || APP_LOGO;
-  $<HTMLInputElement>("#osBrandTitle").value = nameIn(coll.brand?.title, lang);
-  $<HTMLInputElement>("#osBrandTitle").placeholder = nameIn(coll.name, lang);   // empty: the collection's name
   $("#osLogoNote").textContent = "";
   $<HTMLInputElement>("#osName").value = nameIn(coll.name, lang);
   $<HTMLInputElement>("#osLoader").value = nameIn(coll.loader?.text, lang);
   $<HTMLInputElement>("#osCcc").checked = hasCcc(coll);
   $(".os-ccc").hidden = !hasCcc(coll);   // Clocktower's mark: only where a collection already carries it
   $<HTMLTextAreaElement>("#osAbout").value = nameIn(coll.about?.text, lang);
+  renderAboutPreview();
   renderOwnThemes();
-  $<HTMLDialogElement>("#ownSettings").showModal();
+  renderSettingsState();
+}
+function renderAboutPreview() {
+  $("#osAboutPreview").dataset.label = t("own.mdPreview");
+  $("#osAboutPreview").innerHTML = markdown($<HTMLTextAreaElement>("#osAbout").value);
+}
+/** Save: there when something's changed; and what's been done. */
+function renderSettingsState(saved = false) {
+  const dirty = settingsDirty(), note = $("#osState");
+  $<HTMLButtonElement>("#osSave").disabled = !dirty;
+  $<HTMLButtonElement>("#osCancel").hidden = !dirty;
+  note.textContent = dirty ? t("own.unsaved") : saved ? t("own.saved") : "";
+  note.toggleAttribute("data-dirty", dirty);
+}
+/** The collection as it was when the page opened (or was last saved), seen so again. */
+function discardSettings() {
+  const was = JSON.parse(settingsWas) as unknown[];
+  SETTINGS_KEYS.forEach((k, i) => { if (was[i] == null) delete coll[k]; else (coll as unknown as Record<string, unknown>)[k] = was[i]; });
+  applyOwnTheme(); applyOwnBrand();
+  if (state.step === 4) fillSettings();
 }
 function renderOwnThemes() {
   const th = coll.theme ?? "faber", custom = typeof th === "object" ? th : null;
@@ -780,45 +811,85 @@ function renderOwnThemes() {
   $("#osFont").innerHTML = THEME_FONTS.map((f) => `<option${(custom?.font ?? "Marcellus") === f ? " selected" : ""}>${esc(f)}</option>`).join("");
 }
 function wireOwnSettings() {
-  const dlg = $<HTMLDialogElement>("#ownSettings");
-  closeOnBackdrop(dlg);
+  // the page is step 4 (src/app/queue.ts): there for a collection of yours
+  settingsStep.can = () => !!OWN && !READONLY;
+  settingsStep.enter = () => {
+    if (ownTimer) collectionChanged();   // a token's change still waiting is kept first, not with these
+    settingsWas = settingsNow();
+    fillSettings();
+  };
+  settingsStep.leave = () => {
+    if (!settingsDirty()) return true;
+    if (!confirm(t("own.discardAsk"))) return false;
+    discardSettings();
+    return true;
+  };
+  addEventListener("beforeunload", (e) => { if (settingsDirty()) e.preventDefault(); });
+  const changed = () => renderSettingsState();
+  // its tabs
+  $(".sp-tabs").onclick = (e) => {
+    const b = hit(e, "[data-sp-tab]"); if (!b) return;
+    for (const x of $$("[data-sp-tab]")) x.setAttribute("aria-selected", String(x === b));
+    for (const p of $$("[data-sp]")) p.hidden = p.dataset.sp !== b.dataset.spTab;
+  };
+  // its name: on the top bar and the tab as it's written (empty: the one it had)
+  $("#osName").oninput = (e) => {
+    const v = input(e).value.trim(); if (!v) return;
+    coll.name = withName(coll.name, uiLang(), v); applyOwnBrand(); changed();
+  };
+  $("#osName").onchange = (e) => { if (!input(e).value.trim()) input(e).value = nameIn(coll.name, uiLang()); };
   $("#osThemes").onclick = (e) => {
     const b = hit(e, "[data-theme-id]"); if (!b) return;
     const id = b.dataset.themeId!;
     if (id === "custom") { const cur = coll.theme ?? "faber"; coll.theme = { ...(typeof cur === "object" ? cur : THEMES[cur] ?? THEMES.faber!) }; }
     else coll.theme = id;
-    saveColl(); applyOwnTheme(); renderOwnThemes();
+    applyOwnTheme(); renderOwnThemes(); changed();
   };
   $("#osCustom").oninput = () => {
     if (typeof coll.theme !== "object") return;
     for (const k of ["accent", "background", "surface", "text", "muted"] as const) coll.theme[k] = $<HTMLInputElement>(`#os-${k}`).value as Hex;
     coll.theme.glow = coll.theme.surface;
     coll.theme.font = $<HTMLSelectElement>("#osFont").value;
-    saveColl(); applyOwnTheme();
+    applyOwnTheme(); changed();
   };
   $<HTMLInputElement>("#osLogoFile").onchange = async (e) => {
     const f = input(e).files?.[0]; input(e).value = ""; if (!f) return;
     const url = await new Promise<string>((ok) => { const r = new FileReader(); r.onload = () => ok(String(r.result)); r.readAsDataURL(f); });
     if (!okLogo(url)) { $("#osLogoNote").textContent = t("own.logoTooBig"); return; }
-    coll.brand = { ...coll.brand, logo: url }; saveColl(); applyOwnBrand();
-    $<HTMLImageElement>("#osLogo").src = url; $("#osLogoNote").textContent = "";
+    coll.brand = { ...coll.brand, logo: url }; applyOwnBrand();
+    $<HTMLImageElement>("#osLogo").src = url; $("#osLogoNote").textContent = ""; changed();
   };
-  $("#osLogoReset").onclick = () => { if (coll.brand) delete coll.brand.logo; saveColl(); applyOwnBrand(); $<HTMLImageElement>("#osLogo").src = APP_LOGO; };
-  $("#osCancel").onclick = () => dlg.close();
-  $("#osSave").onclick = () => {
-    const lang = uiLang(), v = (id: string) => $<HTMLInputElement>(id).value.trim();
-    if (v("#osName")) coll.name = withName(coll.name, lang, v("#osName"));
-    coll.brand = { ...coll.brand, title: withName(coll.brand?.title ?? "", lang, v("#osBrandTitle")) };
-    if (!v("#osBrandTitle")) delete coll.brand.title;
-    coll.loader = { ...coll.loader, text: withName(coll.loader?.text ?? "", lang, v("#osLoader")) };
+  $("#osLogoReset").onclick = () => {
+    if (coll.brand) { delete coll.brand.logo; if (!Object.keys(coll.brand).length) delete coll.brand; }
+    applyOwnBrand(); $<HTMLImageElement>("#osLogo").src = APP_LOGO; changed();
+  };
+  $("#osLoader").oninput = (e) => {
+    const v = input(e).value.trim();
+    coll.loader = { ...coll.loader, text: withName(coll.loader?.text ?? "", uiLang(), v) };
     delete coll.loader.ccc;   // the mark has its own field now
-    if ($<HTMLInputElement>("#osCcc").checked) coll.ccc = true; else delete coll.ccc;
-    if (!v("#osLoader")) delete coll.loader.text;
-    const about = foldAbout({ text: withName(coll.about?.text ?? "", lang, v("#osAbout")) });   // its other languages' as they were
-    if (about) coll.about = about; else delete coll.about;
-    dlg.close();
-    collectionChanged();
+    if (!v) delete coll.loader.text;
+    if (!Object.keys(coll.loader).length) delete coll.loader;
+    changed();
   };
+  $("#osCcc").onchange = (e) => { if (input(e).checked) coll.ccc = true; else delete coll.ccc; changed(); };
+  // About: written, and read beside it as it is
+  $("#osAbout").oninput = (e) => {
+    const about = foldAbout({ text: withName(coll.about?.text ?? "", uiLang(), input(e).value.trim()) });   // its other languages' as they were
+    if (about) coll.about = about; else delete coll.about;
+    renderAboutPreview(); changed();
+  };
+  $(".md-tabs").onclick = (e) => {
+    const b = hit(e, "[data-md]"); if (!b) return;
+    const show = b.dataset.md === "preview";
+    $("#osAboutEdit").classList.toggle("show-preview", show);
+    for (const x of $$(".md-tabs [data-md]")) x.setAttribute("aria-pressed", String((x.dataset.md === "preview") === show));
+  };
+  $("#osSave").onclick = () => {
+    collectionChanged();
+    settingsWas = settingsNow();
+    renderSettingsState(true);
+  };
+  $("#osCancel").onclick = () => { discardSettings(); renderSettingsState(); };
 }
 
 // ------------------------------------------------------------ the list of your collections

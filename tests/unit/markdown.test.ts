@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { markdown, inline } from "../../src/markdown.ts";
-import { foldAbout } from "../../src/collection.ts";
+import { foldAbout, readCollectionFile, collectionFile, starterCollection } from "../../src/collection.ts";
 
 const a = (url: string, text = url) => `<a href="${url}" target="_blank" rel="noopener">${text}</a>`;
 
@@ -38,5 +38,16 @@ describe("an About as it was (its credits and links apart)", () => {
     expect(foldAbout({ text: "Plain", links: [] })).toEqual({ text: "Plain" });
     expect(foldAbout({ text: "", credits: "", links: [] })).toBeUndefined();
     expect(foldAbout({ text: { es: "Ya." } })).toEqual({ text: { es: "Ya." } });
+  });
+});
+
+describe("the name beside its logo, as it was", () => {
+  it("is its name now: the one it was seen by", async () => {
+    const f = { ...JSON.parse(JSON.stringify(collectionFile(starterCollection()))), name: "Long name", brand: { title: { es: "Corto", en: "Short" } } };
+    const c = await readCollectionFile(f);
+    expect(c.name).toEqual({ es: "Corto", en: "Short" });
+    expect(c.brand).toEqual({});
+    const blank = await readCollectionFile({ ...f, brand: { title: "  " } });
+    expect(blank.name).toBe("Long name");
   });
 });

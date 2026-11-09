@@ -165,12 +165,18 @@ export const smallLetters = () => (flow.way === "3d" ? nozzleOf(flow.nozzle).sma
 export const nozzleMm = () => String(flow.way === "3d" ? nozzleOf(flow.nozzle).mm : 0.4).replace(".", uiLang() === "es" ? "," : ".");
 const queuePic = (q: QueueEntry, role = roleById(q.roleId)!) => tokenSvg(state.lib!, role, itemSpec(q), { text: queueTitle(q, role) });
 
-/** The step in the address: ?disenar=<the token> (Redesign), ?imprimir (Print); neither, the tokens. */
-const STEP_WORDS: Record<number, string> = { 2: "disenar", 3: "imprimir" };
+/** The step in the address: ?disenar=<the token> (Redesign), ?imprimir (Print), ?ajustes (a collection's settings); none, the tokens. */
+const STEP_WORDS: Record<number, string> = { 2: "disenar", 3: "imprimir", 4: "ajustes" };
+/**
+ * The settings page (4) is a collection of yours' (src/app/creator.ts): whether it's there to open,
+ * what opening it does, and whether it can be left (unsaved changes, kept or not, asked first).
+ */
+export const settingsStep = { can: () => false, enter: () => {}, leave: () => true };
 /** A token's key as an address may carry it: a character's (c:<id>) or one of its linked tokens' (r:<id>:<n>). */
 const TOKEN_KEY = /^(c:[\w-]+|r:[\w-]+:\d+)$/;
 export function stepInUrl(): { step: number; key: string | null } {
   const q = new URLSearchParams(location.search), key = q.get(STEP_WORDS[2]);
+  if (q.has(STEP_WORDS[4])) return { step: 4, key: null };
   return q.has(STEP_WORDS[3]) ? { step: 3, key: null } : q.has(STEP_WORDS[2]) ? { step: 2, key: key && TOKEN_KEY.test(key) ? key : null } : { step: 1, key: null };
 }
 function stepUrl(step: number) {
@@ -195,6 +201,9 @@ export function syncStepUrl() {
 export function goStep(step: number, address: "push" | "replace" | "keep" = "push") {
   if (step === 3 && !state.pick.size) step = 1;   // printing needs a selection
   if (step === 2 && !state.sel) step = 1;          // designing, a token
+  if (step === 4 && !settingsStep.can()) step = 1;   // settings: a collection of yours
+  // leaving the settings with changes not saved: asked first; kept, it stays (Back too: the address again)
+  if (state.step === 4 && step !== 4 && !settingsStep.leave()) { if (address === "keep") history.pushState(history.state, "", stepUrl(4)); return; }
   state.step = step;
   const url = stepUrl(step);
   if (address !== "keep" && url !== location.pathname + location.search + location.hash) history[address === "push" ? "pushState" : "replaceState"](history.state, "", url);
@@ -206,6 +215,7 @@ export function goStep(step: number, address: "push" | "replace" | "keep" = "pus
   }
   if (step === 3) { $("#printNote").textContent = ""; renderPrintStep(); $("#printPage").scrollTo({ top: 0 }); }
   if (step === 1) renderSheet();
+  if (step === 4) settingsStep.enter();
   renderQueue();
 }
 
@@ -217,7 +227,7 @@ export function renderQueue() {
   // no steps to follow: the tokens are home. Anywhere else (designing one, printing), the top bar has the way back
   $("#flowSteps").innerHTML = step > 1 ? `<button class="top-back" type="button" data-goto="1"><span aria-hidden="true">‹</span> ${esc(t("flow.step1"))}</button>` : "";
   // the bottom bar only where it does something: on the tokens once some are picked, and printing (Download)
-  $("#queuebar").hidden = step === 2 || (step === 1 && !n);
+  $("#queuebar").hidden = step === 2 || step === 4 || (step === 1 && !n);
   $("#queueCount").textContent = n ? t("queue.count", { n }) : t("pick.nothing");
   $("#queueStack").innerHTML = [...state.pick.keys()].slice(-5).map((k) => queuePic({ pick: k, ...queueEntry(tokenRole(k), tokenRem(k)) })).join("");
   $<HTMLButtonElement>("#queueToggle").disabled = !n;

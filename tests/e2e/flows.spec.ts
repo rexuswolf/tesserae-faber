@@ -453,6 +453,41 @@ test("a new group from a token's Token tab, even the second, is named there at o
   expect(errors).toEqual([]);
 });
 
+test("a collection's settings are a page of their own: its tabs, its About beside its preview, kept on Save, asked before they're lost", async ({ page }) => {
+  const errors = await open(page, "/");
+  await makeToken(page, "Lobo");
+  await page.locator('[data-coll="settings"]').first().evaluate((b) => (b as HTMLElement).click());
+  await expect.poll(() => new URL(page.url()).searchParams.has("ajustes")).toBe(true);
+  await expect(page.locator("#settingsPage")).toBeVisible();
+  await expect(page.locator("#osSave")).toBeDisabled();   // nothing changed yet
+  // its name: on the top bar as it's written
+  await page.locator("#osName").fill("Bestiario");
+  await expect(page.locator(".coll-name").first()).toHaveText("Bestiario");
+  await expect(page.locator("#osState")).toHaveText("Unsaved changes");
+  // About: Markdown, read beside it
+  await page.locator('[data-sp-tab="about"]').click();
+  await page.locator("#osAbout").fill("Mis **lobos**.\n\n- [Iconos](https://game-icons.net)");
+  await expect(page.locator("#osAboutPreview strong")).toHaveText("lobos");
+  await expect(page.locator('#osAboutPreview a[href="https://game-icons.net"]')).toHaveText("Iconos");
+  await page.locator("#osSave").click();
+  await expect(page.locator("#osState")).toHaveText("Saved");
+  await expect(page.locator("#osSave")).toBeDisabled();
+  // changed again and left: asked; said yes, it's as it was saved
+  await page.locator('[data-sp-tab="general"]').click();
+  await page.locator("#osName").fill("Otro nombre");
+  page.once("dialog", (d) => void d.accept());
+  await page.locator("#flowSteps .top-back").click();
+  await expect.poll(() => new URL(page.url()).searchParams.has("ajustes")).toBe(false);
+  await expect(page.locator(".coll-name").first()).toHaveText("Bestiario");
+  // kept: after a reload, the page says it again
+  await page.reload();
+  await page.locator('[data-coll="settings"]').first().evaluate((b) => (b as HTMLElement).click());
+  await expect(page.locator("#osName")).toHaveValue("Bestiario", { timeout: 30_000 });
+  await page.locator('[data-sp-tab="about"]').click();
+  await expect(page.locator("#osAboutPreview strong")).toHaveText("lobos");
+  expect(errors).toEqual([]);
+});
+
 test("a token of yours without an icon: the layouts that show one wait for it, and Plain carries nothing", async ({ page }) => {
   const errors = await open(page, "/");
   await makeToken(page, "Lobo");

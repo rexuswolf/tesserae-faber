@@ -99,8 +99,16 @@ export function foldAbout(a: unknown): OwnAbout | undefined {
   const folded: Names = langs.length ? Object.fromEntries(langs.map((l) => [l, one(l)])) : one("");
   return (typeof folded === "string" ? folded : Object.values(folded).join("")).trim() ? { text: folded } : undefined;
 }
-/** Its mark: a logo (an image as a data: URI, an https address, or one of the app's own files) and a name to show beside it instead of the collection's. */
-export interface OwnBrand { logo?: string; title?: Names }
+/** Its mark: a logo (an image as a data: URI, an https address, or one of the app's own files). Beside it, the collection's name. */
+export interface OwnBrand { logo?: string }
+/**
+ * A name its mark had (shown beside its logo instead of its own, until there was only one): its name
+ * now, since that's the one it was seen by.
+ */
+const brandName = (brand: unknown): Names | undefined => {
+  const n = (brand as { title?: unknown } | undefined)?.title;
+  return okName(n) && (typeof n === "string" ? n : Object.values(n).join("")).trim() ? n : undefined;
+};
 /** A logo a collection may carry: an uploaded image, or one on the web. */
 export const okLogo = (v: unknown): v is string => typeof v === "string" && (/^data:image\/(svg\+xml|png|webp|jpeg)[;,]/.test(v) || /^https:\/\//.test(v) || /^\/[\w./-]+\.(svg|png|webp)$/.test(v)) && v.length < 400000;
 /** The app's own mark (Tesserae Faber), for collections without one: in full, small (around 32 px) and for the tab. */
@@ -300,6 +308,7 @@ function upgrade(c: Collection & { catalogs?: OwnCatalog[] }): Collection {
   if (!c.sections) { c.sections = [{ id: "s1", title: "Catálogos", open: true, catalogs: c.catalogs ?? [] }]; delete c.catalogs; }
   upgradeBasicStyles(c.styles);
   if (c.about) { const about = foldAbout(c.about); if (about) c.about = about; else delete c.about; }   // its credits and links: in its text now
+  if (c.brand && "title" in c.brand) { const n = brandName(c.brand); if (n) c.name = n; delete (c.brand as { title?: unknown }).title; }   // the name beside its logo: its name now
   return c;
 }
 export function listCollections(): CollectionEntry[] {
@@ -589,11 +598,11 @@ export async function readCollectionFile(data: unknown, onProgress: (done: numbe
   if (!sections.some((s) => s.open)) sections.push({ id: "mine", title: "Catálogos", open: true, catalogs: [] });
   const styles = readStyles(f.styles);
   return {
-    name: okName(f.name) ? f.name : "Mi colección",
+    name: brandName(f.brand) ?? (okName(f.name) ? f.name : "Mi colección"),
     ...(f.ccc || f.loader?.ccc ? { ccc: true } : {}),
     ...(readTheme(f.theme) ? { theme: readTheme(f.theme) } : {}),
     ...(foldAbout(f.about) ? { about: foldAbout(f.about) } : {}),
-    ...(f.brand && typeof f.brand === "object" ? { brand: { ...(okLogo(f.brand.logo) ? { logo: f.brand.logo } : {}), ...(okName(f.brand.title) ? { title: f.brand.title } : {}) } } : {}),
+    ...(f.brand && typeof f.brand === "object" ? { brand: { ...(okLogo(f.brand.logo) ? { logo: f.brand.logo } : {}),  } } : {}),
     ...(f.loader && typeof f.loader === "object" ? { loader: { ...(okName(f.loader.text) ? { text: f.loader.text } : {}), ...(okName(f.loader.footer) ? { footer: f.loader.footer } : {}), ...(f.loader.ccc ? { ccc: true } : {}) } } : {}),
     ...(Array.isArray(f.languages) ? { languages: f.languages.map(String).filter((l) => /^[a-z]{2,3}(-[a-z0-9]+)*$/.test(l)) } : {}),
     types, groups, tokens, sections,
