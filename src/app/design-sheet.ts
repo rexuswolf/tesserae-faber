@@ -22,7 +22,7 @@ import { TALLER, tallerMine, renderTaller } from "./taller.ts";
 import { colourIssues, LIGHT_DEPTH } from "../colour-checks.ts";
 import type { InlayPart } from "../colour-checks.ts";
 import { roleById } from "./wiring.ts";
-import { roleWithContent, showContentInline, asPrinted, printChanged, settlePrint } from "./creator.ts";
+import { roleWithContent, showContentInline } from "./creator.ts";
 /** Whether Composition's text and icon settings are unfolded (kept while designing). */
 import { writeJSON, session, readJSON } from "../services.ts";
 
@@ -272,7 +272,7 @@ function setTokenDesign(key: string, ref: string) {
 
 /** Your collection's token (or the one being made) whose content can be changed: not one of a built-in or closed collection. */
 function ownEditable(role: Role) { return OWN && !READONLY && !!ownTokenOf(role.id) && !isLocked(coll, role.id); }
-const ownTokenOf = (id: string): OwnToken | undefined => { if (state.creating?.draft.id === id) return state.creating.draft; const tk = coll.tokens.find((x) => x.id === id); return tk && asPrinted(tk); };
+const ownTokenOf = (id: string): OwnToken | undefined => coll.tokens.find((x) => x.id === id);
 
 /**
  * What the token says, over its design: one line. A token of your collection: its name, group and
@@ -311,10 +311,17 @@ export function renderTabs(role: Role, spec: TokenSpec) {
   const part = openPart(), panel = openPanel();
   // the sections in one list, the basic ones first
   const changedHere = changedParts(state.sel!, shape), marked = new Set<string>();
-  $("#parts").innerHTML = secs.map((s) => {
+  const tab = (s: (typeof secs)[number]) => {
     const dot = changedHere.has(s.part) && !marked.has(s.part) && !!marked.add(s.part);   // a part in several sections: its first
     return `<button type="button" role="tab" data-part="${s.part}"${s.face ? ` data-face="${s.face}"` : ""} aria-selected="${isOpen(s)}">${esc(s.face ? t(`face.${s.face}`) : s.part === "body" ? t(`part.body.${shape}`) : t(`part.${s.part}`))}${dot ? `<i class="part-dot" title="${esc(t("part.changed"))}" aria-label="${esc(t("part.changed"))}"></i>` : ""}</button>`;
-  }).join("");
+  };
+  $("#parts").innerHTML = secs.map(tab).join("");
+  // a token of yours: its Token tab over its design (what it is, then how it looks); among the tabs only inside a part on a phone
+  const tokSec = secs.find((s) => s.part === "token");
+  $("#partsTok").hidden = !tokSec;
+  // a row like its design's: what it is, its name and shape (no picture of it: the token is beside it, large)
+  const tk = tokSec && ownTokenOf(state.sel!.role.id);
+  $("#partsTok").innerHTML = tk ? `<button type="button" class="cr-item" data-part="token" aria-selected="${isOpen(tokSec)}"><span class="cr-pic cr-pic-ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 10h6M7 14h10"/></svg></span><span class="cr-lbl">${esc(t("part.token"))}</span><small class="cr-val">${esc([nameIn(tk.name, tokenLang()), t(`own.shape.${shape}`)].filter(Boolean).join(" · "))}</small></button>` : "";
   const undo = $<HTMLButtonElement>("#partUndo"), here = openPart();
   undo.hidden = !changedHere.has(here);
   undo.innerHTML = `<span aria-hidden="true">↺</span> ${esc(t("part.undo"))}`;
@@ -335,7 +342,7 @@ export function renderTabs(role: Role, spec: TokenSpec) {
   what.dataset.side = side;
   // a token of yours: its fields here (its front's text and icon, or its back's other state)
   const sel = state.sel!, mine = !TALLER && sel.reminder == null && OWN && coll.tokens.some((x) => x.id === sel.role.id);
-  showContentInline(mine && (part === "front" || part === "back") && (comp || panel === "text") ? sel.role.id : null);
+  showContentInline(mine && (part === "token" || ((part === "front" || part === "back") && (comp || panel === "text"))) ? sel.role.id : null, part === "token" ? "token" : "comp");
   $("#crOwn").dataset.side = side;
 }
 
@@ -352,7 +359,6 @@ function changedParts(sel: { key: string; role: Role }, shape: TokenShape): Set<
   const parts = new Set<Part>(), two = twoSided(shape);
   if (TALLER) return parts;
   for (const f of lookFields(state.overrides.get(sel.key)?.look)) parts.add(partOfField(f, two));
-  if (OWN && coll.tokens.some((x) => x.id === sel.role.id)) { if (printChanged(sel.role.id, "front")) parts.add("front"); if (printChanged(sel.role.id, "back")) parts.add("back"); }
   return parts;
 }
 /** A part's changes undone: its look as the design has it, and (a token of yours) what that face carries as the collection has it. */
@@ -362,10 +368,6 @@ function undoPart(part: Part) {
   for (const f of lookFields(look)) if (partOfField(f, two) === part) look = withoutLookField(look!, f);
   const kept = look && prunedLook(designFor(key).spec, look);
   if (kept) own.look = kept; else delete own.look;
-  const side = part === "front" || part === "back" ? part : null;
-  if (side && OWN && printChanged(role.id, side)) settlePrint(role.id, side, false, true);
-  const token = state.overrides.get(key)?.token;   // what's left of this print's (the other face's)
-  if (token) own.token = token; else delete own.token;
   setOwn(key, own);
   toast(t("part.undone", { part: partLabel(part, shapeOf(role)) }));
 }
@@ -603,7 +605,7 @@ const BACK_SAYS: BackSay[] = ["name", "edition", "phrase", "none"];
 function renderBackSay(spec: TokenSpec) {
   // the icon alone (solo) says nothing
   const b = spec.backMode === "design" ? {} : spec.backFace ?? {}, say = (b.style ?? spec.style) === "solo" ? "none" : b.say ?? "name";
-  $("#backSay").innerHTML = BACK_SAYS.map((v) => `<button type="button" data-v="${v}" aria-pressed="${v === say}">${esc(t(`back.say.${v}`))}</button>`).join("");
+  $("#backSay").innerHTML = BACK_SAYS.map((v) => `<button class="pill" type="button" data-v="${v}" aria-pressed="${v === say}">${esc(t(`back.say.${v}`))}</button>`).join("");
   const phrase = $<HTMLInputElement>("#backPhrase");
   phrase.hidden = say !== "phrase";
   if (document.activeElement !== phrase) phrase.value = b.phrase ?? "";
@@ -1002,7 +1004,7 @@ let sheetTimer: ReturnType<typeof setTimeout> | number = 0;
 export function scheduleSheet() { clearTimeout(sheetTimer); sheetTimer = setTimeout(() => emit("looks"), 180); }
 /** A token's own text, feminine name, icon, design or look changes; with none left, it simply has its default design. */
 export function setOwn(key: string, own: TokenOverride) {
-  if (!own.text && !own.fem && !own.icon && !own.style && !own.look && !own.token) state.overrides.delete(key); else state.overrides.set(key, own);
+  if (!own.text && !own.fem && !own.icon && !own.style && !own.look) state.overrides.delete(key); else state.overrides.set(key, own);
   storeOverrides(); renderWorkshop(); scheduleSheet();
 }
 
@@ -1015,7 +1017,7 @@ export function setOwn(key: string, own: TokenOverride) {
 // the new default too.
 
 /** A token of a shape to draw designs on: the first of the collection's. */
-const sampleRole = (shape: TokenShape) => state.lib!.roles.find((r) => shapeOf(r) === shape && r.id !== state.creating?.draft.id)!;
+const sampleRole = (shape: TokenShape) => state.lib!.roles.find((r) => shapeOf(r) === shape)!;
 /** The shapes the design bar offers: those of the tokens on screen (set by renderSheet). */
 export let barShapes: TokenShape[] | null = null;
 export const setBarShapes = (shapes: TokenShape[] | null) => { barShapes = shapes; };

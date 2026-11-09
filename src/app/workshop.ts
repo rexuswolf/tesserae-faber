@@ -2,11 +2,11 @@
 import { on } from "./events.ts";
 import type { TokenShape, TokenSpec, BackFace, SpecInput, SpecColours, TokenIcon, TokenOverride, TokenContent } from "../types.ts";
 import { shapeOf, SHAPE_FEATURES, DEFAULT_SPEC, FACE_FIELDS, reliefOf, backLookOf, flipFace, buildToken, TEAMS, tokenSvg, MAGNET_SIZES, RING_SEPARATORS, RING_BASES, cardBackOf } from "../engine/token-engine.ts";
-import { state, coll, defSpec, STYLE_KEEPS, knownStyles, $, view3d, esc, input, hit, $$, SEPARATOR_MARKS, COLOUR_CHOICES } from "./context.ts";
+import { state, coll, defSpec, STYLE_KEEPS, knownStyles, $, view3d, esc, input, hit, $$, SEPARATOR_MARKS, COLOUR_CHOICES, READONLY } from "./context.ts";
 import type { Part, Side, FaceTab, Fields } from "./context.ts";
 import { lookOf, designFor, ownChanged, designOf, inheritedRef, collLabel, defaultRef } from "./designs.ts";
 import { changeLook, renderSays, renderTabs, syncControls, renderColourWarn, dz, renderDesignSheet, setOwn, patternGroupHtml, setCardBack, changeCardBack, setCardBackIcon, renderQuickDesigns } from "./design-sheet.ts";
-import { APP_NAME, tallerUrl, OWN } from "../collection.ts";
+import { APP_NAME, tallerUrl, OWN, isLocked } from "../collection.ts";
 import type { StyleDef } from "../collection.ts";
 import { BOTC_STYLES } from "../botc-styles.ts";
 import type { ViewKind } from "../engine/viewer.ts";
@@ -33,12 +33,14 @@ import { renderEditor } from "./editor.ts";
 export const editShape = (): TokenShape => shapeOf(state.sel!.role);
 /** The parts a type is made of (level 1), from what its shape has. */
 export const partsOf = (shape: TokenShape): Part[] => {
-  const f = SHAPE_FEATURES[shape];
+  const f = SHAPE_FEATURES[shape], tok = ownTokenOpen() ? ["token" as const] : [];   // a token of yours: what it is, first
   // a shape with two sides: its front and back, each with its tabs (the colours are where their parts are, the coin's in its body)
   // relief, where the shape has parts that can stand out: which face, which parts, how high (the whole token's)
   const relief = f.relief.length ? ["relief" as const] : [];
-  return f.back ? ["front", "back", "body", ...relief, ...(f.magnet ? ["magnet" as const] : [])] : ["front", "colours", "body", ...relief, ...(f.magnet ? ["magnet" as const] : [])];
+  return f.back ? [...tok, "front", "back", "body", ...relief, ...(f.magnet ? ["magnet" as const] : [])] : [...tok, "front", "colours", "body", ...relief, ...(f.magnet ? ["magnet" as const] : [])];
 };
+/** Whether the token open is one of yours that can be changed (its Token tab): not in the Taller, nor a linked token, nor a closed one's. */
+export const ownTokenOpen = () => !TALLER && OWN && !READONLY && !!state.sel && state.sel.reminder == null && coll.tokens.some((x) => x.id === state.sel!.role.id) && !isLocked(coll, state.sel.role.id);
 /** Whether a shape's front has its tabs inside it (a shape with a back: Front and Back, each with its own), not in the list of sections. */
 export const twoSided = (shape: TokenShape) => SHAPE_FEATURES[shape].back;
 /** The front's tabs: a token of yours that carries only its icon (or only its text) has no layout, nor text (or icon), to change. */
@@ -54,8 +56,9 @@ export interface Section { part: Part; face?: FaceTab }
 export function sectionsOf(shape: TokenShape, content?: TokenContent): Section[] {
   if (twoSided(shape)) return partsOf(shape).map((part) => ({ part }));
   const front = frontTabsOf(shape, content);
-  const basic = front.filter((f) => f !== "pattern"), rest = partsOf(shape).filter((p) => p !== "front" && p !== "colours" && p !== "back");
+  const basic = front.filter((f) => f !== "pattern"), rest = partsOf(shape).filter((p) => p !== "front" && p !== "colours" && p !== "back" && p !== "token");
   return [
+    ...(partsOf(shape).includes("token") ? [{ part: "token" as const }] : []),
     ...basic.filter((f) => f === "layout").map((face) => ({ part: "front" as const, face })),
     { part: "colours" },
     ...basic.filter((f) => f !== "layout").map((face) => ({ part: "front" as const, face })),
@@ -75,7 +78,7 @@ export const backTabsOf = (shape: TokenShape): FaceTab[] => faceTabsOf(shape);
 /** What the token being edited carries, when it's a token of yours (its tabs follow it); unset in the Taller. */
 export const editContent = (): TokenContent | undefined => {
   if (TALLER || !state.sel) return undefined;
-  const id = state.sel.role.id, own = state.creating?.draft.id === id ? state.creating.draft : coll.tokens.find((x) => x.id === id);
+  const id = state.sel.role.id, own = coll.tokens.find((x) => x.id === id);
   return own ? state.sel.role.content : undefined;
 };
 /** The open level-1 tab of the type being edited (one it has). */
@@ -175,7 +178,7 @@ export function startedFrom(spec: TokenSpec, shape: TokenShape) {
   return { def, modified: !!def && differsFrom(def, spec, shape) };
 }
 /** What each tab shows in the 3D view: a face straight on, the body at an angle, the magnet from behind. */
-const PART_VIEW: Record<Part, ViewKind> = { front: "top", colours: "angle", back: "back", body: "angle", relief: "side", magnet: "back" };
+const PART_VIEW: Record<Part, ViewKind> = { token: "top", front: "top", colours: "angle", back: "back", body: "angle", relief: "side", magnet: "back" };
 /** Opens a tab: a part, and inside a face one of its tabs. */
 export function showTab({ part, face }: { part?: Part; face?: FaceTab } = {}) {
   // into the back of a token without another state whose back is a drawing: its layout, where the drawing is chosen

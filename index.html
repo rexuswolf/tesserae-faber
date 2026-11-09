@@ -165,13 +165,15 @@
        the design's parts; a design's (the Taller): its parts. On a phone, the three are big buttons that go into
        each one, and the parts are tabs. -->
   <nav class="cr-nav" id="crNav" data-i18n-attr="aria-label:editor.aria">
+    <!-- a token of yours: what it is, first, beside its design (its Token tab; on a phone inside a part, it's among the tabs) -->
+    <div class="cr-cats cr-tok" id="partsTok" hidden></div>
     <div class="cr-cats design-only">
       <button type="button" class="cr-item" data-cr="content" hidden><span class="cr-pic" id="crPicContent" aria-hidden="true"><b>Aa</b></span><span class="cr-lbl" data-i18n="editor.content"></span><small class="cr-val" id="crValContent"></small></button>
       <button type="button" class="cr-item" data-cr="design"><span class="cr-pic" id="crPicDesign" aria-hidden="true"></span><span class="cr-lbl" data-i18n="editor.design"></span><small class="cr-val" id="crValDesign"></small></button>
       <button type="button" class="cr-item cr-in" data-cr="part"><span class="cr-pic cr-pic-ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></span><span class="cr-lbl"><span data-i18n="editor.custom"></span> <span class="cr-arrow" aria-hidden="true">›</span></span><small class="cr-val" id="crValCustom"></small></button>
     </div>
-    <!-- the design's parts, always in sight under their heading (no Customise to go into) -->
-    <p class="cr-parts-h design-only" data-i18n="editor.custom"></p>
+    <!-- the design's settings: its parts, always in sight under their heading (no Customise to go into) -->
+    <p class="cr-parts-h design-only" data-i18n="editor.parts"></p>
     <button type="button" class="cr-back design-only" id="crBack"><span aria-hidden="true">‹</span> <b id="crBackLabel"></b></button>
     <div class="parts" id="parts" role="tablist" data-i18n-attr="aria-label:ws.sections"></div>
   </nav>
@@ -221,6 +223,8 @@
         <div class="metal" data-colour="base" data-i18n-attr="aria-label:coin.colour"></div>
         <p class="hint team-hint" id="teamHint"><i class="team-dot" aria-hidden="true"></i><span></span></p>
       </section>
+      <!-- a token of yours: what it is (its shape, name, group, colour, catalogs, linked tokens) -->
+      <section class="ws-panel" data-panel="token" role="tabpanel" hidden><div id="crTok"></div></section>
       <section class="ws-panel" data-panel="layout" role="tabpanel" hidden>
         <!-- Composition: first what the face carries (a token of yours: its text and icon, its other state on the back;
              a closed collection's: printed over its own; a back without another state: what it says and shows), then how
@@ -252,7 +256,7 @@
           <h4 class="comp-design-h" id="compDesignH" hidden data-i18n="comp.designBack"></h4>
           <div class="back-say" id="backSayBox" hidden>
             <p class="metal-label" data-i18n="back.sayLabel"></p>
-            <span class="seg2 back-say-seg" role="group" id="backSay" data-i18n-attr="aria-label:back.sayLabel"></span>
+            <div class="choices" role="group" id="backSay" data-i18n-attr="aria-label:back.sayLabel"></div>
             <input class="text" type="text" id="backPhrase" maxlength="60" autocomplete="off" data-i18n-attr="placeholder:back.phrasePlaceholder aria-label:back.say.phrase" hidden>
           </div>
           <p class="hint flip-note" id="sayNote" hidden></p>
@@ -736,29 +740,20 @@
   <div class="dialog-actions"><button class="pill" type="button" id="scriptDialogCancel" data-i18n="script.cancel"></button><button class="forge" type="button" id="scriptDialogSave" data-i18n="script.add"></button></div>
 </dialog>
 
-<!-- the generic creator: a token's content, made or changed (from the sheet, or the design step's "Edit content"),
-     beside the token as it prints -->
-<dialog id="tokenPanel" class="token-panel" aria-labelledby="tpTitle">
-  <header class="tp-head"><h2 id="tpTitle"></h2><button class="icon-btn" type="button" id="tpClose" data-i18n-attr="aria-label:admin.close">×</button></header>
-  <div class="tp-body">
-    <div class="tp-side">
-      <div class="tp-pic" id="tpPic"></div>
-      <p class="hint" id="tpDesign"></p>
-    </div>
-    <!-- a token's content (yours): its front, its back, the rest folded. One set of fields, here or in the designer's
-         Content (moved there while it's open, so it's edited where you are) -->
+<!-- a token of yours: its fields (what it is, what it carries), kept here until the designer shows them in its
+     Token tab or a face's Composition -->
+<div id="tpHome" hidden>
     <div class="tp-fields" id="tpFields">
       <div id="tpShape"></div>
       <!-- its name: how it's found in your lists and the search (its front says it too, unless told otherwise) -->
       <label class="field tp-name"><span data-i18n="own.name"></span><input class="text" id="ownTokName" autocomplete="off" data-i18n-attr="placeholder:own.namePlaceholder"><small class="hint" data-i18n="own.nameHelp"></small></label>
+      <div class="field" id="ownTokGroupRow"><span data-i18n="own.group"></span><div class="group-pills" id="ownTokGroups"></div></div>
       <section class="tp-face" id="tpFront">
         <h3 data-i18n="view.front"></h3>
         <!-- what its front says: its name unless it says something else; whether it says anything (unticked: its icon alone) -->
         <div class="field"><label class="field"><span data-i18n="own.text"></span><input class="text" id="ownTokText" autocomplete="off"></label>
           <div id="tpContent"></div>
-          <small class="hint" id="ownTokNameHint" data-i18n="own.content.iconName" hidden></small>
-          <!-- in the designer: changed from your collection's token, undone or saved to it -->
-          <p class="field-print" data-print-field="text" hidden></p></div>
+          <small class="hint" id="ownTokNameHint" data-i18n="own.content.iconName" hidden></small></div>
         <div class="field" id="ownTokIconRow"><span data-i18n="own.icon"></span>
           <div class="tp-chip" id="ownTokChip"></div>
           <div class="tp-search" id="ownTokSearch" hidden>
@@ -768,16 +763,16 @@
             </div>
             <div class="icon-results" id="ownTokHits"></div>
           </div>
-          <p class="field-print" data-print-field="icon" hidden></p>
         </div>
-        <div class="field" id="ownTokGroupRow"><span data-i18n="own.group"></span><div class="group-pills" id="ownTokGroups"></div></div>
       </section>
       <!-- the back (a coin's): the one the others have, or this token's other state, with its name and icon -->
       <section class="tp-face" id="contentFlip">
         <h3><span data-i18n="view.back"></span></h3>
+        <!-- whether it's turned over in the game: then its back is its other state (its name and icon); if not, the design's back -->
+        <div class="flip-on"><label class="switch"><input type="checkbox" id="ownTokFlipOn"> <span data-i18n="own.flipOn"></span></label>
+          <p class="hint" data-i18n="own.flipOnHelp"></p></div>
         <div class="own-flip" id="ownTokFlipBox">
           <label class="field"><span data-i18n="own.flipText"></span><input class="text" id="ownTokFlipName" autocomplete="off" data-i18n-attr="placeholder:own.backEmpty"></label>
-          <p class="hint" id="ownTokBackHint"></p>
           <div class="field"><span data-i18n="own.icon"></span>
             <div class="tp-chip" id="ownTokFlipChip"></div>
             <div class="tp-search" id="ownTokFlipSearch" hidden>
@@ -788,13 +783,10 @@
               <div class="icon-results" id="ownTokFlipHits"></div>
             </div>
           </div>
-          <p class="field-print" data-print-field="flip" hidden></p>
         </div>
       </section>
-      <!-- the rest, folded: its own colour, catalogs and linked tokens -->
-      <details class="tp-more" id="tpMoreOpts">
-      <summary><b data-i18n="own.moreOpts"></b><small data-i18n="own.moreOptsSub"></small></summary>
-      <div class="own-fields">
+      <!-- the rest of what it is: its own colour, catalogs and linked tokens; another like it, or none -->
+      <div class="own-fields" id="tpMoreOpts">
         <div class="field"><span data-i18n="own.colour"></span>
           <details class="tok-colour" id="ownTokColour"><summary></summary><div class="tok-colour-menu"></div></details>
           <p class="hint" id="ownTokColourHelp"></p></div>
@@ -803,18 +795,13 @@
           <div class="own-linked" id="ownTokLinked"></div>
           <button class="pill" type="button" id="ownTokAddLinked" data-i18n="own.addLinked"></button>
         </div>
+        <div class="tp-tok-acts">
+          <button class="pill" type="button" id="ownTokAnother" data-i18n="own.another"></button>
+          <button class="pill danger" type="button" id="ownTokDelete" data-i18n="own.deleteToken"></button>
+        </div>
       </div>
-      </details>
     </div>
-  </div>
-  <footer class="tp-foot">
-    <button class="pill danger" type="button" id="ownTokDelete" data-i18n="own.deleteToken"></button>
-    <p class="hint" id="tpFlash" aria-live="polite"></p>
-    <button class="pill" type="button" id="tpCancel" data-i18n="script.cancel"></button>
-    <button class="pill" type="button" id="tpMore" data-i18n="create.more"></button>
-    <button class="forge" type="button" id="tpDone"></button>
-  </footer>
-</dialog>
+</div>
 
 <!-- choosing a design: a token's (step 2), or a shape's default for the collection (Pick). Each drawn
      large on the token it's for; the collection's and yours in two tabs. A bottom sheet on a phone. -->

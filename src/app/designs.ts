@@ -85,11 +85,11 @@ export const ownChanged = (key: string) => !!state.overrides.get(key)?.look;
 export const designOverridden = (key: string) => { const o = state.overrides.get(key); return !!o?.look || (!!o?.style && !!designOf(shapeOf(tokenRole(key)), o.style)); };
 /** Every token of a shape (characters and their linked tokens), the one being made apart. */
 export function tokensOf(shape: TokenShape): string[] {
-  return state.lib!.roles.filter((r) => shapeOf(r) === shape && r.id !== state.creating?.draft.id)
+  return state.lib!.roles.filter((r) => shapeOf(r) === shape)
     .flatMap((r) => [charKey(r), ...remindersOf(r).map((_, i) => remKey(r, i))]);
 }
 /** The shapes the collection's tokens come in, in the shapes' order. */
-export const shapesHere = () => SHAPES.filter((sh) => state.lib!.roles.some((r) => shapeOf(r) === sh && r.id !== state.creating?.draft.id));
+export const shapesHere = () => SHAPES.filter((sh) => state.lib!.roles.some((r) => shapeOf(r) === sh));
 export function readMyDesigns(): Record<TokenShape, MyDesign[]> {
   const kept = loadJSON<Partial<Record<TokenShape, MyDesign[]>> | null>(MY_DESIGNS_KEY, null);
   const ok = (d: MyDesign | null) => !!d && typeof d.id === "string" && typeof d.name === "string" && !!d.spec && typeof d.spec === "object";

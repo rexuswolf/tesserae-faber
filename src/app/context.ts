@@ -2,7 +2,7 @@
 import type { ReliefPart, TokenStyle, TokenShape, Team, Role, TokenSpec, Library, TokenOverride, Token } from "../types.ts";
 import { DEFAULT_SPEC, normalizeSpec } from "../engine/token-engine.ts";
 import { OWN, OWN_ID, MODE, rememberCollection, loadCollection, builtIn, APP_LOGO, nameIn, stylesOf, ownStylesOf, knownStylesOf } from "../collection.ts";
-import type { OwnToken, Collection, StyleDef } from "../collection.ts";
+import type { Collection, StyleDef } from "../collection.ts";
 import type { AppUser } from "../ports.ts";
 import { uiLang, t } from "../i18n.ts";
 import { writeJSON, session, readJSON } from "../services.ts";
@@ -76,12 +76,9 @@ interface Selection { key: string; role: Role; reminder: number | null }
 /** A design saved in this browser before styles (one per character): it became a style of its type. */
 export interface SavedDesign { id: string; roleId: string; text: string | null; fem: boolean; spec: TokenSpec; title: string; updatedAt: number; shape?: TokenShape }
 /** The workshop's tabs: level 1, the token's parts ("body" is the coin, ring or card itself); level 2, a face's. */
-export type Part = "front" | "colours" | "back" | "body" | "relief" | "magnet";
+export type Part = "token" | "front" | "colours" | "back" | "body" | "relief" | "magnet";
 export type FaceTab = "layout" | "text" | "icon" | "frame" | "pattern";
 export type Side = "front" | "back";
-
-/** A token being made (own collections): a draft of it, the shape chosen, its catalogs. */
-export interface Creating { draft: OwnToken; shape: TokenShape; cats: string[] }
 
 export const state: {
   user: AppUser | null; lib: Library | null;
@@ -95,8 +92,8 @@ export const state: {
   overrides: Map<string, TokenOverride>;
   /** A line under the design for a moment: what just happened to it ("Back to its default"). */
   flash: string;
-  /** The token whose content is open (its panel), and the one being made. */
-  editing: string | null; creating: Creating | null;
+  /** The token of yours open in the designer (its fields there). */
+  editing: string | null;
   /** A closed collection's token: what it says is open in the design step. */
   saysOpen: boolean;
   step: number; pick: Map<string, number>;
@@ -110,7 +107,7 @@ export const state: {
   view: "angle",
   overrides: new Map(),   // read by loadDesigns once the tokens are known
   flash: "",
-  editing: null, creating: null, saysOpen: false,
+  editing: null, saysOpen: false,
   step: 1,
   pick: new Map(),         // token key ("c:imp", "r:imp:0") -> copies
 };
@@ -168,7 +165,7 @@ if ("serviceWorker" in navigator && import.meta.env.PROD) {
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") void reg.then((r) => r?.update().catch(() => {})); });
   navigator.serviceWorker.addEventListener("controllerchange", () => {
     if (!hadOne) return;
-    if (!state.creating && $("#app").dataset.step !== "taller") { location.reload(); return; }
+    if ($("#app").dataset.step !== "taller") { location.reload(); return; }
     stickyNotice("update", t("app.updated"), { label: t("app.reload"), run: () => location.reload() });
   });
 }

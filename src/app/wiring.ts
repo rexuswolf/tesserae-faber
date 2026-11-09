@@ -9,7 +9,7 @@ import { storeScripts, loadScripts } from "../scripts.ts";
 import { roleIdOf, charKey, textFor } from "./tokens.ts";
 import { persistPicks, editToken, isPicked, setPick, renderQueue, goStep, flow, downloadPdf, downloadBambu, dropFromDesign, designToken, PAPER_BACKS_KEY, testQ, PRINT_WAY_KEY, PRINTER_KEY, NOZZLE_KEY, openQueue, onQueueClick, undoPicks, changePicks } from "./queue.ts";
 import { renderSpine, renderSheet, onCopyStep, openRows, toggleCharacter, openAddMenu, addShown } from "./sheet.ts";
-import { openTokenPanel, wireCollSwitch, wireOwn, setOwnContent } from "./creator.ts";
+import { editOwnToken, wireCollSwitch, wireOwn, setOwnContent } from "./creator.ts";
 import { wireEditor, openContent } from "./editor.ts";
 import { wireDesignBar, deepenAll, openDesignSheet, wireDesignSheet, saveLookAsDesign, setOwn, rememberReturn, renderSays, setBackFace, backDrawn, changeLook, deepen, resetField, setReliefFace, toggleReliefPart, changePattern, changeCardBack, changeBackContent, FRAME_START_WIDTH } from "./design-sheet.ts";
 import { OWN } from "../collection.ts";
@@ -86,7 +86,7 @@ export function wire() {
   // step 1: tap a token to pick it (or drop it); a team or everything shown at once
   $("#rows").onclick = (e) => {
     const ownEdit = hit(e, "[data-own-edit]");
-    if (ownEdit) { openTokenPanel(ownEdit.dataset.ownEdit!); return; }
+    if (ownEdit) { editOwnToken(ownEdit.dataset.ownEdit!); return; }
     const pen = hit(e, "[data-edit]") ?? hit(e, "[data-design-row]");
     if (pen) { editToken(pen.dataset.edit ?? pen.dataset.designRow!); return; }
     if (onCopyStep(e)) return;
@@ -215,7 +215,7 @@ export function wire() {
     if (edit) { openContent(); return; }
     if (hit(e, ".says-toggle")) { state.saysOpen = !state.saysOpen; renderSays(); }
   };
-  $("#parts").onclick = (e) => { const b = hit(e, "[data-part]"); if (!b) return; showTab({ part: b.dataset.part as Part, face: b.dataset.face as FaceTab | undefined }); viewTab(); renderWorkshop(); };
+  $("#parts").onclick = $("#partsTok").onclick = (e) => { const b = hit(e, "[data-part]"); if (!b) return; showTab({ part: b.dataset.part as Part, face: b.dataset.face as FaceTab | undefined }); viewTab(); renderWorkshop(); };
   $("#faceTabs").onclick = (e) => {
     const b = hit(e, "[data-face]"); if (!b) return; showTab({ face: b.dataset.face as FaceTab }); renderWorkshop();
   };

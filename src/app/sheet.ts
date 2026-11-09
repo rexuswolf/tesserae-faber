@@ -197,7 +197,7 @@ export function onCopyStep(e: Event) {
 }
 
 /** A token with something of its own: a design chosen for it or changes to it, or its own text, feminine name or icon. */
-export const hasOwn = (key: string) => { const o = state.overrides.get(key); return !!o && !!(o.text || o.fem || o.icon || o.token) || designOverridden(key); };
+export const hasOwn = (key: string) => { const o = state.overrides.get(key); return !!o && !!(o.text || o.fem || o.icon) || designOverridden(key); };
 /** The mark of a token with its own changes, and the way to them. Beside the token's button: a button can't hold buttons. */
 export function ownPen(key: string, name: string) {
   const label = esc(t("sheet.editOwn", { name }));

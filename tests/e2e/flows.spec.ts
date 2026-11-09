@@ -364,71 +364,73 @@ test("designing, as a creator: Design and the parts under it; customised, anothe
   expect(errors).toEqual([]);
 });
 
-test("a token first: the front page's maker carries its name to a new token, in a collection made for it, used again after", async ({ page }) => {
-  const errors = await open(page, "/");
-  await page.locator("#tourName").fill("Dragón rojo");
+/** A token made from the front page's maker: made at once, open where it's designed on its Token tab. Its id. */
+async function makeToken(page: Page, name: string) {
+  await page.locator("#tourName").fill(name);
   await page.locator("[data-tok-new=maker]").evaluate((b) => (b as HTMLElement).click());
-  await page.waitForURL(/\/c\//);
-  await expect(page.locator("#tokenPanel")).toHaveAttribute("open", "", { timeout: 30_000 });
-  await expect(page.locator("#ownTokName")).toHaveValue("Dragón rojo");
-  expect(new URL(page.url()).search).toBe("");   // a reload doesn't open it again
-  const first = new URL(page.url()).pathname;
-  await page.goto("/");
-  await page.locator(".ol-cta [data-tok-new]").first().evaluate((b) => (b as HTMLElement).click());
-  await page.waitForURL(/\/c\//);
-  await expect(page.locator("#tokenPanel")).toHaveAttribute("open", "", { timeout: 30_000 });
-  expect(new URL(page.url()).pathname).toBe(first);
-  expect(errors).toEqual([]);
-});
-
-test("what a token shows is the token's: chosen when made, kept, and the design step leaves it be", async ({ page }) => {
-  const errors = await open(page, "/");
-  await page.locator("#tourName").fill("Lobo");
-  await page.locator("[data-tok-new=maker]").evaluate((b) => (b as HTMLElement).click());
-  await page.waitForURL(/\/c\//);
-  await expect(page.locator("#tokenPanel")).toHaveAttribute("open", "", { timeout: 30_000 });
-  // an icon of its own (an SVG of yours: no waiting on game-icons.net), so it can do without its name
-  await page.locator("#ownTokSvg").setInputFiles({ name: "wolf.svg", mimeType: "image/svg+xml", buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M1 1h8v8H1z"/></svg>') });
-  await expect(page.locator("#ownTokChip [data-icon-none]")).toBeVisible();
-  // its name not printed: its icon alone
-  await page.locator("#ownTokPrint").uncheck();
-  await expect(page.locator("#ownTokNameHint")).toBeVisible();
-  // its icon removed: its name alone, which then has to print
-  await page.locator("#ownTokChip [data-icon-none]").click();
-  await expect(page.locator("#ownTokPrint")).toBeChecked();
-  await expect(page.locator("#ownTokPrint")).toBeDisabled();
-  await page.locator("#tpDone").click();
-  await expect(page.locator("#tokenPanel")).not.toHaveAttribute("open", "");
-  // kept: Edit (the list's) opens it as it was left, its name alone (no layout here: the tick says it)
-  await page.locator("[data-own-edit]").first().click();
-  await expect(page.locator("#tokenPanel")).toHaveAttribute("open", "");
-  await expect(page.locator("#ownTokPrint")).toBeChecked();
-  await expect(page.locator("#ownTokChip [data-icon-none]")).toHaveCount(0);   // no icon now
-  await page.locator("#tpDone").click();
-  // in the designer: no tick for its text, the layout says it (its name alone: Text only)
-  const id = await page.locator("[data-own-edit]").first().getAttribute("data-own-edit");
-  await page.evaluate((key) => { const mm = (window as unknown as { __mm: { goStep(n: number): void; designToken(k: string): void } }).__mm; mm.goStep(2); mm.designToken(key); }, `c:${id}`);
-  await expect(page.locator('[data-choice="style"] [data-v="text"]')).toHaveAttribute("aria-pressed", "true");
-  await expect(page.locator("#tpContent")).toBeHidden();
-  expect(errors).toEqual([]);
-});
-
-test("a token of yours without an icon: the layouts that show one wait for it, and Plain carries nothing", async ({ page }) => {
-  const errors = await open(page, "/");
-  await page.locator("#tourName").fill("Lobo");
-  await page.locator("[data-tok-new=maker]").evaluate((b) => (b as HTMLElement).click());
-  await page.waitForURL(/\/c\//);
-  await expect(page.locator("#tokenPanel")).toHaveAttribute("open", "", { timeout: 30_000 });
-  await page.locator("#tpDone").click();
-  const id = await page.locator("[data-own-edit]").first().getAttribute("data-own-edit");
-  await page.evaluate((key) => { const mm = (window as unknown as { __mm: { goStep(n: number): void; designToken(k: string): void } }).__mm; mm.goStep(2); mm.designToken(key); }, `c:${id}`);
-  // a click on what's there now (the tabs redraw a frame later: a click on the old ones is lost), until it takes
+  await page.waitForURL(/disenar=c%3A|disenar=c:/, { timeout: 30_000 });
+  await expect(page.locator("#crTok #ownTokName")).toBeVisible({ timeout: 30_000 });
+  return new URL(page.url()).searchParams.get("disenar")!.slice(2);
+}
+/** A click on what's there now (the tabs redraw a frame later: a click on the old ones is lost), until it takes; and a tab that's open. */
+function clicks(page: Page) {
   const go = (s: string, then?: () => Promise<void>) => expect(async () => {
     await page.locator(s).first().evaluate((b) => (b as HTMLElement).click());
     if (then) await then();
   }).toPass();
   const on = (s: string) => () => expect(page.locator(s)).toHaveAttribute("aria-selected", "true", { timeout: 1000 });
-  await go('.cr-item[data-cr="part"]');
+  return { go, on };
+}
+const SVG = { name: "wolf.svg", mimeType: "image/svg+xml", buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M1 1h8v8H1z"/></svg>') };
+
+test("a token first: the front page's maker makes it at once, in a collection made for it, open on its Token tab; used again after", async ({ page }) => {
+  const errors = await open(page, "/");
+  await makeToken(page, "Dragón rojo");
+  await expect(page.locator("#crTok #ownTokName")).toHaveValue("Dragón rojo");
+  await expect(page.locator('#parts [data-part="token"]')).toHaveAttribute("aria-selected", "true");
+  expect(new URL(page.url()).searchParams.has("nueva")).toBe(false);   // a reload doesn't make another
+  const first = new URL(page.url()).pathname;
+  await page.goto("/");
+  await page.locator(".ol-cta [data-tok-new]").first().evaluate((b) => (b as HTMLElement).click());
+  await page.waitForURL(/disenar=/, { timeout: 30_000 });
+  await expect(page.locator("#crTok #ownTokName")).toBeVisible({ timeout: 30_000 });
+  expect(new URL(page.url()).pathname).toBe(first);
+  expect(errors).toEqual([]);
+});
+
+test("a token of yours is made and changed where it's designed: its Token tab, what it is; the list's pen opens it there; a shape, another like it, or none", async ({ page }) => {
+  const errors = await open(page, "/");
+  const id = await makeToken(page, "Lobo"), { go, on } = clicks(page);
+  // what it is: its name (the lists say it), its shape; not what its faces carry
+  await expect(page.locator("#crTok #ownTokText")).toBeHidden();
+  await page.locator("#crTok #ownTokName").fill("Lobo gris");
+  // the list's pen: back here, on its Token tab
+  await page.evaluate(() => (window as unknown as { __mm: { goStep(n: number): void } }).__mm.goStep(1));
+  await expect(page.locator(`[data-own-edit="${id}"]`).first()).toBeVisible();
+  await expect(page.locator("#rows")).toContainText("Lobo gris");
+  await page.locator(`[data-own-edit="${id}"]`).first().click();
+  await expect(page.locator('#parts [data-part="token"]')).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#crTok #ownTokName")).toHaveValue("Lobo gris");
+  // a card now: its tabs are a card's
+  await go('#tpShape [data-shape="card"]', () => expect(page.locator('#tpShape [data-shape="card"]')).toHaveAttribute("aria-checked", "true", { timeout: 1000 }));
+  await expect(page.locator('#parts [data-part="back"]')).toBeVisible();
+  await expect(page.locator('#parts [data-part="token"]')).toHaveAttribute("aria-selected", "true");   // still on its Token tab
+  // another like it: made at once, open here, its name ready to write over
+  await page.locator("#ownTokAnother").evaluate((b) => (b as HTMLElement).click());   // (a note at the bottom may lie over it)
+  await expect.poll(() => new URL(page.url()).searchParams.get("disenar")).not.toBe(`c:${id}`);
+  await expect(page.locator('#tpShape [data-shape="card"]')).toHaveAttribute("aria-checked", "true");
+  // and gone: the token before it is open
+  page.once("dialog", (d) => void d.accept());
+  await page.locator("#ownTokDelete").evaluate((b) => (b as HTMLElement).click());   // (a note at the bottom may lie over it)
+  await expect.poll(() => new URL(page.url()).searchParams.get("disenar")).toBe(`c:${id}`);
+  await go('#parts [data-part="front"]', on('#parts [data-part="front"]'));
+  expect(errors).toEqual([]);
+});
+
+test("a token of yours without an icon: the layouts that show one wait for it, and Plain carries nothing", async ({ page }) => {
+  const errors = await open(page, "/");
+  await makeToken(page, "Lobo");
+  const { go, on } = clicks(page);
   await go('#parts [data-part="front"]', on('#parts [data-part="front"]'));
   // no dialog: its front's text and icon are in the front's Composition
   await expect(page.locator("#crOwn #ownTokText")).toBeVisible();
@@ -451,41 +453,30 @@ test("a token of yours without an icon: the layouts that show one wait for it, a
   await go('[data-choice="style"] [data-v="none"]', () => expect(page.locator('[data-choice="style"] [data-v="none"]')).toHaveAttribute("aria-pressed", "true", { timeout: 1000 }));
   await expect(page.locator("#ownTokNameHint")).toBeVisible();
   // an icon given: it shows, and the layouts with one are there again
-  await page.locator("#ownTokSvg").setInputFiles({ name: "wolf.svg", mimeType: "image/svg+xml", buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M1 1h8v8H1z"/></svg>') });
+  await page.locator("#ownTokSvg").setInputFiles(SVG);
   await expect(page.locator('[data-choice="style"] [data-v="solo"]')).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator('[data-choice="style"] [data-v="solo"]')).toBeEnabled();
   await expect(page.locator('[data-choice="style"] [data-v="classic"]')).toBeDisabled();   // its text is still empty
   expect(errors).toEqual([]);
 });
 
-test("a token of yours is changed where it's designed: each face's Composition has what it carries, the token beside it", async ({ page }) => {
+test("a token of yours is changed where it's designed, in the collection: each face's Composition has what it carries", async ({ page }) => {
   const errors = await open(page, "/");
-  await page.locator("#tourName").fill("Lobo");
-  await page.locator("[data-tok-new=maker]").evaluate((b) => (b as HTMLElement).click());
-  await page.waitForURL(/\/c\//);
-  await expect(page.locator("#tokenPanel")).toHaveAttribute("open", "", { timeout: 30_000 });
-  // an icon of its own (an SVG of yours: no waiting on game-icons.net), so it can be its icon alone
-  await page.locator("#ownTokSvg").setInputFiles({ name: "wolf.svg", mimeType: "image/svg+xml", buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M1 1h8v8H1z"/></svg>') });
-  await expect(page.locator("#ownTokChip [data-icon-none]")).toBeVisible();
-  await page.locator("#tpDone").click();
-  const id = await page.locator("[data-own-edit]").first().getAttribute("data-own-edit");
-  await page.evaluate((key) => { const mm = (window as unknown as { __mm: { goStep(n: number): void; designToken(k: string): void } }).__mm; mm.goStep(2); mm.designToken(key); }, `c:${id}`);
-  // a click on what's there now (the tabs redraw a frame later: a click on the old ones is lost), until it takes
-  const go = (s: string, then?: () => Promise<void>) => expect(async () => {
-    await page.locator(s).first().evaluate((b) => (b as HTMLElement).click());
-    if (then) await then();
-  }).toPass();
-  const on = (s: string) => () => expect(page.locator(s)).toHaveAttribute("aria-selected", "true", { timeout: 1000 });
-  await go('.cr-item[data-cr="part"]');
+  const id = await makeToken(page, "Lobo"), { go, on } = clicks(page);
   await go('#parts [data-part="front"]', on('#parts [data-part="front"]'));
-  // no dialog: its front's text and icon are in the front's Composition
-  await expect(page.locator("#crOwn #ownTokText")).toBeVisible();
+  // an icon of its own (an SVG of yours: no waiting on game-icons.net), so it can be its icon alone
+  await page.locator("#crOwn #ownTokSvg").setInputFiles(SVG);
+  await expect(page.locator("#crOwn #ownTokChip [data-icon-none]")).toBeVisible();
   await expect(page.locator("#crOwn #ownTokName")).toBeHidden();
-  await expect(page.locator("#tokenPanel")).not.toHaveAttribute("open", "");
   await page.locator("#crOwn #ownTokText").fill("LOBO GRIS");
   // its back's: another state with its own text
   await go('#parts [data-part="back"]', on('#parts [data-part="back"]'));
   await go('#faceTabs [data-face="layout"]', on('#faceTabs [data-face="layout"]'));
+  // no other state: the design's back (what it says on all your coins); switched on, its own name and icon instead
+  await expect(page.locator("#ownTokFlipName")).toBeHidden();
+  await expect(page.locator("#backSayBox")).toBeVisible();
+  await page.locator("#ownTokFlipOn").check();
+  await expect(page.locator("#backSayBox")).toBeHidden();
   await expect(page.locator("#ownTokFlipName")).toHaveValue("");
   await page.locator("#ownTokFlipName").fill("Lobo herido");
   await expect(page.locator("#ownTokFlipName")).toHaveValue("Lobo herido");
@@ -494,98 +485,14 @@ test("a token of yours is changed where it's designed: each face's Composition h
   await go('#faceTabs [data-face="layout"]', on('#faceTabs [data-face="layout"]'));
   await page.locator('[data-choice="style"] [data-v="solo"]').click();
   await expect(page.locator('[data-choice="style"] [data-v="solo"]')).toHaveAttribute("aria-pressed", "true");
-  await expect(page.locator("#tpContent")).toBeHidden();   // no "Print its text" here: the layout says it
   await page.locator('[data-choice="style"] [data-v="classic"]').click();
   await expect(page.locator('[data-choice="style"] [data-v="classic"]')).toHaveAttribute("aria-pressed", "true");
   expect(errors).toEqual([]);
-});
-
-test("a token of yours changed where it's designed is changed there only, not in the collection: undone, or saved to the token", async ({ page }) => {
-  const errors = await open(page, "/");
-  await page.locator("#tourName").fill("Lobo");
-  await page.locator("[data-tok-new=maker]").evaluate((b) => (b as HTMLElement).click());
-  await page.waitForURL(/\/c\//);
-  await expect(page.locator("#tokenPanel")).toHaveAttribute("open", "", { timeout: 30_000 });
-  await page.locator("#tpDone").click();
-  const id = await page.locator("[data-own-edit]").first().getAttribute("data-own-edit");
-  await page.evaluate((key) => { const mm = (window as unknown as { __mm: { goStep(n: number): void; designToken(k: string): void } }).__mm; mm.goStep(2); mm.designToken(key); }, `c:${id}`);
-  const go = (s: string, then?: () => Promise<void>) => expect(async () => {
-    await page.locator(s).first().evaluate((b) => (b as HTMLElement).click());
-    if (then) await then();
-  }).toPass();
-  const on = (s: string) => () => expect(page.locator(s)).toHaveAttribute("aria-selected", "true", { timeout: 1000 });
-  const text = page.locator("#crOwn #ownTokText"), saveToToken = page.locator('[data-print-field="text"] [data-print-save]');
-  const design = async () => {
-    await page.evaluate((key) => { const mm = (window as unknown as { __mm: { goStep(n: number): void; designToken(k: string): void } }).__mm; mm.goStep(2); mm.designToken(key); }, `c:${id}`);
-    await go('.cr-item[data-cr="part"]');
-    await go('#parts [data-part="front"]', on('#parts [data-part="front"]'));
-  };
-  const fromList = async () => {
-    await page.evaluate(() => (window as unknown as { __mm: { goStep(n: number): void } }).__mm.goStep(1));
-    await page.locator(`[data-own-edit="${id}"]`).first().click();
-    await expect(page.locator("#tokenPanel")).toHaveAttribute("open", "");
-  };
-  // what the collection keeps (a moment after a change)
-  const collectionSays = () => page.evaluate(async (tid) => {
-    await new Promise((r) => setTimeout(r, 600));
+  // the collection's own: what it keeps says so (a moment after)
+  await expect.poll(() => page.evaluate((tid) => {
     const key = Object.keys(localStorage).find((k) => localStorage.getItem(k)?.includes(`"id":"${tid}"`) && localStorage.getItem(k)?.includes('"tokens"'));
-    const c = JSON.parse(localStorage.getItem(key!)!), tk = c.tokens.find((x: { id: string }) => x.id === tid);
-    return tk.text ? (typeof tk.text === "string" ? tk.text : tk.text.en) : (typeof tk.name === "string" ? tk.name : tk.name.en);
-  }, id);
-  await design();
-  await expect(text).toHaveValue("Lobo");
-  await expect(saveToToken).toHaveCount(0);
-  // changed here: said over it, and the token in the collection still says its name
-  await text.fill("LOBO GRIS");
-  await expect(saveToToken).toBeVisible();
-  await expect(page.locator('#parts [data-part="front"] .part-dot')).toHaveCount(1);   // marked in the menu
-  await expect(page.locator('#parts [data-part="back"] .part-dot')).toHaveCount(0);
-  // the back carries nothing changed: no Undo there
-  await go('#parts [data-part="back"]', on('#parts [data-part="back"]'));
-  await go('#faceTabs [data-face="layout"]', on('#faceTabs [data-face="layout"]'));
-  await expect(page.locator('[data-print-field="flip"]')).toBeHidden();
-  await go('#parts [data-part="front"]', on('#parts [data-part="front"]'));
-  await go('#faceTabs [data-face="layout"]', on('#faceTabs [data-face="layout"]'));
-  await expect(saveToToken).toBeVisible();
-  await expect(collectionSays()).resolves.toBe("Lobo");
-  // and the token as it prints says so (the list's pen edits the collection's)
-  await fromList();
-  await expect(page.locator("#tokenPanel #ownTokText")).toHaveValue("Lobo");
-  await page.locator("#tpDone").click();
-  await design();
-  await expect(text).toHaveValue("LOBO GRIS");
-  // undone: as the collection has it (from the tab, its changes only: the back's other state stays)
-  await go('#parts [data-part="back"]', on('#parts [data-part="back"]'));
-  await go('#faceTabs [data-face="layout"]', on('#faceTabs [data-face="layout"]'));
-  await page.locator("#ownTokFlipName").fill("Lobo herido");
-  await expect(page.locator('#parts [data-part="back"] .part-dot')).toHaveCount(1);
-  await go('#parts [data-part="front"]', on('#parts [data-part="front"]'));
-  await go('#faceTabs [data-face="layout"]', on('#faceTabs [data-face="layout"]'));
-  await page.locator("#partUndo").click();
-  await expect(saveToToken).toHaveCount(0);
-  await expect(text).toHaveValue("Lobo");
-  await expect(page.locator("#partUndo")).toBeHidden();
-  await expect(page.locator('#parts [data-part="front"] .part-dot')).toHaveCount(0);
-  await expect(page.locator('#parts [data-part="back"] .part-dot')).toHaveCount(1);
-  await go('#parts [data-part="back"]', on('#parts [data-part="back"]'));
-  await go('#faceTabs [data-face="layout"]', on('#faceTabs [data-face="layout"]'));
-  await expect(page.locator("#ownTokFlipName")).toHaveValue("Lobo herido");
-  await page.locator("#partUndo").click();
-  await expect(page.locator("#ownTokFlipName")).toHaveValue("");
-  await go('#parts [data-part="front"]', on('#parts [data-part="front"]'));
-  await go('#faceTabs [data-face="layout"]', on('#faceTabs [data-face="layout"]'));
-  // a field's own Undo: that field as the collection has it
-  await text.fill("LOBO");
-  await expect(page.locator('[data-print-field="icon"]')).toBeHidden();   // only what changed says so
-  await page.locator('[data-print-field="text"] [data-print-undo]').click();
-  await expect(text).toHaveValue("Lobo");
-  await expect(saveToToken).toHaveCount(0);
-  // changed and saved to the token: the collection's now
-  await text.fill("LOBO GRIS");
-  await saveToToken.click();
-  await expect(saveToToken).toHaveCount(0);
-  await expect(collectionSays()).resolves.toBe("LOBO GRIS");
-  await fromList();
-  await expect(page.locator("#tokenPanel #ownTokText")).toHaveValue("LOBO GRIS");
+    const tk = JSON.parse(localStorage.getItem(key!)!).tokens.find((x: { id: string }) => x.id === tid);
+    return [typeof tk.text === "string" ? tk.text : tk.text?.en, typeof tk.flip?.name === "string" ? tk.flip.name : tk.flip?.name?.en];
+  }, id)).toEqual(["LOBO GRIS", "Lobo herido"]);
   expect(errors).toEqual([]);
 });

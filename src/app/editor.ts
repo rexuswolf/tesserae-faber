@@ -10,6 +10,7 @@
 // On a phone the three are big buttons; one tapped goes into it, with a bar to come back, and
 // Customise's parts are tabs.
 import { state, $, esc, hit } from "./context.ts";
+import type { Part } from "./context.ts";
 import { ownChanged, designFor } from "./designs.ts";
 import { renderEditorDesigns, wireEditorDesigns, toast, renderSays } from "./design-sheet.ts";
 import { textFor } from "./tokens.ts";
@@ -30,6 +31,14 @@ function show() {
   for (const b of document.querySelectorAll<HTMLElement>(".cr-cats [data-cr]")) b.setAttribute("aria-current", String(b.dataset.cr === ed.cat));
   $("#crBackLabel").textContent = t(ed.cat === "content" ? "editor.content" : ed.cat === "design" ? "editor.design" : "editor.custom");
 }
+/** A part of the token (its Token tab, a face…), opened from elsewhere: Customise, inside it. */
+export function openPartTab(part: Part) {
+  ed.cat = "part"; ed.inside = true;
+  if (state.sel) ed.key = state.sel.key;   // this token's: not back to its menu when it's drawn
+  show();
+  showTab({ part });
+  renderWorkshop();
+}
 /** What the token carries, opened from elsewhere (the line over the design): its front's Composition. */
 export function openContent() {
   ed.cat = "part"; ed.inside = true;
@@ -46,7 +55,7 @@ export function renderEditor(key: string, shape: TokenShape) {
   // its content's fields are the Content panel's: always open there
   if (!state.saysOpen) { state.saysOpen = true; renderSays(); }
   const tweaked = ownChanged(key), own = state.overrides.get(key);
-  const said = !!(own?.text || own?.fem || own?.icon || own?.token), text = textFor(key, role, reminder);
+  const said = !!(own?.text || own?.fem || own?.icon), text = textFor(key, role, reminder);
   const word = (s: string) => `<i>${esc(s)}</i>`;
   $("#crValContent").innerHTML = esc(text) + (said ? ` ${word(t("editor.changed"))}` : "");
   $("#crValDesign").innerHTML = tweaked ? word(t("editor.customised")) : esc(designFor(key, shape).name);
@@ -67,7 +76,7 @@ export function wireEditor() {
   $("#crNav").addEventListener("click", (e) => {
     if (hit(e, "#crBack")) { ed.inside = false; if (ed.cat === "part") ed.cat = "design"; show(); return; }
     // a part's tab (the workshop opens it): Customise is where you are
-    if (hit(e, "#parts [data-part]")) { ed.cat = "part"; ed.inside = true; show(); return; }
+    if (hit(e, "#parts [data-part], #partsTok [data-part]")) { ed.cat = "part"; ed.inside = true; show(); return; }
     const b = hit(e, ".cr-cats [data-cr]"); if (!b) return;
     const cat = b.dataset.cr as Cat;
     if (cat === "content" && !state.saysOpen) { state.saysOpen = true; renderSays(); }

@@ -471,10 +471,6 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .says-what b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .says-what small { color: var(--dust); font-size: 12.5px; }
 /* a field of a token of yours changed for this print: said under it, with Undo and Save to the token */
-.field-print { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; margin: 6px 0 0; font-size: 12.5px; color: var(--bone); }
-.field-print .own-dot { font-style: normal; color: var(--brass); }
-.field-print .fp-acts { display: inline-flex; gap: 6px; }
-.field-print .pill { font-size: 12px; padding: 4px 10px; }
 /* a part the token changed: a dot beside its name in the menu */
 .part-dot { display: inline-block; width: 7px; height: 7px; margin-left: 8px; border-radius: 50%; background: var(--brass); vertical-align: middle; }
 .ws-says .pill { flex: none; padding: 4px 12px; font-size: 13px; }
@@ -1353,49 +1349,11 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
   .taller-wizard .tl-design { width: auto; }
 }
 
-/* A token's content, in a panel over the sheet: the token as it prints beside its fields */
-.token-panel { width: min(1000px, calc(100% - 32px)); max-width: none; height: min(780px, calc(100% - 32px)); max-height: none; padding: 0; }
-.token-panel[open] { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
-.tp-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px 10px 24px; border-bottom: 1px solid var(--seam); }
-.tp-head h2 { margin: 0; font-size: 26px; }
-.tp-body { min-height: 0; display: grid; grid-template-columns: 300px minmax(0, 1fr); }
-.tp-side { min-height: 0; overflow-y: auto; padding: 22px 18px; border-right: 1px solid var(--seam); background: radial-gradient(80% 60% at 50% 20%, var(--glow, #33122a) 0%, transparent 80%); }
-.tp-faces { display: flex; justify-content: center; gap: 10px; }
-.tp-pic figure { margin: 0; display: grid; justify-items: center; gap: 4px; }
-.tp-pic figcaption { color: var(--dust); font-size: 12px; text-align: center; overflow-wrap: anywhere; }
-.tp-faces svg { display: block; width: 124px; height: 124px; }
-.tp-linked { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 16px; }
-.tp-linked figure { max-width: 72px; }
-.tp-linked svg { display: block; width: 52px; height: 52px; }
-#tpDesign { margin: 16px 0 0; text-align: center; }
-.tp-fields { min-height: 0; overflow-y: auto; padding: 18px 24px 24px; display: grid; align-content: start; gap: 16px; }
+/* A token of yours: its fields (in the designer's Token tab, or a face's Composition) */
+.tp-fields { display: grid; align-content: start; gap: 16px; }
 .tp-type { max-width: 280px; margin-top: 8px; }
-.tp-flip { padding-top: 14px; border-top: 1px solid var(--seam); }
-.tp-flip h3 { margin: 0; }
-.tp-flip .hint { margin: 0; }
-.tp-foot { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-top: 1px solid var(--seam); }
-#tpFlash { flex: 1; margin: 0; }
-.tp-foot .danger { color: var(--warn); }
-.tp-foot .forge { padding-inline: 22px; }
 .ask-dialog p { margin: 0; line-height: 1.5; }
 .ask-dialog .dialog-actions { flex-wrap: wrap; }
-@media (max-width: 760px) {
-  /* a sheet from the bottom: the page it came from still shows above it */
-  .token-panel { width: 100%; max-width: 100%; height: 92vh; max-height: 92vh; margin: auto 0 0; border: 0; border-radius: 20px 20px 0 0; }
-  .token-panel[open] { animation: tl-rise .2s ease-out; }
-  .tp-head { padding-left: 16px; }
-  .tp-body { grid-template-columns: minmax(0, 1fr); overflow-y: auto; }
-  .tp-side { overflow: visible; padding: 12px; border-right: 0; border-bottom: 1px solid var(--seam); }
-  .tp-faces svg { width: 92px; height: 92px; }
-  .tp-linked { margin-top: 8px; }
-  .tp-linked svg { width: 40px; height: 40px; }
-  #tpDesign { margin-top: 8px; }
-  .tp-fields { overflow: visible; padding: 14px 16px 18px; }
-  .tp-foot { flex-wrap: wrap; padding: 10px 12px; }
-  #tpFlash { flex-basis: 100%; order: -1; }
-  #tpFlash:empty { display: none; }
-  .tp-foot .forge { margin-left: auto; }
-}
 
 /* Choosing a design (a token's, or a shape's default): a modal on a computer, a sheet from the bottom on a
    phone. Two tabs (the collection's, yours), the designs drawn large on the token, the Taller at the foot. */
@@ -1640,13 +1598,6 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 .tour-view { justify-content: center; }
 
 /* the token panel: what a first token doesn't need, folded */
-.tp-more { margin-top: 14px; border-top: 1px solid var(--seam); padding-top: 10px; }
-.tp-more > summary { cursor: pointer; list-style: none; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; padding: 4px 0; }
-.tp-more > summary::-webkit-details-marker { display: none; }
-.tp-more > summary::before { content: "›"; display: inline-block; transition: transform .15s; color: var(--brass); }
-.tp-more[open] > summary::before { transform: rotate(90deg); }
-.tp-more > summary small { color: var(--dust); }
-.tp-more > .own-fields { margin-top: 8px; }
 
 /* the design step: the first designs a token can take, a tap away */
 .ds-quick { flex-basis: 100%; display: grid; grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); gap: 6px; margin-top: 4px; }
@@ -2101,8 +2052,6 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 /* a coin back's words: what it says (its name, the edition's, its own, nothing), and its own words under it */
 .back-say { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin: 0 0 14px; }
 .back-say[hidden] { display: none; }
-.back-say-seg { flex-wrap: wrap; border-radius: 18px; }
-.back-say-seg button { white-space: nowrap; }
 .back-say input.text { width: 100%; }
 .back-art { margin: 0 0 14px; }
 .back-art[hidden] { display: none; }
@@ -2151,12 +2100,19 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 .tp-print { margin-top: 8px; font-size: 13.5px; color: var(--dust); }
 .tp-print input:disabled + span { opacity: .6; }
 /* More: a setting a line, its name and help at the left, its control at the right; a list under them */
-#tpMoreOpts .own-fields { gap: 0; }
-#tpMoreOpts .own-fields > .field { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 16px; align-items: center; padding: 14px 0; border-top: 1px solid var(--seam); }
-#tpMoreOpts .own-fields > .field:first-child { border-top: 0; padding-top: 6px; }
-#tpMoreOpts .own-fields > .field[hidden] { display: none; }
-#tpMoreOpts .own-fields > .field > span:first-child { grid-column: 1; color: var(--bone); font-size: 14px; font-weight: 500; }
-#tpMoreOpts .own-fields > .field > .hint { grid-column: 1; margin: 0; }
+details.tp-more { margin-top: 14px; border-top: 1px solid var(--seam); padding-top: 10px; }
+details.tp-more > summary { cursor: pointer; list-style: none; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; padding: 4px 0; }
+details.tp-more > summary::-webkit-details-marker { display: none; }
+details.tp-more > summary::before { content: "›"; display: inline-block; transition: transform .15s; color: var(--brass); }
+details.tp-more[open] > summary::before { transform: rotate(90deg); }
+details.tp-more > summary small { color: var(--dust); }
+details.tp-more > .own-fields { margin-top: 8px; }
+#tpMoreOpts { gap: 0; }
+#tpMoreOpts > .field { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 16px; align-items: center; padding: 14px 0; border-top: 1px solid var(--seam); }
+#tpMoreOpts > .field:first-child { border-top: 1px solid var(--seam); }
+#tpMoreOpts > .field[hidden] { display: none; }
+#tpMoreOpts > .field > span:first-child { grid-column: 1; color: var(--bone); font-size: 14px; font-weight: 500; }
+#tpMoreOpts > .field > .hint { grid-column: 1; margin: 0; }
 #ownTokColour { grid-column: 2; grid-row: 1 / span 2; }
 #ownTokColourHelp { grid-row: 2; }
 #ownTokAddLinked { grid-column: 2; grid-row: 1 / span 2; }
@@ -2164,7 +2120,7 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 #ownTokLinked:empty { display: none; }
 @media (max-width: 760px) {
   /* More on a phone: each setting's control under its name and help */
-  #tpMoreOpts .own-fields > .field { grid-template-columns: minmax(0, 1fr); }
+  #tpMoreOpts > .field { grid-template-columns: minmax(0, 1fr); }
   #ownTokColour, #ownTokAddLinked { grid-column: 1; grid-row: auto; justify-self: start; margin-top: 6px; }
 }
 
@@ -2283,21 +2239,23 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 .ws-body[data-comp=true] [data-panel=text], .ws-body[data-comp=true] [data-panel=icon] { padding-top: 14px; border-top: 1px solid var(--seam); margin-top: 14px; }
 /* a token of yours' fields in a face's Composition: that face's only, without their blocks' boxes */
 .comp-what #crOwn .tp-fields { padding: 0; overflow: visible; }
-.comp-what #crOwn :is(.tp-name, #tpShape, #tpMoreOpts, #ownTokGroupRow) { display: none !important; }   /* the token's own (its name, group…): its Edit, not this print's */
+.comp-what #crOwn :is(.tp-name, #tpShape, #tpMoreOpts, #ownTokGroupRow) { display: none !important; }   /* what it is: its Token tab */
+/* its Token tab: what it is (its shape, name, group, colour, catalogs, linked tokens), not what its faces carry */
+#crTok :is(#tpFront, #contentFlip, #tpContent) { display: none !important; }
+#crTok .tp-fields { gap: 18px; }
+.tp-tok-acts { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; padding-top: 16px; border-top: 1px solid var(--seam); }
+.tp-tok-acts .danger { color: var(--warn); }
 .comp-what #crOwn[data-side=front] #contentFlip, .comp-what #crOwn[data-side=back] #tpFront { display: none !important; }
 .comp-what #crOwn .tp-face { border: 0; padding: 0; background: none; }
 .comp-what #crOwn #tpFront > h3 { display: none; }
 .comp-what[data-side=back] #contentClosed { display: none !important; }
 /* inside Composition the back's block has no title of its own (the tab says Back): its switch heads it */
 .comp-what #crOwn #contentFlip > h3 { display: none; }
+.flip-on .switch { color: var(--bone); font-size: 14.5px; }
+.flip-on .hint { margin: 2px 0 0; }
+#ownTokFlipBox[hidden] { display: none; }
 .comp-what { margin-bottom: 4px; }
 .comp-what .back-art { margin-bottom: 0; }
-/* What the back says: four equal parts, two to a row when they don't fit in one (no pill left ragged) */
-.back-say-seg { display: grid !important; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 3px; width: 100%; border-radius: 12px; padding: 3px; flex-wrap: nowrap; }
-.back-say-seg button { border-radius: 9px; padding: 7px 6px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-@container (max-width: 380px) { .back-say-seg { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 1400px) and (min-width: 901px) { .back-say-seg { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 420px) { .back-say-seg { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .comp-design-h { margin: 8px 0 -4px; padding-top: 14px; border-top: 1px solid var(--seam); font: 600 14px/1.3 var(--ui); }
 .comp-design-h[hidden] { display: none; }
 
@@ -2305,6 +2263,13 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 .app[data-step="2"] .cr-item[data-cr="part"] { display: none !important; }
 .cr-parts-h { display: none; margin: 18px 24px 6px; color: var(--dust); font-size: 12.5px; font-weight: 600; }
 .app[data-step="2"] .cr-parts-h { display: block; }
+/* a token of yours: its Token tab over its design, not among Customise's parts (but on a phone inside a part, as a tab) */
+#parts [data-part="token"] { display: none !important; }
+#partsTok[hidden] { display: none !important; }
+.cr-nav #partsTok { margin-bottom: 4px; }
+/* its Token row is lit like Design's while it's open (but not while Design is) */
+#partsTok .cr-item[aria-selected=true] { background: radial-gradient(80% 140% at 30% 100%, color-mix(in srgb, var(--brass) 30%, transparent), transparent 75%), color-mix(in srgb, var(--bone) 5%, transparent); box-shadow: inset 3px 0 0 var(--brass); }
+.app[data-crc="design"] #partsTok .cr-item[aria-selected=true] { background: none; box-shadow: none; }
 @media (min-width: 901px) {
   .app[data-step="2"] .cr-cats { display: grid !important; }
   .app[data-step="2"] .cr-nav .parts { display: grid !important; }
@@ -2323,4 +2288,6 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
   .app[data-step="2"][data-crm="in"] .cr-parts-h { display: none; }
   .app[data-step="2"][data-crm="in"][data-crc="design"] .cr-nav .parts { display: none !important; }
   .app[data-step="2"][data-crm="in"][data-crc="part"] .cr-nav .parts { display: flex !important; }
+  .app[data-step="2"][data-crm="in"] #partsTok { display: none !important; }
+  .app[data-step="2"][data-crm="in"] #parts [data-part="token"] { display: block !important; }
 }
