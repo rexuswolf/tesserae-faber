@@ -121,7 +121,7 @@ const styles = {
     // edge; on the back the shield and the collection's name in black
     { id: "pieza-de-oro", name: { es: "Pieza de oro", en: "Gold piece" },
       help: { es: "De oro, con el icono y el nombre en relieve biselado, el marco acuñado en relieve y el canto estriado; al reverso, el escudo y «Fantasía 5e» en negro.", en: "Gold, with the icon and the name in bevelled relief, the milled frame raised and a reeded edge; on the back, the shield and «5e Fantasy» in black." },
-      spec: { style: "classic", frame: "acunado", frameWidth: 0.8, back: "escudo", backText: "collection", depth: 0.4, relief: { text: true, frame: true, icon: true }, reliefHeight: 0.8, reliefBevel: 0.3, edge: "reeded", colours: { base: FILAMENTS.gold, front: FILAMENTS.gold, frame: FILAMENTS.gold, back: FILAMENTS.black } } },
+      spec: { style: "classic", frame: "acunado", frameWidth: 0.8, frameInset: 0, back: "escudo", backText: "collection", depth: 0.4, relief: { text: true, frame: true, icon: true }, reliefHeight: 0.8, reliefBevel: 0.3, edge: "reeded", colours: { base: FILAMENTS.gold, front: FILAMENTS.gold, frame: FILAMENTS.gold, back: FILAMENTS.black } } },
   ],
   // rings: the app's High relief its default (it reads from the side, next to the miniature), the
   // rest the app's; no cards: a copy with some gets Basic's

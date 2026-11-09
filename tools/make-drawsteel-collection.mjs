@@ -101,7 +101,7 @@ const styles = {
     // scales in silver round a shield with two swords and the collection's name (not each catalog's)
     { id: "cota-de-malla", name: { es: "Cota de malla", en: "Chainmail" },
       help: { es: "Negra, con escamas finas del color del grupo detrás del icono y el nombre; al reverso, escamas de plata alrededor de un escudo con espadas y «Draw Steel».", en: "Black, with fine scales in the group colour behind the icon and the name; on the back, silver scales round a shield with swords and «Draw Steel»." },
-      spec: { style: "classic", frame: "acunado", frameWidth: 0.8, back: "escudo", backText: "collection", depth: 0.4, colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.silver },
+      spec: { style: "classic", frame: "acunado", frameWidth: 0.8, frameInset: 0, back: "escudo", backText: "collection", depth: 0.4, colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.silver },
         frontPattern: { id: "escamas", scale: 4.4, line: 0.6, halo: 0.8, colour: "frame" },
         backPattern: { id: "escamas-relleno", scale: 3.4, line: 0.7, halo: 0.8 } } },
     // Quartered: two opposite quarters of the face in the group colour, the icon and name in white
@@ -121,7 +121,7 @@ const styles = {
     // edge; on the back the shield and the collection's name in black
     { id: "moneda-plata", name: { es: "Moneda de plata", en: "Silver coin" },
       help: { es: "De plata, con el icono y el nombre en relieve biselado, el marco acuñado en relieve y el canto estriado; al reverso, el escudo y «Draw Steel» en negro.", en: "Silver, with the icon and the name in bevelled relief, the milled frame raised and a reeded edge; on the back, the shield and «Draw Steel» in black." },
-      spec: { style: "classic", frame: "acunado", frameWidth: 0.8, back: "escudo", backText: "collection", depth: 0.4, relief: { text: true, frame: true, icon: true }, reliefHeight: 0.8, reliefBevel: 0.3, edge: "reeded", colours: { base: FILAMENTS.silver, front: FILAMENTS.silver, frame: FILAMENTS.silver, back: FILAMENTS.black } } },
+      spec: { style: "classic", frame: "acunado", frameWidth: 0.8, frameInset: 0, back: "escudo", backText: "collection", depth: 0.4, relief: { text: true, frame: true, icon: true }, reliefHeight: 0.8, reliefBevel: 0.3, edge: "reeded", colours: { base: FILAMENTS.silver, front: FILAMENTS.silver, frame: FILAMENTS.silver, back: FILAMENTS.black } } },
     { id: "legible", name: { es: "Legible", en: "Legible" }, help: { es: "Ventana del color del grupo con el icono y el nombre grande debajo.", en: "A window in the group colour with the icon, and the name large below." },
       spec: { style: "window", textSize: 6, frame: "none", back: "edition", depth: 0.4, colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } }, hidden: true },
   ],
