@@ -5,7 +5,7 @@ import { signIn, loadRoles, isAdmin, signOut as signOutUser, onUser , canSeeBotc
 import { t, uiLang } from "../i18n.ts";
 import { handingOver } from "../handoff.ts";
 import { OWN, nameIn, hasCcc, OWN_ID, builtInCollections, readBuiltIn, OWN_VIEW, rememberCollection, collectionRoles } from "../collection.ts";
-import { applyOwnTheme, applyOwnBrand, renderOwnLanding, renderOwnHome, applyGroups, syncOwnChrome, catalogOf, typeOfView } from "./creator.ts";
+import { applyOwnTheme, applyOwnBrand, renderOwnLanding, renderOwnHome, applyGroups, syncOwnChrome, catalogOf, typeOfView, refreshOwnRoles } from "./creator.ts";
 import { tidyMyDesigns, loadDesigns } from "./designs.ts";
 import { TALLER, openTaller } from "./taller.ts";
 import { loadLibrary } from "../engine/token-engine.ts";
@@ -144,6 +144,7 @@ function startApp() {
   state.team = typeof view.team === "string" ? view.team : "all";
   buildChoices();
   loadDesigns();
+  refreshOwnRoles();   // a token of yours changed for its print prints so
   state.pick = loadPicks();
   persistPicks();
   emit("all");

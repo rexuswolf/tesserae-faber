@@ -157,10 +157,12 @@ test("a token's back is changed like its front: a two-state token's other state,
   await design("c:ready");   // Ready, Acted when turned over
   await step('.cr-item[data-cr="part"]', seen("#parts"));   // Customise
   await step('#parts [data-part="back"]', seen("#faceTabs"));
-  // the design's back, the edition in gold: its other state in gold too, changed from the front
-  await step('#faceTabs [data-face="layout"]', seen("#faceTabs [data-back-same]"));
-  await step("#faceTabs [data-back-same]", () => expect(page.locator("#faceTabs [data-back-same]")).toHaveCount(0, { timeout: 1000 }));
-  await step('[data-choice="style"] [data-v][aria-pressed="false"]', seen("#faceTabs [data-back-same]"));
+  // the design's back as it comes: nothing changed, nothing to undo; its layout changed, Back is marked and can be undone
+  await step('#faceTabs [data-face="layout"]', seen('[data-choice="style"]'));
+  await expect(page.locator('#parts [data-part="back"] .part-dot')).toHaveCount(0);
+  await expect(page.locator("#partUndo")).toBeHidden();
+  await step('[data-choice="style"] [data-v][aria-pressed="false"]', seen('#parts [data-part="back"] .part-dot'));
+  await step("#partUndo", () => expect(page.locator('#parts [data-part="back"] .part-dot')).toHaveCount(0, { timeout: 1000 }));
   // what one-state tokens' backs say and show isn't this token's: its Composition doesn't offer it
   await expect(page.locator("#backSayBox")).toBeHidden();
   // a token without another state, its back plain: its tabs say so, and something can go on it
@@ -397,11 +399,17 @@ test("what a token shows is the token's: chosen when made, kept, and the design 
   await expect(page.locator("#ownTokPrint")).toBeDisabled();
   await page.locator("#tpDone").click();
   await expect(page.locator("#tokenPanel")).not.toHaveAttribute("open", "");
+  // kept: Edit (the list's) opens it as it was left, its name alone (no layout here: the tick says it)
   await page.locator("[data-own-edit]").first().click();
+  await expect(page.locator("#tokenPanel")).toHaveAttribute("open", "");
+  await expect(page.locator("#ownTokPrint")).toBeChecked();
+  await expect(page.locator("#ownTokChip [data-icon-none]")).toHaveCount(0);   // no icon now
+  await page.locator("#tpDone").click();
   // in the designer: no tick for its text, the layout says it (its name alone: Text only)
+  const id = await page.locator("[data-own-edit]").first().getAttribute("data-own-edit");
+  await page.evaluate((key) => { const mm = (window as unknown as { __mm: { goStep(n: number): void; designToken(k: string): void } }).__mm; mm.goStep(2); mm.designToken(key); }, `c:${id}`);
   await expect(page.locator('[data-choice="style"] [data-v="text"]')).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator("#tpContent")).toBeHidden();
-  await expect(page.locator("#ownTokChip [data-icon-none]")).toHaveCount(0);   // no icon now
   expect(errors).toEqual([]);
 });
 
@@ -489,5 +497,95 @@ test("a token of yours is changed where it's designed: each face's Composition h
   await expect(page.locator("#tpContent")).toBeHidden();   // no "Print its text" here: the layout says it
   await page.locator('[data-choice="style"] [data-v="classic"]').click();
   await expect(page.locator('[data-choice="style"] [data-v="classic"]')).toHaveAttribute("aria-pressed", "true");
+  expect(errors).toEqual([]);
+});
+
+test("a token of yours changed where it's designed is changed there only, not in the collection: undone, or saved to the token", async ({ page }) => {
+  const errors = await open(page, "/");
+  await page.locator("#tourName").fill("Lobo");
+  await page.locator("[data-tok-new=maker]").evaluate((b) => (b as HTMLElement).click());
+  await page.waitForURL(/\/c\//);
+  await expect(page.locator("#tokenPanel")).toHaveAttribute("open", "", { timeout: 30_000 });
+  await page.locator("#tpDone").click();
+  const id = await page.locator("[data-own-edit]").first().getAttribute("data-own-edit");
+  await page.evaluate((key) => { const mm = (window as unknown as { __mm: { goStep(n: number): void; designToken(k: string): void } }).__mm; mm.goStep(2); mm.designToken(key); }, `c:${id}`);
+  const go = (s: string, then?: () => Promise<void>) => expect(async () => {
+    await page.locator(s).first().evaluate((b) => (b as HTMLElement).click());
+    if (then) await then();
+  }).toPass();
+  const on = (s: string) => () => expect(page.locator(s)).toHaveAttribute("aria-selected", "true", { timeout: 1000 });
+  const text = page.locator("#crOwn #ownTokText"), saveToToken = page.locator('[data-print-field="text"] [data-print-save]');
+  const design = async () => {
+    await page.evaluate((key) => { const mm = (window as unknown as { __mm: { goStep(n: number): void; designToken(k: string): void } }).__mm; mm.goStep(2); mm.designToken(key); }, `c:${id}`);
+    await go('.cr-item[data-cr="part"]');
+    await go('#parts [data-part="front"]', on('#parts [data-part="front"]'));
+  };
+  const fromList = async () => {
+    await page.evaluate(() => (window as unknown as { __mm: { goStep(n: number): void } }).__mm.goStep(1));
+    await page.locator(`[data-own-edit="${id}"]`).first().click();
+    await expect(page.locator("#tokenPanel")).toHaveAttribute("open", "");
+  };
+  // what the collection keeps (a moment after a change)
+  const collectionSays = () => page.evaluate(async (tid) => {
+    await new Promise((r) => setTimeout(r, 600));
+    const key = Object.keys(localStorage).find((k) => localStorage.getItem(k)?.includes(`"id":"${tid}"`) && localStorage.getItem(k)?.includes('"tokens"'));
+    const c = JSON.parse(localStorage.getItem(key!)!), tk = c.tokens.find((x: { id: string }) => x.id === tid);
+    return tk.text ? (typeof tk.text === "string" ? tk.text : tk.text.en) : (typeof tk.name === "string" ? tk.name : tk.name.en);
+  }, id);
+  await design();
+  await expect(text).toHaveValue("Lobo");
+  await expect(saveToToken).toHaveCount(0);
+  // changed here: said over it, and the token in the collection still says its name
+  await text.fill("LOBO GRIS");
+  await expect(saveToToken).toBeVisible();
+  await expect(page.locator('#parts [data-part="front"] .part-dot')).toHaveCount(1);   // marked in the menu
+  await expect(page.locator('#parts [data-part="back"] .part-dot')).toHaveCount(0);
+  // the back carries nothing changed: no Undo there
+  await go('#parts [data-part="back"]', on('#parts [data-part="back"]'));
+  await go('#faceTabs [data-face="layout"]', on('#faceTabs [data-face="layout"]'));
+  await expect(page.locator('[data-print-field="flip"]')).toBeHidden();
+  await go('#parts [data-part="front"]', on('#parts [data-part="front"]'));
+  await go('#faceTabs [data-face="layout"]', on('#faceTabs [data-face="layout"]'));
+  await expect(saveToToken).toBeVisible();
+  await expect(collectionSays()).resolves.toBe("Lobo");
+  // and the token as it prints says so (the list's pen edits the collection's)
+  await fromList();
+  await expect(page.locator("#tokenPanel #ownTokText")).toHaveValue("Lobo");
+  await page.locator("#tpDone").click();
+  await design();
+  await expect(text).toHaveValue("LOBO GRIS");
+  // undone: as the collection has it (from the tab, its changes only: the back's other state stays)
+  await go('#parts [data-part="back"]', on('#parts [data-part="back"]'));
+  await go('#faceTabs [data-face="layout"]', on('#faceTabs [data-face="layout"]'));
+  await page.locator("#ownTokFlipName").fill("Lobo herido");
+  await expect(page.locator('#parts [data-part="back"] .part-dot')).toHaveCount(1);
+  await go('#parts [data-part="front"]', on('#parts [data-part="front"]'));
+  await go('#faceTabs [data-face="layout"]', on('#faceTabs [data-face="layout"]'));
+  await page.locator("#partUndo").click();
+  await expect(saveToToken).toHaveCount(0);
+  await expect(text).toHaveValue("Lobo");
+  await expect(page.locator("#partUndo")).toBeHidden();
+  await expect(page.locator('#parts [data-part="front"] .part-dot')).toHaveCount(0);
+  await expect(page.locator('#parts [data-part="back"] .part-dot')).toHaveCount(1);
+  await go('#parts [data-part="back"]', on('#parts [data-part="back"]'));
+  await go('#faceTabs [data-face="layout"]', on('#faceTabs [data-face="layout"]'));
+  await expect(page.locator("#ownTokFlipName")).toHaveValue("Lobo herido");
+  await page.locator("#partUndo").click();
+  await expect(page.locator("#ownTokFlipName")).toHaveValue("");
+  await go('#parts [data-part="front"]', on('#parts [data-part="front"]'));
+  await go('#faceTabs [data-face="layout"]', on('#faceTabs [data-face="layout"]'));
+  // a field's own Undo: that field as the collection has it
+  await text.fill("LOBO");
+  await expect(page.locator('[data-print-field="icon"]')).toBeHidden();   // only what changed says so
+  await page.locator('[data-print-field="text"] [data-print-undo]').click();
+  await expect(text).toHaveValue("Lobo");
+  await expect(saveToToken).toHaveCount(0);
+  // changed and saved to the token: the collection's now
+  await text.fill("LOBO GRIS");
+  await saveToToken.click();
+  await expect(saveToToken).toHaveCount(0);
+  await expect(collectionSays()).resolves.toBe("LOBO GRIS");
+  await fromList();
+  await expect(page.locator("#tokenPanel #ownTokText")).toHaveValue("LOBO GRIS");
   expect(errors).toEqual([]);
 });

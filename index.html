@@ -207,6 +207,8 @@
       <h3 class="ws-bh" id="lookHead"><span id="lookTitle"></span> <small id="lookSub"></small></h3>
       <div class="ws-warn" id="colourWarn" hidden></div>
       <div class="face-tabs" id="faceTabs" role="tablist" data-i18n-attr="aria-label:ws.faceTabs" hidden></div>
+      <!-- the open part changed: its changes undone (the rest of the token keeps its) -->
+      <button type="button" class="part-undo" id="partUndo" hidden></button>
       <p class="hint back-note" id="backNote" hidden></p>
       <!-- a face (the front, or a back of its own): its layout, name, icon and frame, each part flush or raised -->
       <!-- its colours, together (each also where its part is) -->
@@ -754,7 +756,9 @@
         <!-- what its front says: its name unless it says something else; whether it says anything (unticked: its icon alone) -->
         <div class="field"><label class="field"><span data-i18n="own.text"></span><input class="text" id="ownTokText" autocomplete="off"></label>
           <div id="tpContent"></div>
-          <small class="hint" id="ownTokNameHint" data-i18n="own.content.iconName" hidden></small></div>
+          <small class="hint" id="ownTokNameHint" data-i18n="own.content.iconName" hidden></small>
+          <!-- in the designer: changed from your collection's token, undone or saved to it -->
+          <p class="field-print" data-print-field="text" hidden></p></div>
         <div class="field" id="ownTokIconRow"><span data-i18n="own.icon"></span>
           <div class="tp-chip" id="ownTokChip"></div>
           <div class="tp-search" id="ownTokSearch" hidden>
@@ -764,6 +768,7 @@
             </div>
             <div class="icon-results" id="ownTokHits"></div>
           </div>
+          <p class="field-print" data-print-field="icon" hidden></p>
         </div>
         <div class="field" id="ownTokGroupRow"><span data-i18n="own.group"></span><div class="group-pills" id="ownTokGroups"></div></div>
       </section>
@@ -783,6 +788,7 @@
               <div class="icon-results" id="ownTokFlipHits"></div>
             </div>
           </div>
+          <p class="field-print" data-print-field="flip" hidden></p>
         </div>
       </section>
       <!-- the rest, folded: its own colour, catalogs and linked tokens -->

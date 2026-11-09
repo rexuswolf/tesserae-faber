@@ -11,7 +11,7 @@ import type { DesignEntry } from "./designs.ts";
 import { appDesigns, APP_NAME, tallerUrl, newId, OWN, isLocked, nameIn } from "../collection.ts";
 import type { OwnToken } from "../collection.ts";
 import { state, collDesigns, $, esc, hit, $$, READONLY, coll, view3d, LAYOUT_TEXT, RANGES } from "./context.ts";
-import type { Side, RangeKey } from "./context.ts";
+import type { Side, RangeKey, Part } from "./context.ts";
 import { t, uiLang } from "../i18n.ts";
 import type { Vars } from "../i18n.ts";
 import { applyLook, prunedLook, withLookField, sameValue, lookFields, withoutLookField, setField, lookDiff, fieldOf } from "./looks.ts";
@@ -22,7 +22,7 @@ import { TALLER, tallerMine, renderTaller } from "./taller.ts";
 import { colourIssues, LIGHT_DEPTH } from "../colour-checks.ts";
 import type { InlayPart } from "../colour-checks.ts";
 import { roleById } from "./wiring.ts";
-import { roleWithContent, showContentInline } from "./creator.ts";
+import { roleWithContent, showContentInline, asPrinted, printChanged, settlePrint } from "./creator.ts";
 /** Whether Composition's text and icon settings are unfolded (kept while designing). */
 import { writeJSON, session, readJSON } from "../services.ts";
 
@@ -272,7 +272,7 @@ function setTokenDesign(key: string, ref: string) {
 
 /** Your collection's token (or the one being made) whose content can be changed: not one of a built-in or closed collection. */
 function ownEditable(role: Role) { return OWN && !READONLY && !!ownTokenOf(role.id) && !isLocked(coll, role.id); }
-const ownTokenOf = (id: string): OwnToken | undefined => (state.creating?.draft.id === id ? state.creating.draft : coll.tokens.find((x) => x.id === id));
+const ownTokenOf = (id: string): OwnToken | undefined => { if (state.creating?.draft.id === id) return state.creating.draft; const tk = coll.tokens.find((x) => x.id === id); return tk && asPrinted(tk); };
 
 /**
  * What the token says, over its design: one line. A token of your collection: its name, group and
@@ -310,13 +310,20 @@ export function renderTabs(role: Role, spec: TokenSpec) {
   if (!secs.some(isOpen)) showTab({ part: secs[0].part, face: secs[0].face });   // one this token hasn't (a layout, for a token of one thing)
   const part = openPart(), panel = openPanel();
   // the sections in one list, the basic ones first
-  $("#parts").innerHTML = secs.map((s) => `<button type="button" role="tab" data-part="${s.part}"${s.face ? ` data-face="${s.face}"` : ""} aria-selected="${isOpen(s)}">${esc(s.face ? t(`face.${s.face}`) : s.part === "body" ? t(`part.body.${shape}`) : t(`part.${s.part}`))}</button>`).join("");
+  const changedHere = changedParts(state.sel!, shape), marked = new Set<string>();
+  $("#parts").innerHTML = secs.map((s) => {
+    const dot = changedHere.has(s.part) && !marked.has(s.part) && !!marked.add(s.part);   // a part in several sections: its first
+    return `<button type="button" role="tab" data-part="${s.part}"${s.face ? ` data-face="${s.face}"` : ""} aria-selected="${isOpen(s)}">${esc(s.face ? t(`face.${s.face}`) : s.part === "body" ? t(`part.body.${shape}`) : t(`part.${s.part}`))}${dot ? `<i class="part-dot" title="${esc(t("part.changed"))}" aria-label="${esc(t("part.changed"))}"></i>` : ""}</button>`;
+  }).join("");
+  const undo = $<HTMLButtonElement>("#partUndo"), here = openPart();
+  undo.hidden = !changedHere.has(here);
+  undo.innerHTML = `<span aria-hidden="true">↺</span> ${esc(t("part.undo"))}`;
+  undo.title = t("part.undoOf", { part: partLabel(here, shape) });
+  undo.onclick = () => undoPart(here);
   // a two-sided shape's front and a coin's back: their tabs (a card's back is one panel)
   const faceOpen = (part === "back" && shape !== "card") || (part === "front" && twoSided(shape));
   $("#faceTabs").hidden = !faceOpen;
-  if (faceOpen) $("#faceTabs").innerHTML = (part === "back" ? backTabsOf(shape) : frontTabsOf(shape, editContent())).map((f) => `<button type="button" role="tab" data-face="${f}" aria-selected="${f === panel}">${esc(t(`face.${f}`))}</button>`).join("")
-    // the back as the front again, only when it differs from it
-    + (part === "back" && faceOf(spec, "front").backMode !== "design" && backChanged(faceOf(spec, "front")) ? `<button class="to-front" type="button" data-back-same>${esc(t("back.toFront"))}</button>` : "");
+  if (faceOpen) $("#faceTabs").innerHTML = (part === "back" ? backTabsOf(shape) : frontTabsOf(shape, editContent())).map((f) => `<button type="button" role="tab" data-face="${f}" aria-selected="${f === panel}">${esc(t(`face.${f}`))}</button>`).join("");
   renderBackNote(role, spec, part === "back" && faceOpen ? panel : null);
   // Composition: its own panel, and the text's and the icon's under it; with no layouts, the text's panel is where the face's content goes
   const comp = panel === "layout";
@@ -332,6 +339,37 @@ export function renderTabs(role: Role, spec: TokenSpec) {
   $("#crOwn").dataset.side = side;
 }
 
+/** Where a look's change is: the back's, the relief's, the magnet's, the body's (its size, edge, base); the rest, the front's (a shape without a back: its colours their own). */
+const PART_OF: Record<string, Part> = {
+  back: "back", backMode: "back", backFace: "back", customSvg: "back", backPattern: "back", backText: "back", cardBack: "back", "colours.back": "back", "colours.backFrame": "back",
+  relief: "relief", reliefHeight: "relief", reliefBevel: "relief",
+  magnet: "magnet", magnetSize: "magnet",
+  diameter: "body", height: "body", edge: "body", ringBase: "body", separator: "body", "colours.base": "body",
+};
+/** The token's parts that it changed (its look, from its design; a token of yours, what it carries for this print), for a mark in their menu. */
+const partOfField = (f: string, two: boolean): Part => PART_OF[f] ?? (!two && f.startsWith("colours.") ? "colours" : "front");
+function changedParts(sel: { key: string; role: Role }, shape: TokenShape): Set<Part> {
+  const parts = new Set<Part>(), two = twoSided(shape);
+  if (TALLER) return parts;
+  for (const f of lookFields(state.overrides.get(sel.key)?.look)) parts.add(partOfField(f, two));
+  if (OWN && coll.tokens.some((x) => x.id === sel.role.id)) { if (printChanged(sel.role.id, "front")) parts.add("front"); if (printChanged(sel.role.id, "back")) parts.add("back"); }
+  return parts;
+}
+/** A part's changes undone: its look as the design has it, and (a token of yours) what that face carries as the collection has it. */
+function undoPart(part: Part) {
+  const { key, role } = state.sel!, two = twoSided(shapeOf(role)), own: TokenOverride = { ...state.overrides.get(key) };
+  let look = own.look;
+  for (const f of lookFields(look)) if (partOfField(f, two) === part) look = withoutLookField(look!, f);
+  const kept = look && prunedLook(designFor(key).spec, look);
+  if (kept) own.look = kept; else delete own.look;
+  const side = part === "front" || part === "back" ? part : null;
+  if (side && OWN && printChanged(role.id, side)) settlePrint(role.id, side, false, true);
+  const token = state.overrides.get(key)?.token;   // what's left of this print's (the other face's)
+  if (token) own.token = token; else delete own.token;
+  setOwn(key, own);
+  toast(t("part.undone", { part: partLabel(part, shapeOf(role)) }));
+}
+const partLabel = (part: Part, shape: TokenShape) => (part === "body" ? t(`part.body.${shape}`) : t(`part.${part}`));
 /** The token's other state, if the token being edited has one: its name (a back design doesn't reach it). */
 function backReach() {
   const { key, role } = state.sel!, other = shapeOf(role) === "coin" ? selFlip(role) : null;
@@ -350,18 +388,6 @@ export function setBackFace() {
   changeLook((s) => { s.backMode = hasOwnLook(s.backFace) ? "own" : "match"; });
   view3d("setView", "back"); syncView("back");
 }
-/** The back as the front again: what it changed of its look and colours goes (its relief stays: only one face stands out). */
-export function backToFront() {
-  changeLook((s) => {
-    const b = { ...s.backFace };
-    for (const k of FACE_FIELDS) delete b[k];
-    delete b.colours; delete b.say; delete b.phrase; delete b.art;
-    s.backFace = b;
-    if (s.backMode === "own") s.backMode = "match";
-  });
-  view3d("setView", "back"); syncView("back");
-}
-
 /** Under the token's name: inlays the coin's colour, or light ones too shallow on a dark coin. */
 export function renderColourWarn(role: Role, spec: TokenSpec) {
   // checked as the shape prints it: a card or a ring has no back to check
@@ -976,7 +1002,7 @@ let sheetTimer: ReturnType<typeof setTimeout> | number = 0;
 export function scheduleSheet() { clearTimeout(sheetTimer); sheetTimer = setTimeout(() => emit("looks"), 180); }
 /** A token's own text, feminine name, icon, design or look changes; with none left, it simply has its default design. */
 export function setOwn(key: string, own: TokenOverride) {
-  if (!own.text && !own.fem && !own.icon && !own.style && !own.look) state.overrides.delete(key); else state.overrides.set(key, own);
+  if (!own.text && !own.fem && !own.icon && !own.style && !own.look && !own.token) state.overrides.delete(key); else state.overrides.set(key, own);
   storeOverrides(); renderWorkshop(); scheduleSheet();
 }
 

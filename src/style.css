@@ -470,6 +470,13 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .says-what { flex: 1; min-width: 0; display: grid; line-height: 1.25; }
 .says-what b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .says-what small { color: var(--dust); font-size: 12.5px; }
+/* a field of a token of yours changed for this print: said under it, with Undo and Save to the token */
+.field-print { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; margin: 6px 0 0; font-size: 12.5px; color: var(--bone); }
+.field-print .own-dot { font-style: normal; color: var(--brass); }
+.field-print .fp-acts { display: inline-flex; gap: 6px; }
+.field-print .pill { font-size: 12px; padding: 4px 10px; }
+/* a part the token changed: a dot beside its name in the menu */
+.part-dot { display: inline-block; width: 7px; height: 7px; margin-left: 8px; border-radius: 50%; background: var(--brass); vertical-align: middle; }
 .ws-says .pill { flex: none; padding: 4px 12px; font-size: 13px; }
 .says-toggle { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 0; background: none; padding: 2px 0; color: var(--dust); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
 .says-toggle b { color: var(--bone); font-weight: 600; }
@@ -549,8 +556,10 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .art-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
 .back-tile { min-width: 0; overflow-wrap: anywhere; }
 /* the back as the front again: at the end of the back's tabs, only when it differs */
-.face-tabs .to-front { margin-left: auto; border: 0; background: none; color: var(--dust); font: inherit; font-size: 12.5px; padding: 4px 2px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--seam); }
-.face-tabs .to-front:hover { color: var(--brass); }
+/* the open part changed: its changes undone */
+.part-undo { display: flex; width: max-content; align-items: center; gap: 6px; margin: 0 0 10px auto; border: 0; background: none; color: var(--dust); font: inherit; font-size: 12.5px; padding: 4px 2px; cursor: pointer; }
+.part-undo:hover { color: var(--brass); }
+.part-undo span { font-size: 15px; }
 /* A face part flush or raised, at the foot of its tab; the raised parts' height under it when there are some */
 .relief-slot { display: grid; gap: 8px; }
 .relief-slot:not(:empty) { padding-top: 12px; border-top: 1px solid var(--seam); }
@@ -2274,7 +2283,7 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 .ws-body[data-comp=true] [data-panel=text], .ws-body[data-comp=true] [data-panel=icon] { padding-top: 14px; border-top: 1px solid var(--seam); margin-top: 14px; }
 /* a token of yours' fields in a face's Composition: that face's only, without their blocks' boxes */
 .comp-what #crOwn .tp-fields { padding: 0; overflow: visible; }
-.comp-what #crOwn :is(.tp-name, #tpShape, #tpMoreOpts) { display: none !important; }
+.comp-what #crOwn :is(.tp-name, #tpShape, #tpMoreOpts, #ownTokGroupRow) { display: none !important; }   /* the token's own (its name, group…): its Edit, not this print's */
 .comp-what #crOwn[data-side=front] #contentFlip, .comp-what #crOwn[data-side=back] #tpFront { display: none !important; }
 .comp-what #crOwn .tp-face { border: 0; padding: 0; background: none; }
 .comp-what #crOwn #tpFront > h3 { display: none; }

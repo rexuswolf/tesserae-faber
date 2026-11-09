@@ -2,10 +2,10 @@
 import { emit } from "./events.ts";
 import { paintTesserae } from "./tesserae.ts";
 import { OWN, catalogsOf, nameIn, storeCollection, OWN_ID, builtIn, tallerUrl, readTokenList, newId, withName, copyBuiltIn, collectionUrl, collectionFile, readCollectionFile, addCollection, GROUP_COLOURS, SHAPES, collectionRoles, tokenRole as ownRole, isLocked, coinContent, THEMES, APP_LOGO, APP_LOGO_SMALL, APP_ICON, APP_NAME, hasCcc, THEME_FONTS, okLogo, builtInCollections, listCollections, lastCollection, openUrl, OWN_VIEW, LIST_URL, starterCollection, loadCollection, deleteCollection, isUntouchedStarter } from "../collection.ts";
-import type { OwnCatalog, OwnSection, OwnToken, OwnTheme, CollectionEntry, OwnFlip } from "../collection.ts";
+import type { OwnCatalog, OwnSection, OwnToken, OwnTheme, CollectionEntry, OwnFlip, Names } from "../collection.ts";
 import { coll, TEAM_ORDER, TEAM_PLURAL, PLATE_LABEL, PLATE_GROUP, $$, stickyNotice, state, $, esc, READONLY, hit, input, BUILT, COLOUR_CHOICES } from "./context.ts";
 import type { Creating } from "./context.ts";
-import type { Role, Team, Hex, TokenShape, TokenIcon, TokenContent } from "../types.ts";
+import type { Role, Team, Hex, TokenShape, TokenIcon, TokenContent, TokenOverride, TokenPatch } from "../types.ts";
 import { uiLang, t } from "../i18n.ts";
 import { PRINT_GROUPS, persistPicks, renderDesignStage, setPick, goStep } from "./queue.ts";
 import { TEAMS, saveFile, SHAPE_FEATURES, tokenSvg, shapeOf, ICON_VIEW } from "../engine/token-engine.ts";
@@ -16,7 +16,7 @@ import { storeOverrides, designOf, defaultRef, designFor, designOverridden, look
 import { roleById } from "./wiring.ts";
 import { charKey, remindersOf, specFor, remKey, sortKeys } from "./tokens.ts";
 import { searchQuery, pickedBadge, selectToken } from "./sheet.ts";
-import { rememberReturn, toast } from "./design-sheet.ts";
+import { rememberReturn, toast, scheduleSheet } from "./design-sheet.ts";
 import { drawer, PHONE } from "./scripts-ui.ts";
 import { renderWorkshop } from "./workshop.ts";
 import { filled } from "./looks.ts";
@@ -277,8 +277,10 @@ function renderOwnGroups() {
 // changes are kept at once (and the sheet redrawn a moment later).
 
 /** Your collection's tokens as characters, and the one being made. */
+/** Your collection's tokens as they print (once each token's own changes are known). */
+export function refreshOwnRoles() { if (OWN && state.lib) state.lib.roles = ownRoles(); }
 function ownRoles() {
-  const roles = collectionRoles(coll, uiLang());
+  const roles = collectionRoles({ ...coll, tokens: coll.tokens.map(asPrinted) }, uiLang());
   if (state.creating) roles.push(draftRole(state.creating));
   return roles;
 }
@@ -292,25 +294,95 @@ function typeFor(shape: TokenShape) {
   const here = typeOfView(state.edition);
   return (here?.shape === shape ? here : coll.types.find((x) => x.shape === shape))?.id ?? "__draft";
 }
-/** The token whose content is open: the one being made, or one of yours being changed. */
-const editingOwn = (): OwnToken | undefined => state.creating?.draft ?? (state.editing ? coll.tokens.find((x) => x.id === state.editing) : undefined);
+/** The token whose content is open: the one being made, one of yours being changed, or (in the designer) as you print it. */
+const editingOwn = (): OwnToken | undefined => state.creating?.draft ?? (inlineId && state.editing === inlineId ? printCopy(inlineId) : state.editing ? coll.tokens.find((x) => x.id === state.editing) : undefined);
+
+// ------------------------------------------------------------ a token as you print it
+//
+// In the design step a token of yours says and shows what you change there (its text, its icon, what
+// it carries, its other state) without the collection changing: those changes are this print's, kept
+// with its design (an override), marked, and undone or saved to the token from the line over it.
+
+const PATCHED = ["text", "icon", "content", "flip"] as const;
+type Patched = (typeof PATCHED)[number];
+/** A token of yours as it prints here: the collection's, with this print's changes. */
+export function asPrinted(tk: OwnToken): OwnToken {
+  const p = state.overrides.get(`c:${tk.id}`)?.token; if (!p) return tk;
+  const out: OwnToken = { ...tk };
+  for (const f of PATCHED) {
+    if (!(f in p)) continue;
+    const v = p[f];
+    if (f === "icon") out.icon = (v as TokenIcon | null) ?? null;
+    else if (v == null) delete out[f];
+    else (out as unknown as Record<Patched, unknown>)[f] = v;
+  }
+  return out;
+}
+/** What a face of a token of yours carries: its front, its text, icon and content; its back, its other state. */
+const SIDE_FIELDS: Record<"front" | "back", Patched[]> = { front: ["text", "icon", "content"], back: ["flip"] };
+/** Whether a token of yours prints otherwise than the collection has it (on a face, or at all). */
+export const printChanged = (id: string, side?: "front" | "back") => {
+  const p = state.overrides.get(`c:${id}`)?.token;
+  return !!p && (side ? SIDE_FIELDS[side].some((f) => f in p) : true);
+};
+/** The token as the designer changes it: a copy, never the collection's. */
+let copy: OwnToken | null = null;
+function printCopy(id: string): OwnToken | undefined {
+  if (copy?.id !== id) { const tk = coll.tokens.find((x) => x.id === id); copy = tk ? structuredClone(asPrinted(tk)) : null; }
+  return copy ?? undefined;
+}
+const namesOf = (n: Names) => (typeof n === "string" ? { en: n, es: n } : n);
+/** What a field is, to compare: its front's text as it reads (its name, while it says nothing else). */
+const fieldOf = (tk: OwnToken, f: Patched) => JSON.stringify(f === "text" ? namesOf(tk.text ?? tk.name) : tk[f] ?? null);
+/** The copy's changes, kept as this print's: only the fields that differ from the collection's token. */
+function keepPrint(c: OwnToken) {
+  const tk = coll.tokens.find((x) => x.id === c.id); if (!tk) return;
+  const key = `c:${c.id}`, own: TokenOverride = { ...state.overrides.get(key) }, p: TokenPatch = {};
+  for (const f of PATCHED) if (fieldOf(c, f) !== fieldOf(tk, f)) (p as Record<Patched, unknown>)[f] = c[f] ?? null;
+  if (Object.keys(p).length) own.token = p; else delete own.token;
+  if (Object.keys(own).length) state.overrides.set(key, own); else state.overrides.delete(key);
+  storeOverrides();
+}
+/** This print's changes to a face of a token of yours: undone (as the collection has it), or saved to the token (the collection's now). */
+export function settlePrint(id: string, which: "front" | "back" | Patched, save: boolean, quiet = false) {
+  const key = `c:${id}`, own: TokenOverride = { ...state.overrides.get(key) }, tk = coll.tokens.find((x) => x.id === id);
+  if (!own.token || !tk) return;
+  const fields = which === "front" || which === "back" ? SIDE_FIELDS[which] : [which];
+  if (save) { const printed = asPrinted(tk); for (const f of fields) if (printed[f] === undefined) delete tk[f]; else (tk as unknown as Record<Patched, unknown>)[f] = printed[f]; }
+  const rest: TokenPatch = { ...own.token };
+  for (const f of fields) delete rest[f];
+  if (Object.keys(rest).length) own.token = rest; else delete own.token;
+  if (Object.keys(own).length) state.overrides.set(key, own); else state.overrides.delete(key);
+  storeOverrides();
+  copy = null; panelFor = "";
+  if (save) collectionChanged(); else state.lib!.roles = ownRoles();
+  ownEdited();
+  if (editingOwn()) renderTokenPanel();
+  renderPrintMarks();
+  if (!quiet) toast(t(save ? "print.saved" : "print.undone", { name: nameIn(tk.name, tokenLang()) }));
+}
 const shapeOfToken = (tk: OwnToken): TokenShape => (state.creating?.draft === tk ? state.creating.shape : coll.types.find((x) => x.id === tk.type)?.shape ?? "coin");
 let ownTimer: ReturnType<typeof setTimeout> | number = 0;
 /** After a change to a token's content (its name, icon, group…): drawn at once; your collection's is kept, and the sheet redrawn, a moment later. */
 function ownEdited() {
+  const here = !!inlineId && !state.creating && copy?.id === inlineId;   // in the designer: this print's, not the collection's
+  if (here) keepPrint(copy!);
   state.lib!.roles = ownRoles();
   if (state.sel) { const r = roleById(state.sel.role.id); if (r) state.sel = { ...state.sel, role: r }; }
   if (state.creating) renderPanelShape(state.creating.draft, state.creating.shape);
   { const tk = editingOwn(); if (tk) renderPanelContent(tk, shapeOfToken(tk)); }
   renderPanelToken();
   if (state.step === 2 && state.sel) { renderWorkshop(); renderDesignStage(); }
-  if (!state.creating) { clearTimeout(ownTimer); ownTimer = setTimeout(collectionChanged, 400); }
+  renderPrintMarks();
+  if (here) scheduleSheet();
+  else if (!state.creating) { clearTimeout(ownTimer); ownTimer = setTimeout(collectionChanged, 400); }
 }
 
 /** "Edit" on one of your tokens (the sheet's, or the design step's "Edit content"): its panel. */
 export function openTokenPanel(id: string) {
   if (!coll.tokens.some((x) => x.id === id) || READONLY || isLocked(coll, id)) return;
   dropDraft();
+  inlineId = null; copy = null;   // the collection's token, not as the designer has it for this print
   state.editing = id; panelFor = "";
   $("#tpFlash").textContent = "";
   renderTokenPanel();
@@ -337,7 +409,8 @@ function startCreate(like?: { shape: TokenShape; type: string; group: string; ca
 }
 function showTokenPanel() {
   // the fields are the dialog's again (the designer's Content may have had them)
-  inlineId = null; $(".tp-body").append($("#tpFields"));
+  if (inlineId) panelFor = "";   // the collection's token now, not the print's
+  inlineId = null; copy = null; $(".tp-body").append($("#tpFields"));
   const d = $<HTMLDialogElement>("#tokenPanel"); if (!d.open) d.showModal();
 }
 /** The token whose content is open in the designer (Content), its fields there; null when they're the dialog's. */
@@ -349,12 +422,12 @@ let inlineId: string | null = null;
 export function showContentInline(id: string | null) {
   if ($<HTMLDialogElement>("#tokenPanel").open) return;   // the dialog has them (a token being made, or Edit from the list)
   if (!id || READONLY || isLocked(coll, id) || !coll.tokens.some((x) => x.id === id)) {
-    if (inlineId) { inlineId = null; state.editing = null; $(".tp-body").append($("#tpFields")); }
+    if (inlineId) { inlineId = null; copy = null; state.editing = null; $(".tp-body").append($("#tpFields")); }
     return;
   }
   if (inlineId === id) return;
   dropDraft();
-  inlineId = id; state.editing = id; panelFor = "";
+  inlineId = id; copy = null; state.editing = id; panelFor = "";
   $("#crOwn").append($("#tpFields"));
   renderTokenPanel();
 }
@@ -373,13 +446,13 @@ async function arriveToMake() {
 }
 /** A token of yours as a character with another content (what it carries): drawn so in the designer's layouts. */
 export function roleWithContent(id: string, content: TokenContent): Role | null {
-  const tk = coll.tokens.find((x) => x.id === id) ?? (state.creating?.draft.id === id ? state.creating.draft : undefined);
+  const real = coll.tokens.find((x) => x.id === id), tk = real ? asPrinted(real) : state.creating?.draft.id === id ? state.creating.draft : undefined;
   if (!tk) return null;
   return state.creating?.draft === tk ? draftRole({ ...state.creating, draft: { ...tk, content } }) : ownRole(coll, { ...tk, content }, uiLang());
 }
 /** What a token of yours carries, chosen in the designer (its layouts): the token's, as "What it shows" in its content. */
 export function setOwnContent(id: string, content: TokenContent) {
-  const tk = coll.tokens.find((x) => x.id === id); if (!tk || tk.content === content) return;
+  const tk = inlineId === id ? printCopy(id) : coll.tokens.find((x) => x.id === id); if (!tk || tk.content === content) return;
   tk.content = content;
   panelFor = "";
   ownEdited();
@@ -462,6 +535,7 @@ function renderTokenPanel() {
   renderIconChip("ownTok", tk.icon, carries === "text" && tk.icon ? t("own.iconNotPrinted") : "");
   renderTextHint(tk);
   renderOwnFlip(tk);
+  renderPrintMarks();
   const sig = [tk.id, shape, tokenLang(), uiLang()].join("|");
   if (sig === panelFor) return;
   panelFor = sig;
@@ -550,7 +624,7 @@ function contentWithIcon(tk: OwnToken, shape: TokenShape, icon: TokenIcon | null
 }
 /** The token as it prints, in its design (front, back, linked tokens), and which design that is. */
 function renderPanelToken() {
-  const tk = editingOwn(), role = tk && roleById(tk.id);
+  const tk = editingOwn(), role = tk && (inlineId || state.creating ? roleById(tk.id) : ownRole(coll, tk, uiLang()));   // the dialog: the collection's, not as a print has it
   if (!tk || !role) return;
   const key = charKey(role), shape = shapeOf(role), d = designFor(key, shape);
   const text = printedText(tk), spec = specFor(key, false);
@@ -598,6 +672,15 @@ function setFlip(tk: OwnToken, change: Partial<OwnFlip>) {
   else tk.flip = next;
   renderOwnFlip(tk); ownEdited();
 }
+/** In the designer, under each field changed for this print (its text, its icon, its other state): so, with Undo and Save to the token. */
+function renderPrintMarks() {
+  const tk = editingOwn(), p = inlineId && tk && !state.creating ? state.overrides.get(`c:${tk.id}`)?.token : undefined;
+  for (const el of $$<HTMLElement>("[data-print-field]")) {
+    const f = el.dataset.printField as Patched, on = !!p && f in p;
+    el.hidden = !on;
+    el.innerHTML = on ? `<span><i class="own-dot" aria-hidden="true">✎</i> ${esc(t("print.changed"))}</span><span class="fp-acts"><button class="pill" type="button" data-print-undo="${f}">${esc(t("print.undo"))}</button><button class="pill" type="button" data-print-save="${f}">${esc(t("print.save"))}</button></span>` : "";
+  }
+}
 /** Whether an icon's search is open, the token's and its other state's. */
 const searchOpen: Record<string, boolean> = { ownTok: false, ownTokFlip: false };
 /** An icon as it's chosen: drawn, its name and where it's from, with Change (the search) and Remove; none, Choose. */
@@ -624,6 +707,11 @@ function wireOwnToken() {
   panel.addEventListener("cancel", (e) => { e.preventDefault(); closeTokenPanel(); });
   $("#tpClose").onclick = $("#tpCancel").onclick = closeTokenPanel;
   $("#tpMore").onclick = () => createToken(true);
+  // a field changed for this print (in the designer): undone, or saved to the token
+  $("#tpFields").addEventListener("click", (e) => {
+    const b = hit(e, "[data-print-undo], [data-print-save]"), tk = editingOwn(); if (!b || !tk) return;
+    settlePrint(tk.id, (b.dataset.printUndo ?? b.dataset.printSave) as Patched, b.dataset.printSave != null);
+  });
   $("#tpDone").onclick = () => (state.creating ? createToken(false) : closeTokenPanel());
   $("#tpShape").onclick = (e) => { const b = hit(e, "[data-shape]"); if (b) chooseShape(b.dataset.shape as TokenShape); };
   $("#tpContent").onchange = (e) => {

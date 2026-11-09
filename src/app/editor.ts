@@ -46,7 +46,7 @@ export function renderEditor(key: string, shape: TokenShape) {
   // its content's fields are the Content panel's: always open there
   if (!state.saysOpen) { state.saysOpen = true; renderSays(); }
   const tweaked = ownChanged(key), own = state.overrides.get(key);
-  const said = !!(own?.text || own?.fem || own?.icon), text = textFor(key, role, reminder);
+  const said = !!(own?.text || own?.fem || own?.icon || own?.token), text = textFor(key, role, reminder);
   const word = (s: string) => `<i>${esc(s)}</i>`;
   $("#crValContent").innerHTML = esc(text) + (said ? ` ${word(t("editor.changed"))}` : "");
   $("#crValDesign").innerHTML = tweaked ? word(t("editor.customised")) : esc(designFor(key, shape).name);

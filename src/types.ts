@@ -1,6 +1,7 @@
 // The shapes shared across the app: what a character is, how a token is designed (its spec),
 // what the engine builds from them, and what the print queue, plates and estimates pass around.
 import type { BufferGeometry, Shape } from "three";
+import type { Names, OwnFlip } from "./collection.ts";
 import type { Font } from "three/addons/loaders/FontLoader.js";
 
 /** An "#rrggbb" colour. */
@@ -403,7 +404,13 @@ export interface TokenOverride {
   style?: string;
   look?: LookChanges;
   spec?: TokenSpec;
+  /**
+   * A token of your collection as you print it (changed in the design step, not in the collection):
+   * its front's text, icon and content and its other state, each only where it differs (null: it has none).
+   */
+  token?: TokenPatch;
 }
+export interface TokenPatch { text?: Names | null; icon?: TokenIcon | null; content?: TokenContent | null; flip?: OwnFlip | null }
 
 /** One copy of a picked token, as the sheet would draw it now. */
 export interface QueueEntry {
