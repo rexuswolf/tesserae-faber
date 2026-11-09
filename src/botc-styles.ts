@@ -26,6 +26,9 @@ export const BOTC_STYLES: Record<TokenShape, StyleDef[]> = {
   // in one of them still draws as it did
   coin: [
     { id: "edicion", name: { es: "Medianoche", en: "Midnight" }, help: { es: "Negra con el aro y el nombre del color del bando; al reverso, el reloj de medianoche con un aro, en oro, igual en todas: dada la vuelta, no dice su edición ni su bando.", en: "Black with its rim and name in the team colour; on the back, the midnight clock in a rim, in gold, the same on all: turned over, it says neither its edition nor its team." }, spec: EDITION },
+    // the same front, thinner (1.4 mm: the 0.4 mm inlays still covered) and its back plain, all black: the quickest of its own
+    { id: "basico", name: { es: "Básico", en: "Basic" }, help: { es: "El frente de Medianoche, más fina (1,4 mm) y con el reverso liso: se imprime antes.", en: "Midnight's front, thinner (1.4 mm) and with a plain back: it prints sooner." },
+      spec: { style: "classic", frame: "rim", frameWidth: 0.8, frameInset: INSET, back: "none", height: 1.4, depth: 0.4, colours: dark } },
     { id: "noche", hidden: true, name: { es: "Noche cerrada", en: "Pitch-black night" }, help: { es: "Negra, con las fases de la luna en el marco y una luna con estrellas en oro al reverso.", en: "Black, with the moon's phases round the rim and a moon with stars in gold on the back." },
       spec: { style: "classic", frame: "fases", frameWidth: 0.8, frameInset: INSET, back: "eclipse", depth: 0.4, colours: dark } },
     // the gold midnight clock on the back is light on a dark coin: 0.4 mm covers it

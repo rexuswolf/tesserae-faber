@@ -39,10 +39,10 @@ describe("Clocktower's coin designs", () => {
 });
 
 describe("Clocktower's coin designs", () => {
-  it("offer Edition alone; the others are hidden, still there for a token that has one", async () => {
+  it("offer Midnight and Basic; the others are hidden, still there for a token that has one", async () => {
     const { BOTC_STYLES } = await import("../../src/botc-styles.ts");
     const { ownStylesOf } = await import("../../src/collection.ts");
-    expect(ownStylesOf({ styles: BOTC_STYLES }, "coin").map((d) => d.id)).toEqual(["edicion"]);
+    expect(ownStylesOf({ styles: BOTC_STYLES }, "coin").map((d) => d.id)).toEqual(["edicion", "basico"]);
     expect(BOTC_STYLES.coin.filter((d) => d.hidden).map((d) => d.id)).toEqual(["noche", "medianoche", "arlequin"]);
   });
 });
@@ -58,5 +58,16 @@ describe("Clocktower's back", () => {
     const { backDesign, BACK_ORNAMENTS } = await import("../../src/engine/token-engine.ts");
     const far = (id: string) => Math.max(...backDesign(id, 20)!.flatMap((sh) => sh.getPoints().map((p) => Math.hypot(p.x, p.y))));
     for (const id of BACK_ORNAMENTS) expect(far(id), id).toBeLessThan(20 - 1.6);   // clear of a rim 0.8 mm wide, 0.8 mm in
+  });
+});
+
+describe("Clocktower's Basic", () => {
+  it("is Midnight's front, thinner, with a plain back", async () => {
+    const { BOTC_STYLES } = await import("../../src/botc-styles.ts");
+    const by = (id: string) => BOTC_STYLES.coin.find((d) => d.id === id)!.spec as Record<string, unknown>;
+    const mid = by("edicion"), basic = by("basico");
+    for (const k of ["style", "frame", "frameWidth", "frameInset", "depth", "colours"]) expect(basic[k], k).toEqual(mid[k]);
+    expect(basic.back).toBe("none");
+    expect(basic.height).toBe(1.4);
   });
 });
