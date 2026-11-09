@@ -1663,7 +1663,7 @@ function openField(F: Float32Array, core: Uint8Array, W: number, H: number, px: 
  * where it is at least the halo away from them and PATTERN_EDGE inside the coin's edge, opened so
  * nothing in it is thinner than PATTERN_MIN, pieces smaller than that left out.
  */
-function cutPattern(p: PatternSpec, R: number, ink: Ring[], solid: Ring[] = [], inner = R): PatternCut {
+function cutPattern(p: PatternSpec, R: number, ink: Ring[], solid: Ring[] = [], inner = R, edge = Infinity): PatternCut {
   const ill = isIllustration(p.id);
   const P = ill ? { sdf: () => 0, line: PATTERN_MIN, width: PATTERN_MIN, gap: PATTERN_MIN } : patternField(p), halo = Math.max(PATTERN_MIN, p.halo ?? PATTERN_HALO), px = PATTERN_GRID, rho = PATTERN_MIN / 2;
   const x0 = -R - 2 * px, W = Math.ceil((2 * R + 4 * px) / px) + 1, H = W, N = W * H;
@@ -1681,7 +1681,8 @@ function cutPattern(p: PatternSpec, R: number, ink: Ring[], solid: Ring[] = [], 
     drawn = new Float32Array(N);
     for (let k = 0; k < N; k++) drawn[k] = shape[k] ? toRest[k] * px : -toShape[k] * px;
   }
-  const F = new Float32Array(N), core = new Uint8Array(N), rOut = R - PATTERN_EDGE;
+  // its outer edge a perfect circle: inside the coin's edge, and the halo inside the frame's innermost point (`edge`)
+  const F = new Float32Array(N), core = new Uint8Array(N), rOut = Math.min(R - PATTERN_EDGE, edge - halo);
   for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
     const x = x0 + i * px, y = x0 + j * px, k = j * W + i;
     const f = Math.min(drawn ? drawn[k] : P.sdf(x, y), dInk[k] * px - halo - px, rOut - Math.hypot(x, y));   // less a cell: the ink may reach that far past a cell centre
@@ -1707,11 +1708,10 @@ const ringsOf = (shapes: THREE.Shape[], m: (x: number, y: number) => Pt = (x, y)
 
 /** What the front draws over its pattern: the name (each, if twice) and the frame, and the icon as a silhouette (mm). */
 function frontInk(lib: Library, role: Role, spec: TokenSpec, text: string): { ink: Ring[]; solid: Ring[] } {
+  // (the frame isn't here: a pattern stops at a circle inside it, its halo clear of the frame's innermost point; see frontPattern)
   if (spec.style === "text") {
     const TL = textLayout(lib, text, spec), ink: Ring[] = [];
     for (const line of TL.lines) { const shapes = textShapes(lib, line.text, TL.em), box = boundsOf(shapes), dx = -(box.min.x + box.max.x) / 2; ink.push(...ringsOf(shapes, (x, y) => [x + dx, y + line.y], 6)); }
-    const fd = frameDesign(spec);
-    if (fd) ink.push(...ringsOf(fd.shapes, undefined, 24));
     return { ink, solid: [] };
   }
   const shapes = iconShapes(lib, role, spec), ink: Ring[] = [];
@@ -1727,8 +1727,6 @@ function frontInk(lib: Library, role: Role, spec: TokenSpec, text: string): { in
       return [px * ct - py * st, px * st + py * ct];
     }, 6));
   });
-  const fd = frameDesign(spec);
-  if (fd) ink.push(...ringsOf(fd.shapes, undefined, 24));
   return { ink, solid };
 }
 
@@ -1752,8 +1750,8 @@ function frontPattern(lib: Library, role: Role, spec: TokenSpec, text: string): 
   const key = ["front", JSON.stringify({ ...p, colour: null }), iconOf(role, spec).key, text, spec.style, spec.diameter, spec.textSize, spec.spacing, spec.margin, spec.maxArc,
     spec.frame, spec.frameWidth, spec.iconScale, spec.iconOffsetY, JSON.stringify(spec.autoText ?? null), faceRadius(spec)].join("|");
   // an illustration fills what the frame leaves, a little clear of it
-  const inner = frameDesign(spec) ? frameInner(spec) - 0.8 : faceRadius(spec);
-  return cached(key, () => { const { ink, solid } = frontInk(lib, role, spec, text); return cutPattern(p, faceRadius(spec), ink, solid, inner); });
+  const fd = frameDesign(spec), inner = fd ? fd.inner - 0.8 : faceRadius(spec);
+  return cached(key, () => { const { ink, solid } = frontInk(lib, role, spec, text); return cutPattern(p, faceRadius(spec), ink, solid, inner, fd ? fd.inner : Infinity); });
 }
 
 /** The back's pattern, behind its design; null for none (or a back that is a face: backFaceOf draws it there, like a front's). */
