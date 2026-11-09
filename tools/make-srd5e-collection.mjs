@@ -14,6 +14,7 @@ import path from "node:path";
 import { BUILT_INS } from "../src/builtins.ts";   // its theme and loading screen: one place
 import { FILAMENTS } from "../src/engine/token-engine.ts";
 import { ringDesigns } from "../src/shape-designs.ts";
+import { asLists } from "./collection-model.mjs";
 const SRD = BUILT_INS.find((b) => b.id === "srd5e");
 
 const root = path.resolve(import.meta.dirname, "..");
@@ -162,7 +163,7 @@ const collection = {
   styles,
 };
 const out = path.join(root, "public/collections/srd5e.json");
-fs.writeFileSync(out, JSON.stringify(collection));
+fs.writeFileSync(out, JSON.stringify(asLists(collection)));   // as the app keeps it: shapes on the tokens, the sections' catalogs as its own lists
 const count = (t) => tokens.filter((x) => x.type === t).length;
 console.log(`wrote ${out}: ${tokens.length} tokens (${count("conditions")} conditions, ${count("markers")} markers, ${count("spells")} spell effects, ${count("rings")} rings)`);
 

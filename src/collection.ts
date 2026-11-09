@@ -42,7 +42,9 @@ export const collectionUrl = (id: string) => `/c/${id}`;
 /** A name: one text, or one per token language ("en", "es", "es-castelgard"…). */
 export type Names = string | Record<string, string>;
 export const SHAPES: TokenShape[] = ["coin", "card", "ring", "base"];
-export interface OwnType { id: string; name: Names; title: Names; shape: TokenShape; icon?: string }
+/** What a collection calls its categories (groups), lists (catalogs) and linked tokens, where not the app's words: singular, plural, and in Spanish whether it's feminine. */
+export interface OwnWord { one: Names; many: Names; fem?: boolean }
+export interface OwnWords { group?: OwnWord; list?: OwnWord; linked?: OwnWord }
 export interface OwnGroup { id: string; name: Names; colour: Hex; icon?: string;
   /** Its own icon, as the paths of a 512-unit game-icons.net icon (for its filter and plate), when not one of the app's. */
   iconBody?: string }
@@ -54,7 +56,9 @@ const okIconBody = (v: unknown) => typeof v === "string" && v.length < 60000
   : undefined;
 export interface OwnToken {
   id: string;
-  type: string;
+  /** What it is printed as: a coin, a card, a condition ring or a tabbed base. */
+  shape: TokenShape;
+  /** Its category (a group): one each, and its colour. */
   group: string;
   name: Names;
   /** What its front says, when it isn't its name (the name is how it's found in your lists). */
@@ -76,8 +80,8 @@ export interface OwnToken {
 }
 /** A two-state token's other state: a name (in several languages, like the token's) and an icon (like the token's). */
 export interface OwnFlip { name: Names; icon: TokenIcon | null }
-export interface OwnCatalog { id: string; name: Names; tokens: string[] }
-export interface OwnSection { id: string; title: Names; open: boolean; catalogs: OwnCatalog[] }
+/** A list of tokens (a token can be in several): the collection's own (fixed: it came with it, like Clocktower's editions) or yours. */
+export interface OwnCatalog { id: string; name: Names; tokens: string[]; fixed?: boolean }
 /** Does it carry the Community Created Content mark? (Kept before it had its own field: on its loading screen.) */
 export const hasCcc = (c: { ccc?: boolean; loader?: { ccc?: boolean } }) => !!(c.ccc || c.loader?.ccc);
 /** A collection's colours: the app's surfaces, text and accent (see THEMES for ready ones). */
@@ -191,10 +195,13 @@ export interface Collection {
   brand?: OwnBrand;
   /** The token languages its names come in, when more than one. */
   languages?: string[];
-  types: OwnType[];
+  /** Its categories: one per token, and its colour. */
   groups: OwnGroup[];
   tokens: OwnToken[];
-  sections: OwnSection[];
+  /** Its lists: the collection's own first (fixed), then yours. */
+  catalogs: OwnCatalog[];
+  /** Its own words for the app's (Clocktower: Bando, Guiones, Recordatorios). */
+  words?: OwnWords;
   /** The styles it comes with, per shape (StyleDef); without them, the basic one. */
   styles?: CollectionStyles;
 }
@@ -225,6 +232,16 @@ export function readTheme(v: unknown): string | OwnTheme | undefined {
 // style and designs beside it (main.ts's keys); the list of them, for the front page and /colecciones, apart.
 const LIST_KEY = "midnight-mint-own-collections";
 const keyOf = (id: string) => `midnight-mint-own-${id}-collection`;
+/**
+ * Your lists in one of the app's own collections (it isn't kept, it's read from its file): kept
+ * apart, beside it, like Clocktower's scripts.
+ */
+const myListsKey = (id: string) => `midnight-mint-own-${id}-lists`;
+export function loadMyLists(id: string): OwnCatalog[] {
+  const l = readJSON<unknown>(myListsKey(id), []);
+  return (Array.isArray(l) ? l : []).filter((k): k is OwnCatalog => !!k && typeof k.id === "string" && okName(k.name) && Array.isArray(k.tokens)).map(({ fixed: _, ...k }) => k);
+}
+export const storeMyLists = (id: string, lists: OwnCatalog[]) => writeJSON(myListsKey(id), lists.filter((k) => !k.fixed));
 /** A collection that comes with the app (src/builtins.ts): what it says about itself is code. */
 export interface BuiltInEntry { id: string; file?: string; name: Names; logo?: string; accent?: string; tokens: number; text?: Names;
   /** A picture of some of its tokens, for its cover; and what it holds, in a line. */
@@ -260,8 +277,8 @@ export async function builtInStyles(id: string): Promise<CollectionStyles | unde
 /** A copy of a built-in collection, as one of yours to change: its new id. */
 export async function copyBuiltIn(id: string, name: string): Promise<string | null> {
   const c = await readBuiltIn(id);
-  // yours: every section open, so its tokens (and its catalogs) can be changed
-  return c ? addCollection({ ...c, name, sections: c.sections.map((x) => ({ ...x, open: true })) }) : null;
+  // yours: its lists too, to change (and the ones you'd made in it)
+  return c ? addCollection({ ...c, name, catalogs: [...c.catalogs, ...loadMyLists(id)].map(({ fixed: _, ...k }) => k) }) : null;
 }
 /** A collection in the list: enough to show its card without reading it all. */
 export interface CollectionEntry { id: string; name: string; logo?: string; accent?: string; tokens: number; updated: number }
@@ -278,34 +295,58 @@ export const withName = (n: Names, lang: string, v: string): Names => (typeof n 
 
 /** What a first collection's names say, in the interface's language (Spanish or English). */
 const STARTER = {
-  es: { name: "Mi colección", type: "Fichas", title: "Todas las fichas", group: "Grupo", token: "Mi primera ficha", section: "Catálogos" },
-  en: { name: "My collection", type: "Tokens", title: "All tokens", group: "Group", token: "My first token", section: "Catalogs" },
+  es: { name: "Mi colección", group: "Categoría", token: "Mi primera ficha" },
+  en: { name: "My collection", group: "Category", token: "My first token" },
 };
 /** The first collection's token, as it came (nobody named it, gave it an icon or anything else): a placeholder to drop once there are real ones. */
 export const isUntouchedStarter = (tk: OwnToken) =>
   tk.id === "t1" && !tk.icon && !tk.linked.length && !tk.flip && !tk.colour && !tk.content && Object.values(STARTER).some((s) => nameIn(tk.name, "es") === s.token || nameIn(tk.name, "en") === s.token);
-/** A first collection: one type, two groups, one token, and an open section for the catalogs you make. */
+/** A first collection: one category, one token, and no lists yet. */
 export const starterCollection = (lang = "es"): Collection => {
   const s = lang === "es" ? STARTER.es : STARTER.en;
   return {
     name: s.name,
-    types: [{ id: "fichas", name: s.type, title: s.title, shape: "coin", icon: "two-coins" }],
-    // one group, unseen until you make more (from the menu's Groups)
+    // one category, unseen until there are more
     groups: [{ id: "g1", name: `${s.group} 1`, colour: GROUP_COLOURS[0] }],
     // one token to start from: the app always has something to show and design
-    tokens: [{ id: "t1", type: "fichas", group: "g1", name: s.token, icon: null, linked: [] }],
-    sections: [{ id: "s1", title: s.section, open: true, catalogs: [] }],
+    tokens: [{ id: "t1", shape: "coin", group: "g1", name: s.token, icon: null, linked: [] }],
+    catalogs: [],
     styles: basicStyles(),
   };
 };
 
-/** A collection kept before types and sections: its catalogs become one open section. */
-function upgrade(c: Collection & { catalogs?: OwnCatalog[] }): Collection {
-  if (!c.types?.length) {
-    c.types = starterCollection().types;
-    for (const t of c.tokens) t.type ??= c.types[0].id;
+/** A type, as a collection had them (an entry in the sidebar with a shape), and a section of catalogs (closed: the collection's own). */
+interface OldType { id: string; name?: Names; title?: Names; shape?: TokenShape }
+interface OldSection { open?: boolean; catalogs?: OwnCatalog[] }
+/**
+ * A collection as it is now from one with types and sections: a token's shape is its type's, a
+ * closed section's catalogs are its fixed lists and an open one's yours, and a type is a list of
+ * its own unless something else shows the same tokens already (a list, a shape, everything).
+ */
+export function dropTypes(c: { tokens: (OwnToken & { type?: string })[]; types?: OldType[]; sections?: OldSection[]; catalogs?: OwnCatalog[] }) {
+  const types = Array.isArray(c.types) ? c.types : [];
+  const typeOf = new Map(c.tokens.map((t) => [t.id, t.type]));
+  for (const t of c.tokens) {
+    if (!SHAPES.includes(t.shape)) t.shape = types.find((x) => x.id === t.type)?.shape ?? "coin";
+    delete t.type;
   }
-  if (!c.sections) { c.sections = [{ id: "s1", title: "Catálogos", open: true, catalogs: c.catalogs ?? [] }]; delete c.catalogs; }
+  if (Array.isArray(c.sections)) c.catalogs = c.sections.flatMap((sec) => (sec.catalogs ?? []).map((k) => ({ ...k, ...(sec.open ? {} : { fixed: true }) })));
+  c.catalogs ??= [];
+  const same = (a: string[], b: string[]) => a.length === b.length && a.every((x) => b.includes(x));
+  const all = c.tokens.map((t) => t.id), byShape = (sh: TokenShape) => c.tokens.filter((t) => t.shape === sh).map((t) => t.id);
+  const shown = (ids: string[]) => !ids.length || same(ids, all) || SHAPES.some((sh) => same(ids, byShape(sh))) || c.catalogs!.some((k) => same(ids, k.tokens));
+  const fromTypes: OwnCatalog[] = types.flatMap((ty) => {
+    const ids = c.tokens.filter((t) => typeOf.get(t.id) === ty.id).map((t) => t.id);
+    return shown(ids) ? [] : [{ id: `type-${ty.id}`, name: ty.title ?? ty.name ?? ty.id, tokens: ids }];
+  });
+  c.catalogs = [...c.catalogs.filter((k) => k.fixed), ...fromTypes, ...c.catalogs.filter((k) => !k.fixed)];   // the collection's own first
+  delete c.types; delete c.sections;
+}
+
+/** A collection kept before: its types and sections (dropTypes), and older ways still. */
+function upgrade(c: Collection & { types?: OldType[]; sections?: OldSection[] }): Collection {
+  if (c.types || c.sections) dropTypes(c);
+  c.catalogs ??= [];
   upgradeBasicStyles(c.styles);
   if (c.about) { const about = foldAbout(c.about); if (about) c.about = about; else delete c.about; }   // its credits and links: in its text now
   if (c.brand && "title" in c.brand) { const n = brandName(c.brand); if (n) c.name = n; delete (c.brand as { title?: unknown }).title; }   // the name beside its logo: its name now
@@ -363,9 +404,8 @@ function migrateSingle() {
 }
 
 /** Every catalog, with its section. */
-export const catalogsOf = (c: Collection) => c.sections.flatMap((s) => s.catalogs.map((k) => ({ k, s })));
-/** A token in a closed section's catalog came with the collection: it can't be changed. */
-export const isLocked = (c: Collection, id: string) => !!c.tokens.find((t) => t.id === id)?.fixed || c.sections.some((s) => !s.open && s.catalogs.some((k) => k.tokens.includes(id)));
+/** A token in one of the collection's own (fixed) lists came with it: it can't be changed. */
+export const isLocked = (c: Collection, id: string) => !!c.tokens.find((t) => t.id === id)?.fixed || c.catalogs.some((k) => k.fixed && k.tokens.includes(id));
 
 /** The app's character for a token of ours: its group is its team; its linked tokens, its reminders. */
 /** A name as a character has it: English, Spanish and one per language. */
@@ -388,9 +428,9 @@ export function tokenRole(c: Collection, t: OwnToken, lang = "es"): Role {
   // what it prints: its text (empty: nothing), else its name; its name names it in your lists (listNames) when they differ
   const names = namesOf(t.text ?? t.name), own = namesOf(t.name);
   const langs = new Set(["en", "es", ...Object.keys(names), ...Object.keys(own), ...t.linked.flatMap((l) => (typeof l === "string" ? [] : Object.keys(l)))]);
-  const type = c.types.find((x) => x.id === t.type);
-  // the Edition back: the first closed catalog it's in ("Trouble Brewing"), else the collection's name
-  const home = c.sections.find((s) => !s.open && s.catalogs.some((k) => k.tokens.includes(t.id)))?.catalogs.find((k) => k.tokens.includes(t.id));
+  const type = { shape: t.shape };
+  // the Edition back: the first of the collection's own lists it's in ("Trouble Brewing"), else the collection's name
+  const home = c.catalogs.find((k) => k.fixed && k.tokens.includes(t.id));
   // a coin carries what it has: without an icon, its text alone; without a text, its icon alone; without either, nothing
   const content = type?.shape === "coin" ? coinContent(t) : t.content === "icon" && !t.icon && type?.shape !== "base" ? "text" : t.content;
   const icon = content === "text" || content === "none" ? null : t.icon;   // only its name, or nothing: its icon kept for later, not drawn
@@ -541,6 +581,16 @@ function readStyles(v: unknown): CollectionStyles | undefined {
 }
 
 const okName = (n: unknown): n is Names => typeof n === "string" || (!!n && typeof n === "object" && Object.values(n).every((v) => typeof v === "string"));
+/** A collection's own words from a file: each a singular and a plural (and whether it's feminine); anything else, the app's. */
+function readWords(v: unknown): OwnWords | undefined {
+  if (!v || typeof v !== "object") return undefined;
+  const out: OwnWords = {};
+  for (const k of ["group", "list", "linked"] as const) {
+    const w = (v as Record<string, Partial<OwnWord> | undefined>)[k];
+    if (w && okName(w.one) && okName(w.many)) out[k] = { one: w.one, many: w.many, ...(w.fem === true ? { fem: true } : w.fem === false ? { fem: false } : {}) };
+  }
+  return Object.keys(out).length ? out : undefined;
+}
 /**
  * A collection from a file. Its icons are fetched (game-icons.net) or read (SVG) now, so the
  * collection draws without the network afterwards. Throws "not-collection" for other JSON.
@@ -549,11 +599,12 @@ export async function readCollectionFile(data: unknown, onProgress: (done: numbe
   const f = data as Partial<CollectionFile> | null;
   if (!f || f.format !== COLLECTION_FORMAT || !Array.isArray(f.tokens) || !Array.isArray(f.groups)) throw new Error("not-collection");
   const firstOf = <T extends { id: string }>(list: T[]) => { const seen = new Set<string>(); return list.filter((x) => !seen.has(x.id) && !!seen.add(x.id)); };
-  const types: OwnType[] = firstOf((f.types ?? []).filter((x) => x?.id).map((x) => ({ id: okId(x.id), name: okName(x.name) ? x.name : String(x.id), title: okName(x.title) ? x.title : okName(x.name) ? x.name : String(x.id), shape: SHAPES.includes(x.shape) ? x.shape : "coin", ...(x.icon ? { icon: String(x.icon) } : {}) })));
-  if (!types.length) types.push(...starterCollection().types);
+  const old = f as unknown as { types?: OldType[]; sections?: (OldSection & { catalogs?: unknown[] })[] };   // types and sections, as files had them
+  const types: OldType[] = firstOf((Array.isArray(old.types) ? old.types : []).filter((x) => x?.id).map((x) => ({ id: okId(x.id), ...(okName(x.name) ? { name: x.name } : {}), ...(okName(x.title) ? { title: x.title } : {}), shape: SHAPES.includes(x.shape!) ? x.shape : "coin" })));
   const groups: OwnGroup[] = firstOf(f.groups.filter((g) => g?.id).map((g, i) => ({ id: okId(g.id), name: okName(g.name) ? g.name : `Grupo ${i + 1}`, colour: /^#[0-9a-f]{6}$/i.test(g.colour) ? g.colour : GROUP_COLOURS[i % GROUP_COLOURS.length], ...(g.icon ? { icon: String(g.icon) } : {}), ...(okIconBody(g.iconBody) ? { iconBody: okIconBody(g.iconBody) } : {}) })));
   if (!groups.length) groups.push({ id: "g1", name: "Grupo 1", colour: GROUP_COLOURS[0] });
   const knownGroup = new Set(groups.map((g) => g.id)), knownType = new Set(types.map((x) => x.id));
+  const fileTokens = f.tokens as (FileToken & { type?: string })[];
   let done = 0;
   const tokens: OwnToken[] = [];
   /** An icon from the file: fetched (game-icons.net) or read (SVG); null if it won't load. */
@@ -576,12 +627,13 @@ export async function readCollectionFile(data: unknown, onProgress: (done: numbe
     } catch { /* an icon that won't load: the token stays, without it */ }
     return null;
   };
-  for (const t of f.tokens) {
+  for (const t of fileTokens) {
     if (!t?.id || !okName(t.name) || tokens.some((x) => x.id === okId(t.id))) continue;
     const icon = await readIcon(t, `svg:${okId(t.id)}`);
     const flip = t.flip && typeof t.flip === "object" && okName(t.flip.name) ? { name: t.flip.name, icon: await readIcon(t.flip, `svg:${okId(t.id)}~flip`) } : null;
     tokens.push({
-      id: okId(t.id), type: knownType.has(okId(t.type)) ? okId(t.type) : types[0].id, group: knownGroup.has(okId(t.group)) ? okId(t.group) : groups[0].id,
+      // its shape; a file with types: its type's (dropTypes, below)
+      id: okId(t.id), shape: (SHAPES.includes(t.shape) ? t.shape : undefined) as TokenShape, ...(t.type != null && knownType.has(okId(t.type)) ? { type: okId(t.type) } : {}), group: knownGroup.has(okId(t.group)) ? okId(t.group) : groups[0].id,
       name: t.name, ...(okName(t.text) ? { text: t.text } : {}), ...(t.fem && typeof t.fem === "object" ? { fem: t.fem } : {}), ...(t.fixed ? { fixed: true } : {}), icon,
       linked: (t.linked ?? []).map((l) => (typeof l === "string" ? l : l?.name)).filter(okName),
       ...(flip ? { flip } : {}),
@@ -591,11 +643,16 @@ export async function readCollectionFile(data: unknown, onProgress: (done: numbe
     if (++done % 20 === 0 || done === f.tokens.length) onProgress(done, f.tokens.length);
   }
   const ids = new Set(tokens.map((t) => t.id));
-  const sections: OwnSection[] = (f.sections ?? []).filter(Boolean).map((s, i) => ({
-    id: okId(s.id ?? `s${i + 1}`), title: okName(s.title) ? s.title : "Catálogos", open: !!s.open,
-    catalogs: (s.catalogs ?? []).filter((k) => k?.id).map((k) => ({ id: okId(k.id), name: okName(k.name) ? k.name : "Catálogo", tokens: (k.tokens ?? []).map(okId).filter((id) => ids.has(id)) })),
-  }));
-  if (!sections.some((s) => s.open)) sections.push({ id: "mine", title: "Catálogos", open: true, catalogs: [] });
+  /** A list from the file: its tokens that are in it. */
+  const readList = (k: unknown, fixed: boolean): OwnCatalog[] => {
+    const x = k as Partial<OwnCatalog> | null;
+    return x?.id ? [{ id: okId(x.id), name: okName(x.name) ? x.name : "Lista", tokens: (Array.isArray(x.tokens) ? x.tokens : []).map(okId).filter((id) => ids.has(id)), ...(fixed ? { fixed: true } : {}) }] : [];
+  };
+  // its lists; a file with sections: their catalogs, a closed section's the collection's own
+  const catalogs = firstOf(Array.isArray(old.sections) ? old.sections.filter(Boolean).flatMap((sec) => (sec.catalogs ?? []).flatMap((k) => readList(k, !sec.open)))
+    : (Array.isArray(f.catalogs) ? f.catalogs : []).flatMap((k) => readList(k, !!k?.fixed)));
+  const shaped = { tokens: tokens as (OwnToken & { type?: string })[], types, catalogs };
+  dropTypes(shaped);   // a type a list of its own, where nothing else shows its tokens
   const styles = readStyles(f.styles);
   return {
     name: brandName(f.brand) ?? (okName(f.name) ? f.name : "Mi colección"),
@@ -605,7 +662,7 @@ export async function readCollectionFile(data: unknown, onProgress: (done: numbe
     ...(f.brand && typeof f.brand === "object" ? { brand: { ...(okLogo(f.brand.logo) ? { logo: f.brand.logo } : {}),  } } : {}),
     ...(f.loader && typeof f.loader === "object" ? { loader: { ...(okName(f.loader.text) ? { text: f.loader.text } : {}), ...(okName(f.loader.footer) ? { footer: f.loader.footer } : {}), ...(f.loader.ccc ? { ccc: true } : {}) } } : {}),
     ...(Array.isArray(f.languages) ? { languages: f.languages.map(String).filter((l) => /^[a-z]{2,3}(-[a-z0-9]+)*$/.test(l)) } : {}),
-    types, groups, tokens, sections,
+    groups, tokens, catalogs: shaped.catalogs, ...(readWords(f.words) ? { words: readWords(f.words) } : {}),
     ...(styles ? { styles } : {}),
   };
 }

@@ -260,9 +260,8 @@ test("a collection of bases: the tray in the sheet and the Bambu project", async
   const id = await page.evaluate(async () => {
     const C = await import("/src/collection.ts");
     const c = C.starterCollection();
-    c.types = [{ id: "peanas", name: "Peanas", title: "Peanas", shape: "base", icon: "metal-disc" }];
-    c.tokens = ["2", "ORCO 3"].map((n, i) => ({ id: `p${i}`, type: "peanas", group: "g1", name: n, icon: null, linked: [] }));
-    c.sections[0].catalogs = [{ id: "k1", name: "Peanas", tokens: c.tokens.map((t) => t.id) }];
+    c.tokens = ["2", "ORCO 3"].map((n, i) => ({ id: `p${i}`, shape: "base" as const, group: "g1", name: n, icon: null, linked: [] }));
+    c.catalogs = [{ id: "k1", name: "Peanas", tokens: c.tokens.map((t) => t.id) }];
     return C.addCollection(c);
   });
   await page.goto(`/c/${id}`);
@@ -283,7 +282,7 @@ test("a collection of bases: the tray in the sheet and the Bambu project", async
 
 test("cards with a back: the Senate's laws to the Bambu project and the paper, both sides", async ({ page }) => {
   const errors = await open(page, "/c/senado");
-  await page.locator('[data-ed="t:leyes"]').first().evaluate((b) => (b as HTMLElement).click());
+  await page.locator('[data-ed="f:card"]').first().evaluate((b) => (b as HTMLElement).click());   // its laws: its cards
   await pick(page, 2);
   await next(page); await next(page);
   for (const [way, ext] of [["3d", /\.3mf$/], ["paper", /\.pdf$/]] as const) {
@@ -485,6 +484,72 @@ test("a collection's settings are a page of their own: its tabs, its About besid
   await expect(page.locator("#osName")).toHaveValue("Bestiario", { timeout: 30_000 });
   await page.locator('[data-sp-tab="about"]').click();
   await expect(page.locator("#osAboutPreview strong")).toHaveText("lobos");
+  expect(errors).toEqual([]);
+});
+
+test("the sidebar: everything, a shape each where there's more than one, then the lists (the collection's own locked, yours kept beside it)", async ({ page }) => {
+  const errors = await open(page, "/c/srd5e");
+  await expect(page.locator('#library [data-ed="all"]')).toBeVisible();
+  await expect(page.locator('#library [data-ed="f:coin"]')).toBeVisible();
+  await expect(page.locator('#library [data-ed="f:ring"]')).toBeVisible();
+  await expect(page.locator('#library [data-ed="f:card"]')).toHaveCount(0);   // no cards in it
+  await expect(page.locator("#editions .spine-sec h2")).toHaveText("Lists");
+  await expect(page.locator("#editions .ed .list-lock")).toHaveCount(5);   // its five, fixed
+  // a list of yours, in one of the app's collections: made, and there after a reload
+  await page.locator("#editions [data-list-new]").click();
+  await page.locator("#ownCatName").fill("Saturday");
+  await page.locator("#ownCatText").fill("Blinded\nPoisoned");
+  await page.locator("#ownCatSave").click();
+  await expect(page.locator("#editions .ed").filter({ hasText: "Saturday" })).toBeVisible();
+  await expect(page.locator("#edTitle")).toHaveText("Saturday");
+  await page.reload();
+  await expect(page.locator("#editions .ed").filter({ hasText: "Saturday" })).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator("#editions .ed").filter({ hasText: "Saturday" }).locator(".list-lock")).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test("a collection kept with types and sections opens with shapes and lists", async ({ page }) => {
+  const errors = await open(page, "/");
+  const id = await page.evaluate(async () => {
+    const C = await import("/src/collection.ts");
+    const old = { ...C.starterCollection(), catalogs: undefined,
+      types: [{ id: "fichas", name: "Fichas", title: "Todas", shape: "coin" }, { id: "aros", name: "Aros", title: "Aros", shape: "ring" }, { id: "marcas", name: "Marcas", title: "Marcas", shape: "coin" }],
+      tokens: [{ id: "a", type: "fichas", group: "g1", name: "Uno", icon: null, linked: [] }, { id: "b", type: "aros", group: "g1", name: "Dos", icon: null, linked: [] }, { id: "c", type: "marcas", group: "g1", name: "Tres", icon: null, linked: [] }],
+      sections: [{ id: "s1", title: "Catálogos", open: true, catalogs: [{ id: "k1", name: "Partida", tokens: ["a", "b"] }] }] };
+    return C.addCollection(old as never);
+  });
+  await page.goto(`/c/${id}`);
+  await expect(page.locator("#gate")).toBeHidden({ timeout: 30_000 });
+  await expect(page.locator('#library [data-ed="f:ring"]')).toBeVisible();
+  // "Marcas" a list now (nothing else shows just it), "Aros" not (the rings' entry does), "Partida" kept
+  await expect(page.locator("#editions .ed")).toHaveText([/Todas/, /Marcas/, /Partida/]);
+  expect(errors).toEqual([]);
+});
+
+test("a collection's settings: its categories, and its own names for categories and lists, said across the app", async ({ page }) => {
+  const errors = await open(page, "/");
+  await makeToken(page, "Lobo");
+  await page.locator('[data-coll="settings"]').first().evaluate((b) => (b as HTMLElement).click());
+  // Names: the categories are "bando" (masculine), the lists "guiones"
+  const row = (k: string) => page.locator(`#osWords [data-word="${k}"]`);
+  await row("group").locator('[data-part="one"]').fill("bando");
+  await row("group").locator('[data-part="many"]').fill("bandos");
+  await row("list").locator('[data-part="one"]').fill("guion");
+  await row("list").locator('[data-part="many"]').fill("guiones");
+  await expect(page.locator('[data-sp-tab="groups"]')).toHaveText("Bandos");
+  // a second one, in its tab
+  await page.locator('[data-sp-tab="groups"]').click();
+  await expect(page.locator("#ownGroupAdd")).toHaveText("+ Bando");
+  await page.locator("#ownGroupAdd").click();
+  await expect(page.locator("#ownGroupList .own-group")).toHaveCount(2);
+  await page.locator("#osSave").click();
+  await expect(page.locator("#osState")).toHaveText("Saved");
+  // said where the token is changed, and in the sidebar
+  await page.locator("#flowSteps .top-back").click();
+  await expect(page.locator("#editions .spine-sec h2")).toHaveText("Guiones");
+  await expect(page.locator("#editions [data-list-new]")).toHaveAttribute("title", "New guion");
+  await page.reload();
+  await expect(page.locator("#editions .spine-sec h2")).toHaveText("Guiones", { timeout: 30_000 });
   expect(errors).toEqual([]);
 });
 

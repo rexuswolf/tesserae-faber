@@ -112,7 +112,7 @@ export const state: {
   pick: new Map(),         // token key ("c:imp", "r:imp:0") -> copies
 };
 /** The collection this page shows (Tesserae Faber); empty, and unused, in Clocktower. */
-export let coll: Collection = (OWN && loadCollection()) || { name: "", types: [], groups: [], tokens: [], sections: [] };
+export let coll: Collection = (OWN && loadCollection()) || { name: "", groups: [], tokens: [], catalogs: [] };
 /** Another collection to show (a built-in one read from its file; the Taller's from where it was opened). */
 export const setColl = (c: Collection) => { coll = c; };
 /** The collection open is one of the app's own (Clocktower at /botc, or one at /c/<id>): read-only, with "Make a copy" instead. */

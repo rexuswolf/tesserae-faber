@@ -33,7 +33,6 @@
         <button class="built-only" role="menuitem" type="button" data-coll="copy"><span aria-hidden="true">⧉</span><b data-i18n="own.copy"></b><small data-i18n="own.menuCopy"></small></button>
         <hr class="own-only">
         <button class="own-only" role="menuitem" type="button" data-coll="settings"><span aria-hidden="true">⚙</span><b data-i18n="own.settings"></b><small data-i18n="own.menuSettings"></small></button>
-        <button class="own-only" role="menuitem" type="button" data-coll="groups"><span aria-hidden="true">◐</span><b data-i18n="own.groups"></b><small data-i18n="own.menuGroups"></small></button>
         <hr class="own-only">
         <button class="own-only" role="menuitem" type="button" data-coll="import"><span aria-hidden="true">⇩</span><b data-i18n="own.import"></b><small data-i18n="own.menuImport"></small></button>
         <button class="own-only" role="menuitem" type="button" data-coll="export"><span aria-hidden="true">⇧</span><b data-i18n="own.export"></b><small data-i18n="own.menuExport"></small></button>
@@ -62,7 +61,6 @@
         <button class="built-only" role="menuitem" type="button" data-coll="copy"><span aria-hidden="true">⧉</span><b data-i18n="own.copy"></b><small data-i18n="own.menuCopy"></small></button>
         <hr class="own-only">
         <button class="own-only" role="menuitem" type="button" data-coll="settings"><span aria-hidden="true">⚙</span><b data-i18n="own.settings"></b><small data-i18n="own.menuSettings"></small></button>
-        <button class="own-only" role="menuitem" type="button" data-coll="groups"><span aria-hidden="true">◐</span><b data-i18n="own.groups"></b><small data-i18n="own.menuGroups"></small></button>
         <hr class="own-only">
         <button class="own-only" role="menuitem" type="button" data-coll="import"><span aria-hidden="true">⇩</span><b data-i18n="own.import"></b><small data-i18n="own.menuImport"></small></button>
         <button class="own-only" role="menuitem" type="button" data-coll="export"><span aria-hidden="true">⇧</span><b data-i18n="own.export"></b><small data-i18n="own.menuExport"></small></button>
@@ -464,6 +462,7 @@
       <div class="sp-tabs" role="tablist">
         <button type="button" role="tab" data-sp-tab="general" aria-selected="true" data-i18n="own.spGeneral"></button>
         <button type="button" role="tab" data-sp-tab="look" aria-selected="false" data-i18n="own.spLook"></button>
+        <button type="button" role="tab" data-sp-tab="groups" aria-selected="false" data-i18n="own.groupsH"></button>
         <button type="button" role="tab" data-sp-tab="about" aria-selected="false" data-i18n="own.aboutH"></button>
       </div>
       <div class="sp-panel" data-sp="general" role="tabpanel">
@@ -476,6 +475,10 @@
             <p class="hint warn" id="osLogoNote" aria-live="polite"></p>
           </div>
         </div>
+        <!-- what it calls its categories, lists and linked tokens (Clocktower: Bando, Guiones, Recordatorios) -->
+        <h3 data-i18n="own.wordsH"></h3>
+        <p class="hint" data-i18n="own.wordsHelp"></p>
+        <div class="os-words" id="osWords"></div>
       </div>
       <div class="sp-panel" data-sp="look" role="tabpanel" hidden>
         <h3 data-i18n="own.colours"></h3>
@@ -491,6 +494,12 @@
         <h3 data-i18n="own.loaderH"></h3>
         <label class="field"><span data-i18n="own.loaderText"></span><input class="text" id="osLoader" autocomplete="off" data-i18n-attr="placeholder:gate.opening"></label>
         <label class="check os-ccc"><input type="checkbox" id="osCcc"> <span><span data-i18n="own.cccLabel"></span><small data-i18n="own.cccHelp"></small></span></label>
+      </div>
+      <!-- its categories: one per token, and its colour -->
+      <div class="sp-panel" data-sp="groups" role="tabpanel" hidden>
+        <p class="hint" data-i18n="own.groupsHelp"></p>
+        <div class="own-groups" id="ownGroupList"></div>
+        <button class="pill" type="button" id="ownGroupAdd" data-i18n="own.addGroup"></button>
       </div>
       <div class="sp-panel" data-sp="about" role="tabpanel" hidden>
         <p class="hint" data-i18n="own.aboutText"></p>
@@ -886,22 +895,8 @@
 </dialog>
 
 <!-- the generic creator: the colour groups (Clocktower's teams) -->
-<dialog id="ownGroupsDlg" class="own-dialog" aria-labelledby="ownGroupsTitle">
-  <form method="dialog" class="close"><button class="pill" data-i18n="admin.close"></button></form>
-  <h2 id="ownGroupsTitle" data-i18n="own.groups"></h2>
-  <h3 data-i18n="own.types"></h3>
-  <p class="hint" data-i18n="own.typesHelp"></p>
-  <div class="own-groups" id="ownTypeList"></div>
-  <button class="pill" type="button" id="ownTypeAdd" data-i18n="own.addType"></button>
-  <h3 data-i18n="own.groupsH"></h3>
-  <p class="hint" data-i18n="own.groupsHelp"></p>
-  <div class="own-groups" id="ownGroupList"></div>
-  <button class="pill" type="button" id="ownGroupAdd" data-i18n="own.addGroup"></button>
-</dialog>
 
-<!-- the generic creator: the collection's name, its loading line, its About and its colours -->
-
-<!-- the generic creator: a catalog made in an open section, or tokens added to one, from a list -->
+<!-- the generic creator: a list made, or tokens added to one of yours, from a list of names or a script -->
 <dialog id="ownCat" class="own-dialog" aria-labelledby="ownCatTitle">
   <h2 id="ownCatTitle"></h2>
   <label class="field" id="ownCatNameRow"><span data-i18n="own.catName"></span><input class="text" id="ownCatName" autocomplete="off"></label>

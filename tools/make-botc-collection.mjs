@@ -12,6 +12,7 @@ import { EDITIONS, TEAMS } from "../src/engine/token-engine.ts";
 import { infoRoles } from "../src/info-tokens.ts";
 import { TRANSLATIONS, VILLACUERVOS_URL } from "../src/translations.ts";
 import { TEAM_ICONS } from "../src/ui-icons.ts";
+import { asLists } from "./collection-model.mjs";
 import { BUILT_INS } from "../src/builtins.ts";   // what the app says about it (its About, its mark): one place
 import { BOTC_STYLES } from "../src/botc-styles.ts";   // its styles: the Clocktower app's own
 const BOTC = BUILT_INS.find((b) => b.id === "botc");
@@ -66,7 +67,7 @@ const collection = {
   styles: BOTC_STYLES,
 };
 fs.mkdirSync(path.dirname(out), { recursive: true });
-fs.writeFileSync(out, JSON.stringify(collection));
+fs.writeFileSync(out, JSON.stringify(asLists(collection)));   // as the app keeps it: shapes on the tokens, the sections' catalogs as its own lists
 console.log(`wrote ${out}: ${tokens.length} tokens, ${(fs.statSync(out).size / 1024).toFixed(0)} KB`);
 if (builtIn) {   // the card's numbers, counted here: src/builtins-facts.ts
   const facts = { tokens: tokens.length, characters: roles.length, reminders: tokens.reduce((n, t) => n + (t.linked?.length ?? 0), 0), languages: TRANSLATIONS.length };

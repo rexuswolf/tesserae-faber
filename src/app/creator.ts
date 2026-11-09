@@ -1,12 +1,13 @@
 // Collections of your own: the creator, a token's panel, the collection's look and the list.
 import { emit } from "./events.ts";
 import { paintTesserae } from "./tesserae.ts";
-import { OWN, catalogsOf, nameIn, foldAbout, storeCollection, OWN_ID, builtIn, tallerUrl, readTokenList, newId, withName, copyBuiltIn, collectionUrl, collectionFile, readCollectionFile, addCollection, GROUP_COLOURS, SHAPES, collectionRoles, tokenRole as ownRole, isLocked, coinContent, THEMES, APP_LOGO, APP_LOGO_SMALL, APP_ICON, APP_NAME, hasCcc, THEME_FONTS, okLogo, builtInCollections, listCollections, lastCollection, openUrl, OWN_VIEW, LIST_URL, starterCollection, loadCollection, deleteCollection, isUntouchedStarter } from "../collection.ts";
-import type { OwnCatalog, OwnSection, OwnToken, OwnTheme, CollectionEntry, OwnFlip } from "../collection.ts";
+import { OWN, nameIn, storeMyLists, foldAbout, storeCollection, OWN_ID, builtIn, tallerUrl, readTokenList, newId, withName, copyBuiltIn, collectionUrl, collectionFile, readCollectionFile, addCollection, GROUP_COLOURS, SHAPES, collectionRoles, tokenRole as ownRole, isLocked, coinContent, THEMES, APP_LOGO, APP_LOGO_SMALL, APP_ICON, APP_NAME, hasCcc, THEME_FONTS, okLogo, builtInCollections, listCollections, lastCollection, openUrl, OWN_VIEW, LIST_URL, starterCollection, loadCollection, deleteCollection, isUntouchedStarter } from "../collection.ts";
+import type { OwnWord, OwnWords, OwnCatalog, OwnToken, OwnTheme, CollectionEntry, OwnFlip } from "../collection.ts";
 import { FILAMENT_SLOTS } from "../bambu/plates.ts";
 import { coll, TEAM_ORDER, TEAM_PLURAL, PLATE_LABEL, PLATE_GROUP, $$, stickyNotice, state, $, esc, READONLY, hit, input, BUILT } from "./context.ts";
 import type { Role, Team, Hex, TokenShape, TokenIcon, TokenContent } from "../types.ts";
-import { uiLang, t } from "../i18n.ts";
+import { uiLang, t, setOwnWords, applyStatic, appWord } from "../i18n.ts";
+import type { Word, WordKind } from "../i18n.ts";
 import { PRINT_GROUPS, persistPicks, renderDesignStage, setPick, goStep, editToken, settingsStep } from "./queue.ts";
 import { markdown } from "../markdown.ts";
 import { openPartTab } from "./editor.ts";
@@ -28,19 +29,21 @@ import posthog, { posthogEnabled } from "../posthog.ts";
 // ------------------------------------------------------------ Tesserae Faber, the generic creator
 //
 // Your own collection (collection.ts) stands in for Clocktower's library: each token is a
-// character whose team is its colour group and whose reminders are its linked tokens. The
-// sidebar has a fixed entry per type ("t:<id>", like "All characters" and "Grimoire"), then the
-// sections with their catalogs ("k:<id>", like the editions and scripts). Everything after
-// picking (design, queue, print) is the same app.
+// character whose team is its category (a group, its colour) and whose reminders are its linked
+// tokens. The sidebar has Everything ("all", like "All characters"), an entry per shape there is
+// ("f:<shape>": the coins, the cards…), then the lists ("k:<id>"): the collection's own first,
+// fixed (like the editions), then yours (like the scripts). Everything after picking (design,
+// queue, print) is the same app.
 
 export const catalogOf = (view: string | null | undefined): OwnCatalog | null =>
-  (OWN && view?.startsWith("k:") ? catalogsOf(coll).find(({ k }) => k.id === view.slice(2))?.k ?? null : null);
-export const typeOfView = (view: string | null | undefined) => (OWN && view?.startsWith("t:") ? coll.types.find((x) => x.id === view.slice(2)) ?? null : null);
-export const typeOfToken = (id: string) => coll.tokens.find((x) => x.id === id)?.type;
-/** The closed catalog a token came in ("Trouble Brewing"), shown under its name like an edition. */
-export const ownHomeCatalog = (id: string) => coll.sections.find((s) => !s.open && s.catalogs.some((k) => k.tokens.includes(id)))?.catalogs.find((k) => k.tokens.includes(id)) ?? null;
+  (OWN && view?.startsWith("k:") ? coll.catalogs.find((k) => k.id === view.slice(2)) ?? null : null);
+/** A shape's entry ("f:coin"): every token of that shape. */
+export const shapeOfView = (view: string | null | undefined): TokenShape | null =>
+  (OWN && view?.startsWith("f:") && (SHAPES as string[]).includes(view.slice(2)) ? view.slice(2) as TokenShape : null);
+export const tokenShape = (id: string) => coll.tokens.find((x) => x.id === id)?.shape;
+/** The collection's own list a token came in ("Trouble Brewing"), shown under its name like an edition. */
+export const ownHomeCatalog = (id: string) => coll.catalogs.find((k) => k.fixed && k.tokens.includes(id)) ?? null;
 export const ownHome = (r: Role) => { const k = ownHomeCatalog(r.id); return k ? nameIn(k.name, uiLang()) : ""; };
-const sectionOf = (k: OwnCatalog) => coll.sections.find((s) => s.catalogs.includes(k))!;
 
 /** The collection's groups take the place of the teams in every table that sorts, names or colours by team. */
 export function applyGroups() {
@@ -60,14 +63,43 @@ export function applyGroups() {
 
 /** What depends on the collection itself: its name, its look, and the language button (its token languages). */
 export function syncOwnChrome() {
+  applyWords();
   for (const el of $$(".coll-name")) el.textContent = nameIn(coll.name, uiLang());
   applyOwnTheme(); applyOwnBrand();
   renderLangButtons();
 }
 
+/** The collection's own words (its categories, lists and linked tokens), in each interface language: the app's texts say them. */
+const WORD_KINDS: WordKind[] = ["group", "list", "linked"];
+export function applyWords() {
+  const words: Record<string, Partial<Record<WordKind, Word>>> = {};
+  for (const lang of ["es", "en"]) {
+    words[lang] = {};
+    for (const k of WORD_KINDS) {
+      const w = coll.words?.[k], one = w ? nameIn(w.one, lang).trim() : "", many = w ? nameIn(w.many, lang).trim() : "";
+      if (one || many) words[lang][k] = { one: one || many, many: many || one, ...(lang === "es" ? { fem: !!w!.fem } : {}) };
+    }
+  }
+  setOwnWords(words);
+  applyStatic();
+}
+/** The settings' Names: each word's singular and plural (the app's as their placeholders), and in Spanish its gender. */
+function renderWords() {
+  const lang = uiLang();
+  $("#osWords").innerHTML = WORD_KINDS.map((k) => {
+    const w = coll.words?.[k], app = appWord(lang, k), fem = w ? !!w.fem : !!app.fem;
+    return `<div class="os-word" data-word="${k}"><b>${esc(app.one.charAt(0).toUpperCase() + app.one.slice(1))}</b>
+      <input class="text" data-part="one" value="${esc(w ? nameIn(w.one, lang) : "")}" placeholder="${esc(app.one)}" aria-label="${esc(t("own.wordOne"))}">
+      <input class="text" data-part="many" value="${esc(w ? nameIn(w.many, lang) : "")}" placeholder="${esc(app.many)}" aria-label="${esc(t("own.wordMany"))}">
+      ${lang === "es" ? `<select class="text" data-part="fem" aria-label="${esc(t("own.wordFem"))}"><option value="1"${fem ? " selected" : ""}>${esc(t("own.wordFem"))}</option><option value=""${fem ? "" : " selected"}>${esc(t("own.wordMasc"))}</option></select>` : ""}</div>`;
+  }).join("");
+}
+
 /** After any change to the collection: keep it, redraw, and drop picks and designs of tokens that are gone. */
 /** Saves the collection; if it doesn't fit, a notice at the top says so until a save fits again. */
 function saveColl() {
+  // one of the app's own: only your lists in it are kept (beside it)
+  if (READONLY) { const ok = storeMyLists(OWN_ID!, coll.catalogs); stickyNotice("storage", ok ? null : t("own.storageFull")); return ok; }
   const ok = storeCollection(coll), full = !ok && !!OWN_ID && !builtIn(OWN_ID);
   stickyNotice("storage", full ? t("own.storageFull") : null);
   return ok;
@@ -88,33 +120,35 @@ function collectionChanged() {
   emit("all");
 }
 
-/** "all" in a collection of more than one type: every token, coins, cards and rings together. */
-export const ownAllView = (view: string) => OWN && view === "all" && coll.types.length > 1;
+/** "all": every token, coins, cards and rings together. */
+export const ownAllView = (view: string) => OWN && view === "all";
+/** The shapes the collection's tokens have, in the app's order: an entry each, where there's more than one. */
+export const shapesHere = () => SHAPES.filter((sh) => coll.tokens.some((x) => x.shape === sh));
 export function renderOwnSpine() {
-  if (!ownAllView(state.edition) && !catalogOf(state.edition) && !typeOfView(state.edition)) state.edition = `t:${coll.types[0].id}`;
+  if (!ownAllView(state.edition) && !catalogOf(state.edition) && !shapeOfView(state.edition)) state.edition = "all";
   const q = searchQuery(), lang = uiLang();
   const rolesOf = (ids: string[]) => ids.map(roleById).filter((r): r is Role => !!r);
   const sub = (roles: Role[], card: boolean) => card ? t("ed.countInfo", { n: roles.length }) : t("own.count", { n: roles.length, l: roles.reduce((n, r) => n + remindersOf(r).length, 0) });
-  // everything the collection has, of every type, at the top: where there's more than one type
-  const everything = coll.types.length > 1 ? `<button class="ed" type="button" data-ed="all" aria-current="${state.edition === "all" && !q}">${uiIcon("stack")}
-      <span>${esc(t("own.everything"))}<small>${esc(t("own.everythingCount", { n: state.lib!.roles.length }))}</small></span>${pickedBadge(state.lib!.roles)}</button>` : "";
-  $("#library").innerHTML = everything + coll.types.map((ty) => {
-    const roles = state.lib!.roles.filter((r) => typeOfToken(r.id) === ty.id);
-    return `<button class="ed" type="button" data-ed="t:${esc(ty.id)}" aria-current="${state.edition === `t:${ty.id}` && !q}">${uiIcon(ty.icon && UI_ICONS[ty.icon] ? ty.icon : SHAPE_ICONS[ty.shape])}
-      <span>${esc(nameIn(ty.title, lang))}<small>${esc(sub(roles, ty.shape === "card"))}</small></span>${pickedBadge(roles)}</button>`;
-  }).join("");
-  // a read-only collection can't be added to: an open section with nothing in it is just an empty heading there
-  $("#editions").innerHTML = coll.sections.filter((sec) => !(READONLY && sec.open && !sec.catalogs.length)).map((sec) => `
-    <div class="spine-h spine-sec"><h2>${esc(nameIn(sec.title, lang))}</h2>${sec.open ? `<button class="spine-add" type="button" data-sec-new="${esc(sec.id)}" title="${esc(t("own.newCatalog"))}" aria-label="${esc(t("own.newCatalog"))}">+</button>` : ""}</div>
-    ${sec.catalogs.map((k) => {
+  // everything the collection has at the top, then an entry per shape (where it has more than one)
+  const entry = (ed: string, icon: string, name: string, roles: Role[], small: string) => `<button class="ed" type="button" data-ed="${ed}" aria-current="${state.edition === ed && !q}">${uiIcon(icon)}
+      <span>${esc(name)}<small>${esc(small)}</small></span>${pickedBadge(roles)}</button>`;
+  const shapes = shapesHere(), all = state.lib!.roles;
+  $("#library").innerHTML = entry("all", "stack", t("own.everything"), all, t("own.everythingCount", { n: all.length }))
+    + (shapes.length > 1 ? shapes.map((sh) => { const roles = all.filter((r) => tokenShape(r.id) === sh); return entry(`f:${sh}`, SHAPE_ICONS[sh], t(`type.${sh}.many`), roles, sub(roles, sh === "card")); }).join("") : "");
+  // the lists: the collection's own first (a lock: they came with it), then yours; "+" makes one
+  $("#editions").innerHTML = `<div class="spine-h spine-sec"><h2>${esc(t("own.lists"))}</h2><button class="spine-add" type="button" data-list-new title="${esc(t("own.newCatalog"))}" aria-label="${esc(t("own.newCatalog"))}">+</button></div>`
+    + (coll.catalogs.map((k) => {
       const roles = rolesOf(k.tokens);
       return `<button class="ed" type="button" data-ed="k:${esc(k.id)}" aria-current="${state.edition === `k:${k.id}` && !q}">
-        <span>${esc(nameIn(k.name, lang))}<small>${esc(sub(roles, false))}</small></span>${pickedBadge(roles)}</button>`;
-    }).join("") || (sec.open ? `<p class="scripts-empty">${esc(t("own.noCatalogs"))}</p>` : "")}`).join("");
+        <span>${esc(nameIn(k.name, lang))}${k.fixed ? ` <i class="list-lock" title="${esc(t("own.listFixed"))}" aria-label="${esc(t("own.listFixed"))}">${LOCK}</i>` : ""}<small>${esc(sub(roles, false))}</small></span>${pickedBadge(roles)}</button>`;
+    }).join("") || `<p class="scripts-empty">${esc(t("own.noCatalogs"))}</p>`);
 }
 
-// a catalog made (in an open section) or added to: a name, and optionally a list of tokens
-let catTarget: { section: OwnSection } | { catalog: OwnCatalog } | null = null;
+/** A small padlock: a list that came with the collection. */
+const LOCK = `<svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true"><path fill="currentColor" d="M5 7V5a3 3 0 0 1 6 0v2h.5A1.5 1.5 0 0 1 13 8.5v5a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 3 13.5v-5A1.5 1.5 0 0 1 4.5 7zm1.5 0h3V5a1.5 1.5 0 0 0-3 0z"/></svg>`;
+
+// a list made or added to: a name, and optionally a list of tokens
+let catTarget: { make: true } | { catalog: OwnCatalog } | null = null;
 function openCatalogDialog(target: NonNullable<typeof catTarget>) {
   catTarget = target;
   const adding = "catalog" in target;
@@ -150,9 +184,9 @@ export function wireCollSwitch() {
 
 export function wireOwn() {
   $("#editions").addEventListener("click", (e) => {
-    const b = hit(e, "[data-sec-new]"); if (!b) return;
+    const b = hit(e, "[data-list-new]"); if (!b) return;
     e.stopPropagation();
-    openCatalogDialog({ section: coll.sections.find((s) => s.id === b.dataset.secNew)! });
+    openCatalogDialog({ make: true });
   });
   closeOnBackdrop($<HTMLDialogElement>("#ownCat"));
   $("#ownCatCancel").onclick = () => $<HTMLDialogElement>("#ownCat").close();
@@ -164,10 +198,10 @@ export function wireOwn() {
     const text = $<HTMLTextAreaElement>("#ownCatText").value.trim();
     const list = text ? readTokenList(coll, text) : { name: null, ids: [], missing: [] };
     if (text && !list.ids.length) { $("#ownCatNote").textContent = t("own.listNone"); return; }
-    if ("section" in catTarget!) {
+    if ("make" in catTarget!) {
       const name = $<HTMLInputElement>("#ownCatName").value.trim() || list.name || t("own.newCatalogName");
       const k = { id: newId("k"), name, tokens: list.ids };
-      catTarget.section.catalogs.push(k); state.edition = `k:${k.id}`;
+      coll.catalogs.push(k); state.edition = `k:${k.id}`;
     } else {
       const k = catTarget!.catalog; for (const id of list.ids) if (!k.tokens.includes(id)) k.tokens.push(id);
     }
@@ -183,7 +217,8 @@ export function wireOwn() {
   };
   $("#ownCatDelete").onclick = () => {
     const k = catalogOf(state.edition); if (!k || !confirm(t("own.deleteCatalogConfirm", { name: nameIn(k.name, uiLang()) }))) return;
-    const sec = sectionOf(k); sec.catalogs = sec.catalogs.filter((x) => x !== k); state.edition = "all"; collectionChanged();
+    if (k.fixed) return;
+    coll.catalogs = coll.catalogs.filter((x) => x !== k); state.edition = "all"; collectionChanged();
   };
   // the same items in the top bar's menu and, on a phone, at the head of the drawer
   document.addEventListener("click", (e) => {
@@ -196,7 +231,6 @@ export function wireOwn() {
       return;
     }
     if (what === "settings") goStep(4);
-    if (what === "groups") { renderOwnGroups(); $<HTMLDialogElement>("#ownGroupsDlg").showModal(); }
     if (what === "export") saveFile(new Blob([JSON.stringify(collectionFile(coll), null, 2)], { type: "application/json" }), `${nameIn(coll.name, "en").replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase() || "collection"}.json`);
     if (what === "import") $("#ownImportFile").click();
   });
@@ -214,45 +248,11 @@ export function wireOwn() {
       if (posthogEnabled) posthog.capture("collection_imported", {
         token_count: next.tokens.length,
         group_count: next.groups.length,
-        type_count: next.types.length,
+        list_count: next.catalogs.length,
       });
       location.href = collectionUrl(id);
     } catch { noteEl.textContent = t("own.importFailed"); if (PHONE.matches) alert(t("own.importFailed")); }   // the note is in the top bar menu, which a phone hides
   };
-  // types and groups
-  $("#ownGroupAdd").onclick = () => {
-    const used = new Set(coll.groups.map((g) => g.colour));
-    coll.groups.push({ id: newId("g"), name: t("own.groupName", { n: coll.groups.length + 1 }), colour: GROUP_COLOURS.find((c) => !used.has(c)) ?? GROUP_COLOURS[0] });
-    collectionChanged(); renderOwnGroups();
-  };
-  $("#ownTypeAdd").onclick = () => {
-    coll.types.push({ id: newId("y"), name: t("own.typeName", { n: coll.types.length + 1 }), title: t("own.typeTitle", { n: coll.types.length + 1 }), shape: "coin" });
-    collectionChanged(); renderOwnGroups();
-  };
-  $("#ownGroupsDlg").addEventListener("click", (e) => {
-    const sw = hit(e, "[data-colour]"), del = hit(e, "[data-gdel]"), tdel = hit(e, "[data-tdel]");
-    if (sw) { coll.groups.find((g) => g.id === sw.dataset.for)!.colour = sw.dataset.colour as Hex; collectionChanged(); renderOwnGroups(); }
-    if (del) {
-      const id = del.dataset.gdel!, to = coll.groups.find((g) => g.id !== id)!.id;
-      coll.tokens.forEach((tk) => { if (tk.group === id) tk.group = to; });
-      coll.groups = coll.groups.filter((g) => g.id !== id); collectionChanged(); renderOwnGroups();
-    }
-    if (tdel) {
-      const id = tdel.dataset.tdel!, to = coll.types.find((x) => x.id !== id)!.id;
-      coll.tokens.forEach((tk) => { if (tk.type === id) tk.type = to; });
-      coll.types = coll.types.filter((x) => x.id !== id); collectionChanged(); renderOwnGroups();
-    }
-  });
-  $("#ownGroupsDlg").addEventListener("change", (e) => {
-    const el = e.target as HTMLInputElement, lang = uiLang();
-    if (el.dataset.gname) { const g = coll.groups.find((x) => x.id === el.dataset.gname)!; g.name = withName(g.name, lang, el.value.trim() || t("own.groupName", { n: 1 })); }
-    else if (el.dataset.tname) { const ty = coll.types.find((x) => x.id === el.dataset.tname)!; ty.name = withName(ty.name, lang, el.value.trim() || ty.id); }
-    else if (el.dataset.ttitle) { const ty = coll.types.find((x) => x.id === el.dataset.ttitle)!; ty.title = withName(ty.title, lang, el.value.trim() || nameIn(ty.name, lang)); }
-    else if (el.dataset.tshape) coll.types.find((x) => x.id === el.dataset.tshape)!.shape = SHAPES.find((x) => x === el.value) ?? "coin";
-    else return;
-    collectionChanged();
-  });
-  closeOnBackdrop($<HTMLDialogElement>("#ownGroupsDlg"));
   wireOwnToken();
 }
 
@@ -265,17 +265,9 @@ const metal = (hex: string) => (METAL.has(hex.toLowerCase()) ? " metal" : "");
 const colourSwatches = (now: string | undefined, data: (hex: string) => string) => GROUP_COLOURS.map((c) =>
   `<button type="button" class="swatch${metal(c)}" style="--c: ${c}" ${data(c)} aria-pressed="${c === now}" aria-label="${esc(colourName(c))}" title="${esc(colourName(c))}"></button>`).join("");
 
+/** The settings' Categories: each one's name, colour and how many tokens it has; a new one; one taken out (its tokens go to another, said first). */
 function renderOwnGroups() {
   const lang = uiLang();
-  $("#ownTypeList").innerHTML = coll.types.map((ty) => `<div class="own-group">
-    <span class="own-type-fields">
-      <label class="field"><span>${esc(t("own.typeNameLabel"))}</span><input class="text" value="${esc(nameIn(ty.name, lang))}" data-tname="${esc(ty.id)}"></label>
-      <label class="field"><span>${esc(t("own.typeTitleLabel"))}</span><input class="text" value="${esc(nameIn(ty.title, lang))}" data-ttitle="${esc(ty.id)}"></label>
-      <label class="field"><span>${esc(t("own.shape"))}</span><select class="text" data-tshape="${esc(ty.id)}">${SHAPES.map((x) => `<option value="${x}"${ty.shape === x ? " selected" : ""}>${esc(t(`own.shape.${x}`))}</option>`).join("")}</select></label>
-    </span>
-    <small>${esc(t("own.groupCount", { n: coll.tokens.filter((tk) => tk.type === ty.id).length }))}</small>
-    ${coll.types.length > 1 ? `<button class="link" type="button" data-tdel="${esc(ty.id)}">${esc(t("own.deleteGroup"))}</button>` : ""}
-  </div>`).join("");
   $("#ownGroupList").innerHTML = coll.groups.map((g) => `<div class="own-group">
     <input class="text" value="${esc(nameIn(g.name, lang))}" data-gname="${esc(g.id)}" aria-label="${esc(t("own.groupNameLabel"))}">
     <span class="own-swatches">${colourSwatches(g.colour, (c) => `data-colour="${c}" data-for="${esc(g.id)}"`)}</span>
@@ -318,17 +310,9 @@ function foldPrintChanges() {
   }
   if (changed) { saveColl(); storeOverrides(); }
 }
-/** A type of a shape for a token: the sheet's own type if it has that shape, else the collection's first of it, else a new one ("Coins", "Rings", "Cards"). */
-function typeOfShape(shape: TokenShape) {
-  const here = typeOfView(state.edition), have = here?.shape === shape ? here : coll.types.find((x) => x.shape === shape);
-  if (have) return have.id;
-  const name = t(`type.${shape}.many`), type = { id: newId("y"), name, title: name, shape };
-  coll.types.push(type);
-  return type.id;
-}
 /** The token of yours open in the designer. */
 const editingOwn = (): OwnToken | undefined => (inlineId ? coll.tokens.find((x) => x.id === inlineId) : undefined);
-const shapeOfToken = (tk: OwnToken): TokenShape => coll.types.find((x) => x.id === tk.type)?.shape ?? "coin";
+const shapeOfToken = (tk: OwnToken): TokenShape => tk.shape;
 let ownTimer: ReturnType<typeof setTimeout> | number = 0;
 /** After a change to a token's content (its name, icon, group…): drawn at once; your collection's is kept, and the sheet redrawn, a moment later. */
 function ownEdited() {
@@ -352,18 +336,18 @@ export function editOwnToken(id: string) {
  */
 export function newToken(like?: OwnToken, seed?: { name?: string; icon?: TokenIcon }) {
   if (READONLY) return;
-  const here = catalogOf(state.edition), shape = like ? shapeOfToken(like) : typeOfView(state.edition)?.shape ?? "coin";
+  const here = catalogOf(state.edition), shape = like ? shapeOfToken(like) : shapeOfView(state.edition) ?? "coin";
   const group = like?.group ?? (state.team !== "all" && coll.groups.some((g) => g.id === state.team) ? state.team : coll.groups[0].id);
-  const tk: OwnToken = { id: newId("t"), type: like?.type ?? typeOfShape(shape), group, name: seed?.name ?? t("own.newName"), icon: seed?.icon ?? null, linked: [], content: "both" };   // its icon and its name, while it has them
+  const tk: OwnToken = { id: newId("t"), shape, group, name: seed?.name ?? t("own.newName"), icon: seed?.icon ?? null, linked: [], content: "both" };   // its icon and its name, while it has them
   coll.tokens.push(tk);
   // the first real token: the placeholder the collection started with goes, if it's still as it came
   const starter = coll.tokens.find(isUntouchedStarter);
   if (starter) {
     coll.tokens = coll.tokens.filter((x) => x !== starter);
-    for (const k of coll.sections.flatMap((x) => x.catalogs)) k.tokens = k.tokens.filter((id) => id !== starter.id);
+    for (const k of coll.catalogs) k.tokens = k.tokens.filter((id) => id !== starter.id);
     setPick(`c:${starter.id}`, false);
   }
-  for (const k of coll.sections.filter((x) => x.open).flatMap((x) => x.catalogs)) if (like ? k.tokens.includes(like.id) : k.id === here?.id) k.tokens.push(tk.id);
+  for (const k of coll.catalogs.filter((x) => !x.fixed)) if (like ? k.tokens.includes(like.id) : k.id === here?.id) k.tokens.push(tk.id);
   collectionChanged();
   if (posthogEnabled) posthog.capture("token_created", {
     token_shape: shape,
@@ -425,7 +409,7 @@ export function setOwnContent(id: string, content: TokenContent) {
 /** Its shape, chosen on its Token tab: its type follows (one of that shape, made if the collection has none). */
 function chooseShape(shape: TokenShape) {
   const tk = editingOwn(); if (!tk || shapeOfToken(tk) === shape) return;
-  tk.type = typeOfShape(shape);
+  tk.shape = shape;
   state.part[shape] = "token";   // the designer keeps a tab for each shape: still here, on its Token tab
   panelFor = "";
   ownEdited(); renderTokenPanel();
@@ -454,7 +438,7 @@ function renderTokenPanel() {
   $<HTMLInputElement>("#ownTokText").value = nameIn(tk.text ?? tk.name, tokenLang());   // what it says: its name until it says something else
   $<HTMLInputElement>("#ownTokIq").value = ""; $("#ownTokHits").innerHTML = "";
   renderGroupPills(tk);
-  const openCats = coll.sections.filter((x) => x.open).flatMap((x) => x.catalogs), inCat = (k: OwnCatalog) => k.tokens.includes(tk.id);
+  const openCats = coll.catalogs.filter((x) => !x.fixed), inCat = (k: OwnCatalog) => k.tokens.includes(tk.id);
   $("#ownTokCats").innerHTML = openCats.map((k) => `<label class="check"><input type="checkbox" value="${esc(k.id)}"${inCat(k) ? " checked" : ""}> ${esc(nameIn(k.name, uiLang()))}</label>`).join("") || `<p class="hint">${esc(t("own.noCatalogs"))}</p>`;
   $("#ownTokCatsRow").hidden = !openCats.length;   // no catalogs of yours yet: nothing to put it in
   renderOwnLinked(tk);
@@ -466,16 +450,15 @@ function renderTokenPanel() {
 }
 /**
  * Its shape, on its Token tab: each drawn with the token in the collection's design for it (a shape
- * the collection doesn't use yet makes its type when chosen), and the other types of its shape, if any.
+ * any of them, whatever the collection's other tokens are.
  */
 function renderPanelShape(tk: OwnToken, shape: TokenShape) {
-  const types = coll.types.filter((x) => x.shape === shape), name = printedText(tk);
-  const typePick = types.length > 1 ? `<label class="field tp-type"><span>${esc(t("own.type"))}</span><select class="text" data-type-pick>${types.map((x) => `<option value="${esc(x.id)}"${x.id === tk.type ? " selected" : ""}>${esc(nameIn(x.name, uiLang()))}</option>`).join("")}</select></label>` : "";
-  const as = (sh: TokenShape) => { const type = coll.types.find((x) => x.shape === sh) ?? { id: "__shape", name: "", title: "", shape: sh }; return ownRole({ ...coll, types: [...coll.types, type] }, { ...tk, type: type.id }, uiLang()); };
+  const name = printedText(tk);
+  const as = (sh: TokenShape) => ownRole(coll, { ...tk, shape: sh }, uiLang());
   $("#tpShape").innerHTML = `<div class="field"><span>${esc(t("own.shape"))}</span><div class="shape-cards" role="radiogroup" aria-label="${esc(t("own.shape"))}">${SHAPES.map((sh) => {
     const spec = designOf(sh, defaultRef(sh))!.spec;
     return `<button type="button" role="radio" data-shape="${sh}" aria-checked="${sh === shape}">${tokenSvg(state.lib!, as(sh), { ...filled(spec), lang: tokenLang(), diameter: 45, back: "none", backMode: "design" }, { text: name })}<span>${esc(t(`own.shape.${sh}`))}</span></button>`;
-  }).join("")}</div></div>${typePick}`;
+  }).join("")}</div></div>`;
 }
 /** What a shape's token can carry: a coin, its icon and name, either alone, or nothing (Plain); a card, with or without its icon; a ring or a base, its name. */
 const CONTENTS: Record<TokenShape, TokenContent[]> = { coin: ["both", "icon", "text", "none"], card: ["both", "icon", "text"], ring: [], base: ["text", "none"] };
@@ -593,10 +576,6 @@ function wireOwnToken() {
     tk.content = on ? (shape === "base" || !tk.icon ? "text" : "both") : shape === "base" ? "none" : "icon";
     ownEdited(); renderTokenPanel();
   };
-  $("#tpShape").onchange = (e) => {
-    const el = e.target as HTMLSelectElement, tk = editingOwn();
-    if (tk && el.dataset.typePick != null) { tk.type = el.value; ownEdited(); }
-  };
   $("#ownTokName").oninput = (e) => { const tk = editingOwn(); if (tk) { tk.name = withName(tk.name, tokenLang(), input(e).value); ownEdited(); renderTextHint(tk); } };
   // what its front says: its name until changed; emptied, nothing (not its name again)
   $("#ownTokText").oninput = (e) => {
@@ -682,7 +661,7 @@ function wireOwnToken() {
     renderTokenColour(tk); ownEdited();
   };
   $("#ownTokCats").onchange = (e) => {
-    const tk = editingOwn(), id = input(e).value, k = catalogsOf(coll).find((x) => x.k.id === id)?.k; if (!tk || !k) return;
+    const tk = editingOwn(), id = input(e).value, k = coll.catalogs.find((x) => x.id === id && !x.fixed); if (!tk || !k) return;
     const on = input(e).checked;
     k.tokens = on ? [...k.tokens.filter((x) => x !== tk.id), tk.id] : k.tokens.filter((x) => x !== tk.id); ownEdited();
   };
@@ -714,7 +693,7 @@ function wireOwnToken() {
     if (coll.tokens.length <= 1) { alert(t("own.lastToken")); return; }
     if (!confirm(t("own.deleteTokenConfirm", { name: nameIn(tk.name, tokenLang()) }))) return;
     coll.tokens = coll.tokens.filter((x) => x.id !== tk.id);
-    for (const { k } of catalogsOf(coll)) k.tokens = k.tokens.filter((x) => x !== tk.id);
+    for (const k of coll.catalogs) k.tokens = k.tokens.filter((x) => x !== tk.id);
     showContentInline(null);
     collectionChanged();   // its picks and own changes go with it
     toast(t("own.deleted", { name: nameIn(tk.name, tokenLang()) }));
@@ -761,7 +740,7 @@ export function applyOwnBrand() {
 // Save; Discard, or leaving and saying so, puts the collection back as it was.
 
 /** What the settings change, as it was when opened or last saved. */
-const SETTINGS_KEYS = ["name", "brand", "theme", "loader", "ccc", "about"] as const;
+const SETTINGS_KEYS = ["name", "brand", "theme", "loader", "ccc", "about", "groups", "tokens", "words"] as const;   // a category taken out moves its tokens
 let settingsWas = "";
 const settingsNow = () => JSON.stringify(SETTINGS_KEYS.map((k) => coll[k] ?? null));
 const settingsDirty = () => state.step === 4 && settingsNow() !== settingsWas;
@@ -778,6 +757,8 @@ function fillSettings() {
   $<HTMLTextAreaElement>("#osAbout").value = nameIn(coll.about?.text, lang);
   renderAboutPreview();
   renderOwnThemes();
+  renderOwnGroups();
+  renderWords();
   renderSettingsState();
 }
 function renderAboutPreview() {
@@ -796,7 +777,7 @@ function renderSettingsState(saved = false) {
 function discardSettings() {
   const was = JSON.parse(settingsWas) as unknown[];
   SETTINGS_KEYS.forEach((k, i) => { if (was[i] == null) delete coll[k]; else (coll as unknown as Record<string, unknown>)[k] = was[i]; });
-  applyOwnTheme(); applyOwnBrand();
+  applyOwnTheme(); applyOwnBrand(); applyGroups(); applyWords();
   if (state.step === 4) fillSettings();
 }
 function renderOwnThemes() {
@@ -884,6 +865,43 @@ function wireOwnSettings() {
     $("#osAboutEdit").classList.toggle("show-preview", show);
     for (const x of $$(".md-tabs [data-md]")) x.setAttribute("aria-pressed", String((x.dataset.md === "preview") === show));
   };
+  // its categories: named, coloured, made, taken out (its tokens to the first other one, said first)
+  const groupsChanged = () => { applyGroups(); renderOwnGroups(); changed(); };
+  $("#ownGroupAdd").onclick = () => {
+    const used = new Set(coll.groups.map((g) => g.colour));
+    coll.groups.push({ id: newId("g"), name: t("own.groupName", { n: coll.groups.length + 1 }), colour: GROUP_COLOURS.find((c) => !used.has(c)) ?? GROUP_COLOURS[0] });
+    groupsChanged();
+    $<HTMLInputElement>("#ownGroupList .own-group:last-child input").select();
+  };
+  $("#ownGroupList").onclick = (e) => {
+    const sw = hit(e, "[data-colour]"), del = hit(e, "[data-gdel]");
+    if (sw) { coll.groups.find((g) => g.id === sw.dataset.for)!.colour = sw.dataset.colour as Hex; groupsChanged(); }
+    if (del) {
+      const id = del.dataset.gdel!, g = coll.groups.find((x) => x.id === id)!, to = coll.groups.find((x) => x.id !== id)!;
+      const n = coll.tokens.filter((tk) => tk.group === id).length, lang = uiLang();
+      if (n && !confirm(t("own.deleteGroupAsk", { name: nameIn(g.name, lang), n, to: nameIn(to.name, lang) }))) return;
+      coll.tokens.forEach((tk) => { if (tk.group === id) tk.group = to.id; });
+      coll.groups = coll.groups.filter((x) => x.id !== id); groupsChanged();
+    }
+  };
+  $("#ownGroupList").oninput = (e) => {
+    const el = e.target as HTMLInputElement, g = coll.groups.find((x) => x.id === el.dataset.gname); if (!g || !el.value.trim()) return;
+    g.name = withName(g.name, uiLang(), el.value.trim()); applyGroups(); changed();
+  };
+  // its names for the app's words: as they're written, the app says them
+  const wordChanged = (e: Event) => {
+    const el = e.target as HTMLInputElement, row = el.closest<HTMLElement>("[data-word]"); if (!row) return;
+    const k = row.dataset.word as WordKind, lang = uiLang(), part = el.dataset.part as "one" | "many" | "fem";
+    const w: OwnWord = { one: "", many: "", ...coll.words?.[k] };
+    if (part === "fem") w.fem = el.value === "1"; else w[part] = withName(w[part], lang, el.value.trim());
+    const written = [w.one, w.many].some((n) => (typeof n === "string" ? n : Object.values(n).join("")).trim());
+    const words: OwnWords = { ...coll.words };
+    if (written) words[k] = w; else Reflect.deleteProperty(words, k);   // nothing written: the app's
+    if (Object.keys(words).length) coll.words = words; else Reflect.deleteProperty(coll, "words");
+    applyWords(); renderOwnGroups(); changed();
+  };
+  $("#osWords").oninput = wordChanged;
+  $("#osWords").onchange = wordChanged;
   $("#osSave").onclick = () => {
     collectionChanged();
     settingsWas = settingsNow();

@@ -12,6 +12,7 @@ import path from "node:path";
 import { BUILT_INS } from "../src/builtins.ts";   // its theme, loading line and About: one place
 import { FILAMENTS } from "../src/engine/token-engine.ts";
 import { cardDesigns } from "../src/shape-designs.ts";
+import { asLists } from "./collection-model.mjs";
 const SEN = BUILT_INS.find((b) => b.id === "senado");
 
 const root = path.resolve(import.meta.dirname, "..");
@@ -115,7 +116,7 @@ const collection = {
   styles,
 };
 const out = path.join(root, "public/collections/senado.json");
-fs.writeFileSync(out, JSON.stringify(collection));
+fs.writeFileSync(out, JSON.stringify(asLists(collection)));   // as the app keeps it: shapes on the tokens, the sections' catalogs as its own lists
 console.log(`wrote ${out}: ${tokens.length} tokens (${SIDES.length} sides, ${GOVERNMENT.length + VOTE.length} two-sided, ${UNREST.length} unrest (two-sided too), ${LAWS.length} laws)`);
 if (SEN.tokens !== tokens.length) console.warn(`src/builtins.ts says ${SEN.tokens} tokens: make it ${tokens.length}`);
 

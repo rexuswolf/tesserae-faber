@@ -650,6 +650,11 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .sp-panel[data-sp="about"] { max-width: none; }
 .sp-panel h3 { margin: 22px 0 10px; font-size: 16px; }
 .sp-panel h3:first-child { margin-top: 0; }
+.os-words { display: grid; gap: 8px; }
+.os-word { display: grid; grid-template-columns: 9em minmax(0, 1fr) minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.os-word b { font-weight: 600; font-size: 14px; }
+@media (max-width: 640px) { .os-word { grid-template-columns: 1fr 1fr; } .os-word b { grid-column: 1 / -1; } }
+.list-lock { display: inline-flex; vertical-align: -1px; margin-left: 3px; color: var(--dust); }
 .sp-actions { position: sticky; bottom: 0; display: flex; align-items: center; justify-content: flex-end; gap: 10px; width: 100%; max-width: 1040px; margin: 0 auto;
   padding: 12px 0 14px; border-top: 1px solid var(--seam); background: var(--velvet-deep); }
 .sp-actions .hint { margin: 0 auto 0 0; }
@@ -870,6 +875,8 @@ dialog .import { margin-top: 10px; }
   .print-page { padding: 16px 14px 30px; }
   .settings-page { padding: 16px 16px 0; }
   .sp-in > h2 { font-size: 28px; }
+  .sp-tabs { gap: 0; }
+  .sp-tabs button { padding: 10px 9px; font-size: 14px; }
   .md-edit { grid-template-columns: 1fr; }
   .md-tabs { display: flex; border-bottom: 1px solid var(--seam); }
   .md-tabs button { flex: 1; border: 0; background: none; padding: 9px; font-size: 14px; color: var(--dust); cursor: pointer; }
@@ -1190,7 +1197,7 @@ html[data-mode=own]:not([data-theme=botc]) .cs-text b { font-weight: 700; letter
 .coll-menu-items hr { border: 0; border-top: 1px solid var(--seam); margin: 4px 6px; }
 /* the app's own collections are read-only: "Make a copy" instead of editing */
 html:not([data-builtin]) .built-only { display: none !important; }
-html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[data-readonly] .spine-add, html[data-readonly] #ownCatList, html[data-readonly] #ownNewTok { display: none !important; }
+html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[data-readonly] #ownNewTok {   /* your lists are yours there too */ display: none !important; }
 /* Moving between the app's pages is instant (no cross-fade: it looked odd); the loading screen only shows
    when loading actually takes a while (with the files kept by the service worker, it seldom does) */
 .gate { animation: gate-in 220ms ease-out 350ms both; }

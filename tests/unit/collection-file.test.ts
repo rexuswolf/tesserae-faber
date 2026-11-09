@@ -24,9 +24,30 @@ describe("a collection file", () => {
       sections: [{ id: "s 1", open: true, catalogs: [{ id: "k", name: "K", tokens: ["a:b c", "ghost"] }] }],
     }));
     expect(c.groups.map((g) => g.id)).toEqual(["g_1__x"]);
-    expect(c.tokens.map((t) => [t.id, t.type, t.group])).toEqual([["a_b_c", "fichas", "g_1__x"], ["t2", "fichas", "g_1__x"]]);
+    expect(c.tokens.map((t) => [t.id, t.shape, t.group])).toEqual([["a_b_c", "coin", "g_1__x"], ["t2", "coin", "g_1__x"]]);
     expect(c.tokens[1].linked).toEqual(["x"]);
-    expect(c.sections[0]).toMatchObject({ id: "s_1", catalogs: [{ tokens: ["a_b_c"] }] });
+    expect(c.catalogs[0]).toMatchObject({ id: "k", tokens: ["a_b_c"] });
+    expect(c.catalogs[0].fixed).toBeUndefined();   // an open section's: yours
+  });
+  it("reads a file with types and sections: shapes on the tokens, the collection's own lists fixed, a type a list where nothing shows its tokens", async () => {
+    const c = await readCollectionFile(file({
+      types: [{ id: "cond", name: "Conditions", title: "All conditions", shape: "coin" }, { id: "mark", title: "Markers", shape: "coin" }, { id: "rings", title: "Rings", shape: "ring" }],
+      tokens: [
+        { id: "a", type: "cond", group: "g1", name: "A", linked: [] },
+        { id: "b", type: "cond", group: "g1", name: "B", linked: [] },
+        { id: "m", type: "mark", group: "g1", name: "M", linked: [] },
+        { id: "r", type: "rings", group: "g1", name: "R", linked: [] },
+      ],
+      sections: [
+        { id: "game", open: false, catalogs: [{ id: "k1", name: "Conditions", tokens: ["a", "b"] }] },
+        { id: "mine", open: true, catalogs: [{ id: "k2", name: "Saturday", tokens: ["a", "m"] }] },
+      ],
+    }));
+    expect(c.tokens.map((t) => t.shape)).toEqual(["coin", "coin", "coin", "ring"]);
+    expect(c.tokens.some((t) => "type" in t)).toBe(false);
+    // the closed section's list first, fixed; "Markers" a list (nothing else shows just it); not
+    // "All conditions" (a list has the same tokens) nor "Rings" (the rings' shape does)
+    expect(c.catalogs.map((k) => [k.name, k.tokens, !!k.fixed])).toEqual([["Conditions", ["a", "b"], true], ["Markers", ["m"], false], ["Saturday", ["a", "m"], false]]);
   });
   it("drops what a design can't have", async () => {
     const c = await readCollectionFile(file({

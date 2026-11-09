@@ -4,8 +4,8 @@ import { $, coll, READONLY, state, loadViewer, loadJSON, VIEW_KEY, setGateState,
 import { signIn, loadRoles, isAdmin, signOut as signOutUser, onUser , canSeeBotc, unlockBotc} from "../services.ts";
 import { t, uiLang } from "../i18n.ts";
 import { handingOver } from "../handoff.ts";
-import { OWN, nameIn, hasCcc, OWN_ID, builtInCollections, readBuiltIn, OWN_VIEW, rememberCollection, collectionRoles } from "../collection.ts";
-import { applyOwnTheme, applyOwnBrand, renderOwnLanding, renderOwnHome, applyGroups, syncOwnChrome, catalogOf, typeOfView, refreshOwnRoles } from "./creator.ts";
+import { OWN, nameIn, hasCcc, OWN_ID, builtInCollections, readBuiltIn, OWN_VIEW, rememberCollection, collectionRoles, loadMyLists } from "../collection.ts";
+import { applyOwnTheme, applyOwnBrand, renderOwnLanding, renderOwnHome, applyGroups, syncOwnChrome, catalogOf, shapeOfView, refreshOwnRoles } from "./creator.ts";
 import { tidyMyDesigns, loadDesigns } from "./designs.ts";
 import { TALLER, openTaller } from "./taller.ts";
 import { loadLibrary } from "../engine/token-engine.ts";
@@ -60,7 +60,7 @@ async function boot() {
     // a collection with an app of its own (Clocktower): there, at its one address
     if (OWN && OWN_ID) { const own = (await builtInCollections()).find((b) => b.id === OWN_ID && b.href); if (own) { location.replace(own.href! + location.hash); return; } }
     // a collection that comes with the app: read from its file, every time (it isn't kept here)
-    if (READONLY) { const c = await readBuiltIn(OWN_ID!); if (c) { setColl(c); applyOwnTheme(); applyOwnBrand(); } }
+    if (READONLY) { const c = await readBuiltIn(OWN_ID!); if (c) { c.catalogs.push(...loadMyLists(OWN_ID!)); setColl(c); applyOwnTheme(); applyOwnBrand(); } }
     await tidyMyDesigns().catch((err) => console.error("tidyMyDesigns", err));   // once: your designs that are a collection's own, that one again (never in the way of opening)
     if (TALLER) { await openTaller(); return; }   // the Taller: designs, for every collection
     if (OWN && OWN_VIEW === "home") { renderOwnLanding(); return; }   // the front page
@@ -140,7 +140,7 @@ function startApp() {
   if (!state.sel) state.sel = { key: charKey(first), role: first, reminder: null };
   // back where you were: the same view and team filter, if it still exists
   const view = loadJSON<{ edition?: string; team?: unknown }>(VIEW_KEY, {});
-  const known = (ed: string | undefined) => ed === "all" || (ed?.startsWith("k:") ? !!catalogOf(ed) : ed?.startsWith("t:") ? !!typeOfView(ed) : ed?.startsWith("s:") ? !!scriptOf(ed) : state.lib!.roles.some((r) => r.edition === ed));
+  const known = (ed: string | undefined) => ed === "all" || (ed?.startsWith("k:") ? !!catalogOf(ed) : ed?.startsWith("f:") ? !!shapeOfView(ed) : ed?.startsWith("s:") ? !!scriptOf(ed) : state.lib!.roles.some((r) => r.edition === ed));
   state.edition = known(view.edition) ? view.edition! : "all";
   state.team = typeof view.team === "string" ? view.team : "all";
   buildChoices();

@@ -80,18 +80,17 @@ function tallerPic(key: string, spec: TokenSpec, side: "front" | "back" = "front
 function sampleTokens(groups: string[]): Collection {
   const [g1, g2 = g1] = groups, n = (es: string, en: string) => ({ es, en });
   return {
-    name: APP_NAME, groups: [], sections: [],
-    types: SHAPES.map((sh) => ({ id: `sample-${sh}`, name: sh, title: sh, shape: sh })),
+    name: APP_NAME, groups: [], catalogs: [],
     tokens: [
-      { id: "sample-a", type: "sample-coin", group: g1, name: n("Ejemplo", "Sample"), icon: uiTokenIcon("two-coins"), linked: [n("Recuerdo", "Reminder")] },
-      { id: "sample-b", type: "sample-coin", group: g2, name: n("Otra ficha", "Another token"), icon: uiTokenIcon("stack"), linked: [] },
-      { id: "sample-c", type: "sample-coin", group: g1, name: n("Preparado", "Ready"), icon: null, linked: [], flip: { name: n("Usado", "Used"), icon: null } },
-      { id: "sample-r1", type: "sample-ring", group: g1, name: n("Aturdido", "Dazed"), icon: null, linked: [] },
-      { id: "sample-r2", type: "sample-ring", group: g2, name: n("Sangrando", "Bleeding"), icon: null, linked: [] },
-      { id: "sample-k1", type: "sample-card", group: g1, name: n("Eres", "You are"), icon: null, linked: [] },
-      { id: "sample-k2", type: "sample-card", group: g2, name: n("Elige a un jugador", "Choose a player"), icon: null, linked: [] },
-      { id: "sample-b1", type: "sample-base", group: g1, name: n("3", "3"), icon: null, linked: [] },
-      { id: "sample-b2", type: "sample-base", group: g2, name: n("Orco 2", "Orc 2"), icon: null, linked: [] },
+      { id: "sample-a", shape: "coin", group: g1, name: n("Ejemplo", "Sample"), icon: uiTokenIcon("two-coins"), linked: [n("Recuerdo", "Reminder")] },
+      { id: "sample-b", shape: "coin", group: g2, name: n("Otra ficha", "Another token"), icon: uiTokenIcon("stack"), linked: [] },
+      { id: "sample-c", shape: "coin", group: g1, name: n("Preparado", "Ready"), icon: null, linked: [], flip: { name: n("Usado", "Used"), icon: null } },
+      { id: "sample-r1", shape: "ring", group: g1, name: n("Aturdido", "Dazed"), icon: null, linked: [] },
+      { id: "sample-r2", shape: "ring", group: g2, name: n("Sangrando", "Bleeding"), icon: null, linked: [] },
+      { id: "sample-k1", shape: "card", group: g1, name: n("Eres", "You are"), icon: null, linked: [] },
+      { id: "sample-k2", shape: "card", group: g2, name: n("Elige a un jugador", "Choose a player"), icon: null, linked: [] },
+      { id: "sample-b1", shape: "base", group: g1, name: n("3", "3"), icon: null, linked: [] },
+      { id: "sample-b2", shape: "base", group: g2, name: n("Orco 2", "Orc 2"), icon: null, linked: [] },
     ],
   };
 }
