@@ -146,7 +146,8 @@ export function renderSheet() {
   if (state.team !== "all") roles = roles.filter((r) => r.team === state.team);
   // a collection of yours with one group (a new one's): no groups to show yet
   const oneGroup = OWN && coll.groups.length < 2;
-  $("#teamChips").hidden = oneGroup;
+  $("#filtWrap").hidden = oneGroup;
+  $("#filtWrap").dataset.on = String(state.team !== "all");   // filtered: its dot says so
 
   // search matches the name (English, Spanish, the token language or your own text) or any reminder text (yours too)
   const hits = new Map<string, Set<number>>();
@@ -166,7 +167,7 @@ export function renderSheet() {
   setBarShapes(SHAPES.filter((sh) => roles.some((r) => shapeOf(r) === sh)));
   renderDesignBar();
   $("#addWrap").hidden = !roles.length;
-  $("#addLabel").textContent = state.team !== "all" && !q ? t("add.buttonTeam", { who: TEAM_PLURAL[lang][state.team].toLowerCase() }) : t("add.button");
+  $("#addLabel").textContent = t("add.print");
   if (!$("#addMenu").hidden) renderAddMenu();
 
   if (!roles.length) { $("#rows").innerHTML = `<p class="empty">${esc(t(OWN && !q ? "own.empty" : "sheet.noResults"))}</p>`; return; }

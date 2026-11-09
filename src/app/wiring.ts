@@ -68,7 +68,12 @@ export function wire() {
   PHONE.addEventListener("change", () => drawer(false));
   drawer(false);
   $("#search").oninput = () => { renderSpine(); renderSheet(); };
-  $("#teamChips").onclick = (e) => { const b = hit(e, "[data-team]"); if (b) { state.team = b.dataset.team!; renderSheet(); } };
+  // the groups' filter: its list opens under the funnel; a group picked closes it
+  const filt = (on: boolean) => { $("#filtWrap").dataset.open = String(on); $("#filtBtn").setAttribute("aria-expanded", String(on)); };
+  $("#filtBtn").onclick = () => filt($("#filtWrap").dataset.open !== "true");
+  $("#teamChips").onclick = (e) => { const b = hit(e, "[data-team]"); if (b) { state.team = b.dataset.team!; filt(false); renderSheet(); } };
+  document.addEventListener("click", (e) => { if ($("#filtWrap").dataset.open === "true" && !(e.target as Element).closest("#filtWrap")) filt(false); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && $("#filtWrap").dataset.open === "true") { filt(false); $("#filtBtn").focus(); } });
   // step 1: tap a token to pick it (or drop it); a team or everything shown at once
   $("#rows").onclick = (e) => {
     const ownEdit = hit(e, "[data-own-edit]");

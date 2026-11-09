@@ -950,13 +950,12 @@ export function renderDesignBar() {
   const all = shapesHere(), shapes = (barShapes ?? all).filter((sh) => all.includes(sh));
   const changed = shapes.filter((sh) => defaultRef(sh) !== originalRef(sh));
   $(".design-bar-wrap").hidden = !shapes.length;
-  $("#designBar").innerHTML = `<span class="db-l">${esc(t("bar.label"))}</span>`
-    + shapes.map((sh) => {
+  // each shape's chip opens all its designs (the collection's and yours, in their tabs): no way to the Taller beside them
+  $("#designBar").innerHTML = shapes.map((sh) => {
       const d = designOf(sh, defaultRef(sh))!;
       return `<button class="db-chip" type="button" data-default-shape="${sh}" aria-haspopup="dialog" aria-label="${esc(t("bar.chipAria", { shape: t(`type.${sh}.many`), name: d.name }))}">${designSwatch(d.spec, sampleRole(sh))}<span><small>${esc(t(`type.${sh}.many`))}</small><b>${esc(d.name)}</b></span>${CHEVRON}</button>`;
     }).join("")
-    + (changed.length ? `<button class="link db-original" type="button" data-default-original>${esc(t("bar.original"))}</button>` : "")
-    + `<a class="db-taller" href="${esc(tallerUrl())}" data-to-taller>${esc(t("bar.taller"))} <span aria-hidden="true">›</span></a>`;
+    + (changed.length ? `<button class="link db-original" type="button" data-default-original>${esc(t("bar.original"))}</button>` : "");
   if (dz.open && dz.mode === "default") renderDesignSheet();
 }
 /**

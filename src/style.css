@@ -2145,3 +2145,53 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
   #tpMoreOpts .own-fields > .field { grid-template-columns: minmax(0, 1fr); }
   #ownTokColour, #ownTokAddLinked { grid-column: 1; grid-row: auto; justify-self: start; margin-top: 6px; }
 }
+
+/* ---- the list's head, as it is now: the title with New token; the search with the groups' filter (a funnel);
+   under them the design each shape prints with, and Print */
+.head-row { flex-wrap: nowrap; }
+.own-new { flex: none; display: inline-flex; align-items: center; gap: 8px; }
+.own-new .gi { width: 17px; height: 17px; }
+.own-new[hidden] { display: none; }
+.filter-row { display: flex; align-items: center; gap: 10px; }
+.filter-row .search-box { flex: 1 1 auto; }
+.filt { position: relative; flex: none; }
+.filt[hidden] { display: none; }
+.filt-btn { position: relative; width: 46px; height: 36px; padding: 0; display: grid; place-items: center; }
+.filt-btn .gi { width: 18px; height: 18px; }
+.filt-dot { position: absolute; top: 6px; right: 9px; width: 7px; height: 7px; border-radius: 50%; background: var(--brass); display: none; }
+.filt[data-on=true] .filt-dot { display: block; }
+.filt[data-on=true] .filt-btn { color: var(--brass); }
+.chips.filt-menu { display: none; position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; flex-direction: column; align-items: stretch; gap: 2px;
+  min-width: 220px; max-height: 60vh; overflow-y: auto; padding: 6px; mask-image: none; background: var(--velvet); border: 1px solid var(--seam);
+  border-radius: 14px; box-shadow: 0 14px 34px rgba(0, 0, 0, .55); }
+.filt[data-open=true] .chips.filt-menu { display: flex; }
+.chips.filt-menu .pill { justify-content: flex-start; width: 100%; clip-path: none; border-radius: 10px; background: none; border: 0; padding: 8px 10px; }
+.chips.filt-menu .pill[aria-pressed=true] { background: rgba(239, 230, 214, .1); color: var(--bone); font-weight: 600; }
+.chips.filt-menu .pill small { margin-left: auto; }
+.head-tools { max-width: calc(var(--measure) + 68px); display: flex; align-items: center; gap: 10px 14px; margin: 0; padding: 12px 34px 6px; border: 0; }
+.head-tools .design-bar-wrap { flex: 1 1 auto; min-width: 0; margin: 0; }
+.head-tools .addmenu { flex: none; margin-left: auto; }
+.head-tools .addmenu .gi.plus { width: 17px; height: 17px; }
+@media (max-width: 900px) {
+  .head-row { flex-direction: row; align-items: center; }
+  .own-new { width: 46px; height: 42px; padding: 0; justify-content: center; }
+  .own-new span { display: none; }
+  .filter-row { flex-direction: row; }
+  /* the design and Print share the width */
+  .head-tools { flex-wrap: wrap; padding: 10px 16px 4px; }
+  .head-tools .design-bar-wrap, .head-tools .addmenu { flex: 1 1 0; margin: 0; }
+  .head-tools .design-bar { flex-wrap: nowrap; }
+  .head-tools .design-bar .db-chip { flex: 1 1 0; min-width: 0; }
+  .head-tools .design-bar .db-chip small { display: none; }
+  .head-tools .addmenu .pill.add.main { width: 100%; height: 100%; justify-content: center; }
+}
+.head-row .head-text { flex: 1 1 auto; min-width: 0; }
+.head-tools { flex-wrap: wrap; }
+.head-tools .built-copy { flex-basis: 100%; order: 3; margin: 2px 0 0; }
+@media (max-width: 900px) {
+  /* the design (one chip per shape, each its own width) and Print share the line; with two shapes Print goes under */
+  .head-tools .design-bar-wrap { flex: 1 1 auto; }
+  .head-tools .design-bar .db-chip { flex: 1 1 auto; min-width: max-content; }
+  .head-tools .addmenu { flex: 1 1 140px; }
+}
+.filters .filter-row { max-width: var(--measure); }
