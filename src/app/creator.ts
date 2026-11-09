@@ -527,6 +527,14 @@ function renderTokenColour(tk: OwnToken) {
 function renderGroupPills(tk: OwnToken) {
   $("#ownTokGroups").innerHTML = coll.groups.map((g) => `<button class="pill group-pill" type="button" data-group="${esc(g.id)}" aria-pressed="${g.id === tk.group}" style="--c: ${g.colour}"><i></i>${esc(nameIn(g.name, uiLang()))}</button>`).join("")
     + `<button class="pill" type="button" data-group-new>${esc(t("own.groupNew"))}</button>`;
+  renderGroupEdit(tk);
+}
+/** The token's group, changed right here: its name and its colour (every token in it follows). */
+function renderGroupEdit(tk: OwnToken) {
+  const g = coll.groups.find((x) => x.id === tk.group);
+  $("#ownTokGroupEdit").innerHTML = !g ? "" : `<input class="text" id="ownTokGroupName" value="${esc(nameIn(g.name, uiLang()))}" data-geid="${esc(g.id)}" aria-label="${esc(t("own.groupNameLabel"))}" autocomplete="off">`
+    + `<span class="own-swatches">${GROUP_COLOURS.map((c) => `<button type="button" style="background:${c}" data-gcolour="${c}" aria-pressed="${c === g.colour}" aria-label="${c}"></button>`).join("")}</span>`
+    + `<small class="hint">${esc(t("own.groupEditHelp"))}</small>`;
 }
 function renderOwnLinked(tk: OwnToken) {
   const lang = tokenLang();
@@ -636,8 +644,26 @@ function wireOwnToken() {
       const used = new Set(coll.groups.map((x) => x.colour)), id = newId("g");
       coll.groups.push({ id, name: t("own.groupName", { n: coll.groups.length + 1 }), colour: GROUP_COLOURS.find((c) => !used.has(c)) ?? GROUP_COLOURS[0] });
       tk.group = id;
-      collectionChanged(); renderGroupPills(tk);
+      collectionChanged(); renderGroupPills(tk); renderTokenColour(tk);
+      const name = $<HTMLInputElement>("#ownTokGroupName"); name.focus(); name.select();   // named at once
     }
+  };
+  // the token's group, renamed and recoloured where it's chosen
+  const editedGroup = () => coll.groups.find((x) => x.id === $<HTMLInputElement>("#ownTokGroupName")?.dataset.geid);
+  $("#ownTokGroupEdit").oninput = (e) => {
+    const g = editedGroup(), name = input(e).value; if (!g || !name.trim()) return;
+    g.name = withName(g.name, uiLang(), name.trim());
+    const pill = $(`#ownTokGroups [data-group="${CSS.escape(g.id)}"]`);
+    pill.innerHTML = `<i></i>${esc(name.trim())}`;
+    ownEdited();
+  };
+  $("#ownTokGroupEdit").onchange = (e) => {   // left empty: its name as it was
+    const g = editedGroup(); if (g && !input(e).value.trim()) input(e).value = nameIn(g.name, uiLang());
+  };
+  $("#ownTokGroupEdit").onclick = (e) => {
+    const tk = editingOwn(), g = editedGroup(), b = hit(e, "[data-gcolour]"); if (!tk || !g || !b) return;
+    g.colour = b.dataset.gcolour as Hex;
+    collectionChanged(); renderGroupPills(tk); renderTokenColour(tk); ownEdited();
   };
   // its own colour, or its group's
   $("#ownTokColour").onclick = (e) => {

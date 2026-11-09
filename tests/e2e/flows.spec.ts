@@ -427,6 +427,32 @@ test("a token of yours is made and changed where it's designed: its Token tab, w
   expect(errors).toEqual([]);
 });
 
+test("a new group from a token's Token tab is named there at once, and its name and colour change there", async ({ page }) => {
+  const errors = await open(page, "/");
+  await makeToken(page, "Lobo");
+  // a second group (a new collection has one, and nothing to choose then)
+  await page.locator("#ownGroupAdd").evaluate((b) => (b as HTMLElement).click());
+  await page.reload();
+  await page.getByRole("button", { name: /^Token Lobo/ }).click({ timeout: 30_000 });   // a reload opens on its Front
+  await expect(page.locator("#ownTokGroupRow")).toBeVisible();
+  await page.locator("#ownTokGroups [data-group-new]").click();
+  const name = page.locator("#ownTokGroupName");
+  await expect(name).toBeFocused();
+  await page.keyboard.type("Lobos");   // over its stand-in name, selected
+  await expect(page.locator('#ownTokGroups [aria-pressed="true"]')).toHaveText("Lobos");
+  const colour = page.locator("#ownTokGroupEdit [data-gcolour]").nth(3);
+  await colour.click();
+  await expect(page.locator("#ownTokGroupEdit [data-gcolour]").nth(3)).toHaveAttribute("aria-pressed", "true");
+  // emptied, it keeps its name; and it's kept
+  await name.fill(""); await name.blur();
+  await expect(name).toHaveValue("Lobos");
+  await page.waitForTimeout(600);
+  await page.reload();
+  await page.getByRole("button", { name: /^Token Lobo/ }).click({ timeout: 30_000 });   // a reload opens on its Front
+  await expect(page.locator('#ownTokGroups [aria-pressed="true"]')).toHaveText("Lobos");
+  expect(errors).toEqual([]);
+});
+
 test("a token of yours without an icon: the layouts that show one wait for it, and Plain carries nothing", async ({ page }) => {
   const errors = await open(page, "/");
   await makeToken(page, "Lobo");

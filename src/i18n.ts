@@ -2024,6 +2024,7 @@ const OWN_STR: Record<string, Record<string, Entry>> = {
   es: {
     "gate.opening": "Abriendo tu colección…",
     "own.groupNew": "+ Nuevo grupo",
+    "own.groupEditHelp": "El nombre y el color cambian en todas las fichas del grupo.",
     "about.title": "Acerca de Tesserae Faber",
     "credits.iconsIntro": "Los iconos de las fichas son de game-icons.net, bajo licencia Creative Commons BY 3.0. Gracias a sus autores:",
     "sheet.search": "Buscar una ficha",
@@ -2064,6 +2065,7 @@ const OWN_STR: Record<string, Record<string, Entry>> = {
     "reminders.add": "Add these linked tokens to print",
     "style.solo.help": "Just the icon, as large as it fits. No name: at the table it's known by its picture. Its linked tokens keep their word, as on the classic token.",
     "own.groupNew": "+ New group",
+    "own.groupEditHelp": "Its name and colour change on every token in the group.",
     "about.title": "About Tesserae Faber",
     "credits.iconsIntro": "The tokens' icons are from game-icons.net, under the Creative Commons BY 3.0 licence. Thanks to their authors:",
     "sheet.search": "Search tokens",

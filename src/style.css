@@ -489,6 +489,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .group-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; padding: 4px 11px; }
 .group-pill i { width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
 .group-pill[aria-pressed=true] { border-color: var(--c); background: color-mix(in srgb, var(--c) 18%, transparent); color: var(--bone); }
+.group-edit { display: grid; gap: 6px; margin-top: 10px; }
+.group-edit:empty { display: none; }
+.group-edit .own-swatches { grid-column: auto; }
 /* a token's own colour: a menu, the group's first */
 .tok-colour { align-self: flex-start; }
 .tok-colour summary { display: inline-flex; align-items: center; gap: 8px; list-style: none; cursor: pointer; padding: 5px 12px; border: 1px solid var(--seam); background: rgba(23, 8, 18, .5); border-radius: 999px; font-size: 13px; }
