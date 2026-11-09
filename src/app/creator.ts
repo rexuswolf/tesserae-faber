@@ -2,7 +2,7 @@
 import { emit } from "./events.ts";
 import { paintTesserae } from "./tesserae.ts";
 import { OWN, catalogsOf, nameIn, storeCollection, OWN_ID, builtIn, tallerUrl, readTokenList, newId, withName, copyBuiltIn, collectionUrl, collectionFile, readCollectionFile, addCollection, GROUP_COLOURS, SHAPES, collectionRoles, tokenRole as ownRole, isLocked, THEMES, APP_LOGO, APP_LOGO_SMALL, APP_ICON, APP_NAME, hasCcc, THEME_FONTS, okLogo, builtInCollections, listCollections, lastCollection, openUrl, OWN_VIEW, LIST_URL, starterCollection, loadCollection, deleteCollection, isUntouchedStarter } from "../collection.ts";
-import type { OwnCatalog, OwnSection, OwnToken, OwnTheme, CollectionEntry } from "../collection.ts";
+import type { OwnCatalog, OwnSection, OwnToken, OwnTheme, CollectionEntry, OwnFlip } from "../collection.ts";
 import { coll, TEAM_ORDER, TEAM_PLURAL, PLATE_LABEL, PLATE_GROUP, $$, stickyNotice, state, $, esc, READONLY, hit, input, BUILT, COLOUR_CHOICES } from "./context.ts";
 import type { Creating } from "./context.ts";
 import type { Role, Team, Hex, TokenShape, TokenIcon, TokenContent } from "../types.ts";
@@ -383,6 +383,7 @@ export function setOwnContent(id: string, content: TokenContent) {
   tk.content = content;
   panelFor = "";
   ownEdited();
+  if (editingOwn() === tk) renderTokenPanel();   // its fields (in the designer, or the dialog) say so: Print its text, its icon
 }
 /** The token being made is dropped. */
 function dropDraft() {
@@ -577,11 +578,18 @@ function renderOwnLinked(tk: OwnToken) {
 }
 /** The back: like the other tokens' (its design's, named), or its other state, with its name and icon. */
 function renderOwnFlip(tk: OwnToken) {
-  $<HTMLInputElement>("#ownTokFlipOn").checked = !!tk.flip;
-  $("#ownTokFlipBox").hidden = !tk.flip;
-  const role = roleById(tk.id), design = role ? designFor(charKey(role), shapeOfToken(tk)).name : "";
-  $("#ownTokBackHint").textContent = tk.flip ? t("own.backFlipHelp") : t("own.backUsualHelp", { design });
-  if (tk.flip) renderIconChip("ownTokFlip", tk.flip.icon);
+  $("#ownTokBackHint").textContent = t(tk.flip ? "own.backFlipHelp" : "own.backUsualHelp");
+  renderIconChip("ownTokFlip", tk.flip?.icon ?? null);
+}
+/**
+ * The back's text and icon, written straight in: with either, the token has another state on its back;
+ * with neither, its design's back (the other state goes).
+ */
+function setFlip(tk: OwnToken, change: Partial<OwnFlip>) {
+  const next: OwnFlip = { name: tk.flip?.name ?? "", icon: tk.flip?.icon ?? null, ...change };
+  if (!nameIn(next.name, tokenLang()).trim() && !Object.values(typeof next.name === "string" ? {} : next.name).some((v) => v.trim()) && !next.icon) delete tk.flip;
+  else tk.flip = next;
+  renderOwnFlip(tk); ownEdited();
 }
 /** Whether an icon's search is open, the token's and its other state's. */
 const searchOpen: Record<string, boolean> = { ownTok: false, ownTokFlip: false };
@@ -668,7 +676,7 @@ function wireOwnToken() {
     tk.icon = icon; if (content) tk.content = content;
     ownEdited(); renderTokenPanel();
   });
-  iconPicker("ownTokFlip", (icon) => { const tk = editingOwn(); if (tk?.flip) { tk.flip.icon = icon; ownEdited(); } });
+  iconPicker("ownTokFlip", (icon) => { const tk = editingOwn(); if (tk) setFlip(tk, { icon }); });
   // its group, as the groups' colours, or a new one
   $("#ownTokGroups").onclick = (e) => {
     const tk = editingOwn(); if (!tk) return;
@@ -695,14 +703,7 @@ function wireOwnToken() {
     else { k.tokens = on ? [...k.tokens.filter((x) => x !== tk.id), tk.id] : k.tokens.filter((x) => x !== tk.id); ownEdited(); }
   };
   // the other state: added, named (in the token language, like the name) and taken out
-  $("#ownTokFlipOn").onchange = (e) => {
-    const tk = editingOwn(); if (!tk) return;
-    const on = input(e).checked; if (on === !!tk.flip) return;
-    if (on) { tk.flip = { name: "", icon: null }; searchOpen.ownTokFlip = true; $<HTMLInputElement>("#ownTokFlipName").value = ""; } else delete tk.flip;
-    renderOwnFlip(tk); ownEdited();
-    if (on) $("#ownTokFlipName").focus();
-  };
-  $("#ownTokFlipName").oninput = (e) => { const tk = editingOwn(); if (tk?.flip) { tk.flip.name = withName(tk.flip.name, tokenLang(), input(e).value); ownEdited(); } };
+  $("#ownTokFlipName").oninput = (e) => { const tk = editingOwn(); if (tk) setFlip(tk, { name: withName(tk.flip?.name ?? "", tokenLang(), input(e).value) }); };
   // linked tokens: one more, renamed in place, or taken out (an empty one goes when you leave it)
   $("#ownTokAddLinked").onclick = () => {
     const tk = editingOwn(); if (!tk) return;

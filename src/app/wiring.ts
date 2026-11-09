@@ -11,7 +11,7 @@ import { persistPicks, editToken, isPicked, setPick, renderQueue, goStep, flow, 
 import { renderSpine, renderSheet, onCopyStep, openRows, toggleCharacter, openAddMenu, addShown } from "./sheet.ts";
 import { openTokenPanel, wireCollSwitch, wireOwn, setOwnContent } from "./creator.ts";
 import { wireEditor, openContent } from "./editor.ts";
-import { wireDesignBar, deepenAll, openDesignSheet, wireDesignSheet, saveLookAsDesign, setOwn, rememberReturn, renderSays, setBackFace, backToFront, backDrawn, changeLook, deepen, resetField, setReliefFace, toggleReliefPart, changePattern, changeCardBack, changeBackContent, FRAME_START_WIDTH } from "./design-sheet.ts";
+import { wireDesignBar, deepenAll, openDesignSheet, wireDesignSheet, saveLookAsDesign, setOwn, rememberReturn, renderSays, setBackFace, backToFront, backDrawn, changeLook, deepen, resetField, setReliefFace, toggleReliefPart, changePattern, changeCardBack, changeBackContent, FRAME_START_WIDTH, toggleCompMore } from "./design-sheet.ts";
 import { OWN } from "../collection.ts";
 import { TALLER } from "./taller.ts";
 import { designFor, rereadMyDesigns } from "./designs.ts";
@@ -207,6 +207,7 @@ export function wire() {
     if (hit(e, ".says-toggle")) { state.saysOpen = !state.saysOpen; renderSays(); }
   };
   $("#parts").onclick = (e) => { const b = hit(e, "[data-part]"); if (!b) return; showTab({ part: b.dataset.part as Part, face: b.dataset.face as FaceTab | undefined }); viewTab(); renderWorkshop(); };
+  $("#compMore").onclick = () => { toggleCompMore(); renderWorkshop(); };
   $("#faceTabs").onclick = (e) => {
     if (hit(e, "[data-back-same]")) { backToFront(); return; }
     const b = hit(e, "[data-face]"); if (!b) return; showTab({ face: b.dataset.face as FaceTab }); renderWorkshop();

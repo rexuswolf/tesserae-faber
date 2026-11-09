@@ -2884,7 +2884,7 @@ export function illustrationPath(id: PatternId, r: number) {
 export function flipFace(role: Role | null | undefined, spec: SpecInput | undefined): Role | null {
   const f = role?.flip;
   if (!f || !SHAPE_FEATURES[shapeOf(role)].flip || spec?.linked) return null;
-  return { ...role, en: f.en, es: f.es, names: f.names ?? {}, fem: {}, body: f.body, g: f.g, d: undefined, icon: f.icon, author: f.author, iconKey: f.iconKey, flip: undefined };
+  return { ...role, en: f.en, es: f.es, names: f.names ?? {}, fem: {}, body: f.body, g: f.g, d: undefined, icon: f.icon, author: f.author, iconKey: f.iconKey, flip: undefined, content: undefined, keptIcon: undefined, listNames: undefined };   // what the front carries isn't the other state's
 }
 
 /** A spec as its shape prints it: a card's or a ring's keeps only what it has (no back, magnet or
@@ -2900,9 +2900,9 @@ function withContent(role: Role | null | undefined, spec: TokenSpec): TokenSpec 
   const c = spec.reminder ? undefined : role?.content;
   if (!c) return spec;
   if (c === "both") return spec.style === "solo" || spec.style === "text" ? { ...spec, style: "classic", textSize: LAYOUT_TEXT_SIZE } : spec;
-  // the front's: a back with a layout of its own keeps it (one that follows the front's follows this)
+  // the front's only: a back without a layout of its own keeps the design's (its other state carries its own text and icon)
   const style: TokenStyle = c === "icon" ? "solo" : "text";
-  return { ...spec, style };
+  return { ...spec, style, ...(spec.backFace?.style ? {} : { backFace: { ...spec.backFace, style: spec.style }, ...(spec.backMode === "match" ? { backMode: "own" as const } : {}) }) };
 }
 const LAYOUT_TEXT_SIZE = DEFAULT_SPEC.textSize;
 /** A card laid out for what its token carries: only its phrase, no icon; only its icon, the icon alone; both, the icon beside the phrase (at the left, unless the design puts it at the right). */

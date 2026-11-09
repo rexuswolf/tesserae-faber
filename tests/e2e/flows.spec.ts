@@ -137,14 +137,13 @@ test("a token's back is changed like its front: a two-state token's other state,
   await step('#faceTabs [data-face="layout"]', seen("#faceTabs [data-back-same]"));
   await step("#faceTabs [data-back-same]", () => expect(page.locator("#faceTabs [data-back-same]")).toHaveCount(0, { timeout: 1000 }));
   await step('[data-choice="style"] [data-v][aria-pressed="false"]', seen("#faceTabs [data-back-same]"));
-  // what one-state tokens' backs say and show isn't this token's: it says so
-  await step('#faceTabs [data-face="text"]', seen("#sayNote"));
+  // what one-state tokens' backs say and show isn't this token's: its Composition doesn't offer it
   await expect(page.locator("#backSayBox")).toBeHidden();
   // a token without another state, its back plain: its tabs say so, and something can go on it
   await design("c:recovery");
   await step('#faceTabs [data-face="layout"]', seen('[data-choice="style"] [data-v="plain"]'));
   await step('[data-choice="style"] [data-v="plain"]', () => expect(page.locator('[data-choice="style"] [data-v="plain"]')).toHaveAttribute("aria-pressed", "true", { timeout: 1000 }));
-  await step('#faceTabs [data-face="text"]', seen("#backNote [data-back-face]"));
+  await step('#faceTabs [data-face="frame"]', seen("#backNote [data-back-face]"));
   await step("#backNote [data-back-face]", () => expect(page.locator("#backNote [data-back-face]")).toHaveCount(0, { timeout: 1000 }));
   await step('#faceTabs [data-face="layout"]', () => expect(page.locator('[data-choice="style"] [data-v="plain"]')).toHaveAttribute("aria-pressed", "false", { timeout: 1000 }));
   // its pattern, the back's whatever it carries
@@ -164,7 +163,7 @@ test("a token's back says words of its own, shows its icon, has an illustration 
   await step('.cr-item[data-cr="part"]', seen("#parts"));
   await step('#parts [data-part="back"]', seen("#faceTabs"));
   // the design's back was the edition's name: words alone, in the text layout
-  await step('#faceTabs [data-face="text"]', pressed('#backSay [data-v="edition"]'));
+  await step('#faceTabs [data-face="layout"]', pressed('#backSay [data-v="edition"]'));
   await step('#backSay [data-v="phrase"]', seen("#backPhrase"));
   await page.locator("#backPhrase").fill("Recursos compartidos");
   await expect(page.locator("#backPhrase")).toHaveValue("Recursos compartidos");
@@ -173,14 +172,15 @@ test("a token's back says words of its own, shows its icon, has an illustration 
   await step('#faceTabs [data-face="pattern"]', seen('[data-pat-side="back"] [data-pat="ill-sol"]'));
   await step('[data-pat-side="back"] [data-pat="ill-sol"]', pressed('[data-pat-side="back"] [data-pat="ill-sol"]'));
   // its icon: the layout has both again; the icon alone keeps the words for later
-  await step('#faceTabs [data-face="icon"]', seen('#backArt [data-v="token"]'));
+  await step('#faceTabs [data-face="layout"]', seen('#backArt [data-v="token"]'));
   await step('#backArt [data-v="token"]', pressed('#backArt [data-v="token"]'));
-  // its colour, its own: in Icon, apart from the name's
+  // its colour, its own: in Composition's settings, apart from the name's
+  await step("#compMore", seen('.metal[data-colour="icon"]'));
   await step('.metal[data-colour="icon"] button[data-v="#ece9e2"]', pressed('.metal[data-colour="icon"] button[data-v="#ece9e2"]'));
   await step('#faceTabs [data-face="layout"]', pressed('[data-choice="style"] [data-v="classic"]'));
   await step('[data-choice="style"] [data-v="solo"]', pressed('[data-choice="style"] [data-v="solo"]'));
   await step('[data-choice="style"] [data-v="classic"]', pressed('[data-choice="style"] [data-v="classic"]'));
-  await step('#faceTabs [data-face="text"]', pressed('#backSay [data-v="phrase"]'));
+  await step('#faceTabs [data-face="layout"]', pressed('#backSay [data-v="phrase"]'));
   await expect(page.locator("#backPhrase")).toHaveValue("Recursos compartidos");
   expect(errors).toEqual([]);
 });
@@ -372,34 +372,43 @@ test("what a token shows is the token's: chosen when made, kept, and the design 
   expect(errors).toEqual([]);
 });
 
-test("a token of yours is changed where it's designed: Content has its front and its back, the token beside them", async ({ page }) => {
+test("a token of yours is changed where it's designed: each face's Composition has what it carries, the token beside it", async ({ page }) => {
   const errors = await open(page, "/");
   await page.locator("#tourName").fill("Lobo");
   await page.locator("[data-tok-new=maker]").evaluate((b) => (b as HTMLElement).click());
   await page.waitForURL(/\/c\//);
   await expect(page.locator("#tokenPanel")).toHaveAttribute("open", "", { timeout: 30_000 });
+  // an icon of its own (an SVG of yours: no waiting on game-icons.net), so it can be its icon alone
+  await page.locator("#ownTokSvg").setInputFiles({ name: "wolf.svg", mimeType: "image/svg+xml", buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M1 1h8v8H1z"/></svg>') });
+  await expect(page.locator("#ownTokChip [data-icon-none]")).toBeVisible();
   await page.locator("#tpDone").click();
   const id = await page.locator("[data-own-edit]").first().getAttribute("data-own-edit");
   await page.evaluate((key) => { const mm = (window as unknown as { __mm: { goStep(n: number): void; designToken(k: string): void } }).__mm; mm.goStep(2); mm.designToken(key); }, `c:${id}`);
-  await page.locator('.cr-item[data-cr="content"]').evaluate((b) => (b as HTMLElement).click());
-  // no dialog: the fields are in the designer
-  await expect(page.locator("#crOwn #ownTokName")).toHaveValue("Lobo");
+  // a click on what's there now (the tabs redraw a frame later: a click on the old ones is lost), until it takes
+  const go = (s: string, then?: () => Promise<void>) => expect(async () => {
+    await page.locator(s).first().evaluate((b) => (b as HTMLElement).click());
+    if (then) await then();
+  }).toPass();
+  const on = (s: string) => () => expect(page.locator(s)).toHaveAttribute("aria-selected", "true", { timeout: 1000 });
+  await go('.cr-item[data-cr="part"]');
+  await go('#parts [data-part="front"]', on('#parts [data-part="front"]'));
+  // no dialog: its front's text and icon are in the front's Composition
+  await expect(page.locator("#crOwn #ownTokText")).toBeVisible();
+  await expect(page.locator("#crOwn #ownTokName")).toBeHidden();
   await expect(page.locator("#tokenPanel")).not.toHaveAttribute("open", "");
-  // its back: like the others, or another state with its own name
-  await expect(page.locator("#ownTokFlipOn")).not.toBeChecked();
-  await page.locator("#ownTokFlipOn").check();
+  await page.locator("#crOwn #ownTokText").fill("LOBO GRIS");
+  // its back's: another state with its own text
+  await go('#parts [data-part="back"]', on('#parts [data-part="back"]'));
+  await go('#faceTabs [data-face="layout"]', on('#faceTabs [data-face="layout"]'));
+  await expect(page.locator("#ownTokFlipName")).toHaveValue("");
   await page.locator("#ownTokFlipName").fill("Lobo herido");
-  await expect(page.locator("#ownTokFlipBox")).toBeVisible();
-  // its name changed here is the token's
-  await page.locator("#crOwn #ownTokName").fill("Lobo gris");
-  await expect(page.locator("#crValContent")).toContainText("Lobo gris");
+  await expect(page.locator("#ownTokFlipName")).toHaveValue("Lobo herido");
   // its front's layouts are what it carries: Symbol only makes it its icon alone, and back to both
-  await page.locator('.cr-item[data-cr="part"]').evaluate((b) => (b as HTMLElement).click());
-  await page.locator('#parts [data-part="front"]').evaluate((b) => (b as HTMLElement).click());
-  await page.locator('#faceTabs [data-face="layout"]').evaluate((b) => (b as HTMLElement).click());
+  await go('#parts [data-part="front"]', on('#parts [data-part="front"]'));
+  await go('#faceTabs [data-face="layout"]', on('#faceTabs [data-face="layout"]'));
   await page.locator('[data-choice="style"] [data-v="solo"]').click();
   await expect(page.locator('[data-choice="style"] [data-v="solo"]')).toHaveAttribute("aria-pressed", "true");
-  await expect(page.locator('#faceTabs [data-face="text"]')).toHaveCount(0);   // no name on it: nothing to set
+  await expect(page.locator("#ownTokPrint")).not.toBeChecked();   // its text not printed
   await page.locator('[data-choice="style"] [data-v="classic"]').click();
   await expect(page.locator('[data-choice="style"] [data-v="classic"]')).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator("#ownTokPrint")).toBeChecked();

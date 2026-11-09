@@ -20,7 +20,10 @@ import { TALLER, tallerMine, renderTaller } from "./taller.ts";
 import { colourIssues, LIGHT_DEPTH } from "../colour-checks.ts";
 import type { InlayPart } from "../colour-checks.ts";
 import { roleById } from "./wiring.ts";
-import { roleWithContent } from "./creator.ts";
+import { roleWithContent, showContentInline } from "./creator.ts";
+/** Whether Composition's text and icon settings are unfolded (kept while designing). */
+let compMore = false;
+export const toggleCompMore = () => { compMore = !compMore; };
 import { writeJSON, session, readJSON } from "../services.ts";
 
 // ------------------------------------------------------------ choosing a design (the sheet)
@@ -315,7 +318,19 @@ export function renderTabs(role: Role, spec: TokenSpec) {
     // the back as the front again, only when it differs from it
     + (part === "back" && faceOf(spec, "front").backMode !== "design" && backChanged(faceOf(spec, "front")) ? `<button class="to-front" type="button" data-back-same>${esc(t("back.toFront"))}</button>` : "");
   renderBackNote(role, spec, part === "back" && faceOpen ? panel : null);
-  $$(".ws-panel").forEach((p) => { p.hidden = p.dataset.panel !== panel; });
+  // Composition: its own panel, and (unfolded) the text's and the icon's under it; with no layouts, the text's panel is where the face's content goes
+  const comp = panel === "layout";
+  $$(".ws-panel").forEach((p) => { const d = p.dataset.panel; p.hidden = !(d === panel || (comp && compMore && (d === "text" || (d === "icon" && SHAPE_FEATURES[shape].icon)))); });
+  document.querySelector(".ws-body")?.setAttribute("data-comp", String(comp));
+  $("#compMore").setAttribute("aria-expanded", String(compMore));
+  const host = comp ? $("[data-panel=layout]") : $("[data-panel=text]"), what = $("#compWhat");
+  if (what.parentElement !== host) host.prepend(what);
+  const side = part === "back" ? "back" : "front";
+  what.dataset.side = side;
+  // a token of yours: its fields here (its front's text and icon, or its back's other state)
+  const sel = state.sel!, mine = !TALLER && sel.reminder == null && OWN && coll.tokens.some((x) => x.id === sel.role.id);
+  showContentInline(mine && (part === "front" || part === "back") && (comp || panel === "text") ? sel.role.id : null);
+  $("#crOwn").dataset.side = side;
 }
 
 /** The token's other state, if the token being edited has one: its name (a back design doesn't reach it). */
@@ -436,7 +451,8 @@ function renderStyleTiles(face: { role: Role; text: string }, spec: TokenSpec) {
   const s = { ...spec, diameter: 45, back: "none", backMode: "design" as const, frontPattern: null };
   // a token of yours: what it carries is the token's, and a layout chooses it (Symbol only, its icon; Text only, its
   // name; the others, both): each tile drawn with what it would carry
-  const own = !TALLER && ownTokenOf(face.role.id), pressed = own ? styleOfContent(face.role.content, s.style) : s.style;
+  // (the front's only: a back's other state is drawn as it is, its own icon and text)
+  const own = !TALLER && editSide() === "front" && ownTokenOf(face.role.id), pressed = own ? styleOfContent(face.role.content, s.style) : s.style;
   $("[data-choice=style]").innerHTML = TOKEN_STYLES.map((st) => {
     const role = own ? roleWithContent(face.role.id, contentOfStyle(st.id)) ?? face.role : face.role;
     return `<button class="back-tile" type="button" data-v="${st.id}" aria-pressed="${pressed === st.id}">${
@@ -739,7 +755,8 @@ export function syncControls(role: Role, spec: TokenSpec, token: Token) {
   // the tiles of a one-state token's back: what it says and shows (its words, an ornament…), as the back draws them
   const oneBack = side === "back" && shape === "coin" && !selFlip(role);
   const shown = oneBack && s.backMode !== "design" ? backShown(who.role, face, who.text) : null;
-  const tileWho = shown ? { role: shown.role, text: shown.text } : who, tileFace = shown ? shown.spec : face;
+  // (a two-state token's back is its other state, with its own icon only, as backFaceOf draws it)
+  const tileWho = shown ? { role: shown.role, text: shown.text } : who, tileFace = shown ? shown.spec : side === "back" && selFlip(role) ? { ...face, icon: undefined } : face;
   const dec = uiLang() === "es" ? "," : ".";
   const FACE_RANGES = new Set<string>(FACE_FIELDS);
   for (const [id, [dp, unit]] of Object.entries(RANGES) as [RangeKey, [number, string]][]) {
@@ -818,13 +835,15 @@ export function syncControls(role: Role, spec: TokenSpec, token: Token) {
   // with another state shows that instead (in the Taller, its sample is shown so and the choices stay)
   const coinBack = side === "back" && shape === "coin", flipped = coinBack ? selFlip(role) : null;
   const flipNote = (key: string) => (flipped ? t(TALLER ? "flip.sample" : key, { name: roleName(flipped, tokenLang()) }) : "");
-  $("#backSayBox").hidden = !(panel === "text" && coinBack && (!flipped || TALLER));
+  $("#backSayBox").hidden = !(panel === "layout" && coinBack && (!flipped || TALLER));
   if (!$("#backSayBox").hidden) renderBackSay(s);
-  $("#sayNote").hidden = !(panel === "text" && flipped);
+  // a token of yours: its own back (its text and icon) is above; these are its design's, for all its coins
+  $("#compDesignH").hidden = $("#backSayBox").hidden || !$("#crOwn").childElementCount;
+  $("#sayNote").hidden = !(panel === "layout" && flipped && TALLER);
   $("#sayNote").textContent = flipNote("flip.sayMine");
-  $("#backArtBox").hidden = !(panel === "icon" && coinBack && (!flipped || TALLER));
+  $("#backArtBox").hidden = !(panel === "layout" && coinBack && (!flipped || TALLER));
   if (!$("#backArtBox").hidden) renderBackArt(role, s, textFor(state.sel!.key, role, state.sel!.reminder));
-  $("#artNote").hidden = !(panel === "icon" && flipped);
+  $("#artNote").hidden = !(panel === "layout" && flipped && TALLER);
   $("#artNote").textContent = flipNote("flip.artMine");
   // Body: its colour, size (a coin's diameter, a ring's base, a card's fixed), thickness and colour depth
   $("#diameterRow").hidden = !f.diameter;

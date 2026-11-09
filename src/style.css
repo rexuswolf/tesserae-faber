@@ -2251,3 +2251,34 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 /* Background's choices: four to a row like Icon's and Frame's, every tile the same width whatever its name */
 [data-pat-choice] { display: grid !important; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
 [data-pat-choice] .back-tile { min-width: 0; overflow-wrap: anywhere; }
+
+/* ---- Composition: what the face carries, how it's laid out, the text's and icon's settings (folded) */
+.comp-what { display: grid; gap: 14px; margin-bottom: 16px; }
+.comp-what:not(:has(> :not([hidden], :empty))) { display: none; }
+.comp-h { margin-top: 4px; }
+.comp-more { justify-self: start; display: inline-flex; align-items: center; gap: 6px; margin-top: 14px; border: 0; background: none; color: var(--dust); font: inherit; font-size: 13.5px; cursor: pointer; padding: 4px 0; }
+.comp-more:hover { color: var(--bone); }
+.comp-more .chev { transition: transform .15s; }
+.comp-more[aria-expanded=true] .chev { transform: rotate(90deg); }
+.comp-sub { display: none; margin: 4px 0 8px; font: 600 14px/1.3 var(--ui); }
+.ws-body[data-comp=true] .comp-sub { display: block; }
+.ws-body[data-comp=true] [data-panel=text], .ws-body[data-comp=true] [data-panel=icon] { padding-top: 14px; border-top: 1px solid var(--seam); margin-top: 14px; }
+/* a token of yours' fields in a face's Composition: that face's only, without their blocks' boxes */
+.comp-what #crOwn .tp-fields { padding: 0; overflow: visible; }
+.comp-what #crOwn :is(.tp-name, #tpShape, #tpMoreOpts) { display: none !important; }
+.comp-what #crOwn[data-side=front] #contentFlip, .comp-what #crOwn[data-side=back] #tpFront { display: none !important; }
+.comp-what #crOwn .tp-face { border: 0; padding: 0; background: none; }
+.comp-what #crOwn #tpFront > h3 { display: none; }
+.comp-what[data-side=back] #contentClosed { display: none !important; }
+/* inside Composition the back's block has no title of its own (the tab says Back): its switch heads it */
+.comp-what #crOwn #contentFlip > h3 { display: none; }
+.comp-what { margin-bottom: 4px; }
+.comp-what .back-art { margin-bottom: 0; }
+/* What the back says: four equal parts, two to a row when they don't fit in one (no pill left ragged) */
+.back-say-seg { display: grid !important; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 3px; width: 100%; border-radius: 12px; padding: 3px; flex-wrap: nowrap; }
+.back-say-seg button { border-radius: 9px; padding: 7px 6px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@container (max-width: 380px) { .back-say-seg { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 1400px) and (min-width: 901px) { .back-say-seg { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 420px) { .back-say-seg { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.comp-design-h { margin: 8px 0 -4px; padding-top: 14px; border-top: 1px solid var(--seam); font: 600 14px/1.3 var(--ui); }
+.comp-design-h[hidden] { display: none; }

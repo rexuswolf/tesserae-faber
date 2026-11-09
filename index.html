@@ -166,7 +166,7 @@
        each one, and the parts are tabs. -->
   <nav class="cr-nav" id="crNav" data-i18n-attr="aria-label:editor.aria">
     <div class="cr-cats design-only">
-      <button type="button" class="cr-item" data-cr="content"><span class="cr-pic" id="crPicContent" aria-hidden="true"><b>Aa</b></span><span class="cr-lbl" data-i18n="editor.content"></span><small class="cr-val" id="crValContent"></small></button>
+      <button type="button" class="cr-item" data-cr="content" hidden><span class="cr-pic" id="crPicContent" aria-hidden="true"><b>Aa</b></span><span class="cr-lbl" data-i18n="editor.content"></span><small class="cr-val" id="crValContent"></small></button>
       <button type="button" class="cr-item" data-cr="design"><span class="cr-pic" id="crPicDesign" aria-hidden="true"></span><span class="cr-lbl" data-i18n="editor.design"></span><small class="cr-val" id="crValDesign"></small></button>
       <button type="button" class="cr-item cr-in" data-cr="part"><span class="cr-pic cr-pic-ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></span><span class="cr-lbl"><span data-i18n="editor.custom"></span> <span class="cr-arrow" aria-hidden="true">›</span></span><small class="cr-val" id="crValCustom"></small></button>
     </div>
@@ -198,28 +198,6 @@
     <div class="ws-body" id="styleFields">
       <!-- the editor's Content: what the token carries printed (its text, its icon), over the collection's -->
       <section class="cr-content design-only" id="crContent"><p class="cr-desc" data-i18n="editor.contentDesc"></p><p class="cr-desc cr-desc-own" data-i18n="editor.contentDescOwn"></p>
-        <!-- a token of yours: its content's fields (#tpFields) come here while Content is open -->
-        <div id="crOwn"></div>
-        <!-- a token of Clocktower's or of a closed collection, or a linked token: its printed text, feminine name and icon -->
-        <div class="token-only" id="contentClosed" hidden>
-          <label class="field"><span class="cr-fl"><b data-i18n="editor.printed"></b><small data-i18n="editor.printedHelp"></small></span><input class="text" type="text" id="printed" autocomplete="off"></label>
-          <label class="check" id="femRow" hidden><input type="checkbox" id="fem"> <span id="femLabel"></span></label>
-          <div class="field icon-field" id="iconField">
-            <span class="cr-fl"><b data-i18n="icon.label"></b></span>
-            <div class="cr-iconrow"><span class="cr-icon" id="crIcon" aria-hidden="true"></span>
-            <div class="icon-actions">
-              <button class="pill" type="button" id="iconSearchOpen" data-i18n="icon.search"></button>
-              <button class="pill" type="button" id="iconUpload" data-i18n="icon.upload"></button>
-              <button class="link" type="button" id="iconReset" data-i18n="icon.reset" hidden></button>
-            </div></div>
-            <input type="file" id="iconFile" accept=".svg,image/svg+xml" hidden>
-            <p class="hint" id="iconHint"></p>
-            <div class="icon-search" id="iconSearch" hidden>
-              <input class="text" type="search" id="iconQuery" autocomplete="off" data-i18n-attr="placeholder:icon.placeholder">
-              <div class="icon-results" id="iconResults"></div>
-            </div>
-          </div>
-        </div>
       </section>
       <!-- the editor's Design: the designs it can take, a list; "Personalizado" on top when it has changes of its own -->
       <section class="cr-designs design-only" id="crDesigns"></section>
@@ -240,6 +218,50 @@
         <p class="hint team-hint" id="teamHint"><i class="team-dot" aria-hidden="true"></i><span></span></p>
       </section>
       <section class="ws-panel" data-panel="layout" role="tabpanel" hidden>
+        <!-- Composition: first what the face carries (a token of yours: its text and icon, its other state on the back;
+             a closed collection's: printed over its own; a back without another state: what it says and shows), then how
+             it's laid out, then the text's and the icon's settings (folded) -->
+        <div class="comp-what" id="compWhat">
+          <!-- a token of yours: its content's fields (#tpFields) come here while Content is open -->
+          <div id="crOwn"></div>
+          <!-- a token of Clocktower's or of a closed collection, or a linked token: its printed text, feminine name and icon -->
+          <div class="token-only" id="contentClosed" hidden>
+            <label class="field"><span class="cr-fl"><b data-i18n="editor.printed"></b><small data-i18n="editor.printedHelp"></small></span><input class="text" type="text" id="printed" autocomplete="off"></label>
+            <label class="check" id="femRow" hidden><input type="checkbox" id="fem"> <span id="femLabel"></span></label>
+            <div class="field icon-field" id="iconField">
+              <span class="cr-fl"><b data-i18n="icon.label"></b></span>
+              <div class="cr-iconrow"><span class="cr-icon" id="crIcon" aria-hidden="true"></span>
+              <div class="icon-actions">
+                <button class="pill" type="button" id="iconSearchOpen" data-i18n="icon.search"></button>
+                <button class="pill" type="button" id="iconUpload" data-i18n="icon.upload"></button>
+                <button class="link" type="button" id="iconReset" data-i18n="icon.reset" hidden></button>
+              </div></div>
+              <input type="file" id="iconFile" accept=".svg,image/svg+xml" hidden>
+              <p class="hint" id="iconHint"></p>
+              <div class="icon-search" id="iconSearch" hidden>
+                <input class="text" type="search" id="iconQuery" autocomplete="off" data-i18n-attr="placeholder:icon.placeholder">
+                <div class="icon-results" id="iconResults"></div>
+              </div>
+            </div>
+          </div>
+          <!-- a coin's back: what it says on the tokens without another state (their name, the edition's, words of its own, nothing) -->
+          <h4 class="comp-design-h" id="compDesignH" hidden data-i18n="comp.designBack"></h4>
+          <div class="back-say" id="backSayBox" hidden>
+            <p class="metal-label" data-i18n="back.sayLabel"></p>
+            <span class="seg2 back-say-seg" role="group" id="backSay" data-i18n-attr="aria-label:back.sayLabel"></span>
+            <input class="text" type="text" id="backPhrase" maxlength="60" autocomplete="off" data-i18n-attr="placeholder:back.phrasePlaceholder aria-label:back.say.phrase" hidden>
+          </div>
+          <p class="hint flip-note" id="sayNote" hidden></p>
+          <!-- a coin's back: what it shows on the tokens without another state (their icon, an ornament, your SVG, nothing) -->
+          <div class="back-art" id="backArtBox" hidden>
+            <p class="metal-label" data-i18n="back.artLabel"></p>
+            <div class="choices art-tiles" id="backArt"></div>
+            <input type="file" id="upload" accept=".svg,image/svg+xml" hidden data-i18n-attr="aria-label:upload.aria">
+            <p class="hint" id="uploadHint" hidden></p>
+          </div>
+          <p class="hint flip-note" id="artNote" hidden></p>
+        </div>
+        <p class="metal-label comp-h" id="compLayoutH" data-i18n="comp.layout"></p>
         <div class="choices layout-tiles" data-choice="style"></div>
         <p class="hint" id="styleHint"></p>
         <!-- a card's: where its icon goes and how it sits with the phrase -->
@@ -252,15 +274,10 @@
           </div>
           <p class="hint" id="cardLayoutHint"></p>
         </div>
+        <button class="comp-more" type="button" id="compMore" aria-expanded="false"><span data-i18n="comp.more"></span> <span class="chev" aria-hidden="true">›</span></button>
       </section>
       <section class="ws-panel" data-panel="text" role="tabpanel" hidden>
-        <!-- a coin's back: what it says on the tokens without another state (their name, the edition's, words of its own, nothing) -->
-        <div class="back-say" id="backSayBox" hidden>
-          <p class="metal-label" data-i18n="back.sayLabel"></p>
-          <span class="seg2 back-say-seg" role="group" id="backSay" data-i18n-attr="aria-label:back.sayLabel"></span>
-          <input class="text" type="text" id="backPhrase" maxlength="60" autocomplete="off" data-i18n-attr="placeholder:back.phrasePlaceholder aria-label:back.say.phrase" hidden>
-        </div>
-        <p class="hint flip-note" id="sayNote" hidden></p>
+        <h4 class="comp-sub" data-i18n="face.text"></h4>
         <p class="hint" id="nameHint"></p>
         <div class="row"><label for="textSize" data-i18n="range.textSize"></label><output data-for="textSize"></output><input type="range" id="textSize" min="2" max="6" step="0.1" value="4"></div>
         <div class="row"><label for="spacing" data-i18n="range.spacing"></label><output data-for="spacing"></output><input type="range" id="spacing" min="0.8" max="2" step="0.05" value="1.1"></div>
@@ -274,14 +291,7 @@
         <div class="metal" data-colour="front" data-i18n-attr="aria-label:front.colour"></div>
       </section>
       <section class="ws-panel" data-panel="icon" role="tabpanel" hidden>
-        <!-- a coin's back: what it shows on the tokens without another state (their icon, an ornament, your SVG, nothing) -->
-        <div class="back-art" id="backArtBox" hidden>
-          <p class="metal-label" data-i18n="back.artLabel"></p>
-          <div class="choices art-tiles" id="backArt"></div>
-          <input type="file" id="upload" accept=".svg,image/svg+xml" hidden data-i18n-attr="aria-label:upload.aria">
-          <p class="hint" id="uploadHint" hidden></p>
-        </div>
-        <p class="hint flip-note" id="artNote" hidden></p>
+        <h4 class="comp-sub" data-i18n="face.icon"></h4>
         <div class="row"><label for="iconScale" data-i18n="range.iconScale"></label><output data-for="iconScale"></output><input type="range" id="iconScale" min="0.6" max="1.2" step="0.05" value="1"></div>
         <!-- a card's: how big its icon is (where it goes is in Layout) -->
         <div id="cardIconBox" hidden>
@@ -758,11 +768,10 @@
       </section>
       <!-- the back (a coin's): the one the others have, or this token's other state, with its name and icon -->
       <section class="tp-face" id="contentFlip">
-        <h3><span data-i18n="view.back"></span>
-          <label class="switch tp-flip-sw"><input type="checkbox" id="ownTokFlipOn"> <span data-i18n="own.backFlip"></span></label></h3>
-        <p class="hint" id="ownTokBackHint"></p>
-        <div class="own-flip" id="ownTokFlipBox" hidden>
-          <label class="field"><span data-i18n="own.text"></span><input class="text" id="ownTokFlipName" autocomplete="off"></label>
+        <h3><span data-i18n="view.back"></span></h3>
+        <div class="own-flip" id="ownTokFlipBox">
+          <label class="field"><span data-i18n="own.flipText"></span><input class="text" id="ownTokFlipName" autocomplete="off" data-i18n-attr="placeholder:own.backEmpty"></label>
+          <p class="hint" id="ownTokBackHint"></p>
           <div class="field"><span data-i18n="own.icon"></span>
             <div class="tp-chip" id="ownTokFlipChip"></div>
             <div class="tp-search" id="ownTokFlipSearch" hidden>

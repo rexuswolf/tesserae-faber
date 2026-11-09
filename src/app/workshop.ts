@@ -67,7 +67,8 @@ export function sectionsOf(shape: TokenShape, content?: TokenContent): Section[]
 /** A face's tabs (level 2): the layout only where there's more than one, the icon where the shape has one. */
 export const faceTabsOf = (shape: TokenShape): FaceTab[] => {
   const f = SHAPE_FEATURES[shape];
-  return [...(f.layout ? ["layout" as const] : []), "text", ...(f.icon ? ["icon" as const] : []), "frame", ...(f.pattern ? ["pattern" as const] : [])];
+  // with layouts, Composition holds the text and the icon too (what the face carries, how, their settings)
+  return f.layout ? ["layout", "frame", ...(f.pattern ? ["pattern" as const] : [])] : ["text", ...(f.icon ? ["icon" as const] : []), "frame", ...(f.pattern ? ["pattern" as const] : [])];
 };
 /** The back's tabs: the front's (its layout also has the drawings its tokens without another state can carry instead). */
 export const backTabsOf = (shape: TokenShape): FaceTab[] => faceTabsOf(shape);
