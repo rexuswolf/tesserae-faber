@@ -380,8 +380,8 @@ test("a token of yours is changed where it's designed: Content has its front and
   await expect(page.locator("#crOwn #ownTokName")).toHaveValue("Lobo");
   await expect(page.locator("#tokenPanel")).not.toHaveAttribute("open", "");
   // its back: like the others, or another state with its own name
-  await expect(page.locator('#ownTokFlipSeg [data-flip="0"]')).toHaveAttribute("aria-pressed", "true");
-  await page.locator('#ownTokFlipSeg [data-flip="1"]').click();
+  await expect(page.locator("#ownTokFlipOn")).not.toBeChecked();
+  await page.locator("#ownTokFlipOn").check();
   await page.locator("#ownTokFlipName").fill("Lobo herido");
   await expect(page.locator("#ownTokFlipBox")).toBeVisible();
   // its name changed here is the token's

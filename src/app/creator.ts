@@ -577,7 +577,7 @@ function renderOwnLinked(tk: OwnToken) {
 }
 /** The back: like the other tokens' (its design's, named), or its other state, with its name and icon. */
 function renderOwnFlip(tk: OwnToken) {
-  for (const b of $$("#ownTokFlipSeg [data-flip]")) b.setAttribute("aria-pressed", String((b.dataset.flip === "1") === !!tk.flip));
+  $<HTMLInputElement>("#ownTokFlipOn").checked = !!tk.flip;
   $("#ownTokFlipBox").hidden = !tk.flip;
   const role = roleById(tk.id), design = role ? designFor(charKey(role), shapeOfToken(tk)).name : "";
   $("#ownTokBackHint").textContent = tk.flip ? t("own.backFlipHelp") : t("own.backUsualHelp", { design });
@@ -695,9 +695,9 @@ function wireOwnToken() {
     else { k.tokens = on ? [...k.tokens.filter((x) => x !== tk.id), tk.id] : k.tokens.filter((x) => x !== tk.id); ownEdited(); }
   };
   // the other state: added, named (in the token language, like the name) and taken out
-  $("#ownTokFlipSeg").onclick = (e) => {
-    const tk = editingOwn(), b = hit(e, "[data-flip]"); if (!tk || !b) return;
-    const on = b.dataset.flip === "1"; if (on === !!tk.flip) return;
+  $("#ownTokFlipOn").onchange = (e) => {
+    const tk = editingOwn(); if (!tk) return;
+    const on = input(e).checked; if (on === !!tk.flip) return;
     if (on) { tk.flip = { name: "", icon: null }; searchOpen.ownTokFlip = true; $<HTMLInputElement>("#ownTokFlipName").value = ""; } else delete tk.flip;
     renderOwnFlip(tk); ownEdited();
     if (on) $("#ownTokFlipName").focus();

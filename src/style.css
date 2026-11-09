@@ -2245,3 +2245,6 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 /* a token's name, over its faces: how it's found */
 .tp-name { gap: 4px; }
 .tp-name .hint { margin-top: 2px; }
+
+/* the back's other state: a switch at the head of its block */
+.tp-flip-sw { margin-left: auto; padding: 0; font-weight: 400; font-size: 14px; color: var(--bone); }
