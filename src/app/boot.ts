@@ -154,7 +154,7 @@ function startApp() {
   const back = takeReturn();
   if (back?.step === 2 && state.pick.size) { if (back.sel && isPicked(back.sel)) selectToken(back.sel); goStep(2, "replace"); }
   else toStep(asked, "replace");
-  if (!stepsWired) { stepsWired = true; window.addEventListener("popstate", () => { if (!TALLER) toStep(stepInUrl(), "keep"); }); }
+  if (!stepsWired) { stepsWired = true; window.addEventListener("popstate", () => { if (!TALLER) toStep(stepInUrl(), "keep"); }); }   // Back, Forward
   if (!OWN) { openSharedScript(); resumeHomebrew(); }
   if (!guide.wired) { guide.wired = true; wireGuide(); }
 }
@@ -169,8 +169,9 @@ function renderAccount() {
 
 
 let stepsWired = false;
-/** To a step from the address (arriving, or Back and Forward): designing, the token shown or the first picked. */
-function toStep(step: number, address: "replace" | "keep") {
-  if (step === 2 && !(state.sel && isPicked(state.sel.key)) && state.pick.size) selectToken(sortKeys(state.pick.keys())[0]);
+/** To a step from the address (arriving, or Back and Forward): designing, the token it names, else the one shown or the first picked. */
+function toStep({ step, key }: { step: number; key: string | null }, address: "replace" | "keep") {
+  if (step === 2 && key && key !== state.sel?.key) selectToken(key);   // an unknown one is left alone
+  if (step === 2 && !(state.sel && (state.sel.key === key || isPicked(state.sel.key))) && state.pick.size) selectToken(sortKeys(state.pick.keys())[0]);
   goStep(step, address);
 }

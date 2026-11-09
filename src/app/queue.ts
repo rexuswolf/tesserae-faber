@@ -163,15 +163,27 @@ export const smallLetters = () => (flow.way === "3d" ? nozzleOf(flow.nozzle).sma
 export const nozzleMm = () => String(flow.way === "3d" ? nozzleOf(flow.nozzle).mm : 0.4).replace(".", uiLang() === "es" ? "," : ".");
 const queuePic = (q: QueueEntry, role = roleById(q.roleId)!) => tokenSvg(state.lib!, role, itemSpec(q), { text: queueTitle(q, role) });
 
-/** The step in the address: ?disenar (Redesign), ?imprimir (Print); neither, the tokens. */
+/** The step in the address: ?disenar=<the token> (Redesign), ?imprimir (Print); neither, the tokens. */
 const STEP_WORDS: Record<number, string> = { 2: "disenar", 3: "imprimir" };
-export const stepInUrl = () => { const q = new URLSearchParams(location.search); return q.has(STEP_WORDS[3]) ? 3 : q.has(STEP_WORDS[2]) ? 2 : 1; };
+/** A token's key as an address may carry it: a character's (c:<id>) or one of its linked tokens' (r:<id>:<n>). */
+const TOKEN_KEY = /^(c:[\w-]+|r:[\w-]+:\d+)$/;
+export function stepInUrl(): { step: number; key: string | null } {
+  const q = new URLSearchParams(location.search), key = q.get(STEP_WORDS[2]);
+  return q.has(STEP_WORDS[3]) ? { step: 3, key: null } : q.has(STEP_WORDS[2]) ? { step: 2, key: key && TOKEN_KEY.test(key) ? key : null } : { step: 1, key: null };
+}
 function stepUrl(step: number) {
   const q = new URLSearchParams(location.search);
   for (const w of Object.values(STEP_WORDS)) q.delete(w);
   const rest = q.toString().replace(/=(&|$)/g, "$1");   // ?admin stays ?admin
-  const query = [rest, STEP_WORDS[step]].filter(Boolean).join("&");
+  const word = step === 2 && state.sel ? `${STEP_WORDS[2]}=${encodeURIComponent(state.sel.key).replace(/%3A/g, ":")}` : STEP_WORDS[step];
+  const query = [rest, word].filter(Boolean).join("&");
   return location.pathname + (query ? `?${query}` : "") + location.hash;
+}
+/** Designing, another token: the address says it, in the same history entry. */
+export function syncStepUrl() {
+  if (state.step !== 2) return;
+  const url = stepUrl(2);
+  if (url !== location.pathname + location.search + location.hash) history.replaceState(history.state, "", url);
 }
 /**
  * Moves to step 1 (pick), 2 (design) or 3 (print). Steps 2 and 3 need something picked. The address

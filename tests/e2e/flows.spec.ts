@@ -26,12 +26,16 @@ async function pick(page: Page, n: number, which = "#rows [data-pick]") {
 }
 const next = (page: Page) => page.locator("#flowNext").evaluate((b) => (b as HTMLElement).click());
 
-test("the address says the step: ?disenar, ?imprimir; Back goes back a step, and a reload stays", async ({ page }) => {
+test("the address says the step: ?disenar=<the token>, ?imprimir; Back goes back a step, and a reload stays", async ({ page }) => {
   const errors = await open(page, "/botc?admin");
   await pick(page, 2, '#rows [data-pick^="c:"]');
   await page.locator("#rows [data-design-row]").first().evaluate((b) => (b as HTMLElement).click());
   await expect(page.locator("#app")).toHaveAttribute("data-step", "2");
-  await expect(page).toHaveURL(/\/botc\?admin&disenar$/);
+  // the token being redesigned, in the address; another one replaces it there (not a step more)
+  await expect(page).toHaveURL(/\/botc\?admin&disenar=c:[\w-]+$/);
+  const second = await page.locator("#designGrid [data-design]").nth(1).getAttribute("data-design");
+  await page.locator("#designGrid [data-design]").nth(1).evaluate((b) => (b as HTMLElement).click());
+  await expect(page).toHaveURL(new RegExp(`disenar=${second}$`));
   await next(page);
   await expect(page.locator("#app")).toHaveAttribute("data-step", "3");
   await expect(page).toHaveURL(/\/botc\?admin&imprimir$/);
@@ -39,6 +43,7 @@ test("the address says the step: ?disenar, ?imprimir; Back goes back a step, and
   await expect(page.locator("#app")).toHaveAttribute("data-step", "2");
   await page.reload();
   await expect(page.locator("#app")).toHaveAttribute("data-step", "2", { timeout: 30_000 });
+  await expect(page.locator(`#designGrid [data-design="${second}"]`)).toHaveAttribute("aria-current", "true");
   await page.goBack();
   await expect(page.locator("#app")).toHaveAttribute("data-step", "1");
   await expect(page).toHaveURL(/\/botc\?admin$/);

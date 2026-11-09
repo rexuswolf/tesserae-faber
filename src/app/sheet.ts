@@ -10,7 +10,7 @@ import { uiIcon, TEAM_ICONS } from "../ui-icons.ts";
 import { remindersOf, charKey, remKey, textFor, collator, catalogText, specFor, catalogSpec } from "./tokens.ts";
 import { loadScripts } from "../scripts.ts";
 import { scriptRoles, scriptOf, scriptHasOwn, PHONE, editionName } from "./scripts-ui.ts";
-import { isPicked, setPick, changePicks, tokenRole, tokenRem } from "./queue.ts";
+import { isPicked, setPick, changePicks, tokenRole, tokenRem, syncStepUrl } from "./queue.ts";
 import { roleById } from "./wiring.ts";
 import { tokenLang } from "./token-language.ts";
 import { renderDesignBar, setBarShapes } from "./design-sheet.ts";
@@ -282,5 +282,6 @@ export function selectToken(key: string | undefined) {
   const was = state.sel?.reminder;
   if (state.sel?.key !== key) { state.flash = ""; state.saysOpen = false; }   // another token: the last one's note goes
   state.sel = { key, role, reminder: tokenRem(key) };
+  syncStepUrl();
   if (state.sel!.reminder != null && was == null) { view3d("setView", "top"); syncView("top"); }
 }
