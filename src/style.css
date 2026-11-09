@@ -2241,3 +2241,7 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 @media (min-width: 901px) {
   #rows .row .row-acts .own-edit + .own-edit { box-shadow: inset 1px 0 0 color-mix(in srgb, var(--bone) 18%, transparent); }
 }
+
+/* a token's name, over its faces: how it's found */
+.tp-name { gap: 4px; }
+.tp-name .hint { margin-top: 2px; }

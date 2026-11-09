@@ -45,4 +45,12 @@ describe("a token's content", () => {
     expect(tokenRole(c, tk).body).toBe("");
     expect(tokenRole(c, { ...tk, content: "both" }).body).toBe("<path/>");
   });
+  it("prints its text, and is named in the lists by its name", () => {
+    const c = starterCollection("en");
+    const tk: OwnToken = { ...c.tokens[0], name: "Blood wolf", text: "WOLF" };
+    const r = tokenRole(c, tk);
+    expect(r.en).toBe("WOLF");
+    expect(r.listNames?.en).toBe("Blood wolf");
+    expect(tokenRole(c, { ...tk, text: undefined }).listNames).toBeUndefined();
+  });
 });

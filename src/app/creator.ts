@@ -458,6 +458,7 @@ function renderTokenPanel() {
   $("#ownTokIconRow").hidden = !SHAPE_FEATURES[shape].icon;
   $("#ownTokNameHint").hidden = carries !== "icon" && carries !== "none";
   renderIconChip("ownTok", tk.icon, carries === "text" && tk.icon ? t("own.iconNotPrinted") : "");
+  renderTextHint(tk);
   renderOwnFlip(tk);
   const sig = [tk.id, shape, tokenLang(), uiLang()].join("|");
   if (sig === panelFor) return;
@@ -468,6 +469,7 @@ function renderTokenPanel() {
   searchOpen.ownTok = !!c && !tk.icon; searchOpen.ownTokFlip = false;
   renderIconChip("ownTok", tk.icon, contentNow(tk, shape) === "text" && tk.icon ? t("own.iconNotPrinted") : "");
   $<HTMLInputElement>("#ownTokName").value = nameIn(tk.name, tokenLang());
+  $<HTMLInputElement>("#ownTokText").value = tk.text ? nameIn(tk.text, tokenLang()) : "";
   $<HTMLInputElement>("#ownTokIq").value = ""; $("#ownTokHits").innerHTML = "";
   renderGroupPills(tk);
   $("#ownTokGroupRow").hidden = coll.groups.length < 2;   // one group (a new collection's): nothing to choose, nor to explain yet
@@ -494,7 +496,7 @@ function renderPanelShape(tk: OwnToken, shape: TokenShape) {
     $("#tpShape").hidden = !typePick;
     return;
   }
-  const name = nameIn(c.draft.name, tokenLang()).trim() || t("own.namePlaceholder");
+  const name = printedText(c.draft);
   $("#tpShape").hidden = false;
   $("#tpShape").innerHTML = `<div class="field"><span>${esc(t("own.shape"))}</span><div class="shape-cards" role="radiogroup" aria-label="${esc(t("own.shape"))}">${SHAPES.map((sh) => {
     const r = draftRole(c, sh), spec = designOf(sh, defaultRef(sh))!.spec;
@@ -524,6 +526,13 @@ function renderPanelContent(tk: OwnToken, shape: TokenShape) {
   const now = contentNow(tk, shape), printed = now !== "icon" && now !== "none", locked = printed && shape !== "base" && !tk.icon;
   box.innerHTML = `<label class="check tp-print"><input type="checkbox" id="ownTokPrint"${printed ? " checked" : ""}${locked ? " disabled" : ""}> <span>${esc(t(shape === "base" ? "own.printNameBase" : "own.printName"))}</span></label>`;
 }
+/** What a token's front says: its text, else its name (else a stand-in, while it has neither). */
+const printedText = (tk: OwnToken) => (tk.text ? nameIn(tk.text, tokenLang()).trim() : "") || nameIn(tk.name, tokenLang()).trim() || t("own.namePlaceholder");
+/** The front's text field: empty, it says the token's name (shown in it, greyed). */
+function renderTextHint(tk: OwnToken) {
+  const name = nameIn(tk.name, tokenLang()).trim();
+  $<HTMLInputElement>("#ownTokText").placeholder = name ? t("own.textPlaceholder", { name }) : "";
+}
 /** What a token carries once its icon changes: none left, its name alone; one given to a token printing only its name, both. */
 function contentWithIcon(tk: OwnToken, shape: TokenShape, icon: TokenIcon | null): TokenContent | undefined {
   const now = contentNow(tk, shape);
@@ -536,7 +545,7 @@ function renderPanelToken() {
   const tk = editingOwn(), role = tk && roleById(tk.id);
   if (!tk || !role) return;
   const key = charKey(role), shape = shapeOf(role), d = designFor(key, shape);
-  const text = nameIn(tk.name, tokenLang()).trim() || t("own.namePlaceholder"), spec = specFor(key, false);
+  const text = printedText(tk), spec = specFor(key, false);
   const fig = (svg: string, label: string, cls = "") => `<figure class="${cls}">${svg}<figcaption>${esc(label)}</figcaption></figure>`;
   const linked = tk.linked.map((w, i) => ({ w: nameIn(w, tokenLang()), i })).filter((x) => x.w.trim());
   $("#tpPic").innerHTML = `<div class="tp-faces">${fig(tokenSvg(state.lib!, role, spec, { text }), t("view.front"))}${SHAPE_FEATURES[shape].back ? fig(tokenSvg(state.lib!, role, spec, { side: "back", text }), t("view.back")) : ""}</div>`
@@ -612,7 +621,15 @@ function wireOwnToken() {
     const el = e.target as HTMLSelectElement, tk = editingOwn();
     if (tk && el.dataset.typePick != null) { tk.type = el.value; ownEdited(); }
   };
-  $("#ownTokName").oninput = (e) => { const tk = editingOwn(); if (tk) { tk.name = withName(tk.name, tokenLang(), input(e).value); ownEdited(); } };
+  $("#ownTokName").oninput = (e) => { const tk = editingOwn(); if (tk) { tk.name = withName(tk.name, tokenLang(), input(e).value); ownEdited(); renderTextHint(tk); } };
+  // what its front says: empty, its name
+  $("#ownTokText").oninput = (e) => {
+    const tk = editingOwn(); if (!tk) return;
+    const v = input(e).value;
+    if (v.trim()) tk.text = withName(tk.text ?? {}, tokenLang(), v);
+    else if (tk.text) { const rest = withName(tk.text, tokenLang(), ""); if (typeof rest === "string" || !Object.values(rest).some((x) => x.trim())) delete tk.text; else tk.text = rest; }
+    ownEdited();
+  };
   // The token's icon and its other state's are chosen alike: game-icons.net, an SVG of yours, or none.
   const iconPicker = (id: string, set: (icon: TokenIcon | null) => void) => {
     let timer: ReturnType<typeof setTimeout> | undefined;

@@ -39,7 +39,9 @@ export function specFor(key: string, isReminder: boolean): TokenSpec {
  * own name and icon. Its style and own changes show in the queue and step 2.
  */
 export const catalogSpec = (isReminder: boolean): TokenSpec => (isReminder ? reminderSpec({ ...DEFAULT_SPEC, lang: tokenLang() }) : { ...DEFAULT_SPEC, lang: tokenLang() });
-export const catalogText = (role: Role, reminder: number | null) => (reminder != null ? remindersOf(role)[reminder] : roleName(role, tokenLang()));
+export const catalogText = (role: Role, reminder: number | null) => (reminder != null ? remindersOf(role)[reminder] : listName(role));
+/** A token's name in the lists: its own (a token of yours whose front says something else), else what it says. */
+export const listName = (role: Role) => (role.listNames ? role.listNames[tokenLang()] || role.listNames.en || role.listNames.es || roleName(role, tokenLang()) : roleName(role, tokenLang()));
 /** The text printed on a token. */
 export function textFor(key: string, role: Role, reminder: number | null): string {
   const own = state.overrides.get(key)?.text;

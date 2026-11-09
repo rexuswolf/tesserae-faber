@@ -65,6 +65,8 @@ export interface Role {
   iconKey?: string;
   /** A two-state token's other state, drawn on its back like a second front (a coin's only: see SHAPE_FEATURES). */
   flip?: RoleFlip;
+  /** A token of yours whose front says something else: its name, for your lists and the search (unset: what it says). */
+  listNames?: Record<string, string>;
   /** What the token carries, whatever its design (a token of yours): unset, as its design lays it out. */
   content?: TokenContent;
   /** A token of yours that shows only its name: the icon it keeps (not drawn on its front), for a back laid out with one. */

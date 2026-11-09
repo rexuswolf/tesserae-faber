@@ -155,7 +155,7 @@ export function renderSheet() {
     roles = roles.filter((r) => {
       const remHits = remindersOf(r).map((text, i) => [text, r.reminders?.en?.[i], textFor(remKey(r, i), r, i)].some((s) => s && fold(s).includes(q)) ? i : -1).filter((i) => i >= 0);
       // a two-state token by its other state's name too
-      const nameHit = [r.en, r.es, roleName(r, tokenLang()), r.fem?.[tokenLang()], textFor(charKey(r), r, null), r.flip?.en, r.flip?.es, r.flip?.names?.[tokenLang()]].some((s) => s && fold(s).includes(q));
+      const nameHit = [r.en, r.es, roleName(r, tokenLang()), ...Object.values(r.listNames ?? {}), r.fem?.[tokenLang()], textFor(charKey(r), r, null), r.flip?.en, r.flip?.es, r.flip?.names?.[tokenLang()]].some((s) => s && fold(s).includes(q));
       if (remHits.length) hits.set(r.id, new Set(remHits));
       return nameHit || remHits.length;
     });

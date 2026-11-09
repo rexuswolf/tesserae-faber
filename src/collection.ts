@@ -57,6 +57,8 @@ export interface OwnToken {
   type: string;
   group: string;
   name: Names;
+  /** What its front says, when it isn't its name (the name is how it's found in your lists). */
+  text?: Names;
   /** Feminine names, by language, where a language has them. */
   fem?: Record<string, string>;
   /** Its icon, ready to draw ({id, g, body}): a game-icons.net icon (id "author/name"), an uploaded or imported SVG. */
@@ -347,14 +349,16 @@ const namesOf = (n: Names) => (typeof n === "string" ? { en: n, es: n } : n);
 const creditOf = (icon: TokenIcon | null) => (icon?.source === "game-icons" ? { icon: icon.name, author: icon.author } : {});
 
 export function tokenRole(c: Collection, t: OwnToken, lang = "es"): Role {
-  const names = namesOf(t.name);
-  const langs = new Set(["en", "es", ...Object.keys(names), ...t.linked.flatMap((l) => (typeof l === "string" ? [] : Object.keys(l)))]);
+  // what it prints: its text, else its name; its name names it in your lists (listNames) when they differ
+  const names = namesOf(t.text && Object.values(namesOf(t.text)).some((v) => v.trim()) ? t.text : t.name), own = namesOf(t.name);
+  const langs = new Set(["en", "es", ...Object.keys(names), ...Object.keys(own), ...t.linked.flatMap((l) => (typeof l === "string" ? [] : Object.keys(l)))]);
   const type = c.types.find((x) => x.id === t.type);
   // the Edition back: the first closed catalog it's in ("Trouble Brewing"), else the collection's name
   const home = c.sections.find((s) => !s.open && s.catalogs.some((k) => k.tokens.includes(t.id)))?.catalogs.find((k) => k.tokens.includes(t.id));
   const icon = t.content === "text" ? null : t.icon;   // only its name: its icon kept for later, not drawn
   return {
     id: t.id, en: nameIn(names, "en"), es: nameIn(names, "es"), names: Object.fromEntries([...langs].map((l) => [l, nameIn(names, l)])), fem: t.fem ?? {},
+    ...(t.text ? { listNames: Object.fromEntries([...langs].map((l) => [l, nameIn(own, l)])) } : {}),
     team: t.group as Team,   // a group of the collection, registered as a team (main.ts, applyGroups)
     ...(t.colour ? { colour: t.colour } : {}),
     edition: "own", editionName: nameIn(home?.name ?? c.name, lang), collectionName: nameIn(c.name, lang),
@@ -540,7 +544,7 @@ export async function readCollectionFile(data: unknown, onProgress: (done: numbe
     const flip = t.flip && typeof t.flip === "object" && okName(t.flip.name) ? { name: t.flip.name, icon: await readIcon(t.flip, `svg:${okId(t.id)}~flip`) } : null;
     tokens.push({
       id: okId(t.id), type: knownType.has(okId(t.type)) ? okId(t.type) : types[0].id, group: knownGroup.has(okId(t.group)) ? okId(t.group) : groups[0].id,
-      name: t.name, ...(t.fem && typeof t.fem === "object" ? { fem: t.fem } : {}), ...(t.fixed ? { fixed: true } : {}), icon,
+      name: t.name, ...(okName(t.text) ? { text: t.text } : {}), ...(t.fem && typeof t.fem === "object" ? { fem: t.fem } : {}), ...(t.fixed ? { fixed: true } : {}), icon,
       linked: (t.linked ?? []).map((l) => (typeof l === "string" ? l : l?.name)).filter(okName),
       ...(flip ? { flip } : {}),
       ...(isHex(t.colour) ? { colour: t.colour } : {}),
