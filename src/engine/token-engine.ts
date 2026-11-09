@@ -934,14 +934,25 @@ function shapesToPath(shapes: THREE.Shape[], dx: number, y: number, div = 6) {
   return shapes.map((sh) => ring(sh.getPoints(div)) + sh.holes.map((h) => ring(h.getPoints(div))).join("")).join("");
 }
 
-/** Matrix that fits the role's icon into the window (from its SVG coordinates). */
+/** An icon's outline points (its outer contours), kept for the shapes they're of. */
+const iconPoints = new WeakMap<THREE.Shape[], THREE.Vector2[]>();
+const pointsOf = (shapes: THREE.Shape[]) => { let p = iconPoints.get(shapes); if (!p) iconPoints.set(shapes, (p = shapes.flatMap((sh) => sh.getPoints(4)))); return p; };
+/**
+ * Matrix that fits the role's icon into the window (from its SVG coordinates): as large as its box
+ * lets it, and no larger than the window's circle does (an icon wide at its top, like a diamond, would
+ * otherwise reach past the coin where the box's corners do); the design's icon scale on top.
+ */
 function windowIconMatrix(lib: Library, role: Role, W: WindowLayout, z: number, spec: TokenSpec) {
   const shapes = iconShapes(lib, role, spec);
   const box = boundsOf(shapes), size = new THREE.Vector2(); box.getSize(size);
   const h = W.icon.top - W.icon.bottom;
-  const k = Math.min((2 * W.icon.halfWidth) / Math.max(size.x, 1e-6), h / Math.max(size.y, 1e-6)) * (spec.iconScale || 1);
   const cy = (W.icon.top + W.icon.bottom) / 2;
   const bcx = (box.min.x + box.max.x) / 2, bcy = (box.min.y + box.max.y) / 2;
+  const limit = W.Rw - 1.2, pts = pointsOf(shapes);
+  const inside = (k: number) => pts.every((q) => Math.hypot((q.x - bcx) * k, cy - (q.y - bcy) * k) <= limit);
+  let fit = Math.min((2 * W.icon.halfWidth) / Math.max(size.x, 1e-6), h / Math.max(size.y, 1e-6));
+  if (!inside(fit)) { let lo = 0, hi = fit; for (let i = 0; i < 24; i++) { const m = (lo + hi) / 2; if (inside(m)) lo = m; else hi = m; } fit = lo; }
+  const k = fit * (spec.iconScale || 1);
   return { shapes, k, cy, bcx, bcy, m: chain(T(0, cy, z), S(k, -k, 1), T(-bcx, -bcy, 0)) };
 }
 
