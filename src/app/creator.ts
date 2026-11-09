@@ -3,7 +3,8 @@ import { emit } from "./events.ts";
 import { paintTesserae } from "./tesserae.ts";
 import { OWN, nameIn, storeMyLists, foldAbout, storeCollection, OWN_ID, builtIn, tallerUrl, readTokenList, newId, withName, copyBuiltIn, collectionUrl, collectionFile, readCollectionFile, addCollection, GROUP_COLOURS, SHAPES, collectionRoles, tokenRole as ownRole, isLocked, coinContent, THEMES, APP_LOGO, APP_LOGO_SMALL, APP_ICON, APP_NAME, hasCcc, THEME_FONTS, okLogo, builtInCollections, listCollections, lastCollection, openUrl, OWN_VIEW, LIST_URL, starterCollection, loadCollection, deleteCollection, isUntouchedStarter } from "../collection.ts";
 import type { OwnWord, OwnWords, OwnCatalog, OwnToken, OwnTheme, CollectionEntry, OwnFlip } from "../collection.ts";
-import { FILAMENT_SLOTS } from "../bambu/plates.ts";
+import { FILAMENT_SLOTS, slotOf, isFilament } from "../bambu/plates.ts";
+import { PLA_BASIC } from "../bambu/pla-basic.ts";
 import { coll, TEAM_ORDER, TEAM_PLURAL, PLATE_LABEL, PLATE_GROUP, $$, stickyNotice, state, $, esc, READONLY, hit, input, BUILT } from "./context.ts";
 import type { Role, Team, Hex, TokenShape, TokenIcon, TokenContent } from "../types.ts";
 import { uiLang, t, setOwnWords, applyStatic, appWord } from "../i18n.ts";
@@ -17,7 +18,7 @@ import { UI_ICONS, TEAM_ICONS, uiIcon, SHAPE_ICONS } from "../ui-icons.ts";
 import { renderLangButtons, closeOnBackdrop, tokenLang } from "./token-language.ts";
 import { storeOverrides, designOf, defaultRef, lookOf } from "./designs.ts";
 import { roleById } from "./wiring.ts";
-import { charKey, remindersOf, sortKeys } from "./tokens.ts";
+import { charKey, remindersOf, sortKeys, filamentName } from "./tokens.ts";
 import { searchQuery, pickedBadge, selectToken } from "./sheet.ts";
 import { rememberReturn, toast } from "./design-sheet.ts";
 import { drawer, PHONE } from "./scripts-ui.ts";
@@ -256,17 +257,27 @@ export function wireOwn() {
   wireOwnToken();
 }
 
-/** A group colour's name: its filament's (Yellow and Gold are two, alike on a screen). */
-const colourName = (hex: string) => { const f = FILAMENT_SLOTS.find((x) => x.hex === hex.toLowerCase()); return f ? t(`metal.${f.name.toLowerCase()}`) : hex; };
+/** A colour's name: the app's filament's (Yellow and Gold are two, alike on a screen), else Bambu's PLA Basic one's, else its code. */
+const colourName = (hex: string) => {
+  const h = hex.toLowerCase(), f = FILAMENT_SLOTS.find((x) => x.hex === h), b = PLA_BASIC.find((x) => x.hex === h);
+  return f ? t(`metal.${f.name.toLowerCase()}`) : b ? `${b.name[uiLang() === "es" ? "es" : "en"]} · Bambu PLA Basic` : hex;
+};
 /** The metal filaments: their swatches and dots have a sheen, so Gold isn't Yellow. */
 const METAL = new Set(FILAMENT_SLOTS.filter((f) => ["Gold", "Silver", "Bronze"].includes(f.name)).map((f) => f.hex));
 const metal = (hex: string) => (METAL.has(hex.toLowerCase()) ? " metal" : "");
 /** The colours a group can have, as swatches named after their filaments; `data` is each one's attributes. */
-/** Its colour pressed (whatever its case); one not among them (a file's own) is shown too, pressed, after them. */
+/**
+ * The colours: the app's filaments (the Bambu project prints them as they are), then Bambu's PLA
+ * Basic ones. Its colour pressed (whatever its case); one not among them (a file's own, picked
+ * elsewhere) is shown too, pressed, at the end; one that isn't the app's filament says which it prints in.
+ */
 const colourSwatches = (now: string | undefined, data: (hex: string) => string) => {
-  const cur = now?.toLowerCase(), own = cur && !GROUP_COLOURS.includes(cur as Hex) ? [cur] : [];
-  return [...GROUP_COLOURS, ...own].map((c) =>
-    `<button type="button" class="swatch${metal(c)}" style="--c: ${c}" ${data(c)} aria-pressed="${c === cur}" aria-label="${esc(colourName(c))}" title="${esc(colourName(c))}"></button>`).join("");
+  const cur = now?.toLowerCase(), bambu = PLA_BASIC.map((b) => b.hex.toLowerCase());
+  const known = (GROUP_COLOURS as string[]).includes(cur ?? "") || bambu.includes(cur ?? "");
+  const sw = (c: string) => `<button type="button" class="swatch${metal(c)}" style="--c: ${c}" ${data(c)} aria-pressed="${c === cur}" aria-label="${esc(colourName(c))}" title="${esc(colourName(c))}"></button>`;
+  return GROUP_COLOURS.map(sw).join("")
+    + `<small class="sw-head">Bambu PLA Basic</small>` + bambu.map(sw).join("") + (cur && !known ? sw(cur) : "")
+    + (cur && !isFilament(cur) ? `<small class="sw-note">${esc(t("metal.prints", { name: filamentName(slotOf(cur as Hex)) }))}</small>` : "");
 };
 
 /**

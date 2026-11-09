@@ -573,6 +573,20 @@ test("a collection's settings: its categories, and its own names for categories 
   expect(errors).toEqual([]);
 });
 
+test("a category's colour: the app's filaments, then Bambu's PLA Basic; one of those says which filament it prints in", async ({ page }) => {
+  const errors = await open(page, "/");
+  await makeToken(page, "Lobo");
+  await page.locator('[data-coll="settings"]').first().evaluate((b) => (b as HTMLElement).click());
+  await page.locator('[data-sp-tab="groups"]').click();
+  await page.locator("#ownGroupList .og-dot").first().click();
+  await expect(page.locator("#ownGroupList .og-colour[open] .sw-note")).toHaveCount(0);   // the app's: prints as it is
+  await page.locator('#ownGroupList .og-colour[open] [data-colour="#00b1b7"]').click();
+  await expect(page.locator("#ownGroupList .og-dot").first()).toHaveAttribute("title", "Turquoise · Bambu PLA Basic");
+  await page.locator("#ownGroupList .og-dot").first().click();
+  await expect(page.locator("#ownGroupList .og-colour[open] .sw-note")).toContainText("prints in blue");
+  expect(errors).toEqual([]);
+});
+
 test("a token of yours without an icon: the layouts that show one wait for it, and Plain carries nothing", async ({ page }) => {
   const errors = await open(page, "/");
   await makeToken(page, "Lobo");
