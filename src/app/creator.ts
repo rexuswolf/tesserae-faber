@@ -3,7 +3,8 @@ import { emit } from "./events.ts";
 import { paintTesserae } from "./tesserae.ts";
 import { OWN, catalogsOf, nameIn, storeCollection, OWN_ID, builtIn, tallerUrl, readTokenList, newId, withName, copyBuiltIn, collectionUrl, collectionFile, readCollectionFile, addCollection, GROUP_COLOURS, SHAPES, collectionRoles, tokenRole as ownRole, isLocked, coinContent, THEMES, APP_LOGO, APP_LOGO_SMALL, APP_ICON, APP_NAME, hasCcc, THEME_FONTS, okLogo, builtInCollections, listCollections, lastCollection, openUrl, OWN_VIEW, LIST_URL, starterCollection, loadCollection, deleteCollection, isUntouchedStarter } from "../collection.ts";
 import type { OwnCatalog, OwnSection, OwnToken, OwnTheme, CollectionEntry, OwnFlip } from "../collection.ts";
-import { coll, TEAM_ORDER, TEAM_PLURAL, PLATE_LABEL, PLATE_GROUP, $$, stickyNotice, state, $, esc, READONLY, hit, input, BUILT, COLOUR_CHOICES } from "./context.ts";
+import { FILAMENT_SLOTS } from "../bambu/plates.ts";
+import { coll, TEAM_ORDER, TEAM_PLURAL, PLATE_LABEL, PLATE_GROUP, $$, stickyNotice, state, $, esc, READONLY, hit, input, BUILT } from "./context.ts";
 import type { Role, Team, Hex, TokenShape, TokenIcon, TokenContent } from "../types.ts";
 import { uiLang, t } from "../i18n.ts";
 import { PRINT_GROUPS, persistPicks, renderDesignStage, setPick, goStep, editToken } from "./queue.ts";
@@ -254,6 +255,15 @@ export function wireOwn() {
   wireOwnToken();
 }
 
+/** A group colour's name: its filament's (Yellow and Gold are two, alike on a screen). */
+const colourName = (hex: string) => { const f = FILAMENT_SLOTS.find((x) => x.hex === hex.toLowerCase()); return f ? t(`metal.${f.name.toLowerCase()}`) : hex; };
+/** The metal filaments: their swatches and dots have a sheen, so Gold isn't Yellow. */
+const METAL = new Set(FILAMENT_SLOTS.filter((f) => ["Gold", "Silver", "Bronze"].includes(f.name)).map((f) => f.hex));
+const metal = (hex: string) => (METAL.has(hex.toLowerCase()) ? " metal" : "");
+/** The colours a group can have, as swatches named after their filaments; `data` is each one's attributes. */
+const colourSwatches = (now: string | undefined, data: (hex: string) => string) => GROUP_COLOURS.map((c) =>
+  `<button type="button" class="swatch${metal(c)}" style="--c: ${c}" ${data(c)} aria-pressed="${c === now}" aria-label="${esc(colourName(c))}" title="${esc(colourName(c))}"></button>`).join("");
+
 function renderOwnGroups() {
   const lang = uiLang();
   $("#ownTypeList").innerHTML = coll.types.map((ty) => `<div class="own-group">
@@ -267,7 +277,7 @@ function renderOwnGroups() {
   </div>`).join("");
   $("#ownGroupList").innerHTML = coll.groups.map((g) => `<div class="own-group">
     <input class="text" value="${esc(nameIn(g.name, lang))}" data-gname="${esc(g.id)}" aria-label="${esc(t("own.groupNameLabel"))}">
-    <span class="own-swatches">${GROUP_COLOURS.map((c) => `<button type="button" style="background:${c}" data-colour="${c}" data-for="${esc(g.id)}" aria-pressed="${c === g.colour}" aria-label="${c}"></button>`).join("")}</span>
+    <span class="own-swatches">${colourSwatches(g.colour, (c) => `data-colour="${c}" data-for="${esc(g.id)}"`)}</span>
     <small>${esc(t("own.groupCount", { n: coll.tokens.filter((tk) => tk.group === g.id).length }))}</small>
     ${coll.groups.length > 1 ? `<button class="link" type="button" data-gdel="${esc(g.id)}">${esc(t("own.deleteGroup"))}</button>` : ""}
   </div>`).join("");
@@ -443,7 +453,6 @@ function renderTokenPanel() {
   $<HTMLInputElement>("#ownTokText").value = nameIn(tk.text ?? tk.name, tokenLang());   // what it says: its name until it says something else
   $<HTMLInputElement>("#ownTokIq").value = ""; $("#ownTokHits").innerHTML = "";
   renderGroupPills(tk);
-  $("#ownTokGroupRow").hidden = coll.groups.length < 2;   // one group (a new collection's): nothing to choose, nor to explain yet
   const openCats = coll.sections.filter((x) => x.open).flatMap((x) => x.catalogs), inCat = (k: OwnCatalog) => k.tokens.includes(tk.id);
   $("#ownTokCats").innerHTML = openCats.map((k) => `<label class="check"><input type="checkbox" value="${esc(k.id)}"${inCat(k) ? " checked" : ""}> ${esc(nameIn(k.name, uiLang()))}</label>`).join("") || `<p class="hint">${esc(t("own.noCatalogs"))}</p>`;
   $("#ownTokCatsRow").hidden = !openCats.length;   // no catalogs of yours yet: nothing to put it in
@@ -518,14 +527,13 @@ function renderTokenColour(tk: OwnToken) {
   const one = coll.groups.length < 2, usual = t(one ? "own.colourUsual" : "own.colourGroup");   // one group: the collection's colour, groups unsaid
   $("#ownTokColourHelp").textContent = t(one ? "own.colourHelpOne" : "own.colourHelp");
   const group = coll.groups.find((g) => g.id === tk.group)?.colour ?? GROUP_COLOURS[0], now = tk.colour ?? group;
-  const name = (hex: string) => { const c = COLOUR_CHOICES.find((x) => x.hex === hex.toLowerCase()); return c ? t(`metal.${c.id}`) : hex; };
-  $("#ownTokColour summary").innerHTML = `<i style="--c: ${now}"></i><span>${esc(tk.colour ? name(tk.colour) : usual)}</span><b aria-hidden="true">▾</b>`;
-  $("#ownTokColour .tok-colour-menu").innerHTML = `<button class="pill group-pill" type="button" data-tcolour="" aria-pressed="${!tk.colour}" style="--c: ${group}"><i></i>${esc(usual)}</button>`
-    + `<span class="own-swatches">${GROUP_COLOURS.map((c) => `<button type="button" style="background:${c}" data-tcolour="${c}" aria-pressed="${c === tk.colour}" aria-label="${esc(name(c))}" title="${esc(name(c))}"></button>`).join("")}</span>`;
+  $("#ownTokColour summary").innerHTML = `<i class="${metal(now).trim()}" style="--c: ${now}"></i><span>${esc(tk.colour ? colourName(tk.colour) : usual)}</span><b aria-hidden="true">▾</b>`;
+  $("#ownTokColour .tok-colour-menu").innerHTML = `<button class="pill group-pill" type="button" data-tcolour="" aria-pressed="${!tk.colour}" style="--c: ${group}"><i class="${metal(group).trim()}"></i>${esc(usual)}</button>`
+    + `<span class="own-swatches">${colourSwatches(tk.colour, (c) => `data-tcolour="${c}"`)}</span>`;
 }
 /** The groups as their colours, the token's pressed, and a new one. */
 function renderGroupPills(tk: OwnToken) {
-  $("#ownTokGroups").innerHTML = coll.groups.map((g) => `<button class="pill group-pill" type="button" data-group="${esc(g.id)}" aria-pressed="${g.id === tk.group}" style="--c: ${g.colour}"><i></i>${esc(nameIn(g.name, uiLang()))}</button>`).join("")
+  $("#ownTokGroups").innerHTML = coll.groups.map((g) => `<button class="pill group-pill" type="button" data-group="${esc(g.id)}" aria-pressed="${g.id === tk.group}" style="--c: ${g.colour}"><i class="${metal(g.colour).trim()}"></i>${esc(nameIn(g.name, uiLang()))}</button>`).join("")
     + `<button class="pill" type="button" data-group-new>${esc(t("own.groupNew"))}</button>`;
   renderGroupEdit(tk);
 }
@@ -533,7 +541,7 @@ function renderGroupPills(tk: OwnToken) {
 function renderGroupEdit(tk: OwnToken) {
   const g = coll.groups.find((x) => x.id === tk.group);
   $("#ownTokGroupEdit").innerHTML = !g ? "" : `<input class="text" id="ownTokGroupName" value="${esc(nameIn(g.name, uiLang()))}" data-geid="${esc(g.id)}" aria-label="${esc(t("own.groupNameLabel"))}" autocomplete="off">`
-    + `<span class="own-swatches">${GROUP_COLOURS.map((c) => `<button type="button" style="background:${c}" data-gcolour="${c}" aria-pressed="${c === g.colour}" aria-label="${c}"></button>`).join("")}</span>`
+    + `<span class="own-swatches">${colourSwatches(g.colour, (c) => `data-gcolour="${c}"`)}</span>`
     + `<small class="hint">${esc(t("own.groupEditHelp"))}</small>`;
 }
 function renderOwnLinked(tk: OwnToken) {
@@ -654,7 +662,7 @@ function wireOwnToken() {
     const g = editedGroup(), name = input(e).value; if (!g || !name.trim()) return;
     g.name = withName(g.name, uiLang(), name.trim());
     const pill = $(`#ownTokGroups [data-group="${CSS.escape(g.id)}"]`);
-    pill.innerHTML = `<i></i>${esc(name.trim())}`;
+    pill.lastChild!.textContent = name.trim();
     ownEdited();
   };
   $("#ownTokGroupEdit").onchange = (e) => {   // left empty: its name as it was
@@ -768,8 +776,7 @@ function openOwnSettings() {
 let osTok: string | null = null;
 function renderTokColour() {
   $("#osTokColourRow").hidden = coll.groups.length > 1;   // more groups: each has its own (Types and groups)
-  const now = osTok ?? coll.groups[0]?.colour, name = (hex: string) => { const c = COLOUR_CHOICES.find((x) => x.hex === hex.toLowerCase()); return c ? t(`metal.${c.id}`) : hex; };
-  $("#osTokColour").innerHTML = GROUP_COLOURS.map((c) => `<button type="button" style="background:${c}" data-tokc="${c}" aria-pressed="${c === now}" aria-label="${esc(name(c))}" title="${esc(name(c))}"></button>`).join("");
+  $("#osTokColour").innerHTML = colourSwatches(osTok ?? coll.groups[0]?.colour, (c) => `data-tokc="${c}"`);
 }
 function renderOwnThemes() {
   const th = coll.theme ?? "faber", custom = typeof th === "object" ? th : null;

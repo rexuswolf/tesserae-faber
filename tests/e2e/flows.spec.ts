@@ -427,22 +427,22 @@ test("a token of yours is made and changed where it's designed: its Token tab, w
   expect(errors).toEqual([]);
 });
 
-test("a new group from a token's Token tab is named there at once, and its name and colour change there", async ({ page }) => {
+test("a new group from a token's Token tab, even the second, is named there at once; its name and colour change there", async ({ page }) => {
   const errors = await open(page, "/");
   await makeToken(page, "Lobo");
-  // a second group (a new collection has one, and nothing to choose then)
-  await page.locator("#ownGroupAdd").evaluate((b) => (b as HTMLElement).click());
-  await page.reload();
-  await page.getByRole("button", { name: /^Token Lobo/ }).click({ timeout: 30_000 });   // a reload opens on its Front
-  await expect(page.locator("#ownTokGroupRow")).toBeVisible();
+  // a new collection has one group: it's there to name, with "+ New group"
+  await expect(page.locator("#crTok #ownTokGroupRow")).toBeVisible();
+  await expect(page.locator("#ownTokGroups [data-group]")).toHaveCount(1);
   await page.locator("#ownTokGroups [data-group-new]").click();
   const name = page.locator("#ownTokGroupName");
   await expect(name).toBeFocused();
   await page.keyboard.type("Lobos");   // over its stand-in name, selected
   await expect(page.locator('#ownTokGroups [aria-pressed="true"]')).toHaveText("Lobos");
-  const colour = page.locator("#ownTokGroupEdit [data-gcolour]").nth(3);
-  await colour.click();
-  await expect(page.locator("#ownTokGroupEdit [data-gcolour]").nth(3)).toHaveAttribute("aria-pressed", "true");
+  // the colours are named after their filaments: Yellow and Gold are two
+  await expect(page.locator('#ownTokGroupEdit [data-gcolour="#d4a72c"]')).toHaveAttribute("title", "Yellow");
+  await expect(page.locator('#ownTokGroupEdit [data-gcolour="#c9a227"]')).toHaveAttribute("title", "Gold");
+  await page.locator('#ownTokGroupEdit [data-gcolour="#c9a227"]').click();
+  await expect(page.locator('#ownTokGroupEdit [data-gcolour="#c9a227"]')).toHaveAttribute("aria-pressed", "true");
   // emptied, it keeps its name; and it's kept
   await name.fill(""); await name.blur();
   await expect(name).toHaveValue("Lobos");
