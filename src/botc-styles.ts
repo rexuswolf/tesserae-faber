@@ -17,13 +17,15 @@ const dark = { base: FILAMENTS.black, front: "team", frame: "team", back: FILAME
 // Every one's frame starts 0.8 mm in from the coin's edge (frameInset): the frame's colour no longer
 // shows on the coin's side, which is all the base's (black).
 const INSET = 0.8;
-const EDITION = { style: "classic", frame: "rim", frameWidth: 0.8, frameInset: INSET, back: "edition", depth: 0.4, colours: dark } as const;
+// The back is the same on every token, the midnight clock without its border: turned over, a token
+// says neither its edition (people mix them) nor its team.
+const EDITION = { style: "classic", frame: "rim", frameWidth: 0.8, frameInset: INSET, back: "reloj", backFace: { frame: "none" }, depth: 0.4, colours: dark } as const;   // the back without the front's rim
 
 export const BOTC_STYLES: Record<TokenShape, StyleDef[]> = {
   // Edition, the one offered: the others are hidden (no longer offered), kept so a token already
   // in one of them still draws as it did
   coin: [
-    { id: "edicion", name: { es: "Edición", en: "Edition" }, help: { es: "Negra con el color del equipo y el nombre de la edición en oro al reverso.", en: "Black with the team colour and the edition's name in gold on the back." }, spec: EDITION },
+    { id: "edicion", name: { es: "Medianoche", en: "Midnight" }, help: { es: "Negra con el aro y el nombre del color del bando; al reverso, el reloj de medianoche en oro, igual en todas: dada la vuelta, no dice su edición ni su bando.", en: "Black with its rim and name in the team colour; on the back, the midnight clock in gold, the same on all: turned over, it says neither its edition nor its team." }, spec: EDITION },
     { id: "noche", hidden: true, name: { es: "Noche cerrada", en: "Pitch-black night" }, help: { es: "Negra, con las fases de la luna en el marco y una luna con estrellas en oro al reverso.", en: "Black, with the moon's phases round the rim and a moon with stars in gold on the back." },
       spec: { style: "classic", frame: "fases", frameWidth: 0.8, frameInset: INSET, back: "eclipse", depth: 0.4, colours: dark } },
     // the gold midnight clock on the back is light on a dark coin: 0.4 mm covers it

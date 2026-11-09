@@ -85,6 +85,7 @@ export const FRAME_STYLES = [
 export const BACK_STYLES = [
   { id: "none", label: "Plain" },
   { id: "medianoche", label: "Midnight" },
+  { id: "reloj", label: "Midnight clock" },
   { id: "guilloche", label: "Guilloché" },
   { id: "rosa", label: "Compass rose" },
   { id: "sol", label: "Sunburst" },
@@ -94,7 +95,7 @@ export const BACK_STYLES = [
   { id: "custom", label: "Your SVG" },
 ];
 /** The drawings a back face can carry for its icon (BackFace.art): the back designs that are pictures. */
-export const BACK_ORNAMENTS = ["medianoche", "guilloche", "rosa", "sol", "eclipse", "orbitas"];
+export const BACK_ORNAMENTS = ["medianoche", "reloj", "guilloche", "rosa", "sol", "eclipse", "orbitas"];
 /** The back designs kept before the back was a face, and what each became (migrateBack): a picture its icon, the edition (or the medallion or shield round it) its words. */
 const OLD_BACKS: Record<string, BackFace> = {
   ...Object.fromEntries(BACK_ORNAMENTS.map((id) => [id, { say: "none" as const, art: "none" }])),
@@ -1270,10 +1271,11 @@ export function backDesign(id: string, R: number): THREE.Shape[] | null {
 function backShapes(id: string, R: number): THREE.Shape[] | null {
   const out = R - 0.7;
   switch (id) {
-    case "medianoche": {
+    case "medianoche":
+    case "reloj": {
       // Beaded border, a fine inner ring, weighted hour markers, a small crescent
-      // moon at XII and tapered hands at five to midnight.
-      const sh = [annulus(out, out - 0.55), ...beads(out - 1.45, 64, 0.32), annulus(out - 2.2, out - 2.7)];
+      // moon at XII and tapered hands at five to midnight. The clock alone ("reloj"): no border nor rings.
+      const sh = id === "reloj" ? [] : [annulus(out, out - 0.55), ...beads(out - 1.45, 64, 0.32), annulus(out - 2.2, out - 2.7)];
       for (let h = 0; h < 12; h++) {
         const a = Math.PI / 2 - (h * TAU) / 12;
         if (h === 0) continue;                                     // XII holds the moon
@@ -2829,7 +2831,8 @@ function backColours(spec: SpecInput) {
 export function backFaceOf(role: Role, spec: TokenSpec, text: string): { role: Role; text: string; spec: TokenSpec } | null {
   if (spec.back !== FACE_BACK) return null;
   const other = flipFace(role, spec);
-  const look = !spec.linked ? backLookOf(spec) : {};
+  // a linked token (a reminder) has its own sizes; of the back's own look, it takes its frame (or none)
+  const own = backLookOf(spec), look = !spec.linked ? own : own.frame != null ? { frame: own.frame } : {};
   const c = backColours(spec);
   // the back's pattern behind it, in the back frame's colour (a pattern under a back design is in the design's)
   const face = windowFrame({ ...spec, ...look, frontPattern: spec.backPattern ? { ...spec.backPattern, colour: "frame" } : undefined, relief: backRelief(spec), colours: { ...spec.colours, front: c.front, frame: c.frame, icon: c.icon } });
