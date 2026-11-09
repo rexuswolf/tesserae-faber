@@ -378,7 +378,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .ccc-link:hover img { opacity: 1; }
 /* the guide's button, centred; "About" under the sleeve and the language */
 /* Footer pieces share the sidebar's width: the guide stretches beside the admin (when there is one),
-   "About this tool" fills the line under them. */
+   "About" fills the line under them. */
 .foot-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .foot-row .guide-btn { flex: 1; justify-content: center; }
 .ccc-banner { display: block; width: 100%; min-width: 0; }
