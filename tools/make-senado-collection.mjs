@@ -1,4 +1,4 @@
-// Writes The Senate collection that comes with the app (public/collections/senado.json) and its
+// Writes the Secret Caesar collection (César secreto; its id, senado) that comes with the app (public/collections/senado.json) and its
 // logo; the strip of tokens on its cover is tools/make-crear-art.mjs. Tokens to play the hidden-role
 // game of Secret Hitler (Goat, Wolf & Cabbage, CC BY-NC-SA 4.0: its attribution is in the
 // collection's About, src/builtins.ts), rethemed to the Roman Senate: the theme and the names are
@@ -107,7 +107,7 @@ const collection = {
   ],
   tokens,
   sections: [
-    { id: "senado", title: { es: "El Senado", en: "The Senate" }, open: false, catalogs: [
+    { id: "senado", title: { es: "César secreto", en: "Secret Caesar" }, open: false, catalogs: [
       // the whole game, to queue in one go
       { id: "partida", name: { es: "Partida completa", en: "Full game" }, tokens: [...ids(SIDES), ...ids(GOVERNMENT), ...ids(VOTE), ...ids(UNREST), ...ids(LAWS)] },
     ] },
