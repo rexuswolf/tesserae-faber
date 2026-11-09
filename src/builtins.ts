@@ -33,7 +33,7 @@ export const BUILT_INS: BuiltInEntry[] = [
     // the Roman Senate: the theme and every name on the tokens are ours; its attribution below,
     // and this adaptation under the same licence (non-commercial)
     id: "senado",
-    name: { es: "César secreto", en: "Secret Caesar" },
+    name: { es: "Secret Caesar", en: "Secret Caesar" },
     logo: "/collections/senado-logo.svg",
     accent: "#d4a72c",
     tokens: 11,
