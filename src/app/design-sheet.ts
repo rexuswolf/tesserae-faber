@@ -442,8 +442,9 @@ function renderBackStyleTiles(role: Role, spec: TokenSpec, text: string, pressed
 const SAMPLE_TEXT = "Lorem ipsum";
 /** A question mark in an icon's place (in the 127.56-unit square, drawn at 512): the icon a layout waits for. */
 const ASK_ICON = {
-  body: '<path d="M136 190A120 120 0 1 1 316 294L286 314L286 350L226 350L226 284L286 244A60 60 0 1 0 196 190Z"/><path d="M256 384A36 36 0 1 1 255.9 384Z"/>',
-  g: "scale(0.24914)", d: [], iconKey: "ask",
+  // a fine question mark, a little smaller than an icon (the layouts that fit an icon make it as large as one)
+  body: '<path d="M156 200A100 100 0 1 1 300 290L278 304L278 340L234 340L234 280L268 256A62 62 0 1 0 194 200Z"/><path d="M256 376A28 28 0 1 1 255.9 376Z"/>',
+  g: "scale(0.24914) translate(256 256) scale(0.8) translate(-256 -256)", d: [], iconKey: "ask",
 };
 /** What a layout carries: Symbol only its icon, Text only its name, the others both. */
 const contentOfStyle = (style: TokenStyle): TokenContent => (style === "solo" ? "icon" : style === "text" ? "text" : "both");
