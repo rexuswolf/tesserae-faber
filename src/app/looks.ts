@@ -68,6 +68,13 @@ const samePrint = (shape: TokenShape, a: SpecInput, b: SpecInput) => sameValue(p
  */
 export const printsAs = (shape: TokenShape, a: TokenSpec, b: TokenSpec, looks: LookChanges[]) =>
   samePrint(shape, a, b) && looks.every((l) => samePrint(shape, applyLook(a, l), applyLook(b, l)));
+/**
+ * A spec kept before a coin's frame could start in from its edge (it hasn't frameInset) as it compares
+ * with a collection's design: with the design's. One kept untouched before Clocktower's frames moved
+ * in 0.8 mm is that design still, and prints as the design now does, not as one of its own.
+ */
+export const keptBefore = (spec: TokenSpec, design: TokenSpec): TokenSpec =>
+  (spec.frameInset === undefined && design.frameInset !== undefined ? { ...spec, frameInset: design.frameInset } : spec);
 /** A look field of a spec ("frame", "colours.base"). */
 export const fieldOf = (s: SpecInput, f: string): unknown => (f.startsWith("colours.") ? (s.colours as Fields | undefined)?.[f.slice(8)] : (s as Fields)[f]);
 /** Sets a look field on a spec; nothing (or null, but for the uploaded back) takes it out, so the default holds. */

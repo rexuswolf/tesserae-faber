@@ -14,7 +14,7 @@ import { TALLER, tallerMine, renderTallerHead } from "./taller.ts";
 import { uiLang, t } from "../i18n.ts";
 import { specFor, textFor, charKey, ownIcon } from "./tokens.ts";
 import { editionName } from "./scripts-ui.ts";
-import { filled } from "./looks.ts";
+import { filled, keptBefore } from "./looks.ts";
 import { tokenLang } from "./token-language.ts";
 import { iconFromSvg, searchGameIcons, gameIconPreview, gameIcon } from "../icons.ts";
 import { renderDesignStage } from "./queue.ts";
@@ -163,6 +163,7 @@ function shapeLook(shape: TokenShape, spec: SpecInput) {
 /** Whether a spec differs from a collection's style in anything the style sets for the shape (the magnet is a choice of its own). */
 function differsFrom(d: StyleDef, spec: TokenSpec, shape: TokenShape) {
   const { preset: _id, ...whole } = defSpec(d);
+  spec = keptBefore(spec, whole as TokenSpec);   // kept before the frame could move in: as the style has it
   if (shape !== "coin") return JSON.stringify(shapeLook(shape, whole)) !== JSON.stringify(shapeLook(shape, spec));
   const colours = (c: unknown) => ({ ...DEFAULT_SPEC.colours, ...(c as Partial<SpecColours>) });
   return Object.entries(whole).some(([k, v]) => !STYLE_KEEPS.has(k)

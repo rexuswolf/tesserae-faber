@@ -19,3 +19,21 @@ describe("a coin's frame apart from its edge", () => {
     expect(outer(spec(99))).toBeCloseTo(DEFAULT_SPEC.diameter / 2 - 3, 1);
   });
 });
+
+describe("Clocktower's coin designs", () => {
+  it("keep their frame 0.8 mm in from the edge; a frameless one has no gap, and the other shapes none", async () => {
+    const { BOTC_STYLES } = await import("../../src/botc-styles.ts");
+    for (const d of BOTC_STYLES.coin) {
+      const frame = d.spec.frame ?? DEFAULT_SPEC.frame;
+      expect(d.spec.frameInset, d.id).toBe(frame === "none" ? undefined : 0.8);
+    }
+    for (const sh of ["ring", "card", "base"] as const) for (const d of BOTC_STYLES[sh]) expect(d.spec.frameInset, `${sh} ${d.id}`).toBeUndefined();
+  });
+  it("one kept before the gap existed compares as the design's, one of yours with a gap of its own as it is", async () => {
+    const { keptBefore } = await import("../../src/app/looks.ts");
+    const design = { ...DEFAULT_SPEC, frame: "rim", frameInset: 0.8 } as TokenSpec;
+    const { frameInset: _gone, ...old } = design;
+    expect(keptBefore(old as TokenSpec, design).frameInset).toBe(0.8);
+    expect(keptBefore({ ...design, frameInset: 0 }, design).frameInset).toBe(0);
+  });
+});

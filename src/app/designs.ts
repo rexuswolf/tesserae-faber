@@ -10,7 +10,7 @@ import { roleIdOf, charKey, remindersOf, remKey } from "./tokens.ts";
 import { shapeOf, migrateBack } from "../engine/token-engine.ts";
 import { tokenRole } from "./queue.ts";
 import { TALLER, taller } from "./taller.ts";
-import { applyLook, lookFrom, lookFields, printsAs } from "./looks.ts";
+import { applyLook, lookFrom, lookFields, printsAs, keptBefore } from "./looks.ts";
 import { placeGameIcon } from "../icons.ts";
 import { local } from "../services.ts";
 import { startedFrom } from "./workshop.ts";
@@ -227,7 +227,7 @@ function fromStyles(styles: Record<TokenShape, Style[]>, overrides: Map<string, 
  */
 function adoptStyle(shape: TokenShape, st: Style, looks: LookChanges[]): string {
   if (!st.name) {
-    const list = knownStyles(shape), same = (x: StyleDef) => printsAs(shape, st.spec, defSpec(x), looks);
+    const list = knownStyles(shape), same = (x: StyleDef) => printsAsDef(shape, st.spec, x, looks);
     const d = list.find((x) => x.id === st.tpl && same(x)) ?? list.find(same);
     if (d) return `c:${d.id}`;
   }
@@ -247,6 +247,8 @@ const styleName = (st: Style, shape: TokenShape) => {
   return st.name || (d ? defName(d) : t("style.mine"));
 };
 
+/** A spec prints as a collection's design (one kept before a field it sets, as kept then: keptBefore). */
+const printsAsDef = (shape: TokenShape, spec: TokenSpec, x: StyleDef, looks: LookChanges[]) => { const def = defSpec(x); return printsAs(shape, keptBefore(spec, def), def, looks); };
 /** Set once tidyMyDesigns has gone through your designs. */
 const TIDIED_KEY = "tesserae-styles-tidied-2";
 /**
@@ -284,7 +286,7 @@ export async function tidyMyDesigns() {
     // what one of yours is here: the collection's that prints the same, if it has one
     const asTheirs = (ref: string | undefined): string | undefined => {
       const sh = shapeOfMine(ref);
-      const d = sh && ship[sh].find((x) => printsAs(sh, specOfMine(sh, ref!), defSpec(x), looks));
+      const d = sh && ship[sh].find((x) => printsAsDef(sh, specOfMine(sh, ref!), x, looks));
       return d ? `c:${d.id}` : undefined;
     };
     let changed = false;
@@ -319,14 +321,14 @@ export async function tidyMyDesigns() {
   const all = [BOTC_STYLES, basicStyles(), Object.fromEntries(SHAPES.map((sh) => [sh, appDesigns(sh)])) as Record<TokenShape, StyleDef[]>, ...theirs.values()];
   let gone = false;
   for (const sh of SHAPES) {
-    const keep = mine[sh].filter((d) => used.has(`u:${d.id}`) || !all.some((s) => s[sh].some((x) => printsAs(sh, d.spec, defSpec(x), []))));
+    const keep = mine[sh].filter((d) => used.has(`u:${d.id}`) || !all.some((s) => s[sh].some((x) => printsAsDef(sh, d.spec, x, []))));
     if (keep.length !== mine[sh].length) { mine[sh] = keep; gone = true; }
   }
   // then every copy left, as asked: one of yours that prints as a collection's own, or is named after
   // one with its collection's name after it ("Parchment (Draw Steel)"), goes even where it's used;
   // what used it takes its collection's default (or the token its design by default)
   const shipped = new Set(all.flatMap((st) => SHAPES.flatMap((sh) => (st[sh] ?? []).flatMap((x) => (typeof x.name === "string" ? [x.name] : Object.values(x.name ?? {}))))));
-  const isCopy = (sh: TokenShape, d: MyDesign) => all.some((st) => (st[sh] ?? []).some((x) => printsAs(sh, d.spec, defSpec(x), [])))
+  const isCopy = (sh: TokenShape, d: MyDesign) => all.some((st) => (st[sh] ?? []).some((x) => printsAsDef(sh, d.spec, x, [])))
     || (() => { const m = d.name.match(/^(.*) \(([^()]+)\)$/); return !!m && shipped.has(m[1]); })();
   const dropped = new Set<string>();
   for (const sh of SHAPES) {
