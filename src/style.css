@@ -2282,3 +2282,27 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 @media (max-width: 420px) { .back-say-seg { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .comp-design-h { margin: 8px 0 -4px; padding-top: 14px; border-top: 1px solid var(--seam); font: 600 14px/1.3 var(--ui); }
 .comp-design-h[hidden] { display: none; }
+
+/* ---- the menu as one list: Design, then (under "Customise") the parts, with nothing to go into */
+.app[data-step="2"] .cr-item[data-cr="part"] { display: none !important; }
+.cr-parts-h { display: none; margin: 18px 24px 6px; color: var(--dust); font-size: 12.5px; font-weight: 600; }
+.app[data-step="2"] .cr-parts-h { display: block; }
+@media (min-width: 901px) {
+  .app[data-step="2"] .cr-cats { display: grid !important; }
+  .app[data-step="2"] .cr-nav .parts { display: grid !important; }
+  .app[data-step="2"] #crBack { display: none !important; }
+  /* while Design is open, no part is lit */
+  .app[data-step="2"][data-crc="design"] .cr-nav .parts button[aria-selected=true] { color: var(--dust); font-weight: 400; box-shadow: none; background: none; }
+}
+@media (max-width: 900px) {
+  /* the menu: Design, and the parts as rows under their heading */
+  .app[data-step="2"][data-crm="menu"] .cr-cats { display: grid !important; }
+  .app[data-step="2"][data-crm="menu"] .cr-nav .parts { display: grid !important; overflow: visible; mask-image: none; border-bottom: 0; }
+  .app[data-step="2"][data-crm="menu"] .cr-nav .parts button { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-right: 0; border-bottom: 1px solid var(--seam); font-size: 16px; color: var(--bone); background: none; box-shadow: none; font-weight: 400; }
+  .app[data-step="2"][data-crm="menu"] .cr-nav .parts button::after { content: "›"; color: var(--dust); font-size: 22px; }
+  .cr-parts-h { margin: 16px 16px 4px; }
+  /* inside: the way back, and (a part) the parts as tabs */
+  .app[data-step="2"][data-crm="in"] .cr-parts-h { display: none; }
+  .app[data-step="2"][data-crm="in"][data-crc="design"] .cr-nav .parts { display: none !important; }
+  .app[data-step="2"][data-crm="in"][data-crc="part"] .cr-nav .parts { display: flex !important; }
+}

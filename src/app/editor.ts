@@ -25,7 +25,7 @@ const app = () => $(".app");
 function show() {
   const a = app();
   a.dataset.crc = ed.cat;
-  a.dataset.crl = ed.cat === "part" ? "2" : "1";
+  a.dataset.crl = "flat";   // one level: Design, and the parts under it
   a.dataset.crm = ed.inside ? "in" : "menu";
   for (const b of document.querySelectorAll<HTMLElement>(".cr-cats [data-cr]")) b.setAttribute("aria-current", String(b.dataset.cr === ed.cat));
   $("#crBackLabel").textContent = t(ed.cat === "content" ? "editor.content" : ed.cat === "design" ? "editor.design" : "editor.custom");

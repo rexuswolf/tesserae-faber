@@ -296,24 +296,25 @@ test("the front page walks through the app: its chapters draw as they come near,
   expect(errors).toEqual([]);
 });
 
-test("designing, as a creator: Content, Design and Customise; customised, another design asks first", async ({ page }) => {
+test("designing, as a creator: Design and the parts under it; customised, another design asks first", async ({ page }) => {
   const errors = await open(page, "/c/senado");
   await pick(page, 1, '#rows [data-pick^="c:"]');
   await page.locator("#rows [data-design-row]").first().evaluate((b) => (b as HTMLElement).click());
-  // the designs, a list; the parts behind Customise
+  // the designs, a list; the parts in sight under it, none lit while Design is open
   const designs = page.locator("#crDesigns [data-cr-pick]");
   await expect(designs.nth(1)).toBeVisible();
-  await expect(page.locator("#parts")).toBeHidden();
-  const other = page.locator("#crDesigns [data-cr-pick][aria-selected=false]").first(), name = (await other.getAttribute("data-name"))!;
-  await other.click();
-  await expect(page.locator("#crValDesign")).toHaveText(name);
-  await page.locator('.cr-item[data-cr="part"]').click();
   await expect(page.locator("#parts")).toBeVisible();
+  // another design: the list may still be drawing itself for the token (another shape's designs a moment before), so
+  // take one, choose it, and see it chosen, until it takes
+  await expect(async () => {
+    const name = (await page.locator("#crDesigns [data-cr-pick][aria-selected=false]").first().getAttribute("data-name", { timeout: 1000 }))!;
+    await page.locator(`#crDesigns [data-cr-pick][data-name="${name}"]`).click({ timeout: 1000 });
+    await expect(page.locator("#crValDesign")).toHaveText(name, { timeout: 1000 });
+  }).toPass();
   // a change of its own: Customised, with its two actions
   await page.locator('#parts [data-part="body"]').click();   // the card's colour, in Card
   await page.locator('[data-panel="body"] .metal[data-colour="base"] button[aria-pressed=false]').first().click();
   await expect(page.locator("#crActs")).toBeVisible();
-  await page.locator("#crBack").click();
   await page.locator('.cr-item[data-cr="design"]').click();
   await expect(page.locator("#crDesigns [data-cr-mine]")).toHaveAttribute("aria-selected", "true");
   // another design drops the changes: it asks, and Cancel keeps them
