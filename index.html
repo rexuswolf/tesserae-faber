@@ -309,6 +309,9 @@
       <section class="ws-panel" data-panel="frame" role="tabpanel" hidden>
         <div class="choices" data-choice="frame"></div>
         <div class="row"><label for="frameWidth" data-i18n="range.frameWidth"></label><output data-for="frameWidth"></output><input type="range" id="frameWidth" min="0.4" max="2" step="0.1" value="0.8"></div>
+        <!-- a coin's frame in from its edge: its side all the base's colour -->
+        <div class="row"><label for="frameInset" data-i18n="range.frameInset"></label><output data-for="frameInset"></output><input type="range" id="frameInset" min="0" max="2" step="0.1" value="0"></div>
+        <p class="hint" id="frameInsetHint" data-i18n="frame.insetHint"></p>
         <div class="metal" data-colour="frame" data-i18n-attr="aria-label:frame.aria"></div>
       </section>
       <!-- a face's background pattern (patternGroupHtml): the front's, or the back's -->

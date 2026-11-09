@@ -843,6 +843,7 @@ export function syncControls(role: Role, spec: TokenSpec, token: Token) {
   if (shape === "ring") $("output[data-for=textSize]").textContent = (Math.min(face.textSize, +textSize.max)).toFixed(1).replace(".", dec) + " mm";
   const laid = role.content === "icon" || role.content === "none" ? "solo" : role.content === "text" ? "text" : shown?.spec.style ?? face.style;   // a token of yours that carries one thing is laid out for it
   const coinStyle = (st: TokenStyle) => shape === "coin" && laid === st;
+  row("frameInset").hidden = $("#frameInsetHint").hidden = shape !== "coin" || s.frame === "none";   // a coin's frame, apart from its edge
   row("textSize").hidden = !f.textSize || coinStyle("solo") || coinStyle("text");
   row("spacing").hidden = !f.spacing || coinStyle("window") || coinStyle("solo");
   row("maxArc").hidden = !f.maxArc || coinStyle("window") || coinStyle("solo") || coinStyle("text");

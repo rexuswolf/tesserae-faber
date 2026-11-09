@@ -168,6 +168,8 @@ export interface TokenSpec {
   /** A FRAME_STYLES id. */
   frame: string;
   frameWidth: number;
+  /** A coin's frame this far in from its edge (mm): 0, at the edge (its colour shows on the coin's side); more, the side all the base's. */
+  frameInset: number;
   /** A BACK_STYLES id (or one of the older "seal", "clock", "rings", "name"); shapeSpec makes it
    *  FACE_BACK when the back is a face. */
   back: string;
@@ -239,6 +241,7 @@ export interface CardBack {
   cardJoin?: CardJoin;
   frame?: string;
   frameWidth?: number;
+  frameInset?: number;
   colours?: { text?: ColourRef; frame?: ColourRef };
 }
 

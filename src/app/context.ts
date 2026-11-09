@@ -29,8 +29,8 @@ export const fold = (s: string) => String(s).toLowerCase().normalize("NFD").repl
 export type Fields = Record<string, unknown>;
 
 /** The sliders: each field's decimals and unit. */
-export type RangeKey = "diameter" | "height" | "depth" | "reliefHeight" | "reliefBevel" | "iconScale" | "textSize" | "spacing" | "maxArc" | "frameWidth" | "cardIconSize";
-export const RANGES: Record<RangeKey, [number, string]> = { diameter: [0, " mm"], height: [1, " mm"], depth: [1, " mm"], reliefHeight: [1, " mm"], reliefBevel: [1, " mm"], iconScale: [2, "×"], textSize: [1, " mm"], spacing: [2, "×"], maxArc: [0, "°"], frameWidth: [1, " mm"], cardIconSize: [0, " mm"] };
+export type RangeKey = "diameter" | "height" | "depth" | "reliefHeight" | "reliefBevel" | "iconScale" | "textSize" | "spacing" | "maxArc" | "frameWidth" | "frameInset" | "cardIconSize";
+export const RANGES: Record<RangeKey, [number, string]> = { diameter: [0, " mm"], height: [1, " mm"], depth: [1, " mm"], reliefHeight: [1, " mm"], reliefBevel: [1, " mm"], iconScale: [2, "×"], textSize: [1, " mm"], spacing: [2, "×"], maxArc: [0, "°"], frameWidth: [1, " mm"], frameInset: [1, " mm"], cardIconSize: [0, " mm"] };
 export const MAX_SVG = 300000;
 // The source code. Its links (sidebar footer and credits) stay hidden while the repository
 // is private, so nobody lands on GitHub's 404: set REPO_PUBLIC to true once it is published.

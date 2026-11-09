@@ -154,6 +154,7 @@ export const DEFAULT_SPEC: TokenSpec = {
   maxArc: 180,
   frame: "none",
   frameWidth: 0.8,
+  frameInset: 0,
   back: "none",
   backMode: "design",     // the back is the design above, or a face (see BackMode)
   customSvg: null,
@@ -616,7 +617,7 @@ function fittedIcon(lib: Library, role: Role, spec: TokenSpec, text: string) {
     const a = fittedAutoIcon(lib, spec, text, shapes, o, auto, iconOf(role, spec).key);
     if (a.k > 0) return a;   // no room anywhere beside the word: the usual layout below
   }
-  const key = [iconOf(role, spec).key, text, spec.style, spec.diameter, faceRadius(spec), spec.textSize, spec.spacing, spec.margin, spec.maxArc, spec.frame, spec.frameWidth].join("|");
+  const key = [iconOf(role, spec).key, text, spec.style, spec.diameter, faceRadius(spec), spec.textSize, spec.spacing, spec.margin, spec.maxArc, spec.frame, spec.frameWidth, frameInsetOf(spec)].join("|");
   if (!fitted.has(key)) {
     const edge = frameInner(spec), L = arcName(lib, text, spec);
     // each name's ink as an annular sector: the angles it covers and how near the centre it reaches
@@ -667,7 +668,7 @@ function nameSector(lib: Library, L: ReturnType<typeof layoutName>) {
 
 /** fittedIcon for autoText: the icon as large as fits (up to auto.icon), moved up the axis to the middle of its room. */
 function fittedAutoIcon(lib: Library, spec: TokenSpec, text: string, shapes: THREE.Shape[], o: ReturnType<typeof iconOutline>, auto: AutoText, iconKey: string) {
-  const key = ["auto", iconKey, text, spec.diameter, faceRadius(spec), spec.textSize, spec.spacing, spec.margin, spec.maxArc, spec.frame, spec.frameWidth, auto.cap, auto.arc, auto.icon, auto.maxArc].join("|");
+  const key = ["auto", iconKey, text, spec.diameter, faceRadius(spec), spec.textSize, spec.spacing, spec.margin, spec.maxArc, spec.frame, spec.frameWidth, frameInsetOf(spec), auto.cap, auto.arc, auto.icon, auto.maxArc].join("|");
   if (!fitted.has(key)) {
     const edge = frameInner(spec), sc = nameSector(lib, layoutName(lib, text, spec));
     const fits = (k: number, dy: number) => o.rel.every(([ux, uy]) => {
@@ -1101,7 +1102,8 @@ function moonPhase(x: number, y: number, r: number, phase: number) {
 }
 
 /** How far inside the coin's edge the frame starts (mm): none, it runs out to the edge. */
-const FRAME_INSET = 0;
+/** How far in from the coin's edge its frame starts (mm): the design's (frameInset), none unless it says. */
+const frameInsetOf = (spec: Partial<Pick<TokenSpec, "frameInset">>) => Math.min(Math.max(+(spec.frameInset ?? 0) || 0, 0), 3);
 /** Sides of the coin's outline (buildBase's cylinder). */
 const coinSegments = () => 160;
 /**
@@ -1119,7 +1121,7 @@ function edgeRing(rOut: number, rIn: number, n: number) {
 const frameDesigns = new Map<string, { shapes: THREE.Shape[]; inner: number } | null>();
 /** Filled shapes for the front frame and its inner edge, or null for none (the same ones for the same frame). */
 export function frameDesign(spec: TokenSpec): { shapes: THREE.Shape[]; inner: number } | null {
-  const key = `${spec.frame}|${spec.frameWidth}|${faceRadius(spec)}`;
+  const key = `${spec.frame}|${spec.frameWidth}|${frameInsetOf(spec)}|${faceRadius(spec)}`;
   if (!frameDesigns.has(key)) {
     frameDesigns.set(key, makeFrameDesign(spec));
     if (frameDesigns.size > 100) frameDesigns.delete(frameDesigns.keys().next().value!);
@@ -1127,7 +1129,7 @@ export function frameDesign(spec: TokenSpec): { shapes: THREE.Shape[]; inner: nu
   return frameDesigns.get(key)!;
 }
 function makeFrameDesign(spec: TokenSpec): { shapes: THREE.Shape[]; inner: number } | null {
-  const w = spec.frameWidth, out = faceRadius(spec) - FRAME_INSET, edge = out - w;
+  const w = spec.frameWidth, out = faceRadius(spec) - frameInsetOf(spec), edge = out - w;
   const rim = edgeRing(out, edge, coinSegments());
   const sh: THREE.Shape[] = [rim];
   let inner = edge;
@@ -1758,7 +1760,7 @@ function frontPattern(lib: Library, role: Role, spec: TokenSpec, text: string): 
   const p = spec.frontPattern;
   if (!p || !PATTERN_IDS.has(p.id) || spec.style === "window" || !SHAPE_FEATURES[shapeOf(role)].pattern) return null;
   const key = ["front", JSON.stringify({ ...p, colour: null }), iconOf(role, spec).key, text, spec.style, spec.diameter, spec.textSize, spec.spacing, spec.margin, spec.maxArc,
-    spec.frame, spec.frameWidth, spec.iconScale, spec.iconOffsetY, JSON.stringify(spec.autoText ?? null), faceRadius(spec)].join("|");
+    spec.frame, spec.frameWidth, frameInsetOf(spec), spec.iconScale, spec.iconOffsetY, JSON.stringify(spec.autoText ?? null), faceRadius(spec)].join("|");
   // an illustration fills what the frame leaves, a little clear of it
   const fd = frameDesign(spec), inner = fd ? fd.inner - 0.8 : faceRadius(spec);
   return cached(key, () => { const { ink, solid } = frontInk(lib, role, spec, text); return cutPattern(p, faceRadius(spec), ink, solid, inner, fd ? fd.inner : Infinity); });
@@ -3155,7 +3157,7 @@ export function tokenSvg(lib: Library, role: Role, input: SpecInput | undefined,
       name += `<path fill="${c.front}" fill-rule="evenodd" d="${shapesToPath(shapes, dx, line.y)}"/>`;
     }
     body += up("text", name);
-    if (spec.frame !== "none") body += up("frame", `<circle r="${(faceRadius(spec) - FRAME_INSET - spec.frameWidth / 2).toFixed(2)}" fill="none" stroke="${c.frame}" stroke-width="${spec.frameWidth}"/>`);
+    if (spec.frame !== "none") body += up("frame", `<circle r="${(faceRadius(spec) - frameInsetOf(spec) - spec.frameWidth / 2).toFixed(2)}" fill="none" stroke="${c.frame}" stroke-width="${spec.frameWidth}"/>`);
   } else if (side === "front") {
     const icon = spec.style === "text" ? null : iconOf(role, spec);
     if (spec.style === "text" || !icon) {
