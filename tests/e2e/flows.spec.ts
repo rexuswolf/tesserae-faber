@@ -354,6 +354,9 @@ test("what a token shows is the token's: chosen when made, kept, and the design 
   await page.locator("[data-tok-new=maker]").evaluate((b) => (b as HTMLElement).click());
   await page.waitForURL(/\/c\//);
   await expect(page.locator("#tokenPanel")).toHaveAttribute("open", "", { timeout: 30_000 });
+  // an icon of its own (an SVG of yours: no waiting on game-icons.net), so it can do without its name
+  await page.locator("#ownTokSvg").setInputFiles({ name: "wolf.svg", mimeType: "image/svg+xml", buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M1 1h8v8H1z"/></svg>') });
+  await expect(page.locator("#ownTokChip [data-icon-none]")).toBeVisible();
   // its name not printed: its icon alone
   await page.locator("#ownTokPrint").uncheck();
   await expect(page.locator("#ownTokNameHint")).toBeVisible();
@@ -365,7 +368,7 @@ test("what a token shows is the token's: chosen when made, kept, and the design 
   await expect(page.locator("#tokenPanel")).not.toHaveAttribute("open", "");
   await page.locator("[data-own-edit]").first().click();
   await expect(page.locator("#ownTokPrint")).toBeChecked();
-  await expect(page.locator("#ownTokChip")).not.toContainText("wolf");
+  await expect(page.locator("#ownTokChip [data-icon-none]")).toHaveCount(0);   // no icon now
   expect(errors).toEqual([]);
 });
 

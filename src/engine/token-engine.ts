@@ -1207,8 +1207,8 @@ function makeFrameDesign(spec: TokenSpec): { shapes: THREE.Shape[]; inner: numbe
       break;
     }
     case "runas": {
-      // Rune-like marks (made up, no real alphabet) between the rim and a thin inner ring.
-      const r0 = edge - 0.5, r1 = edge - 2.0, rIn = r1 - 0.5, n = Math.round((TAU * edge) / 3.2), w = 0.5;
+      // Rune-like marks (made up, no real alphabet) centred between the rim and a thin inner ring, 0.6 mm from each.
+      const r0 = edge - 0.6, r1 = r0 - 1.9, ringOut = r1 - 0.6, rIn = ringOut - 0.45, n = Math.round((TAU * edge) / 3.2), w = 0.6;
       const bar = (p: THREE.Vector2, q: THREE.Vector2) => { const d = q.clone().sub(p).normalize(), nn = new THREE.Vector2(-d.y, d.x).multiplyScalar(w / 2);
         return polygon([p.clone().add(nn), q.clone().add(nn), q.clone().sub(nn), p.clone().sub(nn)]); };
       const da = 0.55 / edge;                                   // ~0.55 mm either side of a mark's axis
@@ -1218,7 +1218,7 @@ function makeFrameDesign(spec: TokenSpec): { shapes: THREE.Shape[]; inner: numbe
           [[A(r0, -1), A(r1, 1)], [A(r0, 1), A(r1, -1)]], [[A(r0, -1), A(r1, 0)], [A(r1, 0), A(r0, 1)]]][i % 4];
         for (const [p, q] of marks) sh.push(bar(p, q));
       }
-      sh.push(annulus(r1 - 0.05, rIn)); inner = rIn;
+      sh.push(annulus(ringOut, rIn)); inner = rIn;
       break;
     }
     case "laurel": {

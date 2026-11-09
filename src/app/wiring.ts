@@ -11,7 +11,7 @@ import { persistPicks, editToken, isPicked, setPick, renderQueue, goStep, flow, 
 import { renderSpine, renderSheet, onCopyStep, openRows, toggleCharacter, openAddMenu, addShown } from "./sheet.ts";
 import { openTokenPanel, wireCollSwitch, wireOwn, setOwnContent } from "./creator.ts";
 import { wireEditor, openContent } from "./editor.ts";
-import { wireDesignBar, deepenAll, openDesignSheet, wireDesignSheet, saveLookAsDesign, setOwn, rememberReturn, renderSays, setBackFace, backToFront, backDrawn, changeLook, deepen, resetField, setReliefFace, toggleReliefPart, changePattern, changeCardBack, changeBackContent } from "./design-sheet.ts";
+import { wireDesignBar, deepenAll, openDesignSheet, wireDesignSheet, saveLookAsDesign, setOwn, rememberReturn, renderSays, setBackFace, backToFront, backDrawn, changeLook, deepen, resetField, setReliefFace, toggleReliefPart, changePattern, changeCardBack, changeBackContent, FRAME_START_WIDTH } from "./design-sheet.ts";
 import { OWN } from "../collection.ts";
 import { TALLER } from "./taller.ts";
 import { designFor, rereadMyDesigns } from "./designs.ts";
@@ -230,6 +230,8 @@ export function wire() {
       change(key, (s) => {
         // a name size doesn't carry over between layouts: each starts from its own
         if (key === "style" && (s.style ?? DEFAULT_SPEC.style) !== b.dataset.v) s.textSize = LAYOUT_TEXT[b.dataset.v as TokenStyle];
+        // a frame that starts with a rim of its own width (the runes': fine)
+        if (key === "frame" && FRAME_START_WIDTH[b.dataset.v!] != null && s.frame !== b.dataset.v) s.frameWidth = FRAME_START_WIDTH[b.dataset.v!];
         if (key === "edge" && b.dataset.v === "smooth") delete s.edge;   // smooth is unset: the coin as always
         else (s as unknown as Fields)[key] = b.dataset.v;
       });

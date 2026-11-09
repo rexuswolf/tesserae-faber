@@ -445,6 +445,8 @@ function renderStyleTiles(face: { role: Role; text: string }, spec: TokenSpec) {
   }).join("");
 }
 
+/** A frame's rim as it starts when chosen (the runes': fine, so the runes show), then changed with Width. */
+export const FRAME_START_WIDTH: Record<string, number> = { runas: 0.5 };
 /** The frame designs, each drawn on the token in the face's current colours. A card or a ring
  *  (whose shape has frames only as a line) gets two tiles, without and with, drawn on itself; a
  *  card a third, only its corners. */
@@ -458,7 +460,7 @@ function renderFrameTiles(face: { role: Role; text: string }, spec: TokenSpec) {
   const list = s.style === "window" ? FRAME_STYLES.filter((f) => f.id === "none" || f.id === "rim") : FRAME_STYLES;
   $("[data-choice=frame]").innerHTML = list.map((f) =>
     `<button class="back-tile frame-tile" type="button" data-v="${f.id}" aria-pressed="${(s.style === "window" && s.frame !== "none" ? "rim" : s.frame) === f.id}">${
-      tokenSvg(state.lib!, role, { ...s, frame: f.id, frameWidth: f.id === "rim" || f.id === "double" ? Math.max(s.frameWidth, 0.8) : s.frameWidth }, { text })
+      tokenSvg(state.lib!, role, { ...s, frame: f.id, frameWidth: f.id === "rim" || f.id === "double" ? Math.max(s.frameWidth, 0.8) : f.id === "runas" ? FRAME_START_WIDTH.runas : s.frameWidth }, { text })
     }<span>${esc(t(`frame.${f.id}`))}</span></button>`).join("");
 }
 /** A card's or a ring's frames (a line, or none; a card's also only its corners, or laurels), each with its name.
