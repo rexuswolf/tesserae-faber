@@ -2191,7 +2191,11 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 @media (max-width: 900px) {
   /* the design (one chip per shape, each its own width) and Print share the line; with two shapes Print goes under */
   .head-tools .design-bar-wrap { flex: 1 1 auto; }
-  .head-tools .design-bar .db-chip { flex: 1 1 auto; min-width: max-content; }
+  /* each chip and Print a full share of the line: what it is at the left, its chevron at the right edge */
+  .head-tools .design-bar .db-chip { flex: 1 1 0; min-width: 0; padding-right: 16px; }
+  .head-tools .design-bar .db-chip > span:not(.style-sw) { flex: 1; }
+  .head-tools .design-bar .db-chip > svg:last-child, .head-tools .addmenu .pill.add.main .chev { margin-left: auto; flex: none; }
+  .head-tools .addmenu .pill.add.main { justify-content: flex-start; padding-inline: 18px 16px; }
   .head-tools .addmenu { flex: 1 1 140px; }
 }
 .filters .filter-row { max-width: var(--measure); }
