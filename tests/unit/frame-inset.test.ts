@@ -48,11 +48,11 @@ describe("Clocktower's coin designs", () => {
 });
 
 describe("Clocktower's back", () => {
-  it("is the same on every token: the midnight clock without its border, and no frame", async () => {
+  it("is the same on every token: the midnight clock without its border, in a plain rim", async () => {
     const { BOTC_STYLES } = await import("../../src/botc-styles.ts");
     const spec = BOTC_STYLES.coin.find((d) => d.id === "edicion")!.spec as { back?: string; backFace?: { frame?: string } };
     expect(spec.back).toBe("reloj");
-    expect(spec.backFace?.frame).toBe("none");
+    expect(spec.backFace?.frame).toBe("rim");
   });
   it("its clock reaches no nearer the edge than the midnight one's inner ring did", async () => {
     const { backDesign } = await import("../../src/engine/token-engine.ts");
