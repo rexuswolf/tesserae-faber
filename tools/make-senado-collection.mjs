@@ -6,7 +6,8 @@
 //   node tools/make-senado-collection.mjs
 // Types: sides (who you are), government (Consul and Tribune, two-sided: turned over when their
 // term ends), the vote (two-sided), unrest (the election tracker, for playing without the board) as
-// coins, and the laws as cards. No executive powers.
+// coins, the laws as cards, each side's affiliation (what an investigation shows) and the executive powers
+// (coins, laid by the row of laws where the player count puts them: tools' About says where).
 import fs from "node:fs";
 import path from "node:path";
 import { BUILT_INS } from "../src/builtins.ts";   // its theme, loading line and About: one place
@@ -29,7 +30,7 @@ const icon = (name) => {
 
 // Colours are filaments the printer has (src/collection.ts GROUP_COLOURS), each group its own: the
 // Republic marble white, the conspiracy red (the daggers), its would-be Caesar Tyrian purple,
-// the offices silver, the vote bronze (the tablets), the unrest yellow (the torches).
+// the offices silver, the vote blue, the unrest bronze (the torches), the powers yellow.
 const C = { bone: FILAMENTS.white, red: "#b3191e", purple: "#8a3d9e", silver: FILAMENTS.silver, bronze: FILAMENTS.bronze, yellow: "#d4a72c" };
 const tok = (id, type, group, name, ic, extra = {}) => ({ id, type, group, name, ...(ic ? icon(ic) : { icon: null }), linked: [], ...extra });
 const flip = (name, ic) => ({ flip: { name, ...icon(ic) } });
@@ -57,7 +58,21 @@ const LAWS = [
   tok("ley", "leyes", "republica", { es: "Ley de la República", en: "Law of the Republic" }, "greek-temple"),
   tok("decreto", "leyes", "conjura", { es: "Decreto del Tirano", en: "Tyrant's Decree" }, "caesar"),
 ];
-const tokens = [...SIDES, ...GOVERNMENT, ...VOTE, ...UNREST, ...LAWS];
+// each player's affiliation, dealt with their role (the Aspiring Caesar a Conspiracy one): an investigation
+// shows it, never the role. Icons of their own, so a role and an affiliation aren't mistaken
+const AFFILIATIONS = [
+  tok("afiliacion-republica", "fichas", "republica", { es: "República", en: "Republic" }, "eagle-emblem"),
+  tok("afiliacion-conjura", "fichas", "conjura", { es: "Conjura", en: "Conspiracy" }, "plain-dagger"),
+];
+// the executive powers, laid by the row of laws: a Tyrant's Decree passed on one gives it to the Consul
+const POWERS = [
+  tok("investigar", "fichas", "poderes", { es: "Investigar", en: "Investigate" }, "magnifying-glass"),
+  tok("eleccion-especial", "fichas", "poderes", { es: "Elección especial", en: "Special Election" }, "pointing"),
+  tok("augurio", "fichas", "poderes", { es: "Augurio", en: "Augury" }, "crow-dive"),
+  tok("proscripcion", "fichas", "poderes", { es: "Proscripción", en: "Proscription" }, "death-note"),
+  tok("veto", "fichas", "poderes", { es: "Veto", en: "Veto" }, "hand"),
+];
+const tokens = [...SIDES, ...AFFILIATIONS, ...GOVERNMENT, ...VOTE, ...UNREST, ...POWERS, ...LAWS];
 const ids = (list) => list.map((t) => t.id);
 
 // The styles it comes with (src/collection.ts StyleDef), per shape; "team" is the token's group
@@ -104,12 +119,13 @@ const collection = {
     { id: "gobierno", name: { es: "Gobierno", en: "Government" }, colour: C.silver, iconBody: bare("laurel-crown") },
     { id: "votos", name: { es: "Votos", en: "Votes" }, colour: "#2f86e0", iconBody: bare("thumb-up") },
     { id: "tumultos", name: { es: "Tumultos", en: "Unrest" }, colour: C.bronze, iconBody: bare("torch") },
+    { id: "poderes", name: { es: "Poderes", en: "Powers" }, colour: C.yellow, iconBody: bare("magnifying-glass") },
   ],
   tokens,
   sections: [
     { id: "senado", title: { es: "Secret Caesar", en: "Secret Caesar" }, open: false, catalogs: [
       // the whole game, to queue in one go
-      { id: "partida", name: { es: "Partida completa", en: "Full game" }, tokens: [...ids(SIDES), ...ids(GOVERNMENT), ...ids(VOTE), ...ids(UNREST), ...ids(LAWS)] },
+      { id: "partida", name: { es: "Partida completa", en: "Full game" }, tokens: [...ids(SIDES), ...ids(AFFILIATIONS), ...ids(GOVERNMENT), ...ids(VOTE), ...ids(UNREST), ...ids(POWERS), ...ids(LAWS)] },
     ] },
     { id: "partidas", title: { es: "Partidas", en: "Games" }, open: true, catalogs: [] },
   ],
@@ -117,7 +133,7 @@ const collection = {
 };
 const out = path.join(root, "public/collections/senado.json");
 fs.writeFileSync(out, JSON.stringify(asLists(collection)));   // as the app keeps it: shapes on the tokens, the sections' catalogs as its own lists
-console.log(`wrote ${out}: ${tokens.length} tokens (${SIDES.length} sides, ${GOVERNMENT.length + VOTE.length} two-sided, ${UNREST.length} unrest (two-sided too), ${LAWS.length} laws)`);
+console.log(`wrote ${out}: ${tokens.length} tokens (${SIDES.length} sides, ${AFFILIATIONS.length} affiliations, ${POWERS.length} powers, ${GOVERNMENT.length + VOTE.length} two-sided, ${UNREST.length} unrest (two-sided too), ${LAWS.length} laws)`);
 if (SEN.tokens !== tokens.length) console.warn(`src/builtins.ts says ${SEN.tokens} tokens: make it ${tokens.length}`);
 
 // its logo: a laurel wreath with a dagger through it, bone on Pompeian red
