@@ -2248,3 +2248,6 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 
 /* the back's other state: a switch at the head of its block */
 .tp-flip-sw { margin-left: auto; padding: 0; font-weight: 400; font-size: 14px; color: var(--bone); }
+/* Background's choices: four to a row like Icon's and Frame's, every tile the same width whatever its name */
+[data-pat-choice] { display: grid !important; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+[data-pat-choice] .back-tile { min-width: 0; overflow-wrap: anywhere; }

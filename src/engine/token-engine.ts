@@ -97,9 +97,10 @@ export const BACK_STYLES = [
 export const BACK_ORNAMENTS = ["medianoche", "guilloche", "rosa", "sol", "eclipse", "orbitas"];
 /** The back designs kept before the back was a face, and what each became (migrateBack): a picture its icon, the edition (or the medallion or shield round it) its words. */
 const OLD_BACKS: Record<string, BackFace> = {
-  ...Object.fromEntries([...BACK_ORNAMENTS, "custom"].map((id) => [id, { say: "none" as const, art: id }])),
+  ...Object.fromEntries(BACK_ORNAMENTS.map((id) => [id, { say: "none" as const, art: "none" }])),
+  custom: { say: "none", art: "custom" },
   edition: { say: "edition", art: "none" },
-  medallon: { say: "edition", art: "eclipse" },
+  medallon: { say: "edition" },
   escudo: { say: "edition" }, escudete: { say: "edition" },
 };
 
@@ -1351,7 +1352,10 @@ export const PATTERNS: { id: PatternId; label: string }[] = [
   { id: "cuartelado", label: "Quartered" },
   { id: "damero", label: "Checkerboard" },
 ];
-const PATTERN_IDS = new Set(PATTERNS.map((p) => p.id));
+/** The illustrations a face's background can be (Midnight, Guilloché, the sun…): one drawing filling what its frame leaves. */
+export const ILLUSTRATIONS: PatternId[] = BACK_ORNAMENTS.map((id) => `ill-${id}` as PatternId);
+export const isIllustration = (id: string | undefined) => !!id && id.startsWith("ill-") && BACK_ORNAMENTS.includes(id.slice(4));
+const PATTERN_IDS = new Set<string>([...PATTERNS.map((p) => p.id), ...ILLUSTRATIONS]);
 /** The thinnest line, gap or piece a pattern prints (mm): about a nozzle's width and a half. */
 export const PATTERN_MIN = 0.6;
 /** The halo of coin colour round what sits on a pattern (mm), unless the pattern sets its own. */
@@ -1387,7 +1391,7 @@ const boxOf = (p: Poly) => {
 };
 
 /** What a pattern's fields are when it leaves them out: a rhombus's width, the line (the gap between cells) and the halo (mm). */
-export const patternDefaults = (id: PatternId) => ({
+const PATTERN_DEFAULTS: Record<string, { scale: number; line: number; halo: number }> = {
   "rombos-lineas": { scale: 3.2, line: PATTERN_MIN, halo: PATTERN_HALO },
   "damero-rombos": { scale: 3, line: 0.7, halo: PATTERN_HALO },
   "escamas": { scale: 4.4, line: PATTERN_MIN, halo: PATTERN_HALO },
@@ -1395,9 +1399,11 @@ export const patternDefaults = (id: PatternId) => ({
   "rayas": { scale: 4, line: 1.6, halo: PATTERN_HALO },
   "cuartelado": { scale: 4, line: 0.7, halo: PATTERN_HALO },
   "damero": { scale: 5, line: 0.7, halo: PATTERN_HALO },
-})[id];
+};
+/** An illustration has no size or line of its own: it's drawn as it is, its halo the usual. */
+export const patternDefaults = (id: PatternId) => PATTERN_DEFAULTS[id] ?? { scale: 0, line: PATTERN_MIN, halo: PATTERN_HALO };
 /** Patterns without a size: the face quartered. */
-export const patternFixed = (id: PatternId) => id === "cuartelado";
+export const patternFixed = (id: PatternId) => id === "cuartelado" || isIllustration(id);
 /** Patterns whose `line` is the gap between filled cells (or stripes), not a line's width. */
 export const patternFilled = (id: PatternId) => id === "damero-rombos" || id === "escamas-relleno" || id === "rayas" || id === "cuartelado" || id === "damero";
 
@@ -1657,21 +1663,32 @@ function openField(F: Float32Array, core: Uint8Array, W: number, H: number, px: 
  * where it is at least the halo away from them and PATTERN_EDGE inside the coin's edge, opened so
  * nothing in it is thinner than PATTERN_MIN, pieces smaller than that left out.
  */
-function cutPattern(p: PatternSpec, R: number, ink: Ring[], solid: Ring[] = []): PatternCut {
-  const P = patternField(p), halo = Math.max(PATTERN_MIN, p.halo ?? PATTERN_HALO), px = PATTERN_GRID, rho = PATTERN_MIN / 2;
+function cutPattern(p: PatternSpec, R: number, ink: Ring[], solid: Ring[] = [], inner = R): PatternCut {
+  const ill = isIllustration(p.id);
+  const P = ill ? { sdf: () => 0, line: PATTERN_MIN, width: PATTERN_MIN, gap: PATTERN_MIN } : patternField(p), halo = Math.max(PATTERN_MIN, p.halo ?? PATTERN_HALO), px = PATTERN_GRID, rho = PATTERN_MIN / 2;
   const x0 = -R - 2 * px, W = Math.ceil((2 * R + 4 * px) / px) + 1, H = W, N = W * H;
   const inkSet = new Uint8Array(N);
   rasterise(ink, inkSet, W, H, x0, x0, px);
   if (solid.length) fillSolid(solid, inkSet, W, H, x0, px, halo);
   const dInk = distanceTransform(inkSet, W, H);
+  // an illustration: its drawing at the size the frame leaves, as a signed distance on the grid
+  let drawn: Float32Array | null = null;
+  if (ill) {
+    const shape = new Uint8Array(N), rest = new Uint8Array(N);
+    rasterise(ringsOf(backDesign(p.id.slice(4), Math.min(inner, R - PATTERN_EDGE) + 0.7) ?? [], undefined, 24), shape, W, H, x0, x0, px);
+    for (let k = 0; k < N; k++) rest[k] = shape[k] ? 0 : 1;
+    const toShape = distanceTransform(shape, W, H), toRest = distanceTransform(rest, W, H);
+    drawn = new Float32Array(N);
+    for (let k = 0; k < N; k++) drawn[k] = shape[k] ? toRest[k] * px : -toShape[k] * px;
+  }
   const F = new Float32Array(N), core = new Uint8Array(N), rOut = R - PATTERN_EDGE;
   for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
     const x = x0 + i * px, y = x0 + j * px, k = j * W + i;
-    const f = Math.min(P.sdf(x, y), dInk[k] * px - halo - px, rOut - Math.hypot(x, y));   // less a cell: the ink may reach that far past a cell centre
+    const f = Math.min(drawn ? drawn[k] : P.sdf(x, y), dInk[k] * px - halo - px, rOut - Math.hypot(x, y));   // less a cell: the ink may reach that far past a cell centre
     F[k] = f;
     if (f > rho - px / 2) core[k] = 1;                 // eroded by half the least width
   }
-  const minPiece = openField(F, core, W, H, px);
+  const minPiece = drawn ? PATTERN_MIN : openField(F, core, W, H, px);   // a drawing's lines print as drawn
   return { rings: traceField(F, W, H, x0, x0, px), line: P.line, width: P.width, gap: P.gap, halo, minPiece, ink: [...ink, ...solid] };
 }
 
@@ -1734,7 +1751,9 @@ function frontPattern(lib: Library, role: Role, spec: TokenSpec, text: string): 
   if (!p || !PATTERN_IDS.has(p.id) || spec.style === "window" || !SHAPE_FEATURES[shapeOf(role)].pattern) return null;
   const key = ["front", JSON.stringify({ ...p, colour: null }), iconOf(role, spec).key, text, spec.style, spec.diameter, spec.textSize, spec.spacing, spec.margin, spec.maxArc,
     spec.frame, spec.frameWidth, spec.iconScale, spec.iconOffsetY, JSON.stringify(spec.autoText ?? null), faceRadius(spec)].join("|");
-  return cached(key, () => { const { ink, solid } = frontInk(lib, role, spec, text); return cutPattern(p, faceRadius(spec), ink, solid); });
+  // an illustration fills what the frame leaves, a little clear of it
+  const inner = frameDesign(spec) ? frameInner(spec) - 0.8 : faceRadius(spec);
+  return cached(key, () => { const { ink, solid } = frontInk(lib, role, spec, text); return cutPattern(p, faceRadius(spec), ink, solid, inner); });
 }
 
 /** The back's pattern, behind its design; null for none (or a back that is a face: backFaceOf draws it there, like a front's). */
@@ -2832,12 +2851,23 @@ function svgIcon(svg: string | null | undefined): TokenIcon | null {
  * What the face already set stays; a plain back ("none") stays plain.
  */
 export function migrateBack<T extends SpecInput | undefined>(spec: T): T {
-  if (!spec || (spec.backMode && spec.backMode !== "design")) return spec;
+  if (!spec) return spec;
+  // a back face whose icon was one of the pictures (as it was for a day): the picture is its background now
+  const art = spec.backFace?.art;
+  if (art && BACK_ORNAMENTS.includes(art)) {
+    spec = { ...spec, backFace: { ...spec.backFace, art: "none" }, ...(spec.backPattern ? {} : { backPattern: { id: `ill-${art}` as PatternId } }) };
+  }
+  if (spec.backMode && spec.backMode !== "design") return spec;
   const was = spec.back && OLD_BACKS[spec.back];
   if (!was) return spec;
   const b = spec.backFace ?? {}, gold = spec.colours?.back ?? DEFAULT_SPEC.colours.back;
+  const ill = BACK_ORNAMENTS.includes(spec.back!) && !spec.backPattern ? { backPattern: { id: `ill-${spec.back}` as PatternId } } : {};
   // `back` stays as it was (a face's isn't read): a token's own change to plain is then a change from it
-  return { ...spec, backMode: "own", backFace: { ...was, ...b, colours: { front: gold, frame: gold, ...b.colours } } };
+  return { ...spec, ...ill, backMode: "own", backFace: { ...was, ...b, colours: { front: gold, frame: gold, ...b.colours } } };
+}
+/** An illustration as an SVG path (y down) at radius r, for the choices' swatches. */
+export function illustrationPath(id: PatternId, r: number) {
+  return isIllustration(id) ? shapesToPath(backDesign(id.slice(4), r) ?? [], 0, 0, 24) : "";
 }
 
 /**

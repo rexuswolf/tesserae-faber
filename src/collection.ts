@@ -14,7 +14,7 @@ import { local, readJSON, writeJSON , botcUnlocked} from "./services.ts";
 import type { CardBack, CardIcon, CardJoin, Hex, PatternSpec, Role, SpecInput, Team, TokenContent, TokenIcon, TokenShape } from "./types.ts";
 import { gameIcon } from "./icons.ts";
 import { safeIconMarkup, safeTransform } from "./engine/safe-svg.ts";
-import { DEFAULT_SPEC, FILAMENTS, PATTERNS, CARD_ICONS, CARD_JOINS, CARD_ICON_MM, BACK_ORNAMENTS } from "./engine/token-engine.ts";
+import { DEFAULT_SPEC, FILAMENTS, PATTERNS, CARD_ICONS, CARD_JOINS, CARD_ICON_MM, BACK_ORNAMENTS, ILLUSTRATIONS } from "./engine/token-engine.ts";
 import { BUILT_INS } from "./builtins.ts";
 import { ringDesigns, cardDesigns, baseDesigns, APP_DESIGNS, appTwin } from "./shape-designs.ts";
 
@@ -481,7 +481,7 @@ function readCardBack(v: unknown): CardBack | null {
 function readPattern(v: unknown): PatternSpec | null {
   if (!v || typeof v !== "object" || Array.isArray(v)) return null;
   const x = v as Record<string, unknown>;
-  if (!PATTERNS.some((p) => p.id === x.id)) return null;
+  if (!PATTERNS.some((p) => p.id === x.id) && !ILLUSTRATIONS.includes(x.id as PatternSpec["id"])) return null;
   const num = (k: string) => (typeof x[k] === "number" && Number.isFinite(x[k]) ? { [k]: x[k] } : {});
   const colour = typeof x.colour === "string" && (["frame", "front", "back", "team"].includes(x.colour) || isHex(x.colour)) ? { colour: x.colour } : {};
   return { id: x.id as PatternSpec["id"], ...num("scale"), ...num("line"), ...num("halo"), ...colour } as PatternSpec;

@@ -242,7 +242,9 @@ export interface CardBack {
 }
 
 /** A background pattern's id (the engine's PATTERNS): thin lines in a harlequin grid, or a checkerboard of filled rhombi. */
-export type PatternId = "rombos-lineas" | "damero-rombos" | "escamas" | "escamas-relleno" | "rayas" | "cuartelado" | "damero";
+export type PatternId = "rombos-lineas" | "damero-rombos" | "escamas" | "escamas-relleno" | "rayas" | "cuartelado" | "damero" | IllustrationId;
+/** An illustration for a face's background (Midnight, Guilloché, the sun…): it fills what the frame leaves, not repeated. */
+export type IllustrationId = `ill-${string}`;
 /**
  * A background pattern: it runs behind everything on the face, continuous, and the icon, the name
  * and the frame (on the back, its design) sit on it, each with a halo of coin colour round it

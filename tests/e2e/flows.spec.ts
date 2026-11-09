@@ -152,7 +152,7 @@ test("a token's back is changed like its front: a two-state token's other state,
   expect(errors).toEqual([]);
 });
 
-test("a token's back says words of its own, shows an ornament, and its layout follows", async ({ page }) => {
+test("a token's back says words of its own, shows its icon, has an illustration behind, and its layout follows", async ({ page }) => {
   const errors = await open(page, "/c/drawsteel?admin");
   await page.evaluate((key) => { const mm = (window as unknown as { __mm: { goStep(n: number): void; designToken(k: string): void } }).__mm; mm.goStep(2); mm.designToken(key); }, "c:recovery");
   const step = (s: string, then: () => Promise<void>) => expect(async () => {
@@ -169,9 +169,12 @@ test("a token's back says words of its own, shows an ornament, and its layout fo
   await page.locator("#backPhrase").fill("Recursos compartidos");
   await expect(page.locator("#backPhrase")).toHaveValue("Recursos compartidos");
   await step('#faceTabs [data-face="layout"]', pressed('[data-choice="style"] [data-v="text"]'));
-  // an ornament for its icon: the layout has both again; the icon alone keeps the words for later
-  await step('#faceTabs [data-face="icon"]', seen('#backArt [data-v="sol"]'));
-  await step('#backArt [data-v="sol"]', pressed('#backArt [data-v="sol"]'));
+  // an illustration behind (its Background), the sun: one drawing filling what the frame leaves
+  await step('#faceTabs [data-face="pattern"]', seen('[data-pat-side="back"] [data-pat="ill-sol"]'));
+  await step('[data-pat-side="back"] [data-pat="ill-sol"]', pressed('[data-pat-side="back"] [data-pat="ill-sol"]'));
+  // its icon: the layout has both again; the icon alone keeps the words for later
+  await step('#faceTabs [data-face="icon"]', seen('#backArt [data-v="token"]'));
+  await step('#backArt [data-v="token"]', pressed('#backArt [data-v="token"]'));
   // its colour, its own: in Icon, apart from the name's
   await step('.metal[data-colour="icon"] button[data-v="#ece9e2"]', pressed('.metal[data-colour="icon"] button[data-v="#ece9e2"]'));
   await step('#faceTabs [data-face="layout"]', pressed('[data-choice="style"] [data-v="classic"]'));

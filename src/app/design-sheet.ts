@@ -1,7 +1,7 @@
 // Choosing a design (the design sheet), and each shape's default design.
 import { emit } from "./events.ts";
 import type { TokenShape, TokenSpec, MyDesign, TokenOverride, Role, PatternSpec, ReliefPart, Token, TokenStyle, SpecColours, SpecInput, CardBack, TokenIcon, BackFace, BackSay, TokenContent } from "../types.ts";
-import { DEFAULT_SPEC, reminderSpec, tokenSvg, SHAPE_FEATURES, shapeOf, roleName, shapeSpec, TOKEN_STYLES, FRAME_STYLES, BACK_ORNAMENTS, migrateBack, backShown, backLayoutContent, PATTERN_MIN, printsBack, cardBackOf, CARD_ICONS, CARD_JOINS, partColours, PATTERNS, patternDefaults, patternFilled, patternFixed, flipFace, reliefOf, hasRelief, FACE_FIELDS, ringBand, ringSize, baseSize, magnetLayout } from "../engine/token-engine.ts";
+import { DEFAULT_SPEC, reminderSpec, tokenSvg, SHAPE_FEATURES, shapeOf, roleName, shapeSpec, TOKEN_STYLES, FRAME_STYLES, ILLUSTRATIONS, isIllustration, illustrationPath, migrateBack, backShown, backLayoutContent, PATTERN_MIN, printsBack, cardBackOf, CARD_ICONS, CARD_JOINS, partColours, PATTERNS, patternDefaults, patternFilled, patternFixed, flipFace, reliefOf, hasRelief, FACE_FIELDS, ringBand, ringSize, baseSize, magnetLayout } from "../engine/token-engine.ts";
 import { tokenLang } from "./token-language.ts";
 import { ownIcon, roleIdOf, charKey, textFor, remindersOf, charName, specFor } from "./tokens.ts";
 import { ownChanged, myDesigns, myEntry, collEntry, inheritedRef, refOf, originalRef, defaultRef, designOf, collLabel, designFor, uniqueDesignName, lookOf, storeMyDesigns, storeOverrides, shapesHere, tokensOf, designOverridden, defaults, storeDefaults } from "./designs.ts";
@@ -550,7 +550,7 @@ function renderBackArt(role: Role, spec: TokenSpec, text: string) {
   const tile = (v: string, label: string) => `<button class="back-tile" type="button" data-v="${v}" aria-pressed="${v === art}">${
     v === "custom" && !s.customSvg ? `<span class="upload-tile">SVG</span>` : tokenSvg(state.lib!, plain, { ...s, backMode: "own", backPattern: null, backFace: { ...b, style: "solo", say: "none", art: v } }, { side: "back", text })
   }<span>${esc(label)}</span></button>`;
-  $("#backArt").innerHTML = [tile("token", t("back.art.token")), ...BACK_ORNAMENTS.map((id) => tile(id, t(`back.${id}`))), tile("custom", t("back.custom")), tile("none", t("back.art.none"))].join("");
+  $("#backArt").innerHTML = [tile("token", t("back.art.token")), tile("custom", t("back.custom")), tile("none", t("back.art.none"))].join("");
 }
 /** The back's words or icon (BackFace.say, .phrase, .art): the back becomes a face if it was plain. */
 export function changeBackContent(change: Partial<BackFace>) {
@@ -578,6 +578,7 @@ type PatSide = "front" | "back";
 const patKey = (side: PatSide) => (side === "front" ? "frontPattern" : "backPattern") as "frontPattern" | "backPattern";
 /** A pattern as a small coin swatch: `fg` rhombi (lines or a checkerboard) on `bg`. */
 function patternSwatch(id: string, bg: string, fg: string, clip: string) {
+  if (isIllustration(id)) return `<svg viewBox="-10 -10 20 20" aria-hidden="true"><circle r="10" fill="${bg}" stroke="rgba(239,230,214,.25)" stroke-width="0.3"/><path d="${illustrationPath(id as PatternSpec["id"], 9.4)}" fill="${fg}" fill-rule="evenodd"/></svg>`;
   const a = 6, b = 9.6, out: string[] = [];
   const rh = (cx: number, cy: number, k = 1) => `M${cx - (a / 2) * k} ${cy}L${cx} ${cy - (b / 2) * k}L${cx + (a / 2) * k} ${cy}L${cx} ${cy + (b / 2) * k}Z`;
   if (id === "rombos-lineas") for (let m = -3; m <= 3; m++) for (let n = -2; n <= 2; n++) out.push(rh(m * a, n * b), rh(m * a + a / 2, n * b + b / 2));
@@ -621,7 +622,8 @@ function renderPattern(side: PatSide, role: Role, s: TokenSpec) {
   // the back's: in the drawing's colour under a drawing, else (a face) in its frame's
   const colour = side === "back" ? (s.backMode === "design" && !selFlip(role) ? pc.back : pc.backFrame) : (p?.colour ?? "frame") === "front" ? pc.front : pc.frame;
   const dec = uiLang() === "es" ? "," : ".";
-  const tiles: [string, string][] = [["none", t("pattern.none")], ...PATTERNS.map((x) => [x.id, t(`pattern.${x.id}`)] as [string, string])];
+  // the patterns, then the illustrations (one drawing filling what the frame leaves)
+  const tiles: [string, string][] = [["none", t("pattern.none")], ...PATTERNS.map((x) => [x.id, t(`pattern.${x.id}`)] as [string, string]), ...ILLUSTRATIONS.map((id) => [id, t(`back.${id.slice(4)}`)] as [string, string])];
   $("[data-pat-choice]", box).innerHTML = tiles.map(([id, label]) =>
     `<button class="back-tile" type="button" data-pat="${id}" aria-pressed="${(p?.id ?? "none") === id}">${patternSwatch(id, pc.base, colour, `patclip-${side}-${id}`)}<span>${esc(label)}</span></button>`).join("");
   $(".pat-opts", box).hidden = !p;
@@ -634,6 +636,7 @@ function renderPattern(side: PatSide, role: Role, s: TokenSpec) {
   }
   $("[data-pat-line-label]", box).textContent = t(patternFilled(p.id) ? "pattern.gap" : "pattern.line");
   $("[data-pat-range=scale]", box).closest<HTMLElement>(".row")!.hidden = patternFixed(p.id);
+  $("[data-pat-range=line]", box).closest<HTMLElement>(".row")!.hidden = isIllustration(p.id);   // a drawing: as drawn
   const colours = $("[data-pat-colour]", box);
   if (colours) colours.innerHTML = (["frame", "front"] as const).map((c) =>
     `<button class="pill group-pill" type="button" data-pat-col="${c}" aria-pressed="${(p.colour ?? "frame") === c}" style="--c: ${pc[c]}"><i></i>${esc(t(`pattern.colour.${c}`))}</button>`).join("");
