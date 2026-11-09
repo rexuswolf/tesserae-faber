@@ -16,6 +16,8 @@ import { plateFeatures } from "../bambu/estimate.ts";
 import { drawer } from "./scripts-ui.ts";
 import { renderWorkshop, viewTab, showTab } from "./workshop.ts";
 import { dec1, colourNotes } from "./design-sheet.ts";
+import posthog, { posthogEnabled } from "../posthog.ts";
+import { posthogAppLogger } from "../posthog-logger.ts";
 
 // ------------------------------------------------------------ selection
 
@@ -447,6 +449,20 @@ export async function downloadBambu(one: QueueEntry | null = null, btn = $<HTMLB
     const what = one ? `test-${slug(items[0].title)}` : `${items.length}-tokens`;
     const file = `midnight-mint-${what}-${printer.short.toLowerCase().replace(/\s+/g, "-")}${nozzle.id === "0.4" ? "" : `-${nozzle.id}mm`}.3mf`;
     await saveFile(blob, file);
+    if (posthogEnabled) posthog.capture("print_exported", {
+      export_format: "3mf",
+      token_count: items.length,
+      plate_count: plan.plates.length,
+      printer: printer.id,
+      nozzle_mm: nozzle.mm,
+      is_test_export: Boolean(one),
+    });
+    posthogAppLogger.info("print export completed", {
+      export_format: "3mf",
+      token_count: items.length,
+      plate_count: plan.plates.length,
+      is_test_export: Boolean(one),
+    });
     out.textContent = t("queue.done", { file, n: plan.plates.length, filaments: filaments.map((f) => t(`filament.${f.name}`)).join(", ") });
   } catch (err) {
     out.className = "hint warn";
@@ -468,6 +484,18 @@ export async function downloadPdf() {
     });
     const file = `midnight-mint-${entries.length}-tokens${flow.backs ? "" : "-fronts"}.pdf`;
     await saveFile(blob, file);
+    if (posthogEnabled) posthog.capture("print_exported", {
+      export_format: "pdf",
+      token_count: entries.length,
+      page_count: sheets,
+      includes_backs: flow.backs,
+    });
+    posthogAppLogger.info("print export completed", {
+      export_format: "pdf",
+      token_count: entries.length,
+      page_count: sheets,
+      includes_backs: flow.backs,
+    });
     out.textContent = t(flow.backs ? "queue.pdfDone" : "queue.pdfDoneSingle", { file, n: sheets });
   } catch (err) {
     out.className = "hint warn";

@@ -22,6 +22,7 @@ import { syncView, editShape, openPart, showTab, renderWorkshop, viewTab, change
 import type { TokenOverride, TokenSpec, TokenStyle, ReliefPart, BackSay, TokenContent } from "../types.ts";
 import { signOut as signOutUser, local } from "../services.ts";
 import { openAdmin } from "./admin.ts";
+import posthog, { posthogEnabled } from "../posthog.ts";
 
 // ------------------------------------------------------------ wiring
 
@@ -45,9 +46,13 @@ export function wire() {
   $("#scriptDialogFile").onchange = async (e) => { const f = input(e).files![0]; input(e).value = ""; if (f) saveFromDialog(await f.text()); };
   $("#scriptInviteSkip").onclick = () => $<HTMLDialogElement>("#scriptInvite").close();
   $("#scriptShare").onclick = shareScript;
-  $("#scriptJson").onclick = () => {
+  $("#scriptJson").onclick = async () => {
     const sc = scriptOf(state.edition); if (!sc) return;
-    saveFile(new Blob([scriptJsonWithOwn(sc)], { type: "application/json" }), `${sc.name.replace(/[\\/:*?"<>|]+/g, "").trim() || "script"}.json`);
+    await saveFile(new Blob([scriptJsonWithOwn(sc)], { type: "application/json" }), `${sc.name.replace(/[\\/:*?"<>|]+/g, "").trim() || "script"}.json`);
+    if (posthogEnabled) posthog.capture("script_exported", {
+      character_count: sc.ids.length,
+      homebrew_count: sc.homebrew?.length ?? 0,
+    });
   };
   $("#scriptDelete").onclick = (e) => {
     const b = e.currentTarget as HTMLElement, sc = scriptOf(state.edition); if (!sc) return;
@@ -58,6 +63,10 @@ export function wire() {
     if ([...state.pick.keys()].some(gone)) { for (const k of [...state.pick.keys()]) if (gone(k)) state.pick.delete(k); persistPicks(); }
     if (gone(state.sel!.key)) { const first = state.lib!.roles.find((r) => r.en === "Fortune Teller") || state.lib!.roles[0]; state.sel = { key: charKey(first), role: first, reminder: null }; }
     syncHomebrew();
+    if (posthogEnabled) posthog.capture("script_deleted", {
+      character_count: sc.ids.length,
+      homebrew_count: sc.homebrew?.length ?? 0,
+    });
     goEdition("all");
   };
   window.addEventListener("hashchange", openSharedScript);
@@ -354,6 +363,10 @@ async function forge() {
     const zip = new JSZip();
     const folder = addTokenToZip(zip, state.token!, role, textFor(key, role, reminder), { faceDown: true });
     await saveFile(await zip.generateAsync({ type: "blob" }), `${folder}.zip`);
+    if (posthogEnabled) posthog.capture("token_exported", {
+      token_shape: shapeOf(role),
+      is_reminder: reminder != null,
+    });
     note(t("act.downloaded", { file: `${folder}.zip` }));
   } catch (err) {
     note(t("act.downloadFailed", { message: (err as Error)?.message || String(err) }));

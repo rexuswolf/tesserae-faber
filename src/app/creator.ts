@@ -21,6 +21,7 @@ import { drawer, PHONE } from "./scripts-ui.ts";
 import { renderWorkshop } from "./workshop.ts";
 import { filled } from "./looks.ts";
 import { searchGameIcons, gameIconPreview, gameIcon, iconFromSvg } from "../icons.ts";
+import posthog, { posthogEnabled } from "../posthog.ts";
 
 // ------------------------------------------------------------ Tesserae Faber, the generic creator
 //
@@ -209,6 +210,11 @@ export function wireOwn() {
       if (!next.tokens.length) throw new Error("empty");
       const id = addCollection(next);   // a collection of its own, beside this one
       if (!id) { noteEl.textContent = t("own.storageFull"); return; }
+      if (posthogEnabled) posthog.capture("collection_imported", {
+        token_count: next.tokens.length,
+        group_count: next.groups.length,
+        type_count: next.types.length,
+      });
       location.href = collectionUrl(id);
     } catch { noteEl.textContent = t("own.importFailed"); if (PHONE.matches) alert(t("own.importFailed")); }   // the note is in the top bar menu, which a phone hides
   };
@@ -508,6 +514,12 @@ function createToken(more: boolean) {
   const key = `c:${tk.id}`, name = nameIn(tk.name, lang);
   state.creating = null;
   collectionChanged();
+  if (posthogEnabled) posthog.capture("token_created", {
+    token_shape: c.shape,
+    linked_token_count: tk.linked.length,
+    has_flip_side: Boolean(tk.flip),
+    create_another: more,
+  });
   setPick(key, true); tk.linked.forEach((_, i) => setPick(`r:${tk.id}:${i}`, true));
   emit("picks");
   if (more) { startCreate({ shape: c.shape, type: type.id, group: tk.group, cats: c.cats }, { content: tk.content }); $("#tpFlash").textContent = t("create.doneMore", { name }); return; }

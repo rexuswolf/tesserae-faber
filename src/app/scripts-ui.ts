@@ -11,6 +11,7 @@ import { scheduleSheet } from "./design-sheet.ts";
 import { charKey, ownIcon, specFor, charName } from "./tokens.ts";
 import { storeOverrides } from "./designs.ts";
 import { renderSpine, renderSheet } from "./sheet.ts";
+import posthog, { posthogEnabled } from "../posthog.ts";
 
 // ------------------------------------------------------------ scripts
 
@@ -220,6 +221,12 @@ export function scriptJsonWithOwn(sc: Script) {
 export async function saveFromDialog(text: string) {
   try {
     const script = keepScript(readScriptJson(text));
+    if (posthogEnabled) posthog.capture("script_saved", {
+      import_source: "json",
+      character_count: script.ids.length,
+      homebrew_count: script.homebrew?.length ?? 0,
+      customizations_present: Boolean(script.custom),
+    });
     const named = applyScriptNames(script);
     $<HTMLDialogElement>("#scriptDialog").close();
     $("#scriptNote").textContent = t("script.saved", { name: script.name }) + (named ? ` ${t("script.named", { n: named })}` : "");
@@ -247,6 +254,12 @@ export function openSharedScript() {
   $("#scriptInviteSave").onclick = () => {
     $<HTMLDialogElement>("#scriptInvite").close();
     const sc = keepScript({ ...invite!, name: invite!.name || t("script.unnamed") });
+    if (posthogEnabled) posthog.capture("script_saved", {
+      import_source: "shared_link",
+      character_count: sc.ids.length,
+      homebrew_count: sc.homebrew?.length ?? 0,
+      customizations_present: Boolean(sc.custom),
+    });
     $("#scriptNote").textContent = t("script.saved", { name: sc.name });
   };
   $<HTMLDialogElement>("#scriptInvite").showModal();
@@ -265,8 +278,18 @@ export async function shareScript() {
   const link = scriptLink(sc, location.origin + location.pathname);
   const note = $("#scriptNote");
   // Phones get the system share sheet; elsewhere the link goes to the clipboard.
-  if (PHONE.matches && (navigator as Partial<Navigator>).share) { try { await navigator.share({ title: sc.name, url: link }); return; } catch (err) { if ((err as Error).name === "AbortError") return; } }
-  try { await navigator.clipboard.writeText(link); note.textContent = t("script.copied"); }
+  if (PHONE.matches && (navigator as Partial<Navigator>).share) {
+    try {
+      await navigator.share({ title: sc.name, url: link });
+      if (posthogEnabled) posthog.capture("script_shared", { share_method: "native" });
+      return;
+    } catch (err) { if ((err as Error).name === "AbortError") return; }
+  }
+  try {
+    await navigator.clipboard.writeText(link);
+    note.textContent = t("script.copied");
+    if (posthogEnabled) posthog.capture("script_shared", { share_method: "clipboard" });
+  }
   catch {
     note.innerHTML = `${esc(t("script.copyBy"))} <input class="text" type="text" readonly value="${esc(link)}">`;
     note.querySelector("input")!.select();
