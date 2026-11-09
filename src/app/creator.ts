@@ -518,11 +518,13 @@ function contentNow(tk: OwnToken, shape: TokenShape): TokenContent {
 }
 /**
  * Whether its name is printed: unticked, its icon alone (a base: its tray alone). Its icon, there or
- * not, is the icon's field (Remove: its name alone), so a token without one prints its name.
+ * not, is the icon's field (Remove: its name alone), so a token without one prints its name. Only in
+ * the dialog (a token being made) and on a base: in the designer, the layout chooses it.
  */
 function renderPanelContent(tk: OwnToken, shape: TokenShape) {
   const box = $("#tpContent"), opts = CONTENTS[shape];
-  box.hidden = opts.length < 2;
+  // in the designer, a coin's Layout (Symbol only, Text only) and a card's icon place already choose it; a base has no layout
+  box.hidden = opts.length < 2 || (inlineId != null && shape !== "base");
   if (box.hidden) { box.innerHTML = ""; return; }
   const now = contentNow(tk, shape), printed = now !== "icon" && now !== "none", locked = printed && shape !== "base" && !tk.icon;
   box.innerHTML = `<label class="check tp-print"><input type="checkbox" id="ownTokPrint"${printed ? " checked" : ""}${locked ? " disabled" : ""}> <span>${esc(t(shape === "base" ? "own.printNameBase" : "own.printName"))}</span></label>`;

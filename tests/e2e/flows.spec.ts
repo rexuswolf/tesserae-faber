@@ -174,8 +174,8 @@ test("a token's back says words of its own, shows its icon, has an illustration 
   // its icon: the layout has both again; the icon alone keeps the words for later
   await step('#faceTabs [data-face="layout"]', seen('#backArt [data-v="token"]'));
   await step('#backArt [data-v="token"]', pressed('#backArt [data-v="token"]'));
-  // its colour, its own: in Composition's settings, apart from the name's
-  await step("#compMore", seen('.metal[data-colour="icon"]'));
+  // its colour, its own: in Composition, under its layout, apart from the name's
+  await expect(page.locator('.metal[data-colour="icon"]')).toBeVisible();
   await step('.metal[data-colour="icon"] button[data-v="#ece9e2"]', pressed('.metal[data-colour="icon"] button[data-v="#ece9e2"]'));
   await step('#faceTabs [data-face="layout"]', pressed('[data-choice="style"] [data-v="classic"]'));
   await step('[data-choice="style"] [data-v="solo"]', pressed('[data-choice="style"] [data-v="solo"]'));
@@ -368,7 +368,9 @@ test("what a token shows is the token's: chosen when made, kept, and the design 
   await page.locator("#tpDone").click();
   await expect(page.locator("#tokenPanel")).not.toHaveAttribute("open", "");
   await page.locator("[data-own-edit]").first().click();
-  await expect(page.locator("#ownTokPrint")).toBeChecked();
+  // in the designer: no tick for its text, the layout says it (its name alone: Text only)
+  await expect(page.locator('[data-choice="style"] [data-v="text"]')).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("#tpContent")).toBeHidden();
   await expect(page.locator("#ownTokChip [data-icon-none]")).toHaveCount(0);   // no icon now
   expect(errors).toEqual([]);
 });
@@ -404,14 +406,13 @@ test("a token of yours is changed where it's designed: each face's Composition h
   await expect(page.locator("#ownTokFlipName")).toHaveValue("");
   await page.locator("#ownTokFlipName").fill("Lobo herido");
   await expect(page.locator("#ownTokFlipName")).toHaveValue("Lobo herido");
-  // its front's layouts are what it carries: Symbol only makes it its icon alone, and back to both
+  // its front's layouts are what it carries (no tick for its text beside them): Symbol only makes it its icon alone, and back to both
   await go('#parts [data-part="front"]', on('#parts [data-part="front"]'));
   await go('#faceTabs [data-face="layout"]', on('#faceTabs [data-face="layout"]'));
   await page.locator('[data-choice="style"] [data-v="solo"]').click();
   await expect(page.locator('[data-choice="style"] [data-v="solo"]')).toHaveAttribute("aria-pressed", "true");
-  await expect(page.locator("#ownTokPrint")).not.toBeChecked();   // its text not printed
+  await expect(page.locator("#tpContent")).toBeHidden();   // no "Print its text" here: the layout says it
   await page.locator('[data-choice="style"] [data-v="classic"]').click();
   await expect(page.locator('[data-choice="style"] [data-v="classic"]')).toHaveAttribute("aria-pressed", "true");
-  await expect(page.locator("#ownTokPrint")).toBeChecked();
   expect(errors).toEqual([]);
 });

@@ -22,8 +22,6 @@ import type { InlayPart } from "../colour-checks.ts";
 import { roleById } from "./wiring.ts";
 import { roleWithContent, showContentInline } from "./creator.ts";
 /** Whether Composition's text and icon settings are unfolded (kept while designing). */
-let compMore = false;
-export const toggleCompMore = () => { compMore = !compMore; };
 import { writeJSON, session, readJSON } from "../services.ts";
 
 // ------------------------------------------------------------ choosing a design (the sheet)
@@ -318,11 +316,10 @@ export function renderTabs(role: Role, spec: TokenSpec) {
     // the back as the front again, only when it differs from it
     + (part === "back" && faceOf(spec, "front").backMode !== "design" && backChanged(faceOf(spec, "front")) ? `<button class="to-front" type="button" data-back-same>${esc(t("back.toFront"))}</button>` : "");
   renderBackNote(role, spec, part === "back" && faceOpen ? panel : null);
-  // Composition: its own panel, and (unfolded) the text's and the icon's under it; with no layouts, the text's panel is where the face's content goes
+  // Composition: its own panel, and the text's and the icon's under it; with no layouts, the text's panel is where the face's content goes
   const comp = panel === "layout";
-  $$(".ws-panel").forEach((p) => { const d = p.dataset.panel; p.hidden = !(d === panel || (comp && compMore && (d === "text" || (d === "icon" && SHAPE_FEATURES[shape].icon)))); });
+  $$(".ws-panel").forEach((p) => { const d = p.dataset.panel; p.hidden = !(d === panel || (comp && (d === "text" || (d === "icon" && SHAPE_FEATURES[shape].icon)))); });
   document.querySelector(".ws-body")?.setAttribute("data-comp", String(comp));
-  $("#compMore").setAttribute("aria-expanded", String(compMore));
   const host = comp ? $("[data-panel=layout]") : $("[data-panel=text]"), what = $("#compWhat");
   if (what.parentElement !== host) host.prepend(what);
   const side = part === "back" ? "back" : "front";
