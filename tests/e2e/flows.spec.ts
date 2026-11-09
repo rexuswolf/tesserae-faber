@@ -405,6 +405,48 @@ test("what a token shows is the token's: chosen when made, kept, and the design 
   expect(errors).toEqual([]);
 });
 
+test("a token of yours without an icon: the layouts that show one wait for it, and Plain carries nothing", async ({ page }) => {
+  const errors = await open(page, "/");
+  await page.locator("#tourName").fill("Lobo");
+  await page.locator("[data-tok-new=maker]").evaluate((b) => (b as HTMLElement).click());
+  await page.waitForURL(/\/c\//);
+  await expect(page.locator("#tokenPanel")).toHaveAttribute("open", "", { timeout: 30_000 });
+  await page.locator("#tpDone").click();
+  const id = await page.locator("[data-own-edit]").first().getAttribute("data-own-edit");
+  await page.evaluate((key) => { const mm = (window as unknown as { __mm: { goStep(n: number): void; designToken(k: string): void } }).__mm; mm.goStep(2); mm.designToken(key); }, `c:${id}`);
+  // a click on what's there now (the tabs redraw a frame later: a click on the old ones is lost), until it takes
+  const go = (s: string, then?: () => Promise<void>) => expect(async () => {
+    await page.locator(s).first().evaluate((b) => (b as HTMLElement).click());
+    if (then) await then();
+  }).toPass();
+  const on = (s: string) => () => expect(page.locator(s)).toHaveAttribute("aria-selected", "true", { timeout: 1000 });
+  await go('.cr-item[data-cr="part"]');
+  await go('#parts [data-part="front"]', on('#parts [data-part="front"]'));
+  // no dialog: its front's text and icon are in the front's Composition
+  await expect(page.locator("#crOwn #ownTokText")).toBeVisible();
+  await expect(page.locator("#crOwn #ownTokName")).toBeHidden();
+  // without an icon (the one it may have found for its name, taken off)
+  if (await page.locator("#crOwn #ownTokChip [data-icon-none]").count()) await page.locator("#crOwn #ownTokChip [data-icon-none]").click();
+  await expect(page.locator("#crOwn #ownTokChip [data-icon-none]")).toHaveCount(0);
+  await go('#faceTabs [data-face="layout"]', on('#faceTabs [data-face="layout"]'));
+  for (const v of ["classic", "window", "solo", "double"]) await expect(page.locator(`[data-choice="style"] [data-v="${v}"]`)).toBeDisabled();
+  await expect(page.locator('[data-choice="style"] [data-v="text"]')).toBeEnabled();
+  // its text is its name, written in the field; emptied, it says nothing (not its name again)
+  await expect(page.locator("#crOwn #ownTokText")).toHaveValue("Lobo");
+  await page.locator("#crOwn #ownTokText").fill("");
+  await go('[data-choice="style"] [data-v="text"]', () => expect(page.locator('[data-choice="style"] [data-v="text"]')).toHaveAttribute("aria-pressed", "true", { timeout: 1000 }));
+  await expect(page.locator("#crOwn #ownTokText")).toHaveValue("");
+  await expect(page.locator('[data-choice="style"] [data-v="text"] text')).toHaveCount(0);
+  // Plain: nothing on it, said under its text
+  await go('[data-choice="style"] [data-v="none"]', () => expect(page.locator('[data-choice="style"] [data-v="none"]')).toHaveAttribute("aria-pressed", "true", { timeout: 1000 }));
+  await expect(page.locator("#ownTokNameHint")).toBeVisible();
+  // an icon given: it shows, and the layouts with one are there again
+  await page.locator("#ownTokSvg").setInputFiles({ name: "wolf.svg", mimeType: "image/svg+xml", buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M1 1h8v8H1z"/></svg>') });
+  await expect(page.locator('[data-choice="style"] [data-v="solo"]')).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator('[data-choice="style"] [data-v="classic"]')).toBeEnabled();
+  expect(errors).toEqual([]);
+});
+
 test("a token of yours is changed where it's designed: each face's Composition has what it carries, the token beside it", async ({ page }) => {
   const errors = await open(page, "/");
   await page.locator("#tourName").fill("Lobo");

@@ -223,7 +223,7 @@ export function wire() {
       // a token of yours: its front's layout chooses what it carries (its icon alone, its name alone, both), and a card's icon place too
       const own = !TALLER && editSide() === "front" && state.sel && state.sel.reminder == null && coll.tokens.some((x) => x.id === state.sel!.role.id) ? state.sel.role.id : null;
       if (own && (key === "style" || key === "cardIcon")) {
-        const v = b.dataset.v!, content: TokenContent = key === "style" ? (v === "solo" ? "icon" : v === "text" ? "text" : "both") : v === "only" ? "icon" : v === "none" ? "text" : "both";
+        const v = b.dataset.v!, content: TokenContent = key === "style" ? (v === "solo" ? "icon" : v === "text" ? "text" : v === "none" ? "none" : "both") : v === "only" ? "icon" : v === "none" ? "text" : "both";
         setOwnContent(own, content);
         if (content !== "both" && key === "style") return;   // its icon or its name alone: the layout is what it carries
       }

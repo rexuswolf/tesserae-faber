@@ -450,13 +450,19 @@ function renderStyleTiles(face: { role: Role; text: string }, spec: TokenSpec) {
   // a token of yours: what it carries is the token's, and a layout chooses it (Symbol only, its icon; Text only, its
   // name; the others, both): each tile drawn with what it would carry
   // (the front's only: a back's other state is drawn as it is, its own icon and text)
-  const own = !TALLER && editSide() === "front" && ownTokenOf(face.role.id), pressed = own ? styleOfContent(face.role.content, s.style) : s.style;
+  const own = !TALLER && editSide() === "front" && ownTokenOf(face.role.id), pressed = own ? (face.role.content === "none" ? "none" : styleOfContent(face.role.content, s.style)) : s.style;
+  // a token of yours without an icon: the layouts that show one wait for it (Text only and Plain don't), drawn as they'd be
+  const noIcon = !!own && !ownTokenOf(face.role.id)?.icon;
   $("[data-choice=style]").innerHTML = TOKEN_STYLES.map((st) => {
-    const role = own ? roleWithContent(face.role.id, contentOfStyle(st.id)) ?? face.role : face.role;
-    return `<button class="back-tile" type="button" data-v="${st.id}" aria-pressed="${pressed === st.id}">${
+    const waits = noIcon && st.id !== "text";
+    const role = own ? roleWithContent(face.role.id, waits && st.id === "solo" ? "none" : contentOfStyle(st.id)) ?? face.role : face.role;
+    return `<button class="back-tile" type="button" data-v="${st.id}" aria-pressed="${pressed === st.id}"${waits ? ` disabled title="${esc(t("style.needsIcon"))}"` : ""}>${
       tokenSvg(state.lib!, role, { ...s, style: st.id, ...(st.id !== s.style ? { textSize: LAYOUT_TEXT[st.id] } : {}) }, { text: face.text })
-    }<span>${esc(t(`style.${st.id}`))}</span></button>`;
-  }).join("");
+    }<span>${esc(t(`style.${st.id}`))}</span>${waits ? `<small>${esc(t("style.needsIcon"))}</small>` : ""}</button>`;
+  }).join("")
+    // a coin of yours can carry nothing: Plain (its frame, background and colours only)
+    + (own && shapeOf(face.role) === "coin" ? `<button class="back-tile" type="button" data-v="none" aria-pressed="${face.role.content === "none"}">${
+      tokenSvg(state.lib!, roleWithContent(face.role.id, "none") ?? face.role, s, { text: face.text })}<span>${esc(t("style.none"))}</span></button>` : "");
 }
 
 /** A frame's rim as it starts when chosen (the runes': fine, so the runes show), then changed with Width. */
@@ -486,8 +492,10 @@ function lineFrames(shape: TokenShape, frame: string): [string, string][] {
 
 /** A card's icon places and joins (its Layout tab) and its icon's size (its Icon tab), the tiles drawn on the token as it would come out. */
 function renderCardIconTiles(role: Role, text: string, spec: TokenSpec, hasIcon: boolean) {
+  // a card of yours without an icon: the places for one wait for it (only None, its phrase alone, doesn't)
+  const waits = (key: string, v: string) => key === "cardIcon" && v !== "none" && !!ownTokenOf(role.id) && !ownTokenOf(role.id)!.icon;
   const tile = (key: "cardIcon" | "cardJoin", v: string) =>
-    `<button class="back-tile" type="button" data-v="${v}" aria-pressed="${spec[key] === v}">${tokenSvg(state.lib!, role, { ...spec, [key]: v, ...(key === "cardJoin" && spec.cardIcon === "none" ? { cardIcon: "left" } : {}) }, { text })}<span>${esc(t(`${key}.${v}`))}</span></button>`;
+    `<button class="back-tile" type="button" data-v="${v}" aria-pressed="${spec[key] === v}"${waits(key, v) ? ` disabled title="${esc(t("style.needsIcon"))}"` : ""}>${tokenSvg(state.lib!, role, { ...spec, [key]: v, ...(key === "cardJoin" && spec.cardIcon === "none" ? { cardIcon: "left" } : {}) }, { text })}<span>${esc(t(`${key}.${v}`))}</span>${waits(key, v) ? `<small>${esc(t("style.needsIcon"))}</small>` : ""}</button>`;
   // a card of yours: where its icon goes chooses what it carries too (none, its phrase; alone, its icon; beside it, both)
   $("[data-choice=cardIcon]").innerHTML = CARD_ICONS.map((v) => tile("cardIcon", v)).join("");
   $("[data-choice=cardJoin]").innerHTML = CARD_JOINS.map((v) => tile("cardJoin", v)).join("");
@@ -780,7 +788,7 @@ export function syncControls(role: Role, spec: TokenSpec, token: Token) {
     else {
       renderStyleTiles(tileWho, tileFace);
       const laidOut = side === "front" && !TALLER && ownTokenOf(role.id) ? styleOfContent(role.content, face.style) : face.style;
-      $("#styleHint").textContent = t(`style.${laidOut}.help`);
+      $("#styleHint").textContent = side === "front" && !TALLER && ownTokenOf(role.id) && role.content === "none" ? t("style.none.help") : t(`style.${laidOut}.help`);
     }
   }
   // Text: the name; a ring's letters are as tall as asked only up to the band between its edge
@@ -788,7 +796,7 @@ export function syncControls(role: Role, spec: TokenSpec, token: Token) {
   const textSize = $<HTMLInputElement>("#textSize");
   textSize.max = shape === "ring" ? String(Math.floor(ringBand(face).band * 10) / 10) : "6";
   if (shape === "ring") $("output[data-for=textSize]").textContent = (Math.min(face.textSize, +textSize.max)).toFixed(1).replace(".", dec) + " mm";
-  const laid = role.content === "icon" ? "solo" : role.content === "text" ? "text" : shown?.spec.style ?? face.style;   // a token of yours that carries one thing is laid out for it
+  const laid = role.content === "icon" || role.content === "none" ? "solo" : role.content === "text" ? "text" : shown?.spec.style ?? face.style;   // a token of yours that carries one thing is laid out for it
   const coinStyle = (st: TokenStyle) => shape === "coin" && laid === st;
   row("textSize").hidden = !f.textSize || coinStyle("solo") || coinStyle("text");
   row("spacing").hidden = !f.spacing || coinStyle("window") || coinStyle("solo");

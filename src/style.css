@@ -539,6 +539,11 @@ button, input, select, textarea { font: inherit; color: inherit; }
 /* Layout (Type section): the two layouts as big tiles, then each face part flat or raised */
 [data-choice=style].layout-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 .layout-tiles .back-tile { padding: 8px 4px; font-size: 12.5px; }
+/* a layout that waits for something (Symbol only, for an icon): dimmed, saying what */
+.back-tile:disabled { cursor: not-allowed; }
+.back-tile:disabled > svg { opacity: .35; }
+.back-tile:disabled > span { opacity: .55; }
+.back-tile:disabled small { font-size: 11px; color: var(--dust); opacity: .85; }
 .layout-tiles .back-tile svg { width: 72px; height: 72px; }
 /* what a back shows: four to a row like the frames, every tile the same width whatever its name */
 .art-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }

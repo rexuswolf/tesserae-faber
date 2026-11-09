@@ -349,16 +349,18 @@ const namesOf = (n: Names) => (typeof n === "string" ? { en: n, es: n } : n);
 const creditOf = (icon: TokenIcon | null) => (icon?.source === "game-icons" ? { icon: icon.name, author: icon.author } : {});
 
 export function tokenRole(c: Collection, t: OwnToken, lang = "es"): Role {
-  // what it prints: its text, else its name; its name names it in your lists (listNames) when they differ
-  const names = namesOf(t.text && Object.values(namesOf(t.text)).some((v) => v.trim()) ? t.text : t.name), own = namesOf(t.name);
+  // what it prints: its text (empty: nothing), else its name; its name names it in your lists (listNames) when they differ
+  const names = namesOf(t.text ?? t.name), own = namesOf(t.name);
   const langs = new Set(["en", "es", ...Object.keys(names), ...Object.keys(own), ...t.linked.flatMap((l) => (typeof l === "string" ? [] : Object.keys(l)))]);
   const type = c.types.find((x) => x.id === t.type);
   // the Edition back: the first closed catalog it's in ("Trouble Brewing"), else the collection's name
   const home = c.sections.find((s) => !s.open && s.catalogs.some((k) => k.tokens.includes(t.id)))?.catalogs.find((k) => k.tokens.includes(t.id));
-  const icon = t.content === "text" ? null : t.icon;   // only its name: its icon kept for later, not drawn
+  // its icon alone, without one: its name (not a blank token)
+  const content = t.content === "icon" && !t.icon && type?.shape !== "base" ? "text" : t.content;
+  const icon = content === "text" || content === "none" ? null : t.icon;   // only its name, or nothing: its icon kept for later, not drawn
   return {
     id: t.id, en: nameIn(names, "en"), es: nameIn(names, "es"), names: Object.fromEntries([...langs].map((l) => [l, nameIn(names, l)])), fem: t.fem ?? {},
-    ...(t.text ? { listNames: Object.fromEntries([...langs].map((l) => [l, nameIn(own, l)])) } : {}),
+    ...(t.text != null ? { listNames: Object.fromEntries([...langs].map((l) => [l, nameIn(own, l)])) } : {}),
     team: t.group as Team,   // a group of the collection, registered as a team (main.ts, applyGroups)
     ...(t.colour ? { colour: t.colour } : {}),
     edition: "own", editionName: nameIn(home?.name ?? c.name, lang), collectionName: nameIn(c.name, lang),
@@ -369,8 +371,8 @@ export function tokenRole(c: Collection, t: OwnToken, lang = "es"): Role {
     ...creditOf(icon),
     // the engine caches shapes by this: a new icon for the same token gets drawn afresh
     iconKey: `${t.id}:${icon?.id ?? "none"}`,
-    ...(t.content ? { content: t.content } : {}),
-    ...(t.content === "text" && t.icon ? { keptIcon: { id: t.icon.id, g: t.icon.g, body: t.icon.body } } : {}),
+    ...(content ? { content } : {}),
+    ...((content === "text" || content === "none") && t.icon ? { keptIcon: { id: t.icon.id, g: t.icon.g, body: t.icon.body } } : {}),
     ...(t.flip ? { flip: flipRole(t.id, t.flip) } : {}),
   };
 }

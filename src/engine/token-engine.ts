@@ -130,7 +130,8 @@ export const FILAMENTS = {
  *  over the top half with the icon on it, the name straight and large below), "solo" (the
  *  icon alone, as large as the coin allows) and "double" (the name along the bottom and again
  *  along the top, turned round, so it reads right way up from both sides of the table). */
-export const TOKEN_STYLES: { id: TokenStyle }[] = [{ id: "classic" }, { id: "window" }, { id: "solo" }, { id: "double" }, { id: "text" }];
+// in order of what they carry: the icon and the name (in an arc, twice, under a window), the icon alone, the name alone
+export const TOKEN_STYLES: { id: TokenStyle }[] = [{ id: "classic" }, { id: "double" }, { id: "window" }, { id: "solo" }, { id: "text" }];
 
 export const DEFAULT_SPEC: TokenSpec = {
   style: "classic",
@@ -2901,7 +2902,8 @@ function withContent(role: Role | null | undefined, spec: TokenSpec): TokenSpec 
   if (!c) return spec;
   if (c === "both") return spec.style === "solo" || spec.style === "text" ? { ...spec, style: "classic", textSize: LAYOUT_TEXT_SIZE } : spec;
   // the front's only: a back without a layout of its own keeps the design's (its other state carries its own text and icon)
-  const style: TokenStyle = c === "icon" ? "solo" : "text";
+  // nothing (Plain): the icon's layout, the role without an icon (tokenRole): a plain face
+  const style: TokenStyle = c === "icon" || c === "none" ? "solo" : "text";
   return { ...spec, style, ...(spec.backFace?.style ? {} : { backFace: { ...spec.backFace, style: spec.style }, ...(spec.backMode === "match" ? { backMode: "own" as const } : {}) }) };
 }
 const LAYOUT_TEXT_SIZE = DEFAULT_SPEC.textSize;

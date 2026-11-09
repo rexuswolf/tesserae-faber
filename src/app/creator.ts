@@ -458,6 +458,7 @@ function renderTokenPanel() {
   const carries = contentNow(tk, shape);
   $("#ownTokIconRow").hidden = !SHAPE_FEATURES[shape].icon;
   $("#ownTokNameHint").hidden = carries !== "icon" && carries !== "none";
+  $("#ownTokNameHint").textContent = t(carries === "none" && shape === "coin" ? "own.content.plain" : "own.content.iconName");
   renderIconChip("ownTok", tk.icon, carries === "text" && tk.icon ? t("own.iconNotPrinted") : "");
   renderTextHint(tk);
   renderOwnFlip(tk);
@@ -470,7 +471,7 @@ function renderTokenPanel() {
   searchOpen.ownTok = !!c && !tk.icon; searchOpen.ownTokFlip = false;
   renderIconChip("ownTok", tk.icon, contentNow(tk, shape) === "text" && tk.icon ? t("own.iconNotPrinted") : "");
   $<HTMLInputElement>("#ownTokName").value = nameIn(tk.name, tokenLang());
-  $<HTMLInputElement>("#ownTokText").value = tk.text ? nameIn(tk.text, tokenLang()) : "";
+  $<HTMLInputElement>("#ownTokText").value = nameIn(tk.text ?? tk.name, tokenLang());   // what it says: its name until it says something else
   $<HTMLInputElement>("#ownTokIq").value = ""; $("#ownTokHits").innerHTML = "";
   renderGroupPills(tk);
   $("#ownTokGroupRow").hidden = coll.groups.length < 2;   // one group (a new collection's): nothing to choose, nor to explain yet
@@ -504,11 +505,12 @@ function renderPanelShape(tk: OwnToken, shape: TokenShape) {
     return `<button type="button" role="radio" data-shape="${sh}" aria-checked="${sh === c.shape}">${tokenSvg(state.lib!, r, { ...filled(spec), lang: tokenLang(), diameter: 45, back: "none", backMode: "design" }, { text: name })}<span>${esc(t(`own.shape.${sh}`))}</span></button>`;
   }).join("")}</div></div>${typePick}`;
 }
-/** What a shape's token can carry: a coin, its icon and name, either alone; a card, with or without its icon; a ring or a base, its name. */
-const CONTENTS: Record<TokenShape, TokenContent[]> = { coin: ["both", "icon", "text"], card: ["both", "icon", "text"], ring: [], base: ["text", "none"] };
+/** What a shape's token can carry: a coin, its icon and name, either alone, or nothing (Plain); a card, with or without its icon; a ring or a base, its name. */
+const CONTENTS: Record<TokenShape, TokenContent[]> = { coin: ["both", "icon", "text", "none"], card: ["both", "icon", "text"], ring: [], base: ["text", "none"] };
 /** What the token carries now: its own choice, else what its design's layout shows (an icon-only or text-only coin). */
 function contentNow(tk: OwnToken, shape: TokenShape): TokenContent {
   const opts = CONTENTS[shape];
+  if (tk.content === "icon" && !tk.icon && shape !== "base") return "text";   // its icon alone, without one: its name
   if (tk.content && opts.includes(tk.content)) return tk.content;
   const role = roleById(tk.id), look = role ? lookOf(charKey(role)) : null;
   if (shape === "card") return look?.cardIcon === "only" ? "icon" : !look?.cardIcon || look.cardIcon === "none" ? "text" : "both";
@@ -530,17 +532,19 @@ function renderPanelContent(tk: OwnToken, shape: TokenShape) {
   box.innerHTML = `<label class="check tp-print"><input type="checkbox" id="ownTokPrint"${printed ? " checked" : ""}${locked ? " disabled" : ""}> <span>${esc(t(shape === "base" ? "own.printNameBase" : "own.printName"))}</span></label>`;
 }
 /** What a token's front says: its text, else its name (else a stand-in, while it has neither). */
-const printedText = (tk: OwnToken) => (tk.text ? nameIn(tk.text, tokenLang()).trim() : "") || nameIn(tk.name, tokenLang()).trim() || t("own.namePlaceholder");
-/** The front's text field: empty, it says the token's name (shown in it, greyed). */
+const printedText = (tk: OwnToken) => (tk.text != null ? nameIn(tk.text, tokenLang()).trim() : nameIn(tk.name, tokenLang()).trim() || t("own.namePlaceholder"));
+/** The front's text field: its name, while it says nothing else (it follows the name as that's written). */
 function renderTextHint(tk: OwnToken) {
-  const name = nameIn(tk.name, tokenLang()).trim();
-  $<HTMLInputElement>("#ownTokText").placeholder = name;
+  const field = $<HTMLInputElement>("#ownTokText");
+  field.placeholder = "";
+  if (tk.text == null && document.activeElement !== field) field.value = nameIn(tk.name, tokenLang());
 }
 /** What a token carries once its icon changes: none left, its name alone; one given to a token printing only its name, both. */
 function contentWithIcon(tk: OwnToken, shape: TokenShape, icon: TokenIcon | null): TokenContent | undefined {
   const now = contentNow(tk, shape);
   if (!icon && (now === "icon" || now === "both")) return "text";
   if (icon && !tk.icon && now === "text") return "both";
+  if (icon && !tk.icon && now === "none" && shape === "coin") return "icon";   // plain, an icon given: it shows
   return tk.content;
 }
 /** The token as it prints, in its design (front, back, linked tokens), and which design that is. */
@@ -632,12 +636,11 @@ function wireOwnToken() {
     if (tk && el.dataset.typePick != null) { tk.type = el.value; ownEdited(); }
   };
   $("#ownTokName").oninput = (e) => { const tk = editingOwn(); if (tk) { tk.name = withName(tk.name, tokenLang(), input(e).value); ownEdited(); renderTextHint(tk); } };
-  // what its front says: empty, its name
+  // what its front says: its name until changed; emptied, nothing (not its name again)
   $("#ownTokText").oninput = (e) => {
     const tk = editingOwn(); if (!tk) return;
-    const v = input(e).value;
-    if (v.trim()) tk.text = withName(tk.text ?? {}, tokenLang(), v);
-    else if (tk.text) { const rest = withName(tk.text, tokenLang(), ""); if (typeof rest === "string" || !Object.values(rest).some((x) => x.trim())) delete tk.text; else tk.text = rest; }
+    const from = tk.text ?? tk.name, names = typeof from === "string" ? { en: from, es: from } : { ...from };
+    tk.text = withName(names, tokenLang(), input(e).value);
     ownEdited();
   };
   // The token's icon and its other state's are chosen alike: game-icons.net, an SVG of yours, or none.
