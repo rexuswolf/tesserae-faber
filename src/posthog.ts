@@ -1,17 +1,14 @@
 import posthog from "posthog-js";
 
-const posthogKey = import.meta.env.VITE_POSTHOG_KEY?.trim();
-const posthogHost = import.meta.env.VITE_POSTHOG_HOST?.trim();
+// the e2e tests' build ("test") sends nothing: their visits aren't anyone's
+const testing = __BUILD__ === "test";
+const posthogKey = testing ? undefined : import.meta.env.VITE_POSTHOG_KEY?.trim();
+const posthogHost = testing ? undefined : import.meta.env.VITE_POSTHOG_HOST?.trim();
 export const posthogEnabled = Boolean(posthogKey && posthogHost);
 
-if (!posthogKey) {
-  if (import.meta.env.DEV) {
-    throw new Error("VITE_POSTHOG_KEY variable required by PostHog is missing or un-configured, this causes events to be silently missed. This error stops appearing once VITE_POSTHOG_KEY is configured");
-  }
-} else if (!posthogHost) {
-  if (import.meta.env.DEV) {
-    throw new Error("VITE_POSTHOG_HOST variable required by PostHog is missing or un-configured, this causes events to be silently missed. This error stops appearing once VITE_POSTHOG_HOST is configured");
-  }
+// without its key or host (a .env, see .env.example), the app works and sends nothing; in development it says so
+if (!posthogEnabled) {
+  if (import.meta.env.DEV && !testing) console.warn("PostHog is off: VITE_POSTHOG_KEY and VITE_POSTHOG_HOST aren't set (see .env.example).");
 } else {
   posthog.init(posthogKey, {
     api_host: posthogHost,
