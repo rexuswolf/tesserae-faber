@@ -30,7 +30,11 @@ describe("Clocktower's coin designs", () => {
     for (const sh of ["ring", "card", "base"] as const) for (const d of BOTC_STYLES[sh]) expect(d.spec.frameInset, `${sh} ${d.id}`).toBeUndefined();
   });
   it("one kept before the gap existed compares as the design's, one of yours with a gap of its own as it is", async () => {
-    const { keptBefore } = await import("../../src/app/looks.ts");
+    const { keptBefore, yoursBeforeInset } = await import("../../src/app/looks.ts");
+    expect(DEFAULT_SPEC.frameInset).toBe(0.8);   // by default a frame starts in from the edge
+    const { frameInset: _none, ...mine } = { ...DEFAULT_SPEC, frame: "rim" };
+    expect(yoursBeforeInset(mine).frameInset).toBe(0);   // one of yours kept before: still at the edge
+    expect(yoursBeforeInset({ ...mine, frameInset: 1.2 }).frameInset).toBe(1.2);
     const design = { ...DEFAULT_SPEC, frame: "rim", frameInset: 0.8 } as TokenSpec;
     const { frameInset: _gone, ...old } = design;
     expect(keptBefore(old as TokenSpec, design).frameInset).toBe(0.8);

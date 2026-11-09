@@ -73,6 +73,8 @@ export const printsAs = (shape: TokenShape, a: TokenSpec, b: TokenSpec, looks: L
  * with a collection's design: with the design's. One kept untouched before Clocktower's frames moved
  * in 0.8 mm is that design still, and prints as the design now does, not as one of its own.
  */
+/** One of your designs, kept before a frame started 0.8 mm in by default (it hasn't frameInset): its frame stays at the edge, as you made it. */
+export const yoursBeforeInset = <T extends { frameInset?: number }>(spec: T): T => (spec.frameInset === undefined ? { ...spec, frameInset: 0 } : spec);
 export const keptBefore = (spec: TokenSpec, design: TokenSpec): TokenSpec =>
   (spec.frameInset === undefined && design.frameInset !== undefined ? { ...spec, frameInset: design.frameInset } : spec);
 /** A look field of a spec ("frame", "colours.base"). */

@@ -10,7 +10,7 @@ import { roleIdOf, charKey, remindersOf, remKey } from "./tokens.ts";
 import { shapeOf, migrateBack } from "../engine/token-engine.ts";
 import { tokenRole } from "./queue.ts";
 import { TALLER, taller } from "./taller.ts";
-import { applyLook, lookFrom, lookFields, printsAs, keptBefore } from "./looks.ts";
+import { applyLook, lookFrom, lookFields, printsAs, keptBefore, yoursBeforeInset } from "./looks.ts";
 import { placeGameIcon } from "../icons.ts";
 import { local } from "../services.ts";
 import { startedFrom } from "./workshop.ts";
@@ -94,7 +94,7 @@ export const shapesHere = () => SHAPES.filter((sh) => state.lib!.roles.some((r) 
 export function readMyDesigns(): Record<TokenShape, MyDesign[]> {
   const kept = loadJSON<Partial<Record<TokenShape, MyDesign[]>> | null>(MY_DESIGNS_KEY, null);
   const ok = (d: MyDesign | null) => !!d && typeof d.id === "string" && typeof d.name === "string" && !!d.spec && typeof d.spec === "object";
-  return Object.fromEntries(SHAPES.map((sh) => [sh, Array.isArray(kept?.[sh]) ? kept[sh]!.filter(ok).map((d) => ({ ...d, spec: upgradeSpec(d.spec) })) : []])) as Record<TokenShape, MyDesign[]>;
+  return Object.fromEntries(SHAPES.map((sh) => [sh, Array.isArray(kept?.[sh]) ? kept[sh]!.filter(ok).map((d) => ({ ...d, spec: upgradeSpec(yoursBeforeInset(d.spec)) })) : []])) as Record<TokenShape, MyDesign[]>;
 }
 /** Designs deleted in this tab: not brought back from another tab's copy. */
 export const droppedDesigns = new Set<string>();

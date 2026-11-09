@@ -154,7 +154,9 @@ export const DEFAULT_SPEC: TokenSpec = {
   maxArc: 180,
   frame: "none",
   frameWidth: 0.8,
-  frameInset: 0,
+  // mm in from the coin's edge: its side all the base's colour, the frame's never showing round it
+  // (a hidden role dealt face-down gives nothing away); 0 takes the frame to the edge
+  frameInset: 0.8,
   back: "none",
   backMode: "design",     // the back is the design above, or a face (see BackMode)
   customSvg: null,
