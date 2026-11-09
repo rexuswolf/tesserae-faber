@@ -79,11 +79,12 @@ const ids = (list) => list.map((t) => t.id);
 // colour. Its own, then the app's (src/shape-designs.ts APP_DESIGNS), offered in every collection.
 const styles = {
   coin: [
-    // the default: black, a laurel wreath round it, icon and name in the group colour; behind, a laurel
+    // the default: black, a laurel wreath round it, icon and name in the group colour, the wreath 0.8 mm in from
+    // the edge (the coin's side all black: a hidden role mustn't show its side's colour there); behind, a laurel
     // crown in gold, the same on every coin (a role dealt face-down shows nothing)
     { id: "senado", name: { es: "Senado", en: "Senate" },
       help: { es: "Negra, con una corona de laurel, el icono y el nombre del color del bando; al reverso, una corona de laurel en oro, igual en todas.", en: "Black, with a laurel wreath, the icon and the name in the side's colour; on the back, a laurel crown in gold, the same on every coin." },
-      spec: { style: "classic", frame: "laurel", frameWidth: 0.8, back: "custom", customSvg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">${GI["laurel-crown"].body.replace(/\s(fill)="[^"]*"/g, "")}</svg>`, depth: 0.4, colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } } },
+      spec: { style: "classic", frame: "laurel", frameWidth: 0.8, frameInset: 0.8, back: "custom", customSvg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">${GI["laurel-crown"].body.replace(/\s(fill)="[^"]*"/g, "")}</svg>`, depth: 0.4, colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } } },
   ],
   // the laws: every one black (the deck shows nothing face-down or edge-on), the icon, the phrase
   // and the laurels in the side's colour (a marble law, a red decree); their back one for all: the
