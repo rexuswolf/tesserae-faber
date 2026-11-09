@@ -177,6 +177,12 @@ test("a token's back says words of its own, shows its icon, has an illustration 
   // its colour, its own: in Composition, under its layout, apart from the name's
   await expect(page.locator('.metal[data-colour="icon"]')).toBeVisible();
   await step('.metal[data-colour="icon"] button[data-v="#ece9e2"]', pressed('.metal[data-colour="icon"] button[data-v="#ece9e2"]'));
+  // any colour, with the picker: shown as chosen, and which filament it prints in
+  const iconColours = page.locator('.metal[data-colour="icon"]:visible');
+  await iconColours.locator("input[type=color]").fill("#ff2a8a");
+  await expect(iconColours.locator(".pick")).toHaveClass(/\bon\b/);
+  await expect(iconColours.locator(".metal-note")).toBeVisible();
+  await expect(iconColours.locator('button[aria-pressed="true"]')).toHaveCount(0);
   await step('#faceTabs [data-face="layout"]', pressed('[data-choice="style"] [data-v="classic"]'));
   await step('[data-choice="style"] [data-v="solo"]', pressed('[data-choice="style"] [data-v="solo"]'));
   await step('[data-choice="style"] [data-v="classic"]', pressed('[data-choice="style"] [data-v="classic"]'));

@@ -200,8 +200,8 @@ export function loadViewer() {
 
 /** The mark each ring separator pill shows before its name. */
 export const SEPARATOR_MARKS: Record<string, string> = { dot: "• ", diamond: "◆ ", star: "★ ", none: "" };
-/** Filament colours offered for the coin, frame and back (all of them print on the A1). */
-export const COLOUR_CHOICES = ["Black", "White", "Gold", "Silver", "Bronze", "Blue", "Red", "Purple", "Yellow", "Green"]
+/** The colours offered at once (filaments, all print on the A1): black, white, the basic colours, gold and silver. Any other, with the picker (it prints in the nearest filament). */
+export const COLOUR_CHOICES = ["Black", "White", "Red", "Blue", "Green", "Gold", "Silver"]
   .map((name) => ({ id: name.toLowerCase(), hex: FILAMENT_SLOTS.find((f) => f.name === name)!.hex }));
 export let gateState: (() => GateConfig) | null = null;
 export const setGateState = (make: (() => GateConfig) | null) => { gateState = make; };

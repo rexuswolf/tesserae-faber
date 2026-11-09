@@ -243,15 +243,19 @@ export function wire() {
     };
   }
   // the name's and the frame's colours are the face's; the back's own (a back that matches the front) is marked as the back's
-  for (const box of $$(".metal")) box.onclick = (e) => {
-    const b = hit(e, "button"); if (!b) return;
-    const key = box.dataset.colour!, mutate = (s: TokenSpec) => { s.colours = { ...DEFAULT_SPEC.colours, ...s.colours, [key]: b.dataset.v! }; };
+  const setColour = (box: HTMLElement, v: string) => {
+    const key = box.dataset.colour!, mutate = (s: TokenSpec) => { s.colours = { ...DEFAULT_SPEC.colours, ...s.colours, [key]: v }; };
     // a card back's phrase and frame: its own colours
-    if (box.dataset.side === "cardback") { const k = box.dataset.cbColour as "text" | "frame"; changeCardBack((cb) => { cb.colours = { ...cb.colours, [k]: b.dataset.v! }; }); return; }
+    if (box.dataset.side === "cardback") { const k = box.dataset.cbColour as "text" | "frame"; changeCardBack((cb) => { cb.colours = { ...cb.colours, [k]: v }; }); return; }
     if (box.dataset.side === "back") changeFace("back", mutate);
     else if (box.closest("[data-panel=text], [data-panel=icon], [data-panel=frame], [data-panel=colours]")) changeFace(editSide(), mutate);
     else changeLook(mutate);
   };
+  for (const box of $$(".metal")) {
+    box.onclick = (e) => { const b = hit(e, "button"); if (b) setColour(box, b.dataset.v!); };
+    // any colour, from the picker (it prints in the nearest filament)
+    box.oninput = (e) => { if ((e.target as HTMLElement).matches("input[type=color]")) setColour(box, input(e).value.toLowerCase()); };
+  }
   // a bevel of 0 is none: left unset, as in a design without one
   for (const id of Object.keys(RANGES) as RangeKey[]) $("#" + id).oninput = (e) => change(id, (s) => { if (id === "reliefBevel" && !+input(e).value) delete s.reliefBevel; else s[id] = +input(e).value; });
   $("#colourWarn").addEventListener("click", (e) => { if (hit(e, "[data-deepen]")) deepen(); });

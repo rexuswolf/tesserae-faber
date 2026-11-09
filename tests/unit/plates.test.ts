@@ -6,7 +6,13 @@ const token = (colours: string[]) => ({ spec: { diameter: 45 }, parts: { base: t
 
 describe("filaments", () => {
   it("finds a colour's slot, in any case", () => expect(slotOf("#1D1C21" as never)).toBe(0));
-  it("refuses a colour it has no filament for", () => expect(() => slotOf("#123456" as never)).toThrow());
+  it("prints a colour of your own in the filament most like it", () => {
+    expect(FILAMENT_SLOTS[slotOf("#ff2020" as never)].name).toBe("Red");
+    expect(FILAMENT_SLOTS[slotOf("#f5d000" as never)].name).toBe("Yellow");
+    expect(FILAMENT_SLOTS[slotOf("#101010" as never)].name).toBe("Black");
+    expect(FILAMENT_SLOTS[slotOf("#6020a0" as never)].name).toBe("Purple");
+  });
+  it("refuses what isn't a colour", () => expect(() => slotOf("team" as never)).toThrow());
   it("purges nothing for the same filament, and within Bambu's cap otherwise", () => {
     for (let a = 0; a < FILAMENT_SLOTS.length; a++) for (let b = 0; b < FILAMENT_SLOTS.length; b++) {
       const p = purge(a, b);

@@ -380,9 +380,11 @@ export function buildChoices() {
   // Backs are drawn as coin tiles by renderBackTiles().
   for (const side of ["front", "back"] as const) $(`[data-pat-side=${side}]`).innerHTML = patternGroupHtml(side);
   for (const box of $$(".metal")) {
-    // Every filament the Bambu export knows. The name and icon and the frame can take the team
-    // colour; on the coin or the back it would show the team from behind.
+    // Any colour (the picker), the team's (the name and icon and the frame: on the coin or the back
+    // it would show the team from behind), then the basic ones.
     const opts = [...(["front", "frame", "icon"].includes(box.dataset.colour!) ? [{ id: "team", hex: "team" }] : []), ...COLOUR_CHOICES];
-    box.innerHTML = opts.map((o) => `<button type="button" class="${o.id === "team" ? "team" : ""}" data-v="${o.hex}" style="${o.id === "team" ? "" : `background:${o.hex}`}" aria-label="${esc(t(`metal.${o.id}`))}" title="${esc(t(`metal.${o.id}`))}"></button>`).join("");
+    box.innerHTML = `<label class="pick" title="${esc(t("metal.custom"))}"><input type="color" aria-label="${esc(t("metal.custom"))}"></label>`
+      + opts.map((o) => `<button type="button" class="${o.id === "team" ? "team" : ""}" data-v="${o.hex}" style="${o.id === "team" ? "" : `background:${o.hex}`}" aria-label="${esc(t(`metal.${o.id}`))}" title="${esc(t(`metal.${o.id}`))}"></button>`).join("")
+      + `<small class="metal-note" hidden></small>`;
   }
 }

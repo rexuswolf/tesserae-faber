@@ -3,7 +3,8 @@ import { emit } from "./events.ts";
 import type { TokenShape, TokenSpec, MyDesign, TokenOverride, Role, PatternSpec, ReliefPart, Token, TokenStyle, SpecColours, SpecInput, CardBack, TokenIcon, BackFace, BackSay, TokenContent } from "../types.ts";
 import { DEFAULT_SPEC, reminderSpec, tokenSvg, SHAPE_FEATURES, shapeOf, roleName, shapeSpec, TOKEN_STYLES, FRAME_STYLES, ILLUSTRATIONS, isIllustration, illustrationPath, migrateBack, backShown, backLayoutContent, PATTERN_MIN, printsBack, cardBackOf, CARD_ICONS, CARD_JOINS, partColours, PATTERNS, patternDefaults, patternFilled, patternFixed, flipFace, reliefOf, hasRelief, FACE_FIELDS, ringBand, ringSize, baseSize, magnetLayout } from "../engine/token-engine.ts";
 import { tokenLang } from "./token-language.ts";
-import { ownIcon, roleIdOf, charKey, textFor, remindersOf, charName, specFor } from "./tokens.ts";
+import { ownIcon, roleIdOf, charKey, textFor, remindersOf, charName, specFor, filamentName } from "./tokens.ts";
+import { isFilament, slotOf } from "../bambu/plates.ts";
 import { ownChanged, myDesigns, myEntry, collEntry, inheritedRef, refOf, originalRef, defaultRef, designOf, collLabel, designFor, uniqueDesignName, lookOf, storeMyDesigns, storeOverrides, shapesHere, tokensOf, designOverridden, defaults, storeDefaults } from "./designs.ts";
 import type { DesignEntry } from "./designs.ts";
 import { appDesigns, APP_NAME, tallerUrl, newId, OWN, isLocked, nameIn } from "../collection.ts";
@@ -532,7 +533,7 @@ function renderCardBack(role: Role, text: string, spec: TokenSpec) {
   }
   $$(".metal[data-side=cardback]").forEach((box) => {
     const k = box.dataset.cbColour as "text" | "frame";
-    $$("button", box).forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.v === b.colours[k])));
+    markColours(box, b.colours[k]);
   });
 }
 /** A change to a card's back (in the Taller the design's; in the design step the token's own, as any change to its look). */
@@ -878,7 +879,7 @@ export function syncControls(role: Role, spec: TokenSpec, token: Token) {
   $$(".metal:not([data-side=cardback])").forEach((box) => {   // a card back's are renderCardBack's
     const k = box.dataset.colour as keyof SpecColours, from = box.dataset.side === "back" || (box.closest("[data-panel=text], [data-panel=icon], [data-panel=frame], [data-panel=colours]") && side === "back") ? faceOf(spec, "back") : s;
     const v = from.colours[k] ?? (k === "icon" ? from.colours.front : undefined);   // an icon without a colour of its own: the name's
-    $$("button", box).forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === v)));
+    markColours(box, v);
   });
   // Relief: its own section, for the whole token
   // the back as it prints: a one-state token's with what it says and shows (its layout follows them)
@@ -1044,4 +1045,20 @@ export function takeReturn(): { step: number; sel: string | null } | null {
   const v = readJSON<{ path?: string; step: number; sel: string | null } | null>(RETURN_KEY, null, session);
   session.remove(RETURN_KEY);
   return v && v.path === location.pathname ? v : null;
+}
+
+/**
+ * A row of colours as it is now: the one it is pressed; a colour of your own (none of them), the
+ * picker pressed and showing it, with the filament it prints in when it isn't one.
+ */
+function markColours(box: HTMLElement, v: string | undefined) {
+  const own = !!v && v !== "team" && !$$("button", box).some((b) => b.dataset.v === v);
+  $$("button", box).forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === v)));
+  const pick = $("label.pick", box), input = $<HTMLInputElement>("input", box), note = $("small.metal-note", box);
+  if (!pick) return;
+  pick.classList.toggle("on", own);
+  pick.style.background = own ? v! : "";
+  if (own && document.activeElement !== input) input.value = v!;
+  note.hidden = !own || isFilament(v!);
+  if (!note.hidden) note.textContent = t("metal.prints", { name: filamentName(slotOf(v as never)) });
 }

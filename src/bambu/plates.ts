@@ -62,11 +62,23 @@ export const AMS_SLOTS = 4;
 const FLUSH_MARGIN = 1.2;
 export const purge = (a: number, b: number) => (a === b ? 0 : Math.min(900, Math.ceil((FLUSH.matrix[a][b] * FLUSH_MARGIN) / 10) * 10));
 
+const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+/** How far apart two colours look ("redmean": RGB weighted as the eye weighs it). */
+function colourGap(a: string, b: string) {
+  const [r1, g1, b1] = rgb(a), [r2, g2, b2] = rgb(b), rm = (r1 + r2) / 2;
+  return (2 + rm / 256) * (r1 - r2) ** 2 + 4 * (g1 - g2) ** 2 + (2 + (255 - rm) / 256) * (b1 - b2) ** 2;
+}
+/** A colour's filament: its own, else the one that looks most like it (a colour of your own prints in it). */
 export const slotOf = (hex: Hex) => {
-  const i = FILAMENT_SLOTS.findIndex((s) => s.hex === String(hex).toLowerCase());
-  if (i < 0) throw new Error(`no filament for colour ${hex}`);
-  return i;
+  const h = String(hex).toLowerCase(), i = FILAMENT_SLOTS.findIndex((s) => s.hex === h);
+  if (i >= 0) return i;
+  if (!/^#[0-9a-f]{6}$/.test(h)) throw new Error(`no filament for colour ${hex}`);
+  let best = 0;
+  FILAMENT_SLOTS.forEach((s, j) => { if (colourGap(h, s.hex) < colourGap(h, FILAMENT_SLOTS[best].hex)) best = j; });
+  return best;
 };
+/** Whether a colour is a filament's own (else it prints in the nearest: slotOf). */
+export const isFilament = (hex: string) => FILAMENT_SLOTS.some((s) => s.hex === hex.toLowerCase());
 
 /** Filament slots one token needs. */
 function tokenSlots(token: PlanToken) {
