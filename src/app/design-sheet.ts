@@ -3,6 +3,7 @@ import { emit } from "./events.ts";
 import type { TokenShape, TokenSpec, MyDesign, TokenOverride, Role, PatternSpec, ReliefPart, Token, TokenStyle, SpecColours, SpecInput, CardBack, TokenIcon, BackFace, BackSay, TokenContent } from "../types.ts";
 import { DEFAULT_SPEC, reminderSpec, tokenSvg, SHAPE_FEATURES, shapeOf, roleName, shapeSpec, TOKEN_STYLES, FRAME_STYLES, ILLUSTRATIONS, isIllustration, illustrationPath, migrateBack, backShown, backLayoutContent, PATTERN_MIN, printsBack, cardBackOf, CARD_ICONS, CARD_JOINS, partColours, PATTERNS, patternDefaults, patternFilled, patternFixed, flipFace, reliefOf, hasRelief, FACE_FIELDS, ringBand, ringSize, baseSize, magnetLayout } from "../engine/token-engine.ts";
 import { tokenLang } from "./token-language.ts";
+import { iconFromSvg, GI_PLACE } from "../icons.ts";
 import { ownIcon, roleIdOf, charKey, textFor, remindersOf, charName, specFor, filamentName } from "./tokens.ts";
 import { isFilament, slotOf } from "../bambu/plates.ts";
 import { ownChanged, myDesigns, myEntry, collEntry, inheritedRef, refOf, originalRef, defaultRef, designOf, collLabel, designFor, uniqueDesignName, lookOf, storeMyDesigns, storeOverrides, shapesHere, tokensOf, designOverridden, defaults, storeDefaults } from "./designs.ts";
@@ -440,12 +441,14 @@ function renderBackStyleTiles(role: Role, spec: TokenSpec, text: string, pressed
 
 /** A text in a text's place: the words a layout waits for. */
 const SAMPLE_TEXT = "Lorem ipsum";
-/** A question mark in an icon's place (in the 127.56-unit square, drawn at 512): the icon a layout waits for. */
-const ASK_ICON = {
-  // a fine question mark, a little smaller than an icon (the layouts that fit an icon make it as large as one)
-  body: '<path d="M156 200A100 100 0 1 1 300 290L278 304L278 340L234 340L234 280L268 256A62 62 0 1 0 194 200Z"/><path d="M256 376A28 28 0 1 1 255.9 376Z"/>',
-  g: "scale(0.24914) translate(256 256) scale(0.8) translate(-256 -256)", d: [], iconKey: "ask",
-};
+/**
+ * A question mark in an icon's place: the icon a layout waits for. game-icons.net's "help" (sbed, CC BY 3.0)
+ * without its circle (on a coin it would read as one more ring), placed as any game-icons.net icon.
+ */
+const ASK_ICON = (() => {
+  const icon = iconFromSvg('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path d="M256 106c-66.274 0-120 40.294-120 90 0 30 60 30 60 0 0-16.57 26.862-30 60-30 33.138 0 60 13.43 60 30s-30 15-60 30c-1.875.938-3.478 2.126-4.688 3.28C226.53 244.986 226 271.926 226 286v15c0 16.62 13.38 30 30 30 16.62 0 30-13.38 30-30v-15c0-45 90-40.294 90-90s-53.726-90-120-90zm0 240a30 30 0 0 0-30 30 30 30 0 0 0 30 30 30 30 0 0 0 30-30 30 30 0 0 0-30-30z"/></svg>');
+  return { body: icon.body, g: GI_PLACE, d: [], iconKey: "ask" };
+})();
 /** What a layout carries: Symbol only its icon, Text only its name, the others both. */
 const contentOfStyle = (style: TokenStyle): TokenContent => (style === "solo" ? "icon" : style === "text" ? "text" : "both");
 /** The layout a token's content makes of its design's: its icon alone, its name alone, or the design's (one with both). */

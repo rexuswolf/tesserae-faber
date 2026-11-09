@@ -16,7 +16,7 @@ const GI_SCALE = 0.139518;
 // share of the box the library's icons fill (Tinker's wrench and a traced copy then overlap).
 const BOX = 512 * GI_SCALE, BOX_X = 28.063, BOX_Y = 19.134, TRACED_FILL = 0.93;
 /** Where a game-icons.net icon goes: exactly where the library's (also game-icons.net) sit. */
-const GI_PLACE = `translate(${BOX_X} ${BOX_Y}) scale(${GI_SCALE})`;
+export const GI_PLACE = `translate(${BOX_X} ${BOX_Y}) scale(${GI_SCALE})`;
 /**
  * Icons picked from game-icons.net used to be centred on the coin, a little below the library's.
  * Returns the icon moved to the library's place, or the same icon when it isn't one of those.
