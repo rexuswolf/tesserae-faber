@@ -524,8 +524,8 @@ function contentWithIcon(tk: OwnToken, shape: TokenShape, icon: TokenIcon | null
  * the group's first, then the colours a group can have.
  */
 function renderTokenColour(tk: OwnToken) {
-  const one = coll.groups.length < 2, usual = t(one ? "own.colourUsual" : "own.colourGroup");   // one group: the collection's colour, groups unsaid
-  $("#ownTokColourHelp").textContent = t(one ? "own.colourHelpOne" : "own.colourHelp");
+  const usual = t("own.colourGroup");   // its group's, even a collection's only one (there's no colour of the collection's)
+  $("#ownTokColourHelp").textContent = t("own.colourHelp");
   const group = coll.groups.find((g) => g.id === tk.group)?.colour ?? GROUP_COLOURS[0], now = tk.colour ?? group;
   $("#ownTokColour summary").innerHTML = `<i class="${metal(now).trim()}" style="--c: ${now}"></i><span>${esc(tk.colour ? colourName(tk.colour) : usual)}</span><b aria-hidden="true">▾</b>`;
   $("#ownTokColour .tok-colour-menu").innerHTML = `<button class="pill group-pill" type="button" data-tcolour="" aria-pressed="${!tk.colour}" style="--c: ${group}"><i class="${metal(group).trim()}"></i>${esc(usual)}</button>`
@@ -767,16 +767,8 @@ function openOwnSettings() {
   $<HTMLTextAreaElement>("#osAbout").value = nameIn(coll.about?.text, lang);
   $<HTMLTextAreaElement>("#osCredits").value = nameIn(coll.about?.credits, lang);
   $<HTMLTextAreaElement>("#osLinks").value = (coll.about?.links ?? []).map((l) => `${nameIn(l.label, lang)} | ${l.url}`).join("\n");
-  osTok = null;
-  renderTokColour();
   renderOwnThemes();
   $<HTMLDialogElement>("#ownSettings").showModal();
-}
-/** The tokens' colour being chosen in the settings (kept on Save): the one group's. */
-let osTok: string | null = null;
-function renderTokColour() {
-  $("#osTokColourRow").hidden = coll.groups.length > 1;   // more groups: each has its own (Types and groups)
-  $("#osTokColour").innerHTML = colourSwatches(osTok ?? coll.groups[0]?.colour, (c) => `data-tokc="${c}"`);
 }
 function renderOwnThemes() {
   const th = coll.theme ?? "faber", custom = typeof th === "object" ? th : null;
@@ -815,7 +807,6 @@ function wireOwnSettings() {
   };
   $("#osLogoReset").onclick = () => { if (coll.brand) delete coll.brand.logo; saveColl(); applyOwnBrand(); $<HTMLImageElement>("#osLogo").src = APP_LOGO; };
   $("#osCancel").onclick = () => dlg.close();
-  $("#osTokColour").onclick = (e) => { const b = hit(e, "[data-tokc]"); if (b) { osTok = b.dataset.tokc!; renderTokColour(); } };
   $("#osSave").onclick = () => {
     const lang = uiLang(), v = (id: string) => $<HTMLInputElement>(id).value.trim();
     if (v("#osName")) coll.name = withName(coll.name, lang, v("#osName"));
@@ -827,7 +818,6 @@ function wireOwnSettings() {
     if (!v("#osLoader")) delete coll.loader.text;
     const links = v("#osLinks").split("\n").map((l) => l.split("|").map((x) => x.trim())).filter(([label, url]) => label && /^https?:\/\//.test(url ?? "")).map(([label, url]) => ({ label, url }));
     coll.about = { text: withName(coll.about?.text ?? "", lang, v("#osAbout")), credits: withName(coll.about?.credits ?? "", lang, v("#osCredits")), links };
-    if (osTok && coll.groups.length === 1) coll.groups[0].colour = osTok as Hex;
     dlg.close();
     collectionChanged();
   };

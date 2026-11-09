@@ -816,10 +816,10 @@ export function syncControls(role: Role, spec: TokenSpec, token: Token) {
     $(`output[data-for=${id}]`).textContent = (+v).toFixed(dp).replace(".", dec) + unit;
   }
   const row = (id: string) => $("#" + id).closest<HTMLElement>(".row")!;
-  // the many-coloured swatch: a collection of yours with one group, the collection's colour; else each token's group's
-  const oneColour = OWN && !TALLER && coll.groups.length < 2, teamLabel = t(oneColour ? "metal.collection" : "metal.team");
+  // the many-coloured swatch: each token's team's (a collection of yours: its group's, even its only one)
+  const teamLabel = t("metal.team");
   for (const b of $$(".metal button.team")) { b.title = teamLabel; b.setAttribute("aria-label", teamLabel); }
-  $("#teamHint span").textContent = t(oneColour ? "metal.teamHintOne" : "metal.teamHint");
+  $("#teamHint span").textContent = t("metal.teamHint");
   if (panel === "colours") {   // its colours together: the body's, the name's and icon's, the frame's
     $("#coloursBaseLabel").textContent = shapeText("coin.colour", shape);
     $("#coloursFrontLabel").textContent = shape === "coin" ? t(face.style === "window" && role.content !== "icon" && role.content !== "text" ? "front.colourWindow" : role.content === "text" ? "front.colourName" : "front.colour") : t("front.colourName");

@@ -1651,8 +1651,6 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 .team-hint { display: flex; gap: 8px; align-items: center; margin-top: 12px; }
 .team-dot { flex: none; width: 14px; height: 14px; border-radius: 50%; background: conic-gradient(#2f86e0 0 25%, #b3191e 0 50%, #8a3d9e 0 75%, #d4a72c 0); }
 /* the tokens' colour, under the page's colours */
-.os-tokcolour { margin-top: 16px; }
-.os-tokcolour .own-swatches { margin-top: 6px; }
 
 /* the design step's head: the design's name, and a row of small designs that slides (the gallery at its end) */
 #styleRow .ds-row, #designTaller { display: none !important; }
