@@ -262,8 +262,12 @@ const colourName = (hex: string) => { const f = FILAMENT_SLOTS.find((x) => x.hex
 const METAL = new Set(FILAMENT_SLOTS.filter((f) => ["Gold", "Silver", "Bronze"].includes(f.name)).map((f) => f.hex));
 const metal = (hex: string) => (METAL.has(hex.toLowerCase()) ? " metal" : "");
 /** The colours a group can have, as swatches named after their filaments; `data` is each one's attributes. */
-const colourSwatches = (now: string | undefined, data: (hex: string) => string) => GROUP_COLOURS.map((c) =>
-  `<button type="button" class="swatch${metal(c)}" style="--c: ${c}" ${data(c)} aria-pressed="${c === now}" aria-label="${esc(colourName(c))}" title="${esc(colourName(c))}"></button>`).join("");
+/** Its colour pressed (whatever its case); one not among them (a file's own) is shown too, pressed, after them. */
+const colourSwatches = (now: string | undefined, data: (hex: string) => string) => {
+  const cur = now?.toLowerCase(), own = cur && !GROUP_COLOURS.includes(cur as Hex) ? [cur] : [];
+  return [...GROUP_COLOURS, ...own].map((c) =>
+    `<button type="button" class="swatch${metal(c)}" style="--c: ${c}" ${data(c)} aria-pressed="${c === cur}" aria-label="${esc(colourName(c))}" title="${esc(colourName(c))}"></button>`).join("");
+};
 
 /** The settings' Categories: each one's name, colour and how many tokens it has; a new one; one taken out (its tokens go to another, said first). */
 function renderOwnGroups() {

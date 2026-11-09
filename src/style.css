@@ -996,12 +996,16 @@ html[data-mode=own]:not([data-theme=botc]) h1, html[data-mode=own]:not([data-the
 .own-groups { display: grid; gap: 10px; margin: 8px 0 12px; }
 .own-group { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 10px; align-items: center; padding-bottom: 10px; border-bottom: 1px solid var(--seam); }
 .own-group small { color: var(--dust); }
-.own-swatches { display: flex; gap: 5px; flex-wrap: wrap; grid-column: 1 / -1; }
+.own-swatches { display: flex; gap: 9px; flex-wrap: wrap; grid-column: 1 / -1; }
 .own-swatches button { width: 24px; height: 24px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; padding: 0; }
 .own-swatches .swatch { background-color: var(--c); }
 /* the metal filaments shine (Gold isn't Yellow), on their swatches and the groups' dots */
 .own-swatches .swatch.metal, .group-pill i.metal, #ownTokColour summary i.metal { background-image: linear-gradient(135deg, rgb(255 255 255 / .6) 0%, rgb(255 255 255 / 0) 42%, rgb(0 0 0 / .32) 100%); }
-.own-swatches button[aria-pressed=true] { border-color: var(--bone); }
+/* the one chosen: a ring apart from it, and a tick that reads on any colour (dark, with a light edge) */
+.own-swatches button { position: relative; }
+.own-swatches button[aria-pressed=true] { border-color: transparent; outline: 2px solid var(--bone); outline-offset: 2px; }
+.own-swatches button[aria-pressed=true]::after { content: ""; position: absolute; inset: 0;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 12.5l4 4 8-9' fill='none' stroke='%23fff' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M6 12.5l4 4 8-9' fill='none' stroke='%23161412' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 70% no-repeat; }
 html[data-mode=own]:not([data-theme=botc]) .sheet, html[data-mode=own]:not([data-theme=botc]) .design-stage { background: radial-gradient(90% 60% at 30% 0%, var(--glow, #1d2a2c) 0%, var(--velvet-deep) 70%); }
 html[data-mode=own]:not([data-theme=botc]) .stage { background: radial-gradient(70% 70% at 50% 45%, var(--glow, #22302f), var(--velvet) 75%); }
 html[data-mode=own]:not([data-theme=botc]) .gate { background: radial-gradient(120% 90% at 50% 38%, var(--glow, #1f2b2c) 0%, var(--velvet) 45%, var(--velvet-deep) 100%); }
