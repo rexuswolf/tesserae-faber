@@ -531,7 +531,7 @@ const printedText = (tk: OwnToken) => (tk.text ? nameIn(tk.text, tokenLang()).tr
 /** The front's text field: empty, it says the token's name (shown in it, greyed). */
 function renderTextHint(tk: OwnToken) {
   const name = nameIn(tk.name, tokenLang()).trim();
-  $<HTMLInputElement>("#ownTokText").placeholder = name ? t("own.textPlaceholder", { name }) : "";
+  $<HTMLInputElement>("#ownTokText").placeholder = name;
 }
 /** What a token carries once its icon changes: none left, its name alone; one given to a token printing only its name, both. */
 function contentWithIcon(tk: OwnToken, shape: TokenShape, icon: TokenIcon | null): TokenContent | undefined {
