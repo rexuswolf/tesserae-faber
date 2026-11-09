@@ -118,7 +118,7 @@ export const setColl = (c: Collection) => { coll = c; };
 /** The collection open is one of the app's own (Clocktower at /botc, or one at /c/<id>): read-only, with "Make a copy" instead. */
 export const BUILT = OWN ? (OWN_ID ? builtIn(OWN_ID) : undefined) : builtIn("botc");
 export const READONLY = OWN && !!BUILT;
-if (BUILT) document.documentElement.dataset.builtin = BUILT.id;   // its menu offers a copy
+if (BUILT?.file) document.documentElement.dataset.builtin = BUILT.id;   // its menu offers a copy (Clocktower has no file to copy: its library is private)
 if (READONLY) document.documentElement.dataset.readonly = "";   // no editing (Clocktower at /botc keeps its scripts)
 // its name, logo, colours and loading line from the start: the loading screen shows them while its file is read
 if (READONLY && BUILT) coll = { ...coll, name: BUILT.name, ...(BUILT.theme ? { theme: BUILT.theme } : {}), ...(BUILT.logo ? { brand: { logo: BUILT.logo } } : {}), ...(BUILT.loader ? { loader: BUILT.loader } : {}) };

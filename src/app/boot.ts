@@ -140,7 +140,7 @@ function startApp() {
   if (!state.sel) state.sel = { key: charKey(first), role: first, reminder: null };
   // back where you were: the same view and team filter, if it still exists
   const view = loadJSON<{ edition?: string; team?: unknown }>(VIEW_KEY, {});
-  const known = (ed: string | undefined) => ed === "all" || (ed?.startsWith("k:") ? !!catalogOf(ed) : ed?.startsWith("f:") ? !!shapeOfView(ed) : ed?.startsWith("s:") ? !!scriptOf(ed) : state.lib!.roles.some((r) => r.edition === ed));
+  const known = (ed: string | undefined) => ed === "all" || (!OWN && ed === "f:coin") || (ed?.startsWith("k:") ? !!catalogOf(ed) : ed?.startsWith("f:") ? !!shapeOfView(ed) : ed?.startsWith("s:") ? !!scriptOf(ed) : state.lib!.roles.some((r) => r.edition === ed));
   state.edition = known(view.edition) ? view.edition! : "all";
   state.team = typeof view.team === "string" ? view.team : "all";
   buildChoices();

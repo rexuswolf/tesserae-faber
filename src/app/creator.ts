@@ -144,8 +144,8 @@ export function renderOwnSpine() {
     }).join("") || `<p class="scripts-empty">${esc(t("own.noCatalogs"))}</p>`);
 }
 
-/** A small padlock: a list that came with the collection. */
-const LOCK = `<svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true"><path fill="currentColor" d="M5 7V5a3 3 0 0 1 6 0v2h.5A1.5 1.5 0 0 1 13 8.5v5a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 3 13.5v-5A1.5 1.5 0 0 1 4.5 7zm1.5 0h3V5a1.5 1.5 0 0 0-3 0z"/></svg>`;
+/** A small padlock: a list that came with the collection (Clocktower: its editions). */
+export const LOCK = `<svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true"><path fill="currentColor" d="M5 7V5a3 3 0 0 1 6 0v2h.5A1.5 1.5 0 0 1 13 8.5v5a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 3 13.5v-5A1.5 1.5 0 0 1 4.5 7zm1.5 0h3V5a1.5 1.5 0 0 0-3 0z"/></svg>`;
 
 // a list made or added to: a name, and optionally a list of tokens
 let catTarget: { make: true } | { catalog: OwnCatalog } | null = null;

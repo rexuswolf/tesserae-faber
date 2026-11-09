@@ -129,11 +129,11 @@ function drawUiList() {
 /** A little of the app (the steps, a sidebar entry, a title, the sidebar's foot) in an interface language. */
 function drawUiStage(code: string) {
   const l = uiLanguage(code), s = (key: string) => esc(tIn(l.code, key));
-  const title = OWN && OWN_VIEW !== "collection" ? s("own.homeTitle") : OWN ? s("own.everything") : s("library.all");
+  const title = OWN && OWN_VIEW !== "collection" ? s("own.homeTitle") : s("own.everything");
   $("#tlangStage").innerHTML = `<img class="flag-bg" src="${l.flag}" alt="">
     <div class="ui-mini" lang="${l.code}" aria-hidden="true">
       <div class="um-steps"><b><i>1</i>${s("flow.step1")}</b><span><i>2</i>${s("flow.step3")}</span></div>
-      <div class="um-body"><div class="um-side">${OWN ? `<small>${s("spine.byType")}</small><span class="on">${s("own.everything")}</span>` : `<span class="on">${s("library.all")}</span><small>${s("spine.editions")}</small>`}<span class="um-foot">${s("guide.open")}<br>${s("about.link")}</span></div>
+      <div class="um-body"><div class="um-side"><small>${s("spine.byType")}</small><span class="on">${s("own.everything")}</span><small>${OWN ? s("own.lists") : s("spine.scripts")}</small><span class="um-foot">${s("guide.open")}<br>${s("about.link")}</span></div>
         <div class="um-main">${title}</div></div>
     </div>
     <div class="tl-card"><img src="${l.flag}" alt=""><span><b lang="${l.code}">${esc(l.name)}</b><small lang="${l.code}">${s("lang.note")}</small></span></div>`;

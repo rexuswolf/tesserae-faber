@@ -69,6 +69,26 @@ test("Clocktower: pick characters, design one from its row, print them on paper"
   expect(errors).toEqual([]);
 });
 
+test("Clocktower, as a collection: everything, its coins and cards, then the scripts (its editions locked, then yours)", async ({ page }) => {
+  const errors = await open(page, "/botc?admin");
+  await expect(page.locator('#library [data-ed="all"]')).toBeVisible();
+  await expect(page.locator('#library [data-ed="f:coin"]')).toBeVisible();
+  await expect(page.locator('#library [data-ed="grimoire"]')).toBeVisible();
+  await expect(page.locator("#spine .spine-sec h2").filter({ visible: true })).toHaveText(["Scripts"]);
+  await expect(page.locator("#editions .ed .list-lock").first()).toBeVisible();
+  // everything: the characters and the grimoire's cards; the coins: the characters alone
+  const count = async () => (await page.locator("#rows [data-pick^=\"c:\"]").count());
+  await page.locator('#library [data-ed="all"]').click();
+  const everything = await count();
+  await page.locator('#library [data-ed="f:coin"]').click();
+  await expect(page.locator("#edTitle")).toHaveText("Coins");
+  expect(await count()).toBeLessThan(everything);
+  // its own words: reminders; and no copy to make (its library is private)
+  await expect(page.locator("#rows").getByText(/\d reminders?$/).first()).toBeVisible();
+  await expect(page.locator(".built-copy")).toBeHidden();
+  expect(errors).toEqual([]);
+});
+
 test("printing in 3D: the Bambu project", async ({ page }) => {
   const errors = await open(page, "/botc?admin");
   await pick(page, 2, '#rows [data-pick^="c:"]');

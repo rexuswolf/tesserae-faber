@@ -17,7 +17,7 @@ const STR: Record<string, Record<string, Entry>> = {
     // script sheet and workshop
     "spine.aria": "Ediciones",
     "spine.editions": "Ediciones",
-    "spine.byType": "Por tipo",
+    "spine.byType": "Fichas",
     "spine.scripts": "Guiones",
     "script.new": "Añadir un guion",
     "script.empty": "Tus guiones se guardan en este navegador.",
@@ -79,7 +79,8 @@ const STR: Record<string, Record<string, Entry>> = {
     "about.what": "Midnight Mint te ayuda a hacer las fichas de Blood on the Clocktower: eliges los personajes, diseñas cómo son y descargas lo que hace falta para imprimirlas en 3D o en papel.",
     "about.data": "Tus guiones, las fichas que eliges y tus diseños se guardan en este navegador; no hace falta cuenta.",
     "library.all": "Todos los personajes",
-    "library.allLead": ({ n }) => `Los ${n} personajes de todas las ediciones, por equipos.`,
+    "library.everythingLead": ({ c, i }) => `Los ${c} personajes de todas las ediciones y las ${i} fichas de información del Grimorio, por bandos.`,
+    "library.allLead": ({ n }) => `Los ${n} personajes de todas las ediciones, por bandos.`,
     "credits.title": "Créditos",
     "credits.intro": "Midnight Mint es una herramienta gratuita hecha por la comunidad. Blood on the Clocktower, sus personajes y sus reglas son de The Pandemonium Institute; esta herramienta no es oficial ni está respaldada por ellos.",
     "credits.translations": "Traducciones",
@@ -298,8 +299,8 @@ const STR: Record<string, Record<string, Entry>> = {
     "add.remove": "Quitar de la selección",
     "add.removeSub": "Lo que se ve ahora, con deshacer",
     "filter.label": "Buscar y filtrar",
-    "pick.team": "Elegir el equipo",
-    "pick.teamOff": "Quitar el equipo",
+    "pick.team": "Elegir el bando",
+    "pick.teamOff": "Quitar el bando",
     "pick.badge": ({ n }) => `${n} ${plural(n, "ficha elegida", "fichas elegidas")}`,
     "pick.cleared": "Selección quitada",
     "design.tap": "Ver esta ficha",
@@ -425,7 +426,7 @@ const STR: Record<string, Record<string, Entry>> = {
     "print.backs": "Imprimir también los reversos (a doble cara)",
     "queue.filaments": "Filamentos",
     "queue.filamentsNote": ({ list }) => `${list}. En Bambu Studio, asigna cada uno a una ranura del AMS.`,
-    "queue.platesH": ({ n }) => `${n} ${plural(n, "placa", "placas")}, agrupadas por equipo`,
+    "queue.platesH": ({ n }) => `${n} ${plural(n, "placa", "placas")}, agrupadas por bando`,
     "queue.plateName": ({ i, name }) => `Placa ${i} · ${name}`,
     "queue.plateFill": ({ n, cap }) => `${n} de ${cap}`,
     "queue.downloadPdf": "Descargar PDF",
@@ -853,8 +854,8 @@ const STR: Record<string, Record<string, Entry>> = {
     "upload.aria": "Tu patrón SVG",
     "upload.tooBig": ({ file, kb, max }) => `${file} pesa ${kb} KB. Usa un SVG de menos de ${max} KB.`,
     "upload.using": ({ file }) => `Usando ${file}. Elige «Tu SVG» otra vez para cambiarlo.`,
-    "metal.team": "Color del equipo",
-    "metal.teamHint": "El de colores es el de su equipo: cada ficha lleva el del suyo.",
+    "metal.team": "Color del bando",
+    "metal.teamHint": "El de colores es el de su bando: cada ficha lleva el del suyo.",
     "metal.gold": "Oro",
     "metal.silver": "Plata",
     "metal.bronze": "Bronce",
@@ -1003,7 +1004,7 @@ const STR: Record<string, Record<string, Entry>> = {
     // script sheet and workshop
     "spine.aria": "Editions",
     "spine.editions": "Editions",
-    "spine.byType": "By type",
+    "spine.byType": "Tokens",
     "spine.scripts": "Scripts",
     "script.new": "Add a script",
     "script.empty": "Your scripts are kept in this browser.",
@@ -1065,6 +1066,7 @@ const STR: Record<string, Record<string, Entry>> = {
     "about.what": "Midnight Mint helps you make Blood on the Clocktower tokens: pick the characters, design how they look, and download what you need to print them in 3D or on paper.",
     "about.data": "Your scripts, the tokens you pick and your designs are kept in this browser; no account needed.",
     "library.all": "All characters",
+    "library.everythingLead": ({ c, i }) => `All ${c} characters from every edition and the Grimoire's ${i} info tokens, by team.`,
     "library.allLead": ({ n }) => `All ${n} characters from every edition, by team.`,
     "credits.title": "Credits",
     "credits.intro": "Midnight Mint is a free, community-made tool. Blood on the Clocktower, its characters and its rules belong to The Pandemonium Institute; this tool is unofficial and not endorsed by them.",
@@ -2005,7 +2007,12 @@ const APP_WORDS: Record<string, Record<WordKind, Word>> = {
   es: { group: { one: "categoría", many: "categorías", fem: true }, list: { one: "lista", many: "listas", fem: true }, linked: { one: "asociada", many: "asociadas", fem: true } },
   en: { group: { one: "category", many: "categories" }, list: { one: "list", many: "lists" }, linked: { one: "linked token", many: "linked tokens" } },
 };
-let OWN_WORDS: Record<string, Partial<Record<WordKind, Word>>> = {};
+/** Clocktower's own: its teams are "bandos", its lists "guiones" (the editions and yours), its linked tokens "recordatorios". */
+const BOTC_WORDS: Record<string, Partial<Record<WordKind, Word>>> = {
+  es: { group: { one: "bando", many: "bandos", fem: false }, list: { one: "guion", many: "guiones", fem: false }, linked: { one: "recordatorio", many: "recordatorios", fem: false } },
+  en: { group: { one: "team", many: "teams" }, list: { one: "script", many: "scripts" }, linked: { one: "reminder", many: "reminders" } },
+};
+let OWN_WORDS: Record<string, Partial<Record<WordKind, Word>>> = /^\/botc(\/|$)/.test(location.pathname) ? BOTC_WORDS : {};
 /** The open collection's words, by interface language (then applyStatic, to say them). */
 export function setOwnWords(words: Record<string, Partial<Record<WordKind, Word>>>) { OWN_WORDS = words; }
 /** A word, the collection's or the app's. */

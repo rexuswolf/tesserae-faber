@@ -67,15 +67,14 @@
         </div></div>
       </details>
       <hr class="spine-rule own-drawer-rule">
-      <!-- every character, and the grimoire's info tokens: above the editions (a collection's types, under "By type") -->
-      <div class="spine-h own-only" data-i18n="spine.byType"></div>
+      <!-- everything, and an entry per shape (Clocktower: its characters' coins, the grimoire's info cards) -->
+      <div class="spine-h" data-i18n="spine.byType"></div>
       <div id="library"></div>
       <hr class="spine-rule">
-      <div class="spine-h spine-sec own-spine-h"><h2 data-i18n="spine.editions"></h2>
-        <button class="spine-add own-only" type="button" id="catalogNew" data-i18n-attr="aria-label:own.newCatalog title:own.newCatalog">+</button></div>
-      <div id="editions"></div>
+      <!-- the lists: Clocktower's scripts, its editions first (locked: they're the game's), then yours; a collection draws its own heading -->
       <div class="spine-h spine-sec botc-only"><h2 data-i18n="spine.scripts"></h2>
         <button class="spine-add" type="button" id="scriptNew" data-i18n-attr="aria-label:script.new title:script.new">+</button></div>
+      <div id="editions"></div>
       <div id="scripts" class="botc-only"></div>
     </div>
     <footer class="spine-foot">

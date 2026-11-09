@@ -1008,7 +1008,6 @@ html[data-mode=own]:not([data-theme=botc]) .gate { background: radial-gradient(1
 .own-tools { padding: 0 12px; }
 .own-tools .spine-rule { margin-inline: 0; }
 .own-tools > .pill, .own-io .pill { justify-self: start; }
-html[data-mode=own] .own-spine-h { display: none; }   /* the creator's sections draw their own headings */
 .own-type-fields { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; grid-column: 1 / -1; }
 @media (max-width: 560px) { .own-type-fields { grid-template-columns: 1fr; } }
 .os-themes { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
@@ -1840,7 +1839,7 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 .ed { border-radius: 3px; }
 .ed[aria-current=true] { background: repeating-linear-gradient(180deg, var(--brass) 0 5px, transparent 5px 8px) 2px 50% / 4px 64% no-repeat, color-mix(in srgb, var(--bone) 6%, transparent); }
 .ed[aria-current=true]::before { display: none; }
-.spine-h.own-only { margin-top: 2px; }
+#spine > .spine-scroll > .spine-h:not(.spine-sec) { margin-top: 2px; }
 
 /* ---- the Designer: its parts' tabs wrap (none off the edge), the preview a stage with the token large */
 .parts { flex-wrap: wrap; overflow: visible; row-gap: 6px; }

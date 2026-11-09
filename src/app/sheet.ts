@@ -3,7 +3,7 @@ import { on, emit } from "./events.ts";
 import { state, esc, $, EDITION_ORDER, TEAM_PLURAL, fold, coll, TEAM_ORDER, storeJSON, VIEW_KEY, hit, READONLY, view3d } from "./context.ts";
 import { isCard, EDITIONS, TEAMS, roleName, shapeOf, reminderSpec, DEFAULT_SPEC, SHAPE_FEATURES, tokenSvg, flipFace, printsBack } from "../engine/token-engine.ts";
 import { OWN, nameIn, SHAPES, isLocked, isUntouchedStarter } from "../collection.ts";
-import { renderOwnSpine, catalogOf, shapeOfView, tokenShape, ownHome, ownHomeCatalog, ownAllView } from "./creator.ts";
+import { renderOwnSpine, catalogOf, shapeOfView, tokenShape, ownHome, ownHomeCatalog, ownAllView, LOCK } from "./creator.ts";
 import { uiLang, t } from "../i18n.ts";
 import type { Role, Team } from "../types.ts";
 import { uiIcon, TEAM_ICONS } from "../ui-icons.ts";
@@ -30,17 +30,19 @@ on("all", () => { renderSpine(); renderSheet(); });
 export function renderSpine() {
   if (OWN) return renderOwnSpine();
   const lang = uiLang();
-  // above the editions: every character, and the grimoire's info tokens
+  // as a collection has them: everything, then a shape each (its characters' coins, the grimoire's info cards)
   const all = allCharacters(), info = state.lib!.roles.filter((r) => r.edition === "grimoire");
   const entry = (ed: string, icon: string, name: string, sub: string, roles: Role[]) => `<button class="ed" type="button" data-ed="${ed}" aria-current="${state.edition === ed && !searchQuery()}">${uiIcon(icon)}
     <span>${esc(name)}<small>${esc(sub)}</small></span>${pickedBadge(roles)}</button>`;
-  $("#library").innerHTML = entry("all", "two-coins", t("library.all"), t("ed.count", { c: all.length, r: all.reduce((n, r) => n + remindersOf(r).length, 0) }), all)
-    + (info.length ? entry("grimoire", "id-card", EDITIONS.grimoire.name[lang], t("ed.countInfo", { n: info.length }), info) : "");
+  $("#library").innerHTML = entry("all", "stack", t("own.everything"), t("own.everythingCount", { n: all.length + info.length }), [...all, ...info])
+    + entry("f:coin", "two-coins", t("type.coin.many"), t("ed.count", { c: all.length, r: all.reduce((n, r) => n + remindersOf(r).length, 0) }), all)
+    + (info.length ? entry("grimoire", "id-card", t("type.card.many"), t("ed.countInfo", { n: info.length }), info) : "");
+  // the scripts: the game's editions first, locked, then yours
   $("#editions").innerHTML = EDITION_ORDER.filter((e) => e !== "grimoire" && state.lib!.roles.some((r) => r.edition === e)).map((e) => {
     const roles = state.lib!.roles.filter((r) => r.edition === e);
     const rem = roles.reduce((n, r) => n + remindersOf(r).length, 0);
     return `<button class="ed" type="button" data-ed="${e}" aria-current="${state.edition === e && !searchQuery()}">
-      <span>${esc(EDITIONS[e].name[lang])}<small>${esc(e === "grimoire" ? t("ed.countInfo", { n: roles.length }) : t("ed.count", { c: roles.length, r: rem }))}</small></span>${pickedBadge(roles)}</button>`;
+      <span>${esc(EDITIONS[e].name[lang])} <i class="list-lock" title="${esc(t("own.listFixed"))}" aria-label="${esc(t("own.listFixed"))}">${LOCK}</i><small>${esc(e === "grimoire" ? t("ed.countInfo", { n: roles.length }) : t("ed.count", { c: roles.length, r: rem }))}</small></span>${pickedBadge(roles)}</button>`;
   }).join("");
   const scripts = loadScripts();
   $("#scripts").innerHTML = scripts.map((sc) => {
@@ -115,7 +117,7 @@ export function renderSheet() {
   const ed = state.edition, sc = scriptOf(ed), inScript = sc && scriptRoles(sc), cat = catalogOf(ed), sh = shapeOfView(ed);
   const catOpen = !!cat && !cat.fixed;
   // header
-  $("#edTitle").textContent = q ? t("sheet.results", { q: $<HTMLInputElement>("#search").value.trim() }) : cat ? nameIn(cat.name, lang) : sh ? t(`type.${sh}.many`) : sc ? sc.name : ed === "all" ? t(OWN ? "own.everything" : "library.all") : EDITIONS[ed].name[lang];
+  $("#edTitle").textContent = q ? t("sheet.results", { q: $<HTMLInputElement>("#search").value.trim() }) : cat ? nameIn(cat.name, lang) : sh ? t(`type.${sh}.many`) : sc ? sc.name : ed === "all" ? t("own.everything") : ed === "f:coin" ? t("type.coin.many") : ed === "grimoire" ? t("type.card.many") : EDITIONS[ed].name[lang];
   // the generic creator's actions: a list of yours, open
   $("#ownActions").hidden = !OWN || !!q || !catOpen;
   $("#ownCatRename").hidden = $("#ownCatDelete").hidden = $("#ownCatList").hidden = !catOpen;
@@ -124,7 +126,8 @@ export function renderSheet() {
     : OWN ? t(cat ? "own.leadCatalog" : "own.leadAll", { n: (cat ? cat.tokens.length : sh ? state.lib!.roles.filter((r) => tokenShape(r.id) === sh).length : state.lib!.roles.length) })
     : sc ? t("script.lead", { n: inScript!.roles.length, eds: new Set(inScript!.roles.filter((r) => r.kind !== "homebrew").map((r) => r.edition)).size })
       + (inScript!.missing.length ? t("script.missing", { list: inScript!.missing.join(", ") }) : "")
-    : ed === "all" ? t("library.allLead", { n: allCharacters().length })
+    : ed === "all" ? t("library.everythingLead", { c: allCharacters().length, i: state.lib!.roles.filter((r) => r.edition === "grimoire").length })
+    : ed === "f:coin" ? t("library.allLead", { n: allCharacters().length })
     : t(`edition.lead.${ed}`);
   $("#scriptActions").hidden = !sc || !!q;
   $("#scriptCustomWarn").hidden = !scriptHasOwn(sc);
@@ -136,7 +139,7 @@ export function renderSheet() {
   $("#scriptShare").textContent = t(PHONE.matches && (navigator as Partial<Navigator>).share ? "script.share" : "script.copy");
 
   // which characters
-  let roles = q ? state.lib!.roles : cat ? cat.tokens.map(roleById).filter((r): r is Role => !!r) : sh ? state.lib!.roles.filter((r) => tokenShape(r.id) === sh) : sc ? inScript!.roles : ed === "all" ? (OWN ? state.lib!.roles : allCharacters()) : state.lib!.roles.filter((r) => r.edition === ed);
+  let roles = q ? state.lib!.roles : cat ? cat.tokens.map(roleById).filter((r): r is Role => !!r) : sh ? state.lib!.roles.filter((r) => tokenShape(r.id) === sh) : sc ? inScript!.roles : ed === "all" ? (OWN ? state.lib!.roles : [...allCharacters(), ...state.lib!.roles.filter((r) => r.edition === "grimoire")]) : ed === "f:coin" ? allCharacters() : state.lib!.roles.filter((r) => r.edition === ed);
   const teamsHere = TEAM_ORDER.filter((tm) => roles.some((r) => r.team === tm));
   if (state.team !== "all" && !teamsHere.includes(state.team as Team)) state.team = "all";
   storeJSON(VIEW_KEY, { edition: state.edition, team: state.team });   // where to come back to
