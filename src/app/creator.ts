@@ -480,7 +480,7 @@ function renderPanelShape(tk: OwnToken, shape: TokenShape) {
   }).join("")}</div></div>`;
 }
 /** What a shape's token can carry: a coin, its icon and name, either alone, or nothing (Plain); a card, with or without its icon; a ring or a base, its name. */
-const CONTENTS: Record<TokenShape, TokenContent[]> = { coin: ["both", "icon", "text", "none"], card: ["both", "icon", "text"], ring: [], base: ["text", "none"] };
+const CONTENTS: Record<TokenShape, TokenContent[]> = { coin: ["both", "icon", "text", "none"], card: ["both", "icon", "text"], ring: [], base: ["text", "none"], piece: [] };
 /** What the token carries now: its own choice, else what its design's layout shows (an icon-only or text-only coin). */
 function contentNow(tk: OwnToken, shape: TokenShape): TokenContent {
   const opts = CONTENTS[shape];

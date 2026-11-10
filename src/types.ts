@@ -54,7 +54,7 @@ export interface Role {
   /** The icon's name and author on game-icons.net (credited). */
   icon?: string;
   author?: string;
-  kind?: "homebrew" | "info" | "ring" | "base";
+  kind?: "homebrew" | "info" | "ring" | "base" | "piece";
   /** A homebrew character's script name (its edition, on the Edition back). */
   editionName?: string;
   /** A collection's token: the collection's name, for a back that prints it (TokenSpec.backText). */
@@ -96,7 +96,7 @@ export interface RoleFlip {
 // ---------------------------------------------------------------- the design (spec)
 
 /** A token's shape: a coin, a card (Clocktower's Grimoire) or a condition ring (see SHAPE_FEATURES). */
-export type TokenShape = "coin" | "card" | "ring" | "base";
+export type TokenShape = "coin" | "card" | "ring" | "base" | "piece";
 export type TokenStyle = "classic" | "window" | "solo" | "double" | "text";
 /** A coin's side edge. */
 export type CoinEdge = "smooth" | "reeded" | "segmented";
@@ -140,6 +140,9 @@ export interface SpecColours {
   /** A card's back, behind its design: unset, the card's own colour (so every card of a deck can share one back). */
   backBase?: ColourRef;
 }
+
+/** A piece's outline: its icon's silhouette, or a simple shape. */
+export type PieceShape = "silhouette" | "circle" | "triangle" | "square" | "hexagon" | "octagon" | "diamond" | "star" | "heart";
 
 /** The mark between repeats of a condition ring's name. */
 export type RingSeparator = "dot" | "diamond" | "star" | "none";
@@ -187,6 +190,12 @@ export interface TokenSpec {
   ringBase: string;
   /** A condition ring's mark between repeats of its name (RING_SEPARATORS): a dot, a diamond, a star or nothing. */
   separator: RingSeparator;
+  /** A piece's outline (PIECE_SHAPES): its icon's silhouette, or a simple shape. */
+  pieceShape: PieceShape;
+  /** How far a silhouette reaches past its icon (mm). */
+  pieceMargin: number;
+  /** Whether a piece shows its icon on top (else it's its outline alone, one colour). */
+  pieceIcon: boolean;
   /** A reminder's coin size, when the character style sets one. */
   reminderDiameter?: number;
   /** A linked token's (a reminder's, see reminderSpec): its own token, without its character's other state. */

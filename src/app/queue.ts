@@ -7,7 +7,7 @@ import { renderSheet, hasOwn, selectToken, ownPen } from "./sheet.ts";
 import type { QueueEntry, Role, TokenSpec, PlateItem, PlanToken, PartName, Hex, PlatePlan, Volumes, MagnetLayout, Token } from "../types.ts";
 import { lookOf } from "./designs.ts";
 import { tokenLang } from "./token-language.ts";
-import { shapeSpec, reminderSpec, DEFAULT_SPEC, roleName, shapeOf, SHAPE_FEATURES, partColours, backFaceOf, CARD, ringSize, isCard, buildToken, geometryVolume, SMALL_LETTERS_MM, tokenSvg, nameLetterHeight, magnetLayout, saveFile, cardPlan } from "../engine/token-engine.ts";
+import { shapeSpec, reminderSpec, DEFAULT_SPEC, roleName, shapeOf, SHAPE_FEATURES, partColours, backFaceOf, CARD, ringSize, isCard, buildToken, geometryVolume, SMALL_LETTERS_MM, tokenSvg, nameLetterHeight, magnetLayout, saveFile, cardPlan, pieceFoot } from "../engine/token-engine.ts";
 import { uiLang, t } from "../i18n.ts";
 import { planPlates, printerOf, nozzleOf, FILAMENT_SLOTS, PRINTERS, NOZZLES } from "../bambu/plates.ts";
 import { layoutCoins, PAGE, backX } from "../pdf/layout.ts";
@@ -111,10 +111,10 @@ export function queuePlan() {
       token: {
         spec,
         // a card's footprint is its own; a ring takes up its outer diameter but has no body in its hole
-        ...(shape === "card" ? { foot: { w: CARD.w, h: CARD.h } } : shape === "ring" ? { hole: 2 * ringSize(spec).inner } : {}),
+        ...(shape === "card" ? { foot: { w: CARD.w, h: CARD.h } } : shape === "ring" ? { hole: 2 * ringSize(spec).inner } : shape === "piece" ? { foot: { w: pieceFoot(spec), h: pieceFoot(spec) } } : {}),
         // a card's parts as buildCard makes them: its icon, frame and line, and its back's plate, phrase and icon, and frame
         ...(shape === "card" ? cardPlan(state.lib!, role, spec) : {
-          parts: { base: 1, front: 1, icon: has.icon ? 1 : null, frame: spec.frame !== "none" ? 1 : null, back: hasBack ? 1 : null,
+          parts: { base: 1, front: shape === "piece" ? null : 1, icon: has.icon && (shape !== "piece" || spec.pieceIcon) ? 1 : null, frame: spec.frame !== "none" ? 1 : null, back: hasBack ? 1 : null,
             backIcon: face && has.icon ? 1 : null, backFrame: face && face.frame !== "none" ? 1 : null },
           // the window's icon is in the coin colour; the classic one in the name's (on a back face, in the back's)
           colours: { base: c.base, front: c.front, icon: iconColour, frame: c.frame, back: c.back,

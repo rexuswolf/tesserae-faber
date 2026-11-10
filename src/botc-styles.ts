@@ -7,7 +7,7 @@
 // Clocktower's collection file, so a copy of it starts with them too.
 import { FILAMENTS } from "./engine/token-engine.ts";
 import type { StyleDef } from "./collection.ts";
-import { ringDesigns, cardDesigns, baseDesigns } from "./shape-designs.ts";
+import { ringDesigns, cardDesigns, baseDesigns, pieceDesigns } from "./shape-designs.ts";
 import type { TokenShape } from "./types.ts";
 
 const dark = { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } as const;
@@ -46,4 +46,5 @@ export const BOTC_STYLES: Record<TokenShape, StyleDef[]> = {
   ring: ringDesigns("aro-color"),
   card: cardDesigns("filete"),
   base: baseDesigns("bandeja-color"),
+  piece: pieceDesigns("pieza-silueta"),
 };

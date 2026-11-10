@@ -16,6 +16,7 @@
     "deploy:legacy": "firebase deploy --project midnight-mint --only hosting:legacy"
   },
   "dependencies": {
+    "clipper-lib": "^6.4.2",
     "firebase": "^11.10.0",
     "imagetracerjs": "^1.2.6",
     "jspdf": "^4.2.1",

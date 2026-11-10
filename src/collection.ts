@@ -16,7 +16,7 @@ import { gameIcon } from "./icons.ts";
 import { safeIconMarkup, safeTransform } from "./engine/safe-svg.ts";
 import { DEFAULT_SPEC, FILAMENTS, PATTERNS, CARD_ICONS, CARD_JOINS, CARD_ICON_MM, BACK_ORNAMENTS, ILLUSTRATIONS } from "./engine/token-engine.ts";
 import { BUILT_INS } from "./builtins.ts";
-import { ringDesigns, cardDesigns, baseDesigns, APP_DESIGNS, appTwin } from "./shape-designs.ts";
+import { ringDesigns, cardDesigns, baseDesigns, pieceDesigns, APP_DESIGNS, appTwin } from "./shape-designs.ts";
 
 /** Which app this page is: Clocktower (/botc, once Midnight Mint), or Tesserae Faber, the generic creator (the rest). */
 export const MODE: "botc" | "own" = /^\/botc(\/|$)/.test(location.pathname) ? "botc" : "own";
@@ -41,7 +41,7 @@ export const collectionUrl = (id: string) => `/c/${id}`;
 
 /** A name: one text, or one per token language ("en", "es", "es-castelgard"…). */
 export type Names = string | Record<string, string>;
-export const SHAPES: TokenShape[] = ["coin", "card", "ring", "base"];
+export const SHAPES: TokenShape[] = ["coin", "card", "ring", "base", "piece"];
 /** What a collection calls its categories (groups), lists (catalogs) and linked tokens, where not the app's words: singular, plural, and in Spanish whether it's feminine. */
 export interface OwnWord { one: Names; many: Names; fem?: boolean }
 export interface OwnWords { group?: OwnWord; list?: OwnWord; linked?: OwnWord }
@@ -156,6 +156,7 @@ export const basicStyles = (): Record<TokenShape, StyleDef[]> => ({
   ring: ringDesigns("aro-color"),
   card: cardDesigns("contraste"),
   base: baseDesigns("bandeja-color"),
+  piece: pieceDesigns("pieza-silueta"),
 });
 /**
  * A collection kept with the basic coin style for its rings and cards too (as every new one was
@@ -445,7 +446,7 @@ export function tokenRole(c: Collection, t: OwnToken, lang = "es"): Role {
     edition: "own", editionName: nameIn(home?.name ?? c.name, lang), collectionName: nameIn(c.name, lang),
     reminders: Object.fromEntries([...langs].map((l) => [l, t.linked.map((n) => nameIn(n, l))])),
     body: icon?.body ?? "", d: [], g: icon?.g ?? "",
-    ...(type?.shape === "card" ? { kind: "info" as const } : type?.shape === "ring" ? { kind: "ring" as const } : type?.shape === "base" ? { kind: "base" as const } : {}),
+    ...(type?.shape === "card" ? { kind: "info" as const } : type?.shape === "ring" ? { kind: "ring" as const } : type?.shape === "base" ? { kind: "base" as const } : type?.shape === "piece" ? { kind: "piece" as const } : {}),
     // credited like the library's icons, when it's from game-icons.net
     ...creditOf(icon),
     // the engine caches shapes by this: a new icon for the same token gets drawn afresh

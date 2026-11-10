@@ -29,8 +29,8 @@ export const fold = (s: string) => String(s).toLowerCase().normalize("NFD").repl
 export type Fields = Record<string, unknown>;
 
 /** The sliders: each field's decimals and unit. */
-export type RangeKey = "diameter" | "height" | "depth" | "reliefHeight" | "reliefBevel" | "iconScale" | "textSize" | "spacing" | "maxArc" | "frameWidth" | "frameInset" | "cardIconSize";
-export const RANGES: Record<RangeKey, [number, string]> = { diameter: [0, " mm"], height: [1, " mm"], depth: [1, " mm"], reliefHeight: [1, " mm"], reliefBevel: [1, " mm"], iconScale: [2, "×"], textSize: [1, " mm"], spacing: [2, "×"], maxArc: [0, "°"], frameWidth: [1, " mm"], frameInset: [1, " mm"], cardIconSize: [0, " mm"] };
+export type RangeKey = "diameter" | "height" | "depth" | "reliefHeight" | "reliefBevel" | "iconScale" | "textSize" | "spacing" | "maxArc" | "frameWidth" | "frameInset" | "cardIconSize" | "pieceMargin";
+export const RANGES: Record<RangeKey, [number, string]> = { diameter: [0, " mm"], height: [1, " mm"], depth: [1, " mm"], reliefHeight: [1, " mm"], reliefBevel: [1, " mm"], iconScale: [2, "×"], textSize: [1, " mm"], spacing: [2, "×"], maxArc: [0, "°"], frameWidth: [1, " mm"], frameInset: [1, " mm"], cardIconSize: [0, " mm"], pieceMargin: [1, " mm"] };
 export const MAX_SVG = 300000;
 // The source code. Its links (sidebar footer and credits) stay hidden while the repository
 // is private, so nobody lands on GitHub's 404: set REPO_PUBLIC to true once it is published.
@@ -52,7 +52,7 @@ export const OVERRIDES2_KEY = `${KEYS}design-tokens`;
 export const STYLES_KEY = `${KEYS}styles`;
 export const TOKENS_KEY = `${KEYS}tokens`;
 const STYLE_KEY = `${KEYS}style`;
-export const STYLE_KEYS: Record<TokenShape, string> = { coin: STYLE_KEY, ring: `${KEYS}style-ring`, card: `${KEYS}style-card`, base: `${KEYS}style-base` };
+export const STYLE_KEYS: Record<TokenShape, string> = { coin: STYLE_KEY, ring: `${KEYS}style-ring`, card: `${KEYS}style-card`, base: `${KEYS}style-base`, piece: `${KEYS}style-piece` };
 export const OVERRIDES_KEY = `${KEYS}overrides`;
 export const DESIGNS_KEY = `${KEYS}designs`;
 export const TOKEN_LANG_KEY = "midnight-mint-token-lang";
@@ -103,7 +103,7 @@ export const state: {
   user: null, lib: null,
   edition: "all", team: "all",   // the sheet opens on every character
   sel: null,              // { key, role, reminder: index | null }
-  part: { coin: "front", ring: "front", card: "front", base: "front" }, faceTab: { front: "layout", back: "layout" },   // the first tab: Layout (Text where a shape has no layouts)
+  part: { coin: "front", ring: "front", card: "front", base: "front", piece: "front" }, faceTab: { front: "layout", back: "layout" },   // the first tab: Layout (Text where a shape has no layouts)
   view: "angle",
   overrides: new Map(),   // read by loadDesigns once the tokens are known
   flash: "",
@@ -237,7 +237,7 @@ export function legacySpecs(): Record<TokenShape, TokenSpec> {
   // without one kept, the collection's first coin style (what the set's design was by default: Edition)
   const coin = upgradeSpec(loadJSON<TokenSpec | null>(STYLE_KEY, null)) || defSpec(startingStyles("coin")[0]);
   const specs = { coin } as Record<TokenShape, TokenSpec>;
-  for (const shape of ["ring", "card", "base"] as const) specs[shape] = upgradeSpec(loadJSON<TokenSpec | null>(STYLE_KEYS[shape], null)) ?? structuredClone(coin);
+  for (const shape of ["ring", "card", "base", "piece"] as const) specs[shape] = upgradeSpec(loadJSON<TokenSpec | null>(STYLE_KEYS[shape], null)) ?? structuredClone(coin);
   return specs;
 }
 export const loadJSON = <T>(key: string, fallback: T): T => readJSON(key, fallback);

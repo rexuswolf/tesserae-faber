@@ -133,10 +133,35 @@ export const CARD_DESIGNS = {
   },
 } satisfies Record<string, StyleDef>;
 
+/** Piece designs, by id (the app's): flat, solid, printed lying down; 25 mm and 4 mm thick unless they say. */
+export const PIECE_DESIGNS = {
+  "pieza-silueta": {
+    id: "pieza-silueta", name: { es: "Silueta", en: "Silhouette" },
+    help: { es: "La silueta del icono, 2 mm más ancha, del color del grupo, con el icono en blanco en relieve encima.", en: "The icon's silhouette, 2 mm wider, in the group colour, with the icon raised in white on top." },
+    spec: { pieceShape: "silhouette", pieceMargin: 2, pieceIcon: true, diameter: 25, height: 4, depth: 0.4, relief: { text: false, frame: false, icon: true }, reliefHeight: 0.6, colours: { base: "team", front: white, frame: white } },
+  },
+  "pieza-lisa": {
+    id: "pieza-lisa", name: { es: "Silueta lisa", en: "Plain silhouette" },
+    help: { es: "Solo la silueta del icono, ceñida (0,6 mm), de un color: como un meeple o un peón. Va mejor con iconos de silueta clara.", en: "The icon's silhouette alone, close-fitting (0.6 mm), in one colour: like a meeple or a pawn. Best with icons of a clear outline." },
+    spec: { pieceShape: "silhouette", pieceMargin: 0.6, pieceIcon: false, diameter: 25, height: 5, depth: 0.4, colours: { base: "team", front: white, frame: white } },
+  },
+  "pieza-negra": {
+    id: "pieza-negra", name: { es: "Silueta negra", en: "Black silhouette" },
+    help: { es: "La silueta en negro y el icono del color del grupo en relieve.", en: "The silhouette in black and the icon raised in the group colour." },
+    spec: { pieceShape: "silhouette", pieceMargin: 2, pieceIcon: true, diameter: 25, height: 4, depth: 0.4, relief: { text: false, frame: false, icon: true }, reliefHeight: 0.6, colours: { base: black, front: "team", frame: "team" } },
+  },
+  "pieza-hexagono": {
+    id: "pieza-hexagono", name: { es: "Hexágono", en: "Hexagon" },
+    help: { es: "Un hexágono del color del grupo con el icono en blanco en relieve: un marcador que encaja en un tablero de hexágonos.", en: "A hexagon in the group colour with the icon raised in white: a marker that sits on a hex board." },
+    spec: { pieceShape: "hexagon", pieceIcon: true, diameter: 25, height: 4, depth: 0.4, relief: { text: false, frame: false, icon: true }, reliefHeight: 0.6, colours: { base: "team", front: white, frame: white } },
+  },
+} satisfies Record<string, StyleDef>;
+
 /** Designs in the order given (the first, a collection's default), each a copy. */
 export const ringDesigns = (...ids: (keyof typeof RING_DESIGNS)[]): StyleDef[] => ids.map((id) => structuredClone(RING_DESIGNS[id]) as StyleDef);
 export const cardDesigns = (...ids: (keyof typeof CARD_DESIGNS)[]): StyleDef[] => ids.map((id) => structuredClone(CARD_DESIGNS[id]) as StyleDef);
 export const baseDesigns = (...ids: (keyof typeof BASE_DESIGNS)[]): StyleDef[] => ids.map((id) => structuredClone(BASE_DESIGNS[id]) as StyleDef);
+export const pieceDesigns = (...ids: (keyof typeof PIECE_DESIGNS)[]): StyleDef[] => ids.map((id) => structuredClone(PIECE_DESIGNS[id]) as StyleDef);
 
 /** The app's designs, per shape, in the order they're offered. */
 export const APP_DESIGNS: Record<TokenShape, StyleDef[]> = {
@@ -144,6 +169,7 @@ export const APP_DESIGNS: Record<TokenShape, StyleDef[]> = {
   ring: ringDesigns("aro-color", "relieve-alto", "filos", "rapida"),
   card: cardDesigns("contraste", "placa", "laureles", "pergamino", "filete", "esquinas", "rapida"),
   base: baseDesigns("bandeja-color", "bandeja-negra", "bandeja-relieve"),
+  piece: pieceDesigns("pieza-silueta", "pieza-lisa", "pieza-negra", "pieza-hexagono"),
 };
 /** A look as text that doesn't depend on the order its fields were written in. */
 const specKey = (v: unknown): string => (v && typeof v === "object" && !Array.isArray(v)

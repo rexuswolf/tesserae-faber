@@ -8,7 +8,7 @@
 // so it doesn't weigh on the app's first load.
 import { jsPDF } from "jspdf";
 import { svg2pdf } from "svg2pdf.js";
-import { tokenSvg, CARD, isCard, isRing, ringSize } from "../engine/token-engine.ts";
+import { tokenSvg, CARD, isCard, isRing, isPiece, pieceFoot, ringSize } from "../engine/token-engine.ts";
 import { PAGE, layoutCoins, backX } from "./layout.ts";
 import type { SheetSlot } from "./layout.ts";
 import type { Library, Role, TokenSpec } from "../types.ts";
@@ -50,7 +50,7 @@ export async function buildPrintPdf(lib: Library, entries: { role: Role; spec: T
 } = {}) {
   // Paper has no magnets: drop the 3D-only pocket from the back.
   const paper = entries.map((e) => ({ ...e, spec: { ...e.spec, magnet: "none" as const } }));
-  const pages = layoutCoins(paper.map((e) => (isCard(e.role) ? CARD : e.spec.diameter)));
+  const pages = layoutCoins(paper.map((e) => (isCard(e.role) ? CARD : isPiece(e.role) ? pieceFoot(e.spec) : e.spec.diameter)));   // a piece: the square it fits in
   const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait", compress: true });
   doc.setProperties({ title, creator: "Tesserae Faber" });
   // Hints for viewers that honour them (Acrobat): real size, and duplex on the long edge or one-sided.
@@ -74,8 +74,8 @@ export async function buildPrintPdf(lib: Library, entries: { role: Role; spec: T
         doc.setDrawColor(150); doc.setLineWidth(0.15);
         for (const c of coins) {
           if (c.card) doc.roundedRect(c.x - c.w / 2, c.y - c.h / 2, c.w, c.h, c.r, c.r, "S");
-          else doc.circle(c.x, c.y, c.d / 2, "S");
           const { role, spec } = paper[c.index];
+          if (!c.card && !isPiece(role)) doc.circle(c.x, c.y, c.d / 2, "S");   // a piece's outline is its own guide
           if (isRing(role)) doc.circle(c.x, c.y, ringSize(spec).inner, "S");
         }
       }

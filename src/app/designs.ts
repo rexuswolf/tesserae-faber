@@ -39,7 +39,7 @@ import { BOTC_STYLES } from "../botc-styles.ts";
 /** A design as the menus and the editor see it, whichever kind it is. */
 export interface DesignEntry { ref: string; name: string; spec: TokenSpec; mine: boolean; help?: string }
 /** Your designs, per shape: one library for every collection. */
-export let myDesigns: Record<TokenShape, MyDesign[]> = { coin: [], ring: [], card: [], base: [] };
+export let myDesigns: Record<TokenShape, MyDesign[]> = { coin: [], ring: [], card: [], base: [], piece: [] };
 /** Your designs read again from this browser (another tab, or the Taller, may have changed them). */
 export const rereadMyDesigns = () => { myDesigns = readMyDesigns(); };
 /** The collection's default design per shape, where it isn't its own first one. */

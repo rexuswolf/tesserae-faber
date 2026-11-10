@@ -300,6 +300,49 @@ test("a collection of bases: the tray in the sheet and the Bambu project", async
   expect(errors).toEqual([]);
 });
 
+test("a collection of pieces: a silhouette, a plain one and a hexagon, to the Bambu project and the paper", async ({ page }) => {
+  test.setTimeout(120_000);
+  const errors = await open(page, "/");
+  const id = await page.evaluate(async () => {
+    const C = await import("/src/collection.ts"), U = await import("/src/ui-icons.ts");
+    const c = C.starterCollection();
+    c.tokens = ["meeple", "stack", "two-coins"].map((ic, i) => ({ id: `p${i}`, shape: "piece" as const, group: "g1", name: ic, icon: U.uiTokenIcon(ic), linked: [] }));
+    c.catalogs = [{ id: "k1", name: "Piezas", tokens: c.tokens.map((t) => t.id) }];
+    return C.addCollection(c);
+  });
+  await page.goto(`/c/${id}`);
+  await expect(page.locator("#gate")).toBeHidden({ timeout: 30_000 });
+  await page.evaluate(() => document.querySelectorAll("dialog[open]").forEach((d) => (d as HTMLDialogElement).close()));
+  await pick(page, 3);
+  await next(page);
+  // the designer: its Composition has the outlines and the icon on top or not; the hexagon changes the preview
+  await page.evaluate(() => (window as unknown as { __mm: { designToken(k: string): void } }).__mm.designToken("p2"));
+  const hex = page.locator('[data-choice="pieceShape"] [data-v="hexagon"]');
+  await expect(hex).toBeAttached({ timeout: 10_000 });
+  await expect(page.locator('[data-choice="pieceIcon"] [data-v]')).toHaveCount(2);
+  const before = await page.locator("#workshop svg[aria-label]").first().innerHTML();
+  // the tiles may draw themselves again meanwhile: click until the choice takes
+  await expect(async () => {
+    await hex.evaluate((b) => (b as HTMLElement).click());
+    await expect(hex).toHaveAttribute("aria-pressed", "true", { timeout: 1000 });
+  }).toPass();
+  await expect.poll(() => page.locator("#workshop svg[aria-label]").first().innerHTML()).not.toBe(before);
+  await next(page);
+  await expect(async () => {
+    await page.locator('#printPage [data-way="3d"]').click();
+    await expect(page.locator('#printPage [data-way="3d"]')).toHaveAttribute("aria-checked", "true", { timeout: 1000 });
+  }).toPass();
+  await expect(page.locator("#flowNext")).toBeEnabled();
+  const download = page.waitForEvent("download", { timeout: 60_000 });
+  await next(page);
+  expect((await download).suggestedFilename()).toMatch(/\.3mf$/);
+  await page.locator('#printPage [data-way="paper"]').click();
+  const pdf = page.waitForEvent("download", { timeout: 60_000 });
+  await next(page);
+  expect((await pdf).suggestedFilename()).toMatch(/\.pdf$/);
+  expect(errors).toEqual([]);
+});
+
 test("cards with a back: the Senate's laws to the Bambu project and the paper, both sides", async ({ page }) => {
   const errors = await open(page, "/c/senado");
   await page.locator('[data-ed="f:card"]').first().evaluate((b) => (b as HTMLElement).click());   // its laws: its cards

@@ -18,10 +18,11 @@ import { SVGLoader } from "three/addons/loaders/SVGLoader.js";
 import { TTFLoader } from "three/addons/loaders/TTFLoader.js";
 import { Font } from "three/addons/loaders/FontLoader.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import ClipperLib from "clipper-lib";
 import type {
   Role, Team, Hex, CoinEdge, ColourRef, TokenSpec, SpecInput, TokenStyle, Relief, ReliefPart, Library, Glyph,
   PartColours, TokenParts, Token, MagnetLayout, TokenIcon, TokenShape, FaceField, BackFace, RingSeparator, AutoText,
-  PatternId, PatternSpec, PartName, CardIcon, CardJoin, CardBack,
+  PatternId, PatternSpec, PartName, CardIcon, CardJoin, CardBack, PieceShape,
 } from "../types.ts";
 
 export { THREE };
@@ -176,6 +177,10 @@ export const DEFAULT_SPEC: TokenSpec = {
   customSvg: null,
   ringBase: "25",
   separator: "dot",
+  // a piece's: its icon's silhouette, 2 mm round it, the icon on top
+  pieceShape: "silhouette",
+  pieceMargin: 2,
+  pieceIcon: true,
   // a card's: the phrase alone (as cards always were); an icon, when chosen, 30 mm at its side
   cardIcon: "none",
   cardIconSize: 30,
@@ -2990,6 +2995,124 @@ function baseSvg(lib: Library, role: Role, input: SpecInput | undefined, side: "
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${-v} ${-v} ${2 * v} ${2 * v}" role="img" aria-label="${esc(label)}">${body}</svg>`;
 }
 
+// ---------------------------------------------------------------- pieces
+
+/**
+ * A piece: a flat game piece, printed lying down, solid. Its outline is its icon's silhouette (the icon's
+ * outline grown by a margin, its holes filled and notches too narrow to print closed) or a simple shape,
+ * as thick as asked, all the body's colour; its icon on top in another colour, sunk flush or raised, or none.
+ * Roles with kind "piece".
+ */
+export const isPiece = (role: Role | null | undefined) => role?.kind === "piece";
+export const PIECE_SHAPES: PieceShape[] = ["silhouette", "circle", "hexagon", "square", "octagon", "triangle", "diamond", "star", "heart"];
+/** A piece's size (mm across), its thickness and its silhouette's margin, as far as they go. */
+export const PIECE_SIZE = { min: 15, max: 60 }, PIECE_HEIGHT = { min: 2, max: 12 }, PIECE_MARGIN = { min: 0.4, max: 4 };
+const clampTo = (v: unknown, r: { min: number; max: number }, or: number) => (Number.isFinite(+(v as number)) ? Math.min(r.max, Math.max(r.min, +(v as number))) : or);
+
+/** A piece's spec: a body and an icon, nothing else (no name, frame, back or magnet); only its icon can stand raised. */
+export function pieceSpec(input: SpecInput | undefined): TokenSpec {
+  const s = normalizeSpec({ ...DEFAULT_SPEC, ...input, colours: { ...DEFAULT_SPEC.colours, ...input?.colours } });
+  const pieceIcon = s.pieceIcon !== false;
+  const spec: TokenSpec = {
+    ...s, style: "classic", relief: { text: false, frame: false, icon: pieceIcon && reliefOf(s).icon }, back: "none", backMode: "design", magnet: "none",
+    frame: "none", frontPattern: null, backPattern: null, pieceShape: oneOf(s.pieceShape, PIECE_SHAPES, "silhouette"), pieceIcon,
+    pieceMargin: clampTo(s.pieceMargin, PIECE_MARGIN, DEFAULT_SPEC.pieceMargin), diameter: clampTo(s.diameter, PIECE_SIZE, 25), height: clampTo(s.height, PIECE_HEIGHT, 4),
+  };
+  return { ...spec, depth: fittingDepth(spec).depth };
+}
+/** The square a piece fits in (mm): its size, and a silhouette's margin each side. */
+export const pieceFoot = (spec: TokenSpec) => spec.diameter + (spec.pieceShape === "silhouette" ? 2 * spec.pieceMargin : 0);
+
+// Clipper works on whole numbers: µm.
+const CLIP = 1000;
+const toClip = (pts: THREE.Vector2[]) => { const p = pts.map((v) => ({ X: Math.round(v.x * CLIP), Y: Math.round(v.y * CLIP) })); return ClipperLib.Clipper.Orientation(p) ? p : p.reverse(); };
+const clipGrow = (ps: { X: number; Y: number }[][], mm: number) => {
+  const co = new ClipperLib.ClipperOffset(2, 0.02 * CLIP), out = new ClipperLib.Paths();
+  co.AddPaths(ps, ClipperLib.JoinType.jtRound, ClipperLib.EndType.etClosedPolygon); co.Execute(out, mm * CLIP);
+  return out;
+};
+const clipUnion = (ps: { X: number; Y: number }[][]) => {
+  const c = new ClipperLib.Clipper(), out = new ClipperLib.Paths();
+  c.AddPaths(ps, ClipperLib.PolyType.ptSubject, true); c.Execute(ClipperLib.ClipType.ctUnion, out, ClipperLib.PolyFillType.pftNonZero, ClipperLib.PolyFillType.pftNonZero);
+  return out;
+};
+/** Outlines only (anticlockwise), not their holes, and none of a speck's size: a solid piece. */
+const clipOuters = (ps: { X: number; Y: number }[][]) => ps.filter((p) => ClipperLib.Clipper.Orientation(p) && Math.abs(ClipperLib.Clipper.Area(p)) > 0.05 * CLIP * CLIP);
+
+/** A simple shape's outline, `size` mm across, centred. */
+function simpleOutline(kind: PieceShape, size: number) {
+  const R = size / 2, poly = (n: number, a0: number, rr = R) => Array.from({ length: n }, (_, i) => pt(rr, a0 + (i * TAU) / n));
+  switch (kind) {
+    case "triangle": return poly(3, Math.PI / 2, R * 1.12).map((v) => v.add(new THREE.Vector2(0, -R * 0.22)));
+    case "square": return poly(4, Math.PI / 4, R * Math.SQRT2 * 0.9);
+    case "hexagon": return poly(6, 0);
+    case "octagon": return poly(8, Math.PI / 8);
+    case "diamond": return poly(4, Math.PI / 2).map((v) => new THREE.Vector2(v.x * 0.72, v.y));
+    case "star": return Array.from({ length: 10 }, (_, i) => pt(i % 2 ? R * 0.48 : R, Math.PI / 2 + (i * Math.PI) / 5));
+    case "heart": return Array.from({ length: 120 }, (_, i) => {
+      const t = (i / 120) * TAU, x = 16 * Math.sin(t) ** 3, y = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
+      return new THREE.Vector2((x / 17) * R, (y / 17) * R + R * 0.12);
+    });
+    default: return poly(128, 0);
+  }
+}
+/** Where a simple shape's icon goes: its share of the shape's size, and how far up its middle is (mm). */
+const PIECE_ICON: Partial<Record<PieceShape, { k: number; dy: number }>> = { triangle: { k: 0.46, dy: -0.11 }, star: { k: 0.42, dy: 0 }, diamond: { k: 0.5, dy: 0 }, heart: { k: 0.5, dy: 0.04 } };
+const pieceIconAt = (spec: TokenSpec) => { const p = PIECE_ICON[spec.pieceShape] ?? { k: 0.6, dy: 0 }; return { size: spec.diameter * p.k * (spec.iconScale || 1), dy: p.dy * spec.diameter }; };
+
+const pieceOutlines = new Map<string, THREE.Shape[]>();
+/**
+ * A piece's outline, in mm, centred as its icon's square is. A silhouette: its icon's outer contours (their holes
+ * filled), grown by the margin and a little more, then drawn in by that little: notches narrower than twice it close.
+ * A simple shape: its corners rounded by 1 mm. A silhouette without an icon is a circle.
+ */
+export function pieceOutline(lib: Library, role: Role, spec: TokenSpec): THREE.Shape[] {
+  const silhouette = spec.pieceShape === "silhouette", shapes = silhouette ? iconShapes(lib, role, spec) : [];
+  const key = [spec.pieceShape, spec.diameter, silhouette ? spec.pieceMargin : "", silhouette ? iconOf(role, spec).key : ""].join("|");
+  if (!pieceOutlines.has(key)) {
+    let ps;
+    if (silhouette && shapes.length) {
+      const k = spec.diameter / TRACE_VIEW, c = TRACE_VIEW / 2;
+      const loops = shapes.map((sh) => toClip(sh.extractPoints(8).shape.map((v) => new THREE.Vector2((v.x - c) * k, -(v.y - c) * k))));
+      const round = Math.min(0.8, 0.5 + 0.15 * spec.pieceMargin);
+      ps = clipOuters(clipUnion(clipGrow(clipOuters(clipUnion(clipGrow(clipUnion(loops), spec.pieceMargin + round))), -round)));
+    } else {
+      const r = 1;
+      ps = clipOuters(clipUnion(clipGrow(clipOuters(clipUnion(clipGrow([toClip(simpleOutline(silhouette ? "circle" : spec.pieceShape, spec.diameter))], -r))), r)));
+    }
+    pieceOutlines.set(key, ps.map((p) => polygon(p.map((q) => new THREE.Vector2(q.X / CLIP, q.Y / CLIP)))));
+    if (pieceOutlines.size > 300) pieceOutlines.delete(pieceOutlines.keys().next().value!);
+  }
+  return pieceOutlines.get(key)!;
+}
+
+function buildPiece(lib: Library, role: Role, input: SpecInput | undefined): Token {
+  const spec = pieceSpec(input), outline = pieceOutline(lib, role, spec), face = topFace(spec);
+  const body = extrude(outline, spec.height, T(0, 0, 0), 1);
+  const at = spec.pieceShape === "silhouette" ? { size: spec.diameter, dy: 0 } : pieceIconAt(spec);
+  const icon = spec.pieceIcon ? partExtrude(iconShapes(lib, role, spec), spec, "icon", face, tracedMatrix(at.size, partZ(spec, "icon", face), false, at.dy)) : null;
+  const colours = partColours(role, spec), r = reliefTop(spec);
+  return {
+    parts: { base: body, front: null, icon, frame: null, back: null },
+    colours: { ...colours, icon: colours.ink! },
+    name: { letterHeight: Infinity, scale: 1, total: 0 },
+    spec, magnet: null, depthClamped: null, foot: { w: pieceFoot(spec), h: pieceFoot(spec) },
+    above: { icon: icon && spec.relief.icon && r ? geometryVolume(icon) : 0 },
+  };
+}
+
+function pieceSvg(lib: Library, role: Role, input: SpecInput | undefined, side: "front" | "back", text?: string | null) {
+  const spec = pieceSpec(input), c = partColours(role, spec), label = text ?? roleName(role, spec.lang), v = pieceFoot(spec) / 2;
+  let body = `<path fill="${c.base}" d="${shapesToPath(pieceOutline(lib, role, spec), 0, 0, 1)}"/>`;
+  if (side === "front" && spec.pieceIcon) {
+    const icon = iconOf(role, spec), at = spec.pieceShape === "silhouette" ? { size: spec.diameter, dy: 0 } : pieceIconAt(spec), k = at.size / TRACE_VIEW;
+    const raised = spec.relief.icon, rid = raised ? `tfr${++reliefIds}` : "";
+    const g = `<g fill="${c.ink}" transform="translate(0 ${(-at.dy).toFixed(3)}) scale(${k.toFixed(5)}) translate(${-TRACE_VIEW / 2} ${-TRACE_VIEW / 2})"><g transform="${icon.g}">${icon.body}</g></g>`;
+    body += raised ? `${reliefFilter(rid, spec.reliefBevel || 0)}<g filter="url(#${rid})">${g}</g>` : g;
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${-v} ${-v} ${2 * v} ${2 * v}" role="img" aria-label="${esc(label)}">${body}</svg>`;
+}
+
 // ---------------------------------------------------------------- what each shape has
 
 /**
@@ -3011,7 +3134,7 @@ export interface ShapeFeatures {
   maxArc: boolean;
   /** "designs": any of FRAME_STYLES; "line": only with a frame or without (any design comes out
    *  as a plain line); its width goes with it. */
-  frame: "designs" | "line";
+  frame: "designs" | "line" | "none";
   /** The face parts that can stand raised; none: everything flush, printed face-down. */
   relief: ReliefPart[];
   back: boolean;
@@ -3042,8 +3165,10 @@ export const SHAPE_FEATURES: Record<TokenShape, ShapeFeatures> = {
   ring: { layout: false, icon: false, textSize: true, spacing: true, maxArc: false, frame: "line", relief: ["text", "frame"], back: false, magnet: false, diameter: false, ringBase: true, flip: false, separator: true, corners: false, pattern: false },
   // A base tray (baseSpec): its text along the tab, the edge lines its frame; the base it's for.
   base: { layout: false, icon: false, textSize: false, spacing: true, maxArc: false, frame: "line", relief: ["text", "frame"], back: false, magnet: false, diameter: false, ringBase: true, flip: false, separator: false, corners: false, pattern: false },
+  // A piece (pieceSpec): its outline and its icon on top (or none), how big and how thick; no name, frame, back or magnet.
+  piece: { layout: true, icon: true, textSize: false, spacing: false, maxArc: false, frame: "none", relief: ["icon"], back: false, magnet: false, diameter: true, ringBase: false, flip: false, separator: false, corners: false, pattern: false },
 };
-export const shapeOf = (role: Role | null | undefined): TokenShape => (isCard(role) ? "card" : isRing(role) ? "ring" : isBase(role) ? "base" : "coin");
+export const shapeOf = (role: Role | null | undefined): TokenShape => (isCard(role) ? "card" : isRing(role) ? "ring" : isBase(role) ? "base" : isPiece(role) ? "piece" : "coin");
 
 /**
  * A back that is a face, in its spec (shapeSpec puts it there): the front again, a face of its
@@ -3219,6 +3344,7 @@ export function shapeSpec(role: Role | null | undefined, input: SpecInput | unde
   if (shape === "card") return cardContent(role, cardSpec(input));
   if (shape === "ring") return ringSpec(input);
   if (shape === "base") return baseSpec(input);
+  if (shape === "piece") return pieceSpec(input);
   input = migrateBack(input);
   const spec = withContent(role, { ...DEFAULT_SPEC, ...input, colours: { ...DEFAULT_SPEC.colours, ...input?.colours } });
   if (!backIsFace(role, spec)) return spec;
@@ -3256,6 +3382,7 @@ export function buildToken(lib: Library, role: Role, input: SpecInput | undefine
   if (isCard(role)) return buildCard(lib, role, input, text);
   if (isRing(role)) return buildRing(lib, role, input, text);
   if (isBase(role)) return buildTray(lib, role, input, text);
+  if (isPiece(role)) return buildPiece(lib, role, input);
   let spec = windowFrame(shapeSpec(role, input));
   // A magnet may need a thicker coin.
   const need = magnetLayout(spec)?.minHeight ?? 0;
@@ -3398,6 +3525,7 @@ export function tokenSvg(lib: Library, role: Role, input: SpecInput | undefined,
   if (isCard(role)) return cardSvg(lib, role, input, side, text);
   if (isRing(role)) return ringSvg(lib, role, input, side, text);
   if (isBase(role)) return baseSvg(lib, role, input, side, text);
+  if (isPiece(role)) return pieceSvg(lib, role, input, side, text);
   const spec = windowFrame(shapeSpec(role, input));
   // a back that is a face: drawn as a front (a two-state token's other state with its own icon, not the token's)
   const bf = side === "back" ? backFaceOf(role, spec, text ?? roleName(role, spec.lang)) : null;

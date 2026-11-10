@@ -59,7 +59,7 @@ type TallerView = "shape" | "base" | "edit";
  * from, and each shape's sample tokens (token keys).
  */
 export const taller: { view: TallerView; shape: TokenShape; ref: string; pick: string; from: { path: string; id: string; name: string } | null; groups: TallerGroup[]; samples: Record<TokenShape, string[]>; focusName: boolean } =
-  { view: "shape", shape: "coin", ref: "", pick: "", from: null, groups: [], samples: { coin: [], ring: [], card: [], base: [] }, focusName: false };
+  { view: "shape", shape: "coin", ref: "", pick: "", from: null, groups: [], samples: { coin: [], ring: [], card: [], base: [], piece: [] }, focusName: false };
 /** The design open in the Taller's editor (always one of yours). */
 export const tallerMine = () => (TALLER && taller.view === "edit" && taller.ref.startsWith("u:") ? myDesigns[taller.shape].find((x) => x.id === taller.ref.slice(2)) : undefined);
 /** A base of the second step by its reference: a group's ("g<n>:<id>"), or one of yours ("m:<id>", copied to start from). */
@@ -91,6 +91,8 @@ function sampleTokens(groups: string[]): Collection {
       { id: "sample-k2", shape: "card", group: g2, name: n("Elige a un jugador", "Choose a player"), icon: null, linked: [] },
       { id: "sample-b1", shape: "base", group: g1, name: n("3", "3"), icon: null, linked: [] },
       { id: "sample-b2", shape: "base", group: g2, name: n("Orco 2", "Orc 2"), icon: null, linked: [] },
+      { id: "sample-p1", shape: "piece", group: g1, name: n("Meeple", "Meeple"), icon: uiTokenIcon("meeple"), linked: [] },
+      { id: "sample-p2", shape: "piece", group: g2, name: n("Ficha", "Token"), icon: uiTokenIcon("stack"), linked: [] },
     ],
   };
 }
@@ -184,7 +186,7 @@ function tallerGo(next: Partial<Pick<typeof taller, "view" | "shape" | "ref" | "
   renderTaller();
 }
 /** The Taller's shapes, in the order the first step shows them. */
-const TALLER_SHAPES: TokenShape[] = ["coin", "ring", "base", "card"];
+const TALLER_SHAPES: TokenShape[] = ["coin", "ring", "base", "card", "piece"];
 function startTaller() {
   setGateState(null);
   $("#gate").hidden = true; $("#app").hidden = false;

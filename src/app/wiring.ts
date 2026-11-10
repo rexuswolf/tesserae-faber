@@ -223,7 +223,7 @@ export function wire() {
   // A face's choices and sliders go to the face being edited (the front, or a back of its own); the rest to the token.
   const FACE_KEYS = new Set<string>(FACE_FIELDS);
   const change = (key: string, mutate: (s: TokenSpec) => void) => (FACE_KEYS.has(key) ? changeFace(editSide(), mutate) : changeLook(mutate));
-  for (const key of ["style", "frame", "magnet", "magnetSize", "ringBase", "separator", "edge", "cardIcon", "cardJoin"]) {
+  for (const key of ["style", "frame", "magnet", "magnetSize", "ringBase", "separator", "edge", "cardIcon", "cardJoin", "pieceShape", "pieceIcon"]) {
     $(`[data-choice=${key}]`).onclick = (e) => {
       const b = hit(e, "button"); if (!b) return;
       // the back's layouts end with Plain: nothing on it
@@ -240,6 +240,7 @@ export function wire() {
         if (key === "style" && (s.style ?? DEFAULT_SPEC.style) !== b.dataset.v) s.textSize = LAYOUT_TEXT[b.dataset.v as TokenStyle];
         // a frame that starts with a rim of its own width (the runes': fine)
         if (key === "frame" && FRAME_START_WIDTH[b.dataset.v!] != null && s.frame !== b.dataset.v) s.frameWidth = FRAME_START_WIDTH[b.dataset.v!];
+        if (key === "pieceIcon") { s.pieceIcon = b.dataset.v === "true"; return; }
         if (key === "edge" && b.dataset.v === "smooth") delete s.edge;   // smooth is unset: the coin as always
         else (s as unknown as Fields)[key] = b.dataset.v;
       });

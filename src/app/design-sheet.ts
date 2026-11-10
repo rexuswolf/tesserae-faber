@@ -1,7 +1,7 @@
 // Choosing a design (the design sheet), and each shape's default design.
 import { emit } from "./events.ts";
 import type { TokenShape, TokenSpec, MyDesign, TokenOverride, Role, PatternSpec, ReliefPart, Token, TokenStyle, SpecColours, SpecInput, CardBack, TokenIcon, BackFace, BackSay, TokenContent } from "../types.ts";
-import { DEFAULT_SPEC, reminderSpec, tokenSvg, SHAPE_FEATURES, shapeOf, roleName, shapeSpec, TOKEN_STYLES, FRAME_STYLES, ILLUSTRATIONS, isIllustration, illustrationPath, migrateBack, backShown, backLayoutContent, PATTERN_MIN, printsBack, cardBackOf, CARD_ICONS, CARD_JOINS, partColours, PATTERNS, patternDefaults, patternFilled, patternFixed, flipFace, reliefOf, hasRelief, FACE_FIELDS, ringBand, ringSize, baseSize, magnetLayout } from "../engine/token-engine.ts";
+import { DEFAULT_SPEC, reminderSpec, tokenSvg, SHAPE_FEATURES, shapeOf, roleName, shapeSpec, TOKEN_STYLES, FRAME_STYLES, ILLUSTRATIONS, isIllustration, illustrationPath, migrateBack, backShown, backLayoutContent, PATTERN_MIN, printsBack, cardBackOf, CARD_ICONS, CARD_JOINS, partColours, PATTERNS, patternDefaults, patternFilled, patternFixed, flipFace, reliefOf, hasRelief, FACE_FIELDS, ringBand, ringSize, baseSize, magnetLayout, pieceSpec, PIECE_SHAPES } from "../engine/token-engine.ts";
 import { tokenLang } from "./token-language.ts";
 import { iconFromSvg, GI_PLACE } from "../icons.ts";
 import { ownIcon, roleIdOf, charKey, textFor, remindersOf, charName, specFor, filamentName } from "./tokens.ts";
@@ -334,7 +334,7 @@ export function renderTabs(role: Role, spec: TokenSpec) {
   renderBackNote(role, spec, part === "back" && faceOpen ? panel : null);
   // Composition: its own panel, and the text's and the icon's under it; with no layouts, the text's panel is where the face's content goes
   const comp = panel === "layout";
-  $$(".ws-panel").forEach((p) => { const d = p.dataset.panel; p.hidden = !(d === panel || (comp && (d === "text" || (d === "icon" && SHAPE_FEATURES[shape].icon)))); });
+  $$(".ws-panel").forEach((p) => { const d = p.dataset.panel; p.hidden = !(d === panel || (comp && ((d === "text" && shape !== "piece") || (d === "icon" && SHAPE_FEATURES[shape].icon)))); });
   document.querySelector(".ws-body")?.setAttribute("data-comp", String(comp));
   const host = comp ? $("[data-panel=layout]") : $("[data-panel=text]"), what = $("#compWhat");
   if (what.parentElement !== host) host.prepend(what);
@@ -535,6 +535,15 @@ function lineFrames(shape: TokenShape, frame: string): [string, string][] {
   return [["none", t("frame.none")], [line, t(`frame.line.${shape}`)], ...(SHAPE_FEATURES[shape].corners ? [["corners", t("frame.corners")], ["laurel", t("frame.laurelCard")]] as [string, string][] : [])];
 }
 
+/** A piece's outlines and its icon on top or not (its Composition), each drawn on the token as it would come out. */
+function renderPieceTiles(face: { role: Role; text: string }, spec: TokenSpec) {
+  const s = pieceSpec(spec), tile = (key: "pieceShape" | "pieceIcon", v: string, label: string, look: SpecInput) =>
+    `<button class="back-tile" type="button" data-v="${v}" aria-pressed="${String(s[key]) === v}">${tokenSvg(state.lib!, face.role, { ...s, ...look }, { text: face.text })}<span>${esc(label)}</span></button>`;
+  $("[data-choice=pieceShape]").innerHTML = PIECE_SHAPES.map((v) => tile("pieceShape", v, t(`piece.shape.${v}`), { pieceShape: v })).join("");
+  $("[data-choice=pieceIcon]").innerHTML = [true, false].map((v) => tile("pieceIcon", String(v), t(`piece.icon.${v ? "on" : "off"}`), { pieceIcon: v })).join("");
+  $("#pieceMarginRow").hidden = s.pieceShape !== "silhouette";
+  $("#pieceHint").textContent = s.pieceShape !== "silhouette" ? t("piece.hintShape") : s.pieceIcon ? t("piece.hintSilhouette") : t("piece.hintPlain");
+}
 /** A card's icon places and joins (its Layout tab) and its icon's size (its Icon tab), the tiles drawn on the token as it would come out. */
 function renderCardIconTiles(role: Role, text: string, spec: TokenSpec, hasIcon: boolean) {
   // a card of yours without an icon: the places for one wait for it (only None, its phrase alone, doesn't)
@@ -822,12 +831,17 @@ export function syncControls(role: Role, spec: TokenSpec, token: Token) {
   $("#teamHint span").textContent = t("metal.teamHint");
   if (panel === "colours") {   // its colours together: the body's, the name's and icon's, the frame's
     $("#coloursBaseLabel").textContent = shapeText("coin.colour", shape);
-    $("#coloursFrontLabel").textContent = shape === "coin" ? t(face.style === "window" && role.content !== "icon" && role.content !== "text" ? "front.colourWindow" : role.content === "text" ? "front.colourName" : "front.colour") : t("front.colourName");
+    // a piece has no name nor frame: its front colour is its icon's
+    $("#coloursFrameLabel").hidden = shape === "piece"; $("[data-panel=colours] .metal[data-colour=frame]").hidden = shape === "piece";
+    $("#coloursFrontLabel").textContent = shape === "piece" ? t("piece.iconColour") : shape === "coin" ? t(face.style === "window" && role.content !== "icon" && role.content !== "text" ? "front.colourWindow" : role.content === "text" ? "front.colourName" : "front.colour") : t("front.colourName");
   }
   // Layout: a coin's layouts, drawn on this face; a card's, where its icon goes and how it sits with the phrase
   $("#cardLayoutBox").hidden = shape !== "card";
-  if (panel === "layout" && shape === "card") { $("[data-choice=style]").hidden = true; $("#styleHint").textContent = ""; }
-  if (panel === "layout" && shape !== "card") {
+  $("#pieceLayoutBox").hidden = shape !== "piece";
+  $("#compLayoutH").hidden = shape === "piece";
+  if (panel === "layout" && (shape === "card" || shape === "piece")) { $("[data-choice=style]").hidden = true; $("#styleHint").textContent = ""; }
+  if (panel === "layout" && shape === "piece") renderPieceTiles(tileWho, face);
+  if (panel === "layout" && shape !== "card" && shape !== "piece") {
     $("[data-choice=style]").hidden = false;
     if (oneBack) { renderBackStyleTiles(role, s, who.text, shown?.spec.style ?? null); $("#styleHint").textContent = shown ? t(`style.${shown.spec.style}.help`) : t("back.plainHelp"); }
     else {
@@ -865,12 +879,12 @@ export function syncControls(role: Role, spec: TokenSpec, token: Token) {
   $("#nameHint").textContent = side === "back" && b ? (other ? `${t("name.flip", { name: roleName(other, tokenLang()) })} ` : `${t("name.back")} `) + hint(b)
     : hint(token.name) + (names[1] && other ? ` ${t("name.flip", { name: roleName(other, tokenLang()) })} ${hint(names[1])}` : "");
   // a coin's icon has a colour of its own (unset, the name's); on the window, a card or a ring it hasn't
-  const iconInk = shape === "coin" && face.style !== "window";
+  const iconInk = (shape === "coin" && face.style !== "window") || shape === "piece";
   $("#iconColourLabel").hidden = !iconInk; $(".metal[data-colour=icon]").hidden = !iconInk;
   $("#iconColourHint").hidden = iconInk;
   $("#iconColourHint").textContent = iconInk ? "" : t(shape === "card" ? "icon.colourCard" : "icon.colourWindow");
   // Icon: a coin's size, a card's (where it goes and how it sits with the phrase are its Layout)
-  row("iconScale").hidden = shape === "card" || coinStyle("text");
+  row("iconScale").hidden = shape === "card" || coinStyle("text") || (shape === "piece" && face.pieceShape === "silhouette");   // a silhouette's icon is its outline's
   $("#cardIconBox").hidden = shape !== "card";
   if ((panel === "icon" || panel === "layout") && shape === "card") {
     const own = ownIcon(role.id), hasIcon = !!(own?.body || role.body || role.d?.length);
@@ -899,6 +913,10 @@ export function syncControls(role: Role, spec: TokenSpec, token: Token) {
   $("#artNote").textContent = flipNote("flip.artMine");
   // Body: its colour, size (a coin's diameter, a ring's base, a card's fixed), thickness and colour depth
   $("#diameterRow").hidden = !f.diameter;
+  // a piece is smaller and may be thicker than a coin
+  const dia = $<HTMLInputElement>("#diameter"), hgt = $<HTMLInputElement>("#height");
+  dia.min = shape === "piece" ? "15" : "30"; hgt.min = shape === "piece" ? "2" : "1.2"; hgt.max = shape === "piece" ? "12" : "4";
+  $("label[for=diameter]").textContent = shapeText("range.diameter", shape);
   $("#ringBaseRow").hidden = !f.ringBase;
   $("#separatorRow").hidden = !f.separator;
   $("#cardSizeHint").hidden = shape !== "card";
@@ -927,7 +945,7 @@ export function syncControls(role: Role, spec: TokenSpec, token: Token) {
     if (key === "style" && (oneBack || side === "front")) continue;   // the tiles say it (renderBackStyleTiles, renderStyleTiles)
     if ((key === "back" && !drawn) || (key === "style" && side === "back" && drawn)) { b.setAttribute("aria-pressed", "false"); continue; }
     const v = key === "magnet" && faceBack && s.magnet === "pocket" ? "hidden" : from[key] ?? DEFAULT_SPEC[key] ?? (key === "edge" ? "smooth" : undefined);
-    b.setAttribute("aria-pressed", String(v === b.dataset.v));
+    b.setAttribute("aria-pressed", String(String(v) === b.dataset.v));
   }
   $("[data-choice=magnet] [data-v=pocket]").hidden = faceBack;
   $$(".metal:not([data-side=cardback])").forEach((box) => {   // a card back's are renderCardBack's
