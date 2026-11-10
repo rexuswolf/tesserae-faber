@@ -80,6 +80,12 @@ export const FRAME_STYLES = [
   { id: "espinas", label: "Thorns" },
   { id: "runas", label: "Runes" },
   { id: "colmillos", label: "Fangs" },
+  { id: "ficha", label: "Poker chip" },
+  { id: "arcos", label: "Arcs" },
+  { id: "arcos-lados", label: "Side arcs" },
+  { id: "arcos4", label: "Four arcs" },
+  { id: "arcos4x", label: "Four arcs, crossed" },
+  { id: "arcos6", label: "Six arcs" },
 ];
 
 export const BACK_STYLES = [
@@ -424,7 +430,13 @@ export function textLayout(lib: Library, text: string | null | undefined, spec: 
     if (!best || em > best.em * 1.02) best = { em, lines };
   }
   const cap = best!.em * lib.capHeight, total = cap + (best!.lines.length - 1) * TEXT_PITCH * cap;
-  return { em: best!.em, cap, lines: best!.lines.map((l, i) => ({ text: l, y: total / 2 - cap - i * TEXT_PITCH * cap })) };
+  const lines = best!.lines.map((l, i) => ({ text: l, y: total / 2 - cap - i * TEXT_PITCH * cap }));
+  // Centred on the ink, not the capitals' height: the lettering's figures are old-style (1 and 0 as short as a
+  // lower-case letter, 2 and 5 dropping below the line), so "100" would sit low. Accents over a capital don't count.
+  let top = -Infinity, bottom = Infinity;
+  for (const l of lines) { const b = boundsOf(textShapes(lib, l.text, best!.em)); top = Math.max(top, l.y + Math.min(b.max.y, cap)); bottom = Math.min(bottom, l.y + b.min.y); }
+  const shift = Number.isFinite(top) && Number.isFinite(bottom) ? -(top + bottom) / 2 : 0;
+  return { em: best!.em, cap, lines: lines.map((l) => ({ ...l, y: l.y + shift })) };
 }
 
 /** Where each letter of the curved name goes; shared by 3D and 2D renderers. */
@@ -1257,6 +1269,31 @@ function makeFrameDesign(spec: TokenSpec): { shapes: THREE.Shape[]; inner: numbe
       sh.push(annulus(ringOut, rIn)); inner = rIn;
       break;
     }
+    case "ficha": {
+      // A poker chip: eight blocks across its edge, each 40 % of its eighth wide and four rims deep (at least 2.2 mm),
+      // the coin's colour between them, and a dashed ring inside them, 0.8 mm in. No rim of its own: the blocks are the edge.
+      const band = Math.max(2.2, 4 * w), rIn = out - band, half = (TAU / 8) * 0.2;
+      sh.length = 0;
+      for (let k = 0; k < 8; k++) { const a = Math.PI / 2 + (k * TAU) / 8; sh.push(arcBand(out, rIn, a - half, a + half, 12)); }
+      const rd = rIn - 0.8, t = Math.max(0.5, w * 0.7), n = 24, dash = (TAU / n) * 0.55;
+      for (let k = 0; k < n; k++) { const a = Math.PI / 2 + (k + 0.5) * (TAU / n); sh.push(arcBand(rd, rd - t, a - dash / 2, a + dash / 2, 6)); }
+      inner = rd - t;
+      break;
+    }
+    case "arcos": case "arcos-lados": case "arcos4": case "arcos4x": case "arcos6": {
+      // Arcs round the face, open between them: as wide as two rims (at least 1.2 mm), no rim of their own. Two, top
+      // and bottom ("arcos") or at the sides ("arcos-lados"), 140° each; four, 60° each, on the diagonals with the gaps
+      // top, bottom and at the sides ("arcos4") or the other way round ("arcos4x"); six, three above and three below,
+      // 40° each, the gaps at the sides among them ("arcos6"; the poker chip is the eight). The gap from the edge
+      // (frameInset) says where: at the edge, a counter's band cut into arcs; 2 mm in, a status marker's arcs round its icon.
+      const t = Math.max(1.2, 2 * w), r0 = out, f = String(spec.frame);
+      const n = f === "arcos6" ? 6 : f.startsWith("arcos4") ? 4 : 2, span = THREE.MathUtils.degToRad(({ 2: 140, 4: 60, 6: 40 } as Record<number, number>)[n]);
+      const first = f === "arcos" || f === "arcos6" ? Math.PI / 2 : f === "arcos4" ? Math.PI / 4 : 0;
+      sh.length = 0;
+      for (let k = 0; k < n; k++) { const mid = first + (k * TAU) / n; sh.push(arcBand(r0, r0 - t, mid - span / 2, mid + span / 2, n === 2 ? 64 : 32)); }
+      inner = r0 - t;
+      break;
+    }
     case "laurel": {
       // Two laurel branches rising from a knot at the bottom, open at the top.
       const rl = edge - 1.55, a0 = -Math.PI / 2 + 0.07, a1 = Math.PI / 2 - 0.2;
@@ -1843,7 +1880,7 @@ const BEVEL_STEP = 0.2, BEVEL_GRID = 0.05, BEVEL_TOL = 0.04;
 /** How far a raised part's top is inset (mm): 0 for straight walls (unset), on a face that is raised. */
 // frames of fine repeated detail (milling, beads, rope, stars…) would only get a hair of bevel for
 // a model many times heavier: only plain line frames are bevelled
-const BEVEL_FRAMES = new Set(["rim", "double", "line", "corners"]);
+const BEVEL_FRAMES = new Set(["rim", "double", "line", "corners", "arcos", "arcos-lados", "arcos4", "arcos4x", "arcos6"]);
 const bevelOf = (spec: TokenSpec, part: ReliefPart, face: Face) =>
   face.flush || !reliefOf(spec)[part] || !reliefTop(spec) || (part === "frame" && !BEVEL_FRAMES.has(String(spec.frame))) ? 0 : Math.max(0, spec.reliefBevel || 0);
 /**
