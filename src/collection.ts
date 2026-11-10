@@ -435,7 +435,8 @@ export function tokenRole(c: Collection, t: OwnToken, lang = "es"): Role {
   // the Edition back: the first of the collection's own lists it's in ("Trouble Brewing"), else the collection's name
   const home = c.catalogs.find((k) => k.fixed && k.tokens.includes(t.id));
   // a coin carries what it has: without an icon, its text alone; without a text, its icon alone; without either, nothing
-  const content = type?.shape === "coin" ? coinContent(t) : t.content === "icon" && !t.icon && type?.shape !== "base" ? "text" : t.content;
+  // a piece always carries its icon (its outline and what's on it are its design's), whatever it carried as another shape
+  const content = type?.shape === "coin" ? coinContent(t) : type?.shape === "piece" ? undefined : t.content === "icon" && !t.icon && type?.shape !== "base" ? "text" : t.content;
   const icon = content === "text" || content === "none" ? null : t.icon;   // only its name, or nothing: its icon kept for later, not drawn
   return {
     id: t.id, en: nameIn(names, "en"), es: nameIn(names, "es"), names: Object.fromEntries([...langs].map((l) => [l, nameIn(names, l)])), fem: t.fem ?? {},

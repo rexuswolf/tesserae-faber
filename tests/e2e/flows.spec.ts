@@ -306,7 +306,8 @@ test("a collection of pieces: a silhouette, a plain one and a hexagon, to the Ba
   const id = await page.evaluate(async () => {
     const C = await import("/src/collection.ts"), U = await import("/src/ui-icons.ts");
     const c = C.starterCollection();
-    c.tokens = ["meeple", "stack", "two-coins"].map((ic, i) => ({ id: `p${i}`, shape: "piece" as const, group: "g1", name: ic, icon: U.uiTokenIcon(ic), linked: [] }));
+    // the last one carried its name alone as a coin once: a piece shows its icon all the same
+    c.tokens = ["meeple", "stack", "two-coins"].map((ic, i) => ({ id: `p${i}`, shape: "piece" as const, group: "g1", name: ic, icon: U.uiTokenIcon(ic), linked: [], ...(i === 2 ? { content: "text" as const } : {}) }));
     c.catalogs = [{ id: "k1", name: "Piezas", tokens: c.tokens.map((t) => t.id) }];
     return C.addCollection(c);
   });
@@ -319,6 +320,7 @@ test("a collection of pieces: a silhouette, a plain one and a hexagon, to the Ba
   await page.evaluate(() => (window as unknown as { __mm: { designToken(k: string): void } }).__mm.designToken("p2"));
   const hex = page.locator('[data-choice="pieceShape"] [data-v="hexagon"]');
   await expect(hex).toBeAttached({ timeout: 10_000 });
+  await expect(page.locator('[data-choice="pieceShape"] [data-v="silhouette"]')).toBeEnabled();   // it has an icon: its silhouette
   await expect(page.locator('[data-choice="pieceIcon"] [data-v]')).toHaveCount(3);   // on top, top and bottom, none
   const before = await page.locator("#workshop svg[aria-label]").first().innerHTML();
   // the tiles may draw themselves again meanwhile: click until the choice takes

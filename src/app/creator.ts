@@ -490,6 +490,7 @@ function contentNow(tk: OwnToken, shape: TokenShape): TokenContent {
   const role = roleById(tk.id), look = role ? lookOf(charKey(role)) : null;
   if (shape === "card") return look?.cardIcon === "only" ? "icon" : !look?.cardIcon || look.cardIcon === "none" ? "text" : "both";
   if (shape === "base") return "text";
+  if (shape === "piece") return "icon";
   const style = shape === "coin" ? look?.style : null;
   return style === "solo" ? "icon" : style === "text" ? "text" : "both";
 }
