@@ -45,14 +45,14 @@ async function drawToken(doc: jsPDF, svg: string, cx: number, c: SheetSlot, hole
  *   backs:   false for fronts only: one page per sheet, printed one-sided
  * Returns { blob, sheets, coins }.
  */
-export async function buildPrintPdf(lib: Library, entries: { role: Role; spec: TokenSpec; text?: string | null }[], { labels = { front: "front", back: "back" }, title = "Midnight Mint", backs = true, onProgress }: {
+export async function buildPrintPdf(lib: Library, entries: { role: Role; spec: TokenSpec; text?: string | null }[], { labels = { front: "front", back: "back" }, title = "Tesserae Faber", backs = true, onProgress }: {
   labels?: { front: string; back: string }; title?: string; backs?: boolean; onProgress?: (done: number, total: number) => void;
 } = {}) {
   // Paper has no magnets: drop the 3D-only pocket from the back.
   const paper = entries.map((e) => ({ ...e, spec: { ...e.spec, magnet: "none" as const } }));
   const pages = layoutCoins(paper.map((e) => (isCard(e.role) ? CARD : e.spec.diameter)));
   const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait", compress: true });
-  doc.setProperties({ title, creator: "Midnight Mint" });
+  doc.setProperties({ title, creator: "Tesserae Faber" });
   // Hints for viewers that honour them (Acrobat): real size, and duplex on the long edge or one-sided.
   doc.viewerPreferences({ PrintScaling: "None", Duplex: backs ? "DuplexFlipLongEdge" : "Simplex" });
 

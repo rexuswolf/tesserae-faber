@@ -1,6 +1,6 @@
 // What's picked and the print queue: selection, steps, the drawer and steps 2 and 3.
 import { on, emit } from "./events.ts";
-import { loadJSON, PICK_KEY, QUEUE_KEY, storeJSON, state, PLATE_LABEL, PLATE_GROUP, $, esc, hit, TEAM_ORDER, TEAM_PLURAL, $$ } from "./context.ts";
+import { loadJSON, PICK_KEY, QUEUE_KEY, storeJSON, state, PLATE_LABEL, PLATE_GROUP, $, esc, hit, TEAM_ORDER, TEAM_PLURAL, $$, coll } from "./context.ts";
 import { roleById } from "./wiring.ts";
 import { remKey, charKey, textFor, ownIcon, sortKeys, specFor, filamentName, remindersOf } from "./tokens.ts";
 import { renderSheet, hasOwn, selectToken, ownPen } from "./sheet.ts";
@@ -18,6 +18,11 @@ import { renderWorkshop, viewTab, showTab } from "./workshop.ts";
 import { dec1, colourNotes } from "./design-sheet.ts";
 import posthog, { posthogEnabled } from "../posthog.ts";
 import { posthogAppLogger } from "../posthog-logger.ts";
+import { OWN, nameIn, builtIn, APP_NAME } from "../collection.ts";
+
+/** The collection a download is of, by name (Clocktower's own page: Blood on the Clocktower); its files are named after it. */
+const collectionName = () => nameIn(OWN ? coll.name : builtIn("botc")?.name, uiLang()) || APP_NAME;
+const fileSlug = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
 // ------------------------------------------------------------ selection
 
@@ -454,10 +459,9 @@ export async function downloadBambu(one: QueueEntry | null = null, btn = $<HTMLB
     }
     const printer = printerOf(flow.printer);
     const nozzle = nozzleOf(flow.nozzle);
-    const { blob, plan, filaments } = await buildBambuProject(items, { printer: printer.id, nozzle: nozzle.id, onProgress: (d, total) => { out.textContent = t("queue.writing", { i: d, n: total }); } });
-    const slug = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-    const what = one ? `test-${slug(items[0].title)}` : `${items.length}-tokens`;
-    const file = `midnight-mint-${what}-${printer.short.toLowerCase().replace(/\s+/g, "-")}${nozzle.id === "0.4" ? "" : `-${nozzle.id}mm`}.3mf`;
+    const { blob, plan, filaments } = await buildBambuProject(items, { printer: printer.id, nozzle: nozzle.id, title: collectionName(), onProgress: (d, total) => { out.textContent = t("queue.writing", { i: d, n: total }); } });
+    const what = one ? `test-${fileSlug(items[0].title)}` : `${items.length}-tokens`;
+    const file = `${fileSlug(collectionName()) || "tesserae-faber"}-${what}-${printer.short.toLowerCase().replace(/\s+/g, "-")}${nozzle.id === "0.4" ? "" : `-${nozzle.id}mm`}.3mf`;
     await saveFile(blob, file);
     if (posthogEnabled) posthog.capture("print_exported", {
       export_format: "3mf",
@@ -489,10 +493,10 @@ export async function downloadPdf() {
     const { buildPrintPdf } = await import("../pdf/print-pdf.ts");   // jsPDF only loads when asked for
     const entries = queueNow().map((q) => { const role = roleById(q.roleId)!; return { role, spec: itemSpec(q), text: queueTitle(q, role) }; });
     const { blob, sheets } = await buildPrintPdf(state.lib!, entries, {
-      labels: { front: t("queue.pdfFront"), back: t("queue.pdfBack") }, backs: flow.backs,
+      labels: { front: t("queue.pdfFront"), back: t("queue.pdfBack") }, backs: flow.backs, title: collectionName(),
       onProgress: (i, n) => { out.textContent = t("queue.pdfWriting", { i, n }); },
     });
-    const file = `midnight-mint-${entries.length}-tokens${flow.backs ? "" : "-fronts"}.pdf`;
+    const file = `${fileSlug(collectionName()) || "tesserae-faber"}-${entries.length}-tokens${flow.backs ? "" : "-fronts"}.pdf`;
     await saveFile(blob, file);
     if (posthogEnabled) posthog.capture("print_exported", {
       export_format: "pdf",

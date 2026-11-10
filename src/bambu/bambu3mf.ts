@@ -145,11 +145,11 @@ function firstLayerOrder(plate: Plate<BambuItem>, usedSlots: number[]) {
 }
 
 /**
- * Builds the .3mf for `printer` ("a1" or "a1mini") with `nozzle` ("0.4" or "0.2"). `items` are {token, title, group};
+ * Builds the .3mf for `printer` ("a1" or "a1mini") with `nozzle` ("0.4" or "0.2"), `title` the project's name. `items` are {token, title, group};
  * returns {blob, plan}. `onProgress(done, total)` is called as tokens are written.
  */
-export async function buildBambuProject(items: BambuItem[], { printer = "a1", nozzle: nozzleId = "0.4", faceDown = true, onProgress = () => {} }: {
-  printer?: string; nozzle?: string; faceDown?: boolean; onProgress?: (done: number, total: number) => void;
+export async function buildBambuProject(items: BambuItem[], { printer = "a1", nozzle: nozzleId = "0.4", faceDown = true, title = "Tesserae Faber", onProgress = () => {} }: {
+  printer?: string; nozzle?: string; faceDown?: boolean; title?: string; onProgress?: (done: number, total: number) => void;
 } = {}) {
   if (!items.length) throw new Error("add some tokens to the print queue first");
   const { bed, id } = printerOf(printer);
@@ -241,7 +241,7 @@ ${zs.map((z) => `<layer top_z="${z}" type="1" extruder="1" color="" extra="" gco
  <metadata name="Application">BambuStudio-02.08.02.61</metadata>
  <metadata name="BambuStudio:3mfVersion">1</metadata>
  <metadata name="CreationDate">${today}</metadata>
- <metadata name="Title">Midnight Mint tokens</metadata>
+ <metadata name="Title">${esc(title)}</metadata>
  <resources>
 ${resources.join("\n")}
  </resources>

@@ -101,7 +101,7 @@ test("printing in 3D: the Bambu project", async ({ page }) => {
   await expect(page.locator("#flowNext")).toBeEnabled();
   const download = page.waitForEvent("download", { timeout: 60_000 });
   await next(page);
-  expect((await download).suggestedFilename()).toMatch(/\.3mf$/);
+  expect((await download).suggestedFilename()).toMatch(/^blood-on-the-clocktower-\d+-tokens-.+\.3mf$/);
   expect(errors).toEqual([]);
 });
 
@@ -315,6 +315,7 @@ test("cards with a back: the Senate's laws to the Bambu project and the paper, b
     await next(page);
     const file = await download;
     expect(file.suggestedFilename()).toMatch(ext);
+    expect(file.suggestedFilename()).toMatch(/^secret-caesar-/);   // named after its collection
     if (way === "3d") {
       // each law has its icon beside its phrase, and its back under it: the Senate's name and a laurel
       // crown (backIcon), the laurels (backFrame); the laws are all one colour, so no plate of another (back)
