@@ -8,7 +8,7 @@
 import JSZip from "jszip";
 import type { BufferGeometry } from "three";
 import { printsFaceUp } from "../engine/token-engine.ts";
-import { FILAMENT_SLOTS, PARTS, purge, nozzleOf, plateStride, printerOf, slotOf, slotsFor, towerSpot, planPlates } from "./plates.ts";
+import { FILAMENT_SLOTS, PARTS, purge, nozzleOf, plateStride, printerOf, slotOf, slotsFor, towerSpot, planPlates, TOWER_WIDTH } from "./plates.ts";
 import type { Nozzle } from "./plates.ts";
 import type { Hex, PartName, Plate, PlateItem, Token } from "../types.ts";
 
@@ -91,7 +91,7 @@ const XML = `<?xml version="1.0" encoding="UTF-8"?>\n`;
 
 // ------------------------------------------------------------ settings
 
-function projectSettings(template: Template, used: number[], plates: Plate<BambuItem>[], bed: number, nozzle: Nozzle) {
+function projectSettings(template: Template, used: number[], plates: Plate<BambuItem>[], bed: number, nozzle: Nozzle, tower: number) {
   const s = structuredClone(template.settings);
   for (const key of template.perFilament) s[key] = used.map((slot) => template.settings[key][slot]);
   const n = used.length;
@@ -105,9 +105,12 @@ function projectSettings(template: Template, used: number[], plates: Plate<Bambu
   // Bambu Studio may switch the prime tower on when it loads your presets, so plan
   // for it: a small tower in the slot we keep free on every plate. On the A1 most
   // purging goes down the waste chute; the tower only takes prime_volume per change.
-  const spots = plates.map((p) => towerSpot(p.foot, bed));
+  const spots = plates.map((p) => towerSpot(p.foot, bed, tower));
   s.enable_prime_tower = "1";
-  s.prime_tower_width = "35";
+  s.prime_tower_width = String(tower);
+  // A narrower tower (to fit beside the tokens, see plates.ts): without ribs it keeps the width asked for and
+  // grows deeper (with them it's squared up whatever the width). The tokens are a few mm tall: ribs don't help.
+  if (tower < TOWER_WIDTH) s.prime_tower_rib_wall = "0";
   s.wipe_tower_x = spots.map((t) => t.x.toFixed(1));
   s.wipe_tower_y = spots.map((t) => t.y.toFixed(1));
   // The face is printed first, so the lettering and the icon's fine lines are the first
@@ -125,6 +128,7 @@ function projectSettings(template: Template, used: number[], plates: Plate<Bambu
   // only shows in the app.
   const ours = ["elefant_foot_compensation", "initial_layer_line_width", "wall_generator"];
   if (nozzle.towerInfillGap) { s.prime_tower_infill_gap = nozzle.towerInfillGap; ours.push("prime_tower_infill_gap"); }
+  if (tower < TOWER_WIDTH) ours.push("prime_tower_rib_wall", "prime_tower_width");
   s.different_settings_to_system = [ours.sort().join(";"), ...used.map(() => ""), ""];
   s.inherits_group = ["", ...used.map(() => ""), ""];
   return s;
@@ -168,7 +172,7 @@ export async function buildBambuProject(items: BambuItem[], { printer = "a1", no
 
   for (const [pi, plate] of plan.plates.entries()) {
     const px = (pi % cols) * stride, py = -Math.floor(pi / cols) * stride;
-    const slots = slotsFor(plate.foot, bed);
+    const slots = slotsFor(plate.foot, bed, plan.tower);
     const instances: string[] = [];
     for (const [ti, it] of plate.items.entries()) {
       const { x, y } = slots[ti];
@@ -265,7 +269,7 @@ ${rels.map((r, i) => ` <Relationship Target="${r}" Id="rel-${i + 1}" Type="http:
 ${objectsCfg.join("\n")}
 ${platesCfg.join("\n")}
 </config>`);
-  zip.file("Metadata/project_settings.config", JSON.stringify(projectSettings(template, usedSlots, plan.plates, bed, nozzle), null, 4));
+  zip.file("Metadata/project_settings.config", JSON.stringify(projectSettings(template, usedSlots, plan.plates, bed, nozzle, plan.tower), null, 4));
   zip.file("Metadata/slice_info.config", `${XML}<config>
   <header>
     <header_item key="X-BBL-Client-Type" value="slicer"/>

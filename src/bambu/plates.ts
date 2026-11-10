@@ -85,19 +85,32 @@ function tokenSlots(token: PlanToken) {
   return new Set(PARTS.filter((p) => token.parts[p]).map((p) => slotOf(token.colours[p])));
 }
 
-// Deepest prime tower measured (4 filaments, A1 settings): about 35 mm plus brim.
-const TOWER_DEPTH = 40, TOWER_WIDTH = 41;   // 35 mm (prime_tower_width) plus its brim
+// The prime tower: Bambu's 35 mm wide, or narrower (down to 20) when that fits it in the strip right of the
+// tokens, so no token's place is kept for it (the A1 mini: nine 45 mm coins a plate, not eight). Deepest
+// measured (4 filaments, A1 settings, 35 mm wide): about 35 mm plus brim; a narrower one is as much deeper (the
+// same purge a layer): 20 mm wide, 4 filaments, sliced on the A1 mini, 26.4 × 65.4 mm with its brim. Its brim is
+// 3.2 mm round it; towerSpot puts it 3 mm right of where its room starts.
+export const TOWER_WIDTH = 35;
+const TOWER_MIN = 20, TOWER_DEPTH = 40, TOWER_BRIM = 3.2, TOWER_FROM = 3;
+/** How deep a tower this wide can grow (mm, with its brim). */
+const towerDepth = (tower: number) => TOWER_DEPTH * Math.max(1, TOWER_WIDTH / tower);
 
 /** A token's footprint: a coin's diameter, or a card's { w, h }. */
 const footOf = (f: number | Foot): Foot => (typeof f === "number" ? { w: f, h: f } : f);
 
-/** The grid for a footprint on a bed (mm): columns, rows, and the free strip on the right. */
-function gridFor(foot: number | Foot, bed: number) {
+/** The grid for a footprint on a bed (mm): columns, rows, and whether the tower fits in the strip on the right
+ *  (from past the last column to 1 mm short of the bed's edge). */
+function gridFor(foot: number | Foot, bed: number, tower = TOWER_WIDTH) {
   const { w, h } = footOf(foot);
   const cols = Math.max(1, Math.floor((bed - 2 * MARGIN + GAP) / (w + GAP)));
   const rows = Math.max(1, Math.floor((bed - 2 * MARGIN + GAP) / (h + GAP)));
-  const strip = bed - 2 * MARGIN - (cols * w + (cols - 1) * GAP) - GAP;
-  return { w, h, cols, rows, strip, towerInStrip: strip >= TOWER_WIDTH };
+  const strip = bed - (MARGIN + cols * (w + GAP));
+  return { w, h, cols, rows, strip, towerInStrip: strip >= TOWER_FROM + tower + TOWER_BRIM + 1 };
+}
+/** The widest tower (down to 20 mm) that fits in the strip beside this footprint's tokens, if narrower than 35. */
+function stripTower(foot: number | Foot, bed: number) {
+  const w = Math.floor(gridFor(foot, bed).strip - TOWER_FROM - TOWER_BRIM - 1);
+  return w >= TOWER_MIN && w < TOWER_WIDTH ? w : null;
 }
 
 /**
@@ -106,9 +119,9 @@ function gridFor(foot: number | Foot, bed: number) {
  * there (cards); otherwise the bottom of the last column is kept for it: as many slots
  * as its depth needs (1 for 45 mm coins, 2 for 32 mm).
  */
-export function slotsFor(foot: number | Foot, bed = A1_BED) {
-  const g = gridFor(foot, bed), px = g.w + GAP, py = g.h + GAP;
-  const reserved = g.towerInStrip ? 0 : Math.min(g.rows, Math.ceil((TOWER_DEPTH + 2 - MARGIN + GAP) / py));
+export function slotsFor(foot: number | Foot, bed = A1_BED, tower = TOWER_WIDTH) {
+  const g = gridFor(foot, bed, tower), px = g.w + GAP, py = g.h + GAP;
+  const reserved = g.towerInStrip ? 0 : Math.min(g.rows, Math.ceil((towerDepth(tower) + 2 - MARGIN + GAP) / py));
   const out: { x: number; y: number }[] = [];
   for (let row = 0; row < g.rows; row++) {
     for (let col = 0; col < g.cols; col++) {
@@ -120,8 +133,8 @@ export function slotsFor(foot: number | Foot, bed = A1_BED) {
 }
 
 /** How many tokens of this footprint fit on one plate (leaving room for the tower). */
-export function perPlate(foot: number | Foot, bed = A1_BED) {
-  return slotsFor(foot, bed).length;
+export function perPlate(foot: number | Foot, bed = A1_BED, tower = TOWER_WIDTH) {
+  return slotsFor(foot, bed, tower).length;
 }
 
 /**
@@ -134,15 +147,26 @@ export function perPlate(foot: number | Foot, bed = A1_BED) {
 export function planPlates<I extends PlateItem>(items: I[], { bed = A1_BED }: { bed?: number } = {}): PlatePlan<I> {
   const groups: string[] = [];
   for (const it of items) if (!groups.includes(it.group)) groups.push(it.group);
-  const plates: Plate<I>[] = [];
-  for (const group of groups) {
-    // Each group has its own grid: reminder tokens are smaller, so more fit per plate;
-    // cards (info tokens) have their own group and footprint.
+  // Each group has its own grid: reminder tokens are smaller, so more fit per plate;
+  // cards (info tokens) have their own group and footprint.
+  const feet = groups.map((group) => {
     const mineItems = items.filter((it) => it.group === group);
     const card = mineItems.find((it) => it.token.foot)?.token.foot;
     const diameter = card ? card.w : Math.max(...mineItems.map((it) => it.token.spec.diameter));
-    const foot = card ?? diameter;
-    const capacity = perPlate(foot, bed);
+    return { group, diameter, foot: card ?? diameter };
+  });
+  // The tower one width for the whole project: Bambu's, or one narrow enough for a group's strip, whichever
+  // makes fewer plates (a narrower tower is deeper, so it can take more room on a plate that has no strip for it).
+  const widths = [TOWER_WIDTH, ...new Set(feet.map((f) => stripTower(f.foot, bed)).filter((w): w is number => w !== null))].sort((a, b) => b - a);
+  const plans = widths.map((tower) => ({ tower, plates: plateGroups(items, feet, bed, tower) }));
+  const best = plans.reduce((a, b) => (b.plates.length < a.plates.length ? b : a));
+  return { plates: best.plates, bed, tower: best.tower };
+}
+
+function plateGroups<I extends PlateItem>(items: I[], feet: { group: string; diameter: number; foot: number | Foot }[], bed: number, tower: number) {
+  const plates: Plate<I>[] = [];
+  for (const { group, diameter, foot } of feet) {
+    const capacity = perPlate(foot, bed, tower);
     const members = items.filter((it) => it.group === group).map((it) => ({ ...it, slots: tokenSlots(it.token) }))
       .sort((a, b) => [...a.slots].sort().join().localeCompare([...b.slots].sort().join()) || a.title.localeCompare(b.title));
     const mine: Plate<I>[] = [];
@@ -156,12 +180,12 @@ export function planPlates<I extends PlateItem>(items: I[], { bed = A1_BED }: { 
     mine.forEach((p, i) => { p.name = mine.length > 1 ? `${group} ${i + 1}` : group; });
     plates.push(...mine);
   }
-  return { plates, bed };
+  return plates;
 }
 
 /** Where the prime tower goes on a plate: the free strip on the right, or the bottom-right slot. */
-export function towerSpot(foot: number | Foot, bed = A1_BED) {
-  const g = gridFor(foot, bed);
+export function towerSpot(foot: number | Foot, bed = A1_BED, tower = TOWER_WIDTH) {
+  const g = gridFor(foot, bed, tower);
   const left = g.towerInStrip ? MARGIN + g.cols * (g.w + GAP) : MARGIN + (g.cols - 1) * (g.w + GAP);
-  return { x: left + 3, y: MARGIN + 2 };            // the tower grows towards +y from here
+  return { x: left + TOWER_FROM, y: MARGIN + 2 };   // the tower grows towards +y from here
 }

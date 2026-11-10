@@ -463,6 +463,8 @@ export interface Plate<I extends PlateItem = PlateItem> {
 export interface PlatePlan<I extends PlateItem = PlateItem> {
   plates: Plate<I>[];
   bed: number;
+  /** The prime tower's width (mm), the same on every plate (prime_tower_width): 35, or narrower to fit beside the tokens. */
+  tower: number;
 }
 
 /** A token's part volumes (mm³) for the estimates; `above` the relief's share. */

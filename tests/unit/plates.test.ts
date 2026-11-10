@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AMS_SLOTS, FILAMENT_SLOTS, perPlate, planPlates, purge, slotOf } from "../../src/bambu/plates.ts";
+import { AMS_SLOTS, FILAMENT_SLOTS, perPlate, planPlates, purge, slotOf, towerSpot } from "../../src/bambu/plates.ts";
 
 const [black, white, red, blue, gold, green] = ["#1d1c21", "#ece9e2", "#b3191e", "#2f86e0", "#c9a227", "#3f9651"];
 const token = (colours: string[]) => ({ spec: { diameter: 45 }, parts: { base: true, front: true, icon: true, frame: true }, colours: { base: colours[0], front: colours[1], icon: colours[2], frame: colours[3] } });
@@ -39,4 +39,21 @@ describe("planPlates", () => {
     const t = { ...token([black, white, red, blue]), parts: { base: true, front: true, icon: true, frame: true, back: true }, colours: { ...token([black, white, red, blue]).colours, back: gold } };
     expect(() => planPlates([{ title: "x", group: "Good", token: t }] as never)).toThrow(/filaments/);
   });
+  it("fits nine 45 mm coins on the A1 mini, its tower narrowed into the strip beside them", () => {
+    const items = Array.from({ length: 17 }, (_, i) => ({ title: `t${i}`, group: "Good", token: token([black, blue, blue, blue]) }));
+    const plan = planPlates(items as never, { bed: 180 });
+    expect(plan.plates.map((p) => p.items.length)).toEqual([9, 8]);
+    expect(plan.tower).toBe(20);
+    // the tower (its brim 3.2 mm round it) right of the third column and on the bed
+    const { x } = towerSpot(45, 180, plan.tower);
+    expect(x - 3.2).toBeGreaterThan(8 + 3 * 45 + 2 * 3);
+    expect(x + plan.tower + 3.2).toBeLessThan(180);
+  });
+  it("keeps Bambu's 35 mm tower, and a token's place for it, where a narrower one wouldn't save a plate", () => {
+    const items = Array.from({ length: 30 }, (_, i) => ({ title: `t${i}`, group: "Good", token: token([black, blue, blue, blue]) }));
+    const plan = planPlates(items as never);
+    expect(plan.tower).toBe(35);
+    expect(plan.plates[0].capacity).toBe(24);
+  });
 });
+
