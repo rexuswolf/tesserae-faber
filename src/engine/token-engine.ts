@@ -86,6 +86,8 @@ export const FRAME_STYLES = [
   { id: "arcos4", label: "Four arcs" },
   { id: "arcos4x", label: "Four arcs, crossed" },
   { id: "arcos6", label: "Six arcs" },
+  { id: "arcos8", label: "Eight arcs" },
+  { id: "arcos8x", label: "Eight arcs, crossed" },
 ];
 
 export const BACK_STYLES = [
@@ -1280,15 +1282,16 @@ function makeFrameDesign(spec: TokenSpec): { shapes: THREE.Shape[]; inner: numbe
       inner = rd - t;
       break;
     }
-    case "arcos": case "arcos-lados": case "arcos4": case "arcos4x": case "arcos6": {
+    case "arcos": case "arcos-lados": case "arcos4": case "arcos4x": case "arcos6": case "arcos8": case "arcos8x": {
       // Arcs round the face, open between them: as wide as two rims (at least 1.2 mm), no rim of their own. Two, top
       // and bottom ("arcos") or at the sides ("arcos-lados"), 140° each; four, 60° each, on the diagonals with the gaps
       // top, bottom and at the sides ("arcos4") or the other way round ("arcos4x"); six, three above and three below,
-      // 40° each, the gaps at the sides among them ("arcos6"; the poker chip is the eight). The gap from the edge
+      // 40° each, the gaps at the sides among them ("arcos6"); eight, 30° each, four above and four below ("arcos8") or
+      // one at the top, the bottom, the sides and each diagonal ("arcos8x", where a poker chip has its blocks). The gap from the edge
       // (frameInset) says where: at the edge, a counter's band cut into arcs; 2 mm in, a status marker's arcs round its icon.
       const t = Math.max(1.2, 2 * w), r0 = out, f = String(spec.frame);
-      const n = f === "arcos6" ? 6 : f.startsWith("arcos4") ? 4 : 2, span = THREE.MathUtils.degToRad(({ 2: 140, 4: 60, 6: 40 } as Record<number, number>)[n]);
-      const first = f === "arcos" || f === "arcos6" ? Math.PI / 2 : f === "arcos4" ? Math.PI / 4 : 0;
+      const n = f === "arcos6" ? 6 : f.startsWith("arcos8") ? 8 : f.startsWith("arcos4") ? 4 : 2, span = THREE.MathUtils.degToRad(({ 2: 140, 4: 60, 6: 40, 8: 30 } as Record<number, number>)[n]);
+      const first = f === "arcos" || f === "arcos6" || f === "arcos8x" ? Math.PI / 2 : f === "arcos4" ? Math.PI / 4 : f === "arcos8" ? Math.PI / 8 : 0;
       sh.length = 0;
       for (let k = 0; k < n; k++) { const mid = first + (k * TAU) / n; sh.push(arcBand(r0, r0 - t, mid - span / 2, mid + span / 2, n === 2 ? 64 : 32)); }
       inner = r0 - t;
@@ -1880,7 +1883,7 @@ const BEVEL_STEP = 0.2, BEVEL_GRID = 0.05, BEVEL_TOL = 0.04;
 /** How far a raised part's top is inset (mm): 0 for straight walls (unset), on a face that is raised. */
 // frames of fine repeated detail (milling, beads, rope, stars…) would only get a hair of bevel for
 // a model many times heavier: only plain line frames are bevelled
-const BEVEL_FRAMES = new Set(["rim", "double", "line", "corners", "arcos", "arcos-lados", "arcos4", "arcos4x", "arcos6"]);
+const BEVEL_FRAMES = new Set(["rim", "double", "line", "corners", "arcos", "arcos-lados", "arcos4", "arcos4x", "arcos6", "arcos8", "arcos8x"]);
 const bevelOf = (spec: TokenSpec, part: ReliefPart, face: Face) =>
   face.flush || !reliefOf(spec)[part] || !reliefTop(spec) || (part === "frame" && !BEVEL_FRAMES.has(String(spec.frame))) ? 0 : Math.max(0, spec.reliefBevel || 0);
 /**
