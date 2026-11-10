@@ -173,6 +173,11 @@
     <p class="cr-parts-h design-only" data-i18n="editor.parts"></p>
     <button type="button" class="cr-back design-only" id="crBack"><span aria-hidden="true">‹</span> <b id="crBackLabel"></b></button>
     <div class="parts" id="parts" role="tablist" data-i18n-attr="aria-label:ws.sections"></div>
+    <!-- this token's own changes: back to its design, or kept as a design of yours; at the foot of the menu -->
+    <div class="cr-acts design-only" id="crActs" hidden>
+      <button type="button" class="cr-ic" id="crDrop" data-i18n-attr="title:design.dropTweaks aria-label:design.dropTweaks"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg><span data-i18n="design.dropTweaks"></span></button>
+      <button type="button" class="cr-ic cr-save" id="crSave" data-i18n-attr="title:design.saveAs aria-label:design.saveAs"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/></svg><span data-i18n="design.saveAs"></span></button>
+    </div>
   </nav>
   <!-- the Taller's design: its name and what to do with it, over its controls (on a phone, over the parts' tabs too) -->
   <div class="ws-head taller-only" id="tallerHead"></div>
@@ -441,10 +446,6 @@
     <div class="view-panel">
       <div class="stage">
         <canvas id="view" data-i18n-attr="aria-label:view.aria"></canvas>
-        <div class="cr-acts design-only" id="crActs" hidden>
-          <button type="button" class="cr-ic" id="crDrop" data-i18n-attr="title:design.dropTweaks aria-label:design.dropTweaks"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg></button>
-          <button type="button" class="cr-ic cr-save" id="crSave" data-i18n-attr="title:design.saveAs aria-label:design.saveAs"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/></svg></button>
-        </div>
         <div class="turn" role="group" data-i18n-attr="aria-label:view.group">
           <button class="pill" type="button" data-view="angle" aria-pressed="true" data-i18n="view.angle"></button>
           <button class="pill" type="button" data-view="top" aria-pressed="false" data-i18n="view.front"></button>
