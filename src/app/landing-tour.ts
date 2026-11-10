@@ -83,7 +83,7 @@ async function pick(sen: Kit | null, d5: Kit | null, ds: Kit | null, lang: strin
   }
 
   // a token of your own: a name and an icon from game-icons.net
-  const ICONS = ["lorc/wolf-head", "lorc/dragon-head", "lorc/crossed-swords", "lorc/potion-ball", "lorc/skull-crossed-bones", "lorc/crown", "lorc/castle", "lorc/fire-ring", "carl-olsen/spider-face", "lorc/magic-swirl", "lorc/treasure-map", "delapouite/greek-temple"];
+  const ICONS = ["lorc/wolf-head", "delapouite/spiked-dragon-head", "lorc/crossed-swords", "lorc/potion-ball", "lorc/skull-crossed-bones", "lorc/crown", "lorc/castle", "lorc/fire-ring", "carl-olsen/spider-face", "lorc/magic-swirl", "lorc/treasure-map", "delapouite/greek-temple"];
   const name = $<HTMLInputElement>("#tourName"), out = $("#tourMade"), box = $("#tourIcons");
   name.value = t("tour.ownExample");
   box.innerHTML = ICONS.map((p, i) => `<button type="button" data-icon="${p}" aria-pressed="${i === 0}" aria-label="${esc(p.split("/")[1].replace(/-/g, " "))}"><img src="${gameIconPreview(p)}" alt="" loading="lazy"></button>`).join("");
