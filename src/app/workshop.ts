@@ -56,12 +56,14 @@ export interface Section { part: Part; face?: FaceTab }
 export function sectionsOf(shape: TokenShape, content?: TokenContent): Section[] {
   if (twoSided(shape)) return partsOf(shape).map((part) => ({ part }));
   const front = frontTabsOf(shape, content);
+  // what the face carries first (its Composition: the layout, or a shape without layouts' text), then the colours, the rest of the face
   const basic = front.filter((f) => f !== "pattern"), rest = partsOf(shape).filter((p) => p !== "front" && p !== "colours" && p !== "back" && p !== "token");
+  const carries = (f: FaceTab) => f === "layout" || (f === "text" && !SHAPE_FEATURES[shape].layout);
   return [
     ...(partsOf(shape).includes("token") ? [{ part: "token" as const }] : []),
-    ...basic.filter((f) => f === "layout").map((face) => ({ part: "front" as const, face })),
+    ...basic.filter(carries).map((face) => ({ part: "front" as const, face })),
     { part: "colours" },
-    ...basic.filter((f) => f !== "layout").map((face) => ({ part: "front" as const, face })),
+    ...basic.filter((f) => !carries(f)).map((face) => ({ part: "front" as const, face })),
     ...(partsOf(shape).includes("back") ? [{ part: "back" as const }] : []),
     ...(front.includes("pattern") ? [{ part: "front" as const, face: "pattern" as const }] : []),
     ...rest.map((part) => ({ part })),

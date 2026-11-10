@@ -313,7 +313,9 @@ export function renderTabs(role: Role, spec: TokenSpec) {
   const changedHere = changedParts(state.sel!, shape), marked = new Set<string>();
   const tab = (s: (typeof secs)[number]) => {
     const dot = changedHere.has(s.part) && !marked.has(s.part) && !!marked.add(s.part);   // a part in several sections: its first
-    return `<button type="button" role="tab" data-part="${s.part}"${s.face ? ` data-face="${s.face}"` : ""} aria-selected="${isOpen(s)}">${esc(s.face ? t(`face.${s.face}`) : s.part === "body" ? t(`part.body.${shape}`) : t(`part.${s.part}`))}${dot ? `<i class="part-dot" title="${esc(t("part.changed"))}" aria-label="${esc(t("part.changed"))}"></i>` : ""}</button>`;
+    // a shape without layouts: its text is what its face carries, its Composition, as every other shape's
+    const faceName = (f: string) => t(f === "text" && !SHAPE_FEATURES[shape].layout ? "face.layout" : `face.${f}`);
+    return `<button type="button" role="tab" data-part="${s.part}"${s.face ? ` data-face="${s.face}"` : ""} aria-selected="${isOpen(s)}">${esc(s.face ? faceName(s.face) : s.part === "body" ? t(`part.body.${shape}`) : t(`part.${s.part}`))}${dot ? `<i class="part-dot" title="${esc(t("part.changed"))}" aria-label="${esc(t("part.changed"))}"></i>` : ""}</button>`;
   };
   $("#parts").innerHTML = secs.map(tab).join("");
   // a token of yours: its Token tab over its design (what it is, then how it looks); among the tabs only inside a part on a phone
@@ -334,7 +336,9 @@ export function renderTabs(role: Role, spec: TokenSpec) {
   renderBackNote(role, spec, part === "back" && faceOpen ? panel : null);
   // Composition: its own panel, and the text's and the icon's under it; with no layouts, the text's panel is where the face's content goes
   const comp = panel === "layout";
-  $$(".ws-panel").forEach((p) => { const d = p.dataset.panel; p.hidden = !(d === panel || (comp && ((d === "text" && shape !== "piece") || (d === "icon" && SHAPE_FEATURES[shape].icon)))); });
+  // a piece's icon has a size to set only on a shape, and only with an icon on it (a silhouette's is its outline's)
+  const ps = shape === "piece" ? pieceSpec(spec) : null, iconBox = SHAPE_FEATURES[shape].icon && !(ps && (ps.pieceShape === "silhouette" || !ps.pieceIcon));
+  $$(".ws-panel").forEach((p) => { const d = p.dataset.panel; p.hidden = !(d === panel || (comp && ((d === "text" && shape !== "piece") || (d === "icon" && iconBox)))); });
   document.querySelector(".ws-body")?.setAttribute("data-comp", String(comp));
   const host = comp ? $("[data-panel=layout]") : $("[data-panel=text]"), what = $("#compWhat");
   if (what.parentElement !== host) host.prepend(what);
@@ -915,6 +919,12 @@ export function syncControls(role: Role, spec: TokenSpec, token: Token) {
   $("#iconColourLabel").hidden = !iconInk; $(".metal[data-colour=icon]").hidden = !iconInk;
   $("#iconColourHint").hidden = iconInk;
   $("#iconColourHint").textContent = iconInk ? "" : t(shape === "card" ? "icon.colourCard" : "icon.colourWindow");
+  // a shape with a Colours section of its own has every colour there: not in its text's, icon's or frame's too
+  if (partsOf(shape).includes("colours")) {
+    $("#frontColourLabel").hidden = $("[data-panel=text] .metal[data-colour=front]").hidden = true;
+    $("#iconColourLabel").hidden = $(".metal[data-colour=icon]").hidden = $("#iconColourHint").hidden = true;
+    $("[data-panel=frame] .metal[data-colour=frame]").hidden = true;
+  } else { $("#frontColourLabel").hidden = $("[data-panel=text] .metal[data-colour=front]").hidden = $("[data-panel=frame] .metal[data-colour=frame]").hidden = false; }
   // Icon: a coin's size, a card's (where it goes and how it sits with the phrase are its Layout)
   row("iconScale").hidden = shape === "card" || coinStyle("text") || (shape === "piece" && face.pieceShape === "silhouette");   // a silhouette's icon is its outline's
   $("#cardIconBox").hidden = shape !== "card";
