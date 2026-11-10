@@ -91,6 +91,9 @@ export const FRAME_STYLES = [
   { id: "arcos8x", label: "Eight arcs, crossed" },
   { id: "greca", label: "Greek key" },
   { id: "greca2", label: "Greek key, double" },
+  { id: "greca3", label: "Greek key, interlocking" },
+  { id: "ola", label: "Running wave" },
+  { id: "aletas", label: "Pointed waves" },
 ];
 
 export const BACK_STYLES = [
@@ -1148,7 +1151,65 @@ function ccw(sh: THREE.Shape) {
 const MEANDERS: Record<string, string[]> = {
   greca: ["XXXXX.", "X...X.", "X.XXX.", "X.....", "XXXXXX"],
   greca2: ["XXXXXXX.", "X.....X.", "X.XXX.X.", "X.X...X.", "X.XXXXX.", "X.......", "XXXXXXXX"],
+  // keys rising from the inner line and hanging from the outer, each hooked into the other's: the top row is the rim
+  greca3: ["XXXXXXXXXXXX", "......X.....", "XXXXX.X.XXX.", "X...X.X.X...", "X.X.X.XXX.X.", "X.X...X...X.", "X.XXXXX.XXX.", "X...........", "XXXXXXXXXXXX"],
 };
+/** Patterns whose top row is a line along the rim: drawn into the rim, so the keys hang from it. */
+const MEANDER_HANGS = new Set(["greca3"]);
+
+/**
+ * A band of repeating units standing on a line round the face, between radii rIn and rIn + its height: `unit(x0)` is one
+ * unit's top outline from x0 along the strip (x clockwise round the coin, y outward, mm at the band's middle), from the
+ * line's top at x0 to where the next unit starts at x0 + period. One outline round all of them, the line's inside a hole.
+ */
+function stripRing(unit: (x0: number) => [number, number][], period: number, rIn: number, height: number, how: WaveWay = {}) {
+  const rMid = rIn + height / 2, N = Math.max(4, Math.round((TAU * rMid) / period)), stretch = (TAU * rMid) / (N * period);
+  const top: [number, number][] = [];
+  for (let k = 0; k < N; k++) top.push(...unit(k * period));
+  const a0 = Math.PI / 2 + period / 2 / rMid * stretch;
+  const map = ([x, y]: [number, number]) => pt(rIn + (how.hang ? height - y : y), a0 - (x * stretch) / rMid);
+  const turn = (l: THREE.Vector2[], cw: boolean) => (THREE.ShapeUtils.isClockWise(l) === cw ? l : [...l].reverse());
+  const waves = top.map(map), line = Array.from({ length: 4 * N }, (_, i) => pt(how.hang ? rIn + height : rIn, a0 + ((i + 0.37) * TAU) / (4 * N)));
+  // standing on the inner line, the waves are the outline and the line's inside a hole; hanging from the outer, the other way
+  const sh = polygon(turn(how.hang ? line : waves, false));
+  sh.holes.push(new THREE.Path(turn(how.hang ? waves : line, true)));
+  return [sh];
+}
+/**
+ * The running wave (Vitruvian scroll): on a line b high, each wave rises from it and curls over forward into a spiral,
+ * a stroke t wide and a gap t from its own turns and the next wave. Returns its band's shapes and height.
+ */
+/** Which way waves go: hang, from a line on the outside, pointing in (standing on one inside without). */
+interface WaveWay { hang?: boolean }
+function runningWave(rIn: number, t: number, how: WaveWay = {}) {
+  const b = t, R0 = 3 * t, ys = b + 0.2 * t, cy = ys + R0, P = 6 * t, laps = 1.25;
+  const R = (th: number) => R0 - (2 * t * (1.5 * Math.PI - th)) / TAU;
+  const edge = (cx: number, th: number, side: number): [number, number] => { const r = R(th) + (side * t) / 2; return [cx + r * Math.cos(th), cy + r * Math.sin(th)]; };
+  const unit = (x0: number): [number, number][] => {
+    const cx = x0 + P / 2, end = 1.5 * Math.PI - laps * TAU, step = 0.1;
+    // where the outer edge leaves the line, on the way up its left side
+    let lo = Math.PI, hi = 1.5 * Math.PI;
+    for (let i = 0; i < 30; i++) { const m = (lo + hi) / 2; if (edge(cx, m, 1)[1] > b) lo = m; else hi = m; }
+    const out: [number, number][] = [[x0, b]];
+    for (let th = lo; th > end; th -= step) out.push(edge(cx, th, 1));
+    out.push(edge(cx, end, 1), edge(cx, end, -1));
+    for (let th = end + step; th < 1.5 * Math.PI; th += step) out.push(edge(cx, th, -1));
+    out.push(edge(cx, 1.5 * Math.PI, -1), [cx, b]);
+    return out;
+  };
+  const height = Math.max(...unit(0).map(([, y]) => y));
+  return { shapes: stripRing(unit, P, rIn, height, how), height };
+}
+/** Pointed waves: on a line b high, fins of height h leaning forward, one every 1.5 h. */
+function pointedWaves(rIn: number, t: number, how: WaveWay = {}) {
+  const b = t, h = 3.6 * t, P = 1.55 * h;
+  const quad = (p0: number[], c: number[], p1: number[], n: number) => Array.from({ length: n }, (_, i) => { const u = (i + 1) / n, v = 1 - u; return [v * v * p0[0] + 2 * u * v * c[0] + u * u * p1[0], v * v * p0[1] + 2 * u * v * c[1] + u * u * p1[1]] as [number, number]; });
+  const unit = (x0: number): [number, number][] => {
+    const base = [x0, b], tip = [x0 + 0.92 * P, b + h], foot = [x0 + 0.8 * P, b];
+    return [[x0, b], ...quad(base, [x0 + 0.42 * P, b + 0.42 * h], tip, 16), ...quad(tip, [x0 + 0.74 * P, b + 0.72 * h], foot, 12)];
+  };
+  return { shapes: stripRing(unit, P, rIn, b + h, how), height: b + h };
+}
 /**
  * A Greek key round the face, between radii rIn and rIn + rows × s (s: one stroke, the same as one gap), its keys
  * upright at the top: the pattern's cells bent round the circle, traced into outlines (the solid part on the left of
@@ -1168,21 +1229,34 @@ function meander(rows: string[], rIn: number, s: number) {
   }
   const loops: THREE.Vector2[][] = [];
   while (next.size) {
-    const start = next.keys().next().value!, loop: THREE.Vector2[] = [];
+    const start = next.keys().next().value!, cells: number[][] = [];
     for (let k = start; next.has(k);) {
-      const [x, y] = k.split(",").map(Number), to = next.get(k)!;
+      const to = next.get(k)!;
+      cells.push(k.split(",").map(Number));
       next.delete(k);
-      loop.push(pt(rIn + y * s, a0 - x * da));
       k = key(...to);
     }
-    loops.push(loop);
+    // a corner on a radial side's way only (straight once bent round) is left out; the ones along the arcs stay, to curve them
+    const radial = (i: number) => { const p = cells[(i + cells.length - 1) % cells.length], c = cells[i], q = cells[(i + 1) % cells.length]; return p[0] === c[0] && c[0] === q[0]; };
+    // a plain circle (a line's inside or outside) has its corners half a cell round, off the keys' radial sides: one in
+    // line with them lets the triangulation bridge across a corner and leave a crack
+    const round = cells.every((c) => c[1] === cells[0][1]) ? 0.5 : 0;
+    // and each row a hair further round than the one below (2 % of a cell at the top, unseen), so corners of different turns
+    // in one column aren't in line either
+    loops.push(cells.filter((_, i) => !radial(i)).map(([x, y]) => pt(rIn + y * s, a0 - (x + round + 0.02 * (y / H) ** 2) * da)));
   }
-  const outers = loops.filter((l) => !THREE.ShapeUtils.isClockWise(l)).map((l) => polygon(l));
-  for (const hole of loops.filter((l) => THREE.ShapeUtils.isClockWise(l))) {
-    const host = outers.find((o) => inside(hole[0], o.getPoints())) ?? outers[0];
-    host?.holes.push(new THREE.Path(hole));
+  // a loop inside an odd number of others is a hole, in the smallest outline round it; outlines anticlockwise, holes clockwise
+  const area = (l: THREE.Vector2[]) => Math.abs(THREE.ShapeUtils.area(l));
+  const around = (l: THREE.Vector2[]) => loops.filter((o) => o !== l && inside(l[0], o));
+  const turn = (l: THREE.Vector2[], cw: boolean) => (THREE.ShapeUtils.isClockWise(l) === cw ? l : [...l].reverse());
+  const outers = new Map<THREE.Vector2[], THREE.Shape>();
+  for (const l of loops) if (around(l).length % 2 === 0) outers.set(l, polygon(turn(l, false)));
+  for (const l of loops) {
+    if (outers.has(l)) continue;
+    const host = around(l).filter((o) => outers.has(o)).sort((a, b) => area(a) - area(b))[0];
+    if (host) outers.get(host)!.holes.push(new THREE.Path(turn(l, true)));
   }
-  return outers;
+  return [...outers.values()];
 }
 /** Whether p is inside the polygon (even-odd). */
 function inside(p: THREE.Vector2, poly: THREE.Vector2[]) {
@@ -1373,13 +1447,25 @@ function makeFrameDesign(spec: TokenSpec): { shapes: THREE.Shape[]; inner: numbe
       inner = r0 - t;
       break;
     }
-    case "greca": case "greca2": {
+    case "greca": case "greca2": case "greca3": {
       // A Greek key inside the rim, a stroke's width clear of it: strokes as wide as the gaps between them (0.8 rims,
-      // at least 0.6 mm), keys standing on a line on the inside, as many as fit round the coin.
-      const rows = MEANDERS[String(spec.frame)], s = Math.max(0.6, 0.8 * w), rIn = edge - s - rows.length * s;
+      // at least 0.6 mm), keys standing on a line on the inside, as many as fit round the coin. One whose top row is
+      // a line hangs from the rim instead: that row drawn into it (0.05 mm past its inside, so the two are one).
+      const f = String(spec.frame), rows = MEANDERS[f], s = Math.min(Math.max(0.6, 0.8 * w), (0.4 * edge) / rows.length);   // the band at most 40 % of the face
+      const rIn = MEANDER_HANGS.has(f) ? edge + 0.05 - rows.length * s : edge - s - rows.length * s;
       sh.push(...meander(rows, rIn, s));
       inner = rIn - s;                                          // a gap's width more, so a name never runs into the key's line
-
+      break;
+    }
+    case "ola": case "aletas": {
+      // Waves hanging from the rim, pointing in: the running wave's scrolls, or pointed waves leaning forward. Their line
+      // is drawn into the rim (0.05 mm past its inside, so the two are one); a stroke's gap inside them.
+      const ola = spec.frame === "ola", how = { hang: true };
+      const per = ola ? runningWave(0, 1).height + 1 : pointedWaves(0, 1).height + 1;   // the band's height per mm of stroke, its gap too
+      const t = Math.min(Math.max(0.6, 0.8 * w), (0.4 * edge) / per), height = per * t - t;
+      const rIn = edge + 0.05 - height, band = ola ? runningWave(rIn, t, how) : pointedWaves(rIn, t, how);
+      sh.push(...band.shapes);
+      inner = rIn - t;
       break;
     }
     case "laurel": {
