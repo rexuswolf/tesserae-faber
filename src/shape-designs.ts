@@ -74,20 +74,21 @@ export const RING_DESIGNS = {
   },
 } satisfies Record<string, StyleDef>;
 
-/** Base tray designs, by id (the app's); `height` is the rim's above the 1 mm floor. */
+/** Base tray designs, by id (the app's); `height` is the rim's above the 1 mm floor. Their text (and line) raised:
+ *  standing on the top, a tray prints with one colour change. */
 export const BASE_DESIGNS = {
   "bandeja-color": {
     id: "bandeja-color", name: { es: "Bandeja de color", en: "Colour tray" },
-    help: { es: "La bandeja entera del color del grupo y el texto en negro, sin líneas: se ve de lejos qué miniatura es.", en: "The whole tray in the group colour and the text in black, no lines: you can tell the miniature from afar." },
-    spec: { frame: "none", height: 2.5, depth: 0.4, colours: { base: "team", front: black, frame: black } },
+    help: { es: "La bandeja entera del color del grupo y el texto en negro en relieve de 0,6 mm, sin líneas: se ve de lejos qué miniatura es, y se imprime con un solo cambio de color.", en: "The whole tray in the group colour and the text in black, raised 0.6 mm, no lines: you can tell the miniature from afar, and it prints with a single colour change." },
+    spec: { frame: "none", height: 2.5, depth: 0.4, relief: { text: true, frame: false, icon: false }, reliefHeight: 0.6, colours: { base: "team", front: black, frame: black } },
   },
   "bandeja-negra": {
     id: "bandeja-negra", name: { es: "Bandeja negra", en: "Black tray" },
-    help: { es: "Negra, el texto del color del grupo y una línea fina del mismo color por el borde y alrededor de la peana.", en: "Black, the text in the group colour and a fine line in the same colour along the edge and round the base." },
-    spec: { frame: "rim", frameWidth: 0.8, height: 2.5, depth: 0.4, colours: { base: black, front: "team", frame: "team" } },
+    help: { es: "Negra, el texto del color del grupo y una línea fina del mismo color por el borde y alrededor de la peana, en relieve de 0,6 mm: un solo cambio de color.", en: "Black, the text in the group colour and a fine line in the same colour along the edge and round the base, raised 0.6 mm: a single colour change." },
+    spec: { frame: "rim", frameWidth: 0.8, height: 2.5, depth: 0.4, relief: { text: true, frame: true, icon: false }, reliefHeight: 0.6, colours: { base: black, front: "team", frame: "team" } },
   },
   "bandeja-relieve": {
-    id: "bandeja-relieve", name: { es: "Texto en relieve", en: "Raised text" },
+    id: "bandeja-relieve", name: { es: "Negra sin líneas", en: "Plain black" },
     help: { es: "Negra, sin líneas, con el texto del color del grupo en relieve de 0,6 mm: se nota al tacto y se lee de lado.", en: "Black, no lines, the text in the group colour raised 0.6 mm: you can feel it and read it from the side." },
     spec: { frame: "none", height: 2.5, depth: 0.4, relief: { text: true, frame: false, icon: false }, reliefHeight: 0.6, colours: { base: black, front: "team", frame: "team" } },
   },
