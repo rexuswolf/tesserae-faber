@@ -47,11 +47,21 @@ async function art(lang) {
     return tokenSvg(lib, r, { ...spec, icon, colours: { ...spec.colours, front: colour, frame: colour } }, { text: name });
   };
   const botc = (en, spec = base) => tokenSvg(lib, role(en), spec);
+  // the other kinds of component: a piece, a base tray, a condition ring, a card
+  const other = async (kind, names, path, colour, spec) => {
+    const name = n(names), icon = path ? await iconOf(path) : undefined;
+    const r = { id: `own_${kind}_${name}`, kind, en: name, es: name, team: "townsfolk", colour, edition: "own", editionName: "Tesserae Faber", d: [], body: "", g: "" };
+    const svg = tokenSvg(lib, r, { ...DEFAULT_SPEC, lang, ...(icon ? { icon } : {}), ...spec }, { text: name });
+    // a silhouette doesn't fill its square as a coin does its circle: drawn closer, as large as the others
+    return spec.pieceShape === "silhouette" ? svg.replace(/viewBox="([^"]+)"/, (_, vb) => { const [x, y, w] = vb.split(" ").map(Number), k = 0.78; return `viewBox="${x * k} ${y * k} ${w * k} ${w * k}"`; }) : svg;
+  };
+  const white = FILAMENTS.white, black = FILAMENTS.black;
+  const raised = { relief: { text: false, frame: false, icon: true } };
 
   const COMB = [
-    await own(["Dragón", "Dragon"], "lorc/dragon-head", "#b3191e"), await own(["Vidente", "Seer"], "lorc/crystal-ball", "#2f86e0"), await own(["Mapa", "Map"], "lorc/treasure-map", "#9a6a3a", D.marfil), await own(["Lobo", "Wolf"], "lorc/wolf-head", "#b3191e", D.noche),
-    await own(["Oro", "Gold"], "delapouite/gold-stack", "#d4a72c", D.marfil), await own(["Senador", "Senator"], "delapouite/greek-temple", "#ece9e2", { ...D.edicion, frame: "laurel" }), logo, await own(["Envenenado", "Poisoned"], "lorc/poison-bottle", "#3f9651", D.solo), await own(["Fuego", "Fire"], "lorc/fire-ring", "#e07a2f", D.medianoche),
-    await own(["Jugador inicial", "First player"], "lorc/crown", "#c9a227", D.doble), await own(["Pócima", "Potion"], "lorc/potion-ball", "#8a3d9e", D.ventana), await own(["Protegido", "Protected"], "lorc/eye-shield", "#8a3d9e", D.medianoche), await own(["Ronda", "Round"], "lorc/sands-of-time", "#2f86e0", D.ventana),
+    await own(["Dragón", "Dragon"], "lorc/dragon-head", "#b3191e"), await own(["Vidente", "Seer"], "lorc/crystal-ball", "#2f86e0"), await other("piece", ["Meeple", "Meeple"], "delapouite/meeple", "#b3191e", { ...raised, diameter: 25, pieceShape: "silhouette", colours: { base: "team", front: white, frame: white, back: black } }), await own(["Lobo", "Wolf"], "lorc/wolf-head", "#b3191e", D.noche),
+    await other("base", ["Orco 2", "Orc 2"], null, "#d4a72c", { ringBase: "32", frame: "none", height: 2.5, colours: { base: "team", front: black, frame: black, back: black } }), await own(["Senador", "Senator"], "delapouite/greek-temple", "#ece9e2", { ...D.edicion, frame: "laurel" }), logo, await other("ring", ["Envenenado", "Poisoned"], null, "#3f9651", { ringBase: "25", frame: "rim", colours: { base: black, front: "team", frame: "team", back: black } }), await own(["Fuego", "Fire"], "lorc/fire-ring", "#e07a2f", D.medianoche),
+    await own(["Jugador inicial", "First player"], "lorc/crown", "#c9a227", D.doble), await other("info", ["Elige a un jugador", "Choose a player"], "lorc/potion-ball", "#8a3d9e", { cardIcon: "left", frame: "rim", colours: { base: black, front: white, frame: "team", back: black } }), await own(["Protegido", "Protected"], "lorc/eye-shield", "#8a3d9e", D.medianoche), await other("piece", ["Ronda", "Round"], "lorc/sands-of-time", "#2f86e0", { ...raised, diameter: 25, pieceShape: "hexagon", colours: { base: "team", front: white, frame: white, back: black } }),
   ];
   // the honeycomb: 4 + 5 + 4 cells, 1000 × 926
   const W = 1000, H = 926, cell = 195, rows = [[0, 4], [4, 5], [9, 4]];
@@ -62,7 +72,7 @@ async function art(lang) {
       cells += place(COMB[start + k], cx - cell / 2, cy - cell / 2, cell, start + k === 6 ? "cell mark" : "cell", i);
     }
   });
-  const hero = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="${n(["Fichas hechas con Tesserae Faber", "Tokens made with Tesserae Faber"])}">${defs}${cells}</svg>`;
+  const hero = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="${n(["Componentes hechos con Tesserae Faber", "Components made with Tesserae Faber"])}">${defs}${cells}</svg>`;
 
   // a cover strip: five tokens, overlapping
   const s = 120, step = 96;
