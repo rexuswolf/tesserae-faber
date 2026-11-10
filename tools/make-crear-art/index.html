@@ -15,7 +15,7 @@
 <p>Arte de la portada de Crear y las tiras de las colecciones, en español y en inglés.</p>
 <div class="out" id="out"></div>
 <script type="module">
-import { loadLibrary, tokenSvg, DEFAULT_SPEC, FILAMENTS } from "/src/engine/token-engine.ts";
+import { loadLibrary, tokenSvg, buildToken, DEFAULT_SPEC, FILAMENTS, THREE } from "/src/engine/token-engine.ts";
 import { firestoreRoles } from "/tools/ui-test/mock-roles.js";
 import { gameIcon } from "/src/icons.ts";
 
@@ -25,6 +25,26 @@ const logo = await (await fetch("/tesserae-faber.svg")).text();
 /** A token's SVG placed as a cell of a bigger one (its own viewBox kept). */
 const place = (svg, x, y, s, cls, i) => `<g class="${cls}" style="--i:${i}" filter="url(#lift)">${svg.replace(/<title>[\s\S]*?<\/title>/, "").replace(/<svg[^>]*?viewBox="([^"]+)"[^>]*>/, (_, vb) => `<svg x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${s}" height="${s}" viewBox="${vb}">`)}</g>`;
 const defs = `<defs><filter id="lift" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="9" stdDeviation="8" flood-color="#000" flood-opacity=".55"/></filter></defs>`;
+// a component in 3D, lit like the app's preview, as a WebP: seen at "tilt" from the side "from", turned "turn" on the
+// table, tipped "lift" degrees about the level axis at "liftDir" (its face towards you); transparent round it
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+renderer.setSize(400, 400); renderer.setPixelRatio(1);
+function shot(t, tilt, turn, from = 0, lift = 0, liftDir = 0) {
+  const scene = new THREE.Scene(), deg = THREE.MathUtils.degToRad;
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x3a3440, 1.57));
+  const key = new THREE.DirectionalLight(0xffffff, 2.9); key.position.set(-70, -90, 150); scene.add(key);
+  const g = new THREE.Group();
+  for (const [name, geom] of Object.entries(t.parts)) { if (!geom || ["magnet", "hole", "magnetBody", "cavity"].includes(name)) continue; const m = new THREE.Mesh(geom, new THREE.MeshStandardMaterial({ color: t.colours[name] ?? t.colours.base, roughness: 0.6, metalness: 0.05 })); if (name !== "base") m.position.z = 0.02; g.add(m); }
+  const box = new THREE.Box3().setFromObject(g), size = box.getSize(new THREE.Vector3()); g.position.sub(box.getCenter(new THREE.Vector3()));
+  g.rotation.z = deg(turn);
+  const hold = new THREE.Group(); hold.add(g);
+  if (lift) hold.quaternion.setFromAxisAngle(new THREE.Vector3(Math.cos(deg(liftDir)), Math.sin(deg(liftDir)), 0), deg(lift));
+  scene.add(hold);
+  const d = Math.max(size.x, size.y) * 0.62, cam = new THREE.OrthographicCamera(-d, d, d, -d, 0.1, 1000), a = deg(tilt), f = deg(from - 90);
+  cam.up.set(0, 0, 1); cam.position.set(Math.cos(f) * Math.sin(a) * 200, Math.sin(f) * Math.sin(a) * 200, Math.cos(a) * 200); cam.lookAt(0, 0, 0);
+  renderer.render(scene, cam);
+  return renderer.domElement.toDataURL("image/webp", 0.86);
+}
 const icons = new Map(), iconOf = async (path) => { if (!icons.has(path)) icons.set(path, await gameIcon(path)); return icons.get(path); };
 
 // Everything in one language: names are [es, en]
@@ -58,21 +78,41 @@ async function art(lang) {
   const white = FILAMENTS.white, black = FILAMENTS.black;
   const raised = { relief: { text: false, frame: false, icon: true } };
 
-  const COMB = [
-    await own(["Dragón", "Dragon"], "lorc/dragon-head", "#b3191e"), await own(["Vidente", "Seer"], "lorc/crystal-ball", "#2f86e0"), await other("piece", ["Meeple", "Meeple"], "delapouite/meeple", "#b3191e", { ...raised, diameter: 25, pieceShape: "silhouette", colours: { base: "team", front: white, frame: white, back: black } }), await own(["Lobo", "Wolf"], "lorc/wolf-head", "#b3191e", D.noche),
-    await other("base", ["Orco 2", "Orc 2"], null, "#d4a72c", { ringBase: "32", frame: "none", height: 2.5, colours: { base: "team", front: black, frame: black, back: black } }), await own(["Senador", "Senator"], "delapouite/greek-temple", "#ece9e2", { ...D.edicion, frame: "laurel" }), logo, await other("ring", ["Envenenado", "Poisoned"], null, "#3f9651", { ringBase: "25", frame: "rim", colours: { base: black, front: "team", frame: "team", back: black } }), await own(["Fuego", "Fire"], "lorc/fire-ring", "#e07a2f", D.medianoche),
-    await own(["Jugador inicial", "First player"], "lorc/crown", "#c9a227", D.doble), await other("info", ["Elige a un jugador", "Choose a player"], "lorc/potion-ball", "#8a3d9e", { cardIcon: "left", frame: "rim", colours: { base: black, front: white, frame: "team", back: black } }), await own(["Protegido", "Protected"], "lorc/eye-shield", "#8a3d9e", D.medianoche), await other("piece", ["Ronda", "Round"], "lorc/sands-of-time", "#2f86e0", { ...raised, diameter: 25, pieceShape: "hexagon", colours: { base: "team", front: white, frame: white, back: black } }),
+  // the front page's art: two or so of each kind of component, in 3D, mostly face-on, each at its own slant, a third
+  // tipped up towards you; in rows of 4, 5 and 4, each nudged and turned a little (tools/hero-protos chose them)
+  const K = black, coin = { frame: "rim", frameWidth: 0.8, back: "none", colours: { base: K, front: "team", frame: "team", back: FILAMENTS.gold } };
+  const piece = (x) => ({ relief: { text: false, frame: false, icon: true }, diameter: 25, pieceMargin: 1, colours: { base: "team", front: white, frame: white, back: K }, ...x });
+  const PICKS = [
+    ["coin", ["Lobo", "Wolf"], "lorc/wolf-head", "#b3191e", { ...coin, frame: "fases" }],
+    ["coin", ["Senador", "Senator"], "delapouite/greek-temple", "#ece9e2", { ...coin, frame: "laurel" }],
+    ["coin", ["Protegido", "Protected"], "lorc/eye-shield", "#8a3d9e", { ...coin, frame: "greca2" }],
+    ["coin", ["+1", "+1"], null, "#3f9651", { ...coin, style: "text", frame: "ficha" }],
+    ["info", ["Elige a un jugador", "Choose a player"], "lorc/potion-ball", "#8a3d9e", { cardIcon: "left", frame: "rim", colours: { base: K, front: white, frame: "team", back: K } }],
+    ["info", ["Ley de la República", "Law of the Republic"], "delapouite/greek-temple", "#ece9e2", { cardIcon: "left", frame: "laurel", colours: { base: K, front: white, frame: white, back: K } }],
+    ["ring", ["Envenenado", "Poisoned"], null, "#3f9651", { ringBase: "25", frame: "rim", colours: { base: K, front: "team", frame: "team", back: K } }],
+    ["ring", ["Aturdido", "Dazed"], null, "#d4a72c", { ringBase: "25", frame: "none", colours: { base: "team", front: K, frame: K, back: K } }],
+    ["base", ["Orco 2", "Orc 2"], null, "#d4a72c", { ringBase: "32", frame: "none", height: 2.5, colours: { base: "team", front: K, frame: K, back: K } }],
+    ["base", ["12", "12"], null, "#3f9651", { ringBase: "25", frame: "none", height: 2.5, colours: { base: "team", front: K, frame: K, back: K } }],
+    ["piece", ["Meeple", "Meeple"], "delapouite/meeple", "#2f86e0", piece({ pieceShape: "silhouette", pieceIcon: false, pieceMargin: 0.6 })],
+    ["piece", ["Corona", "Crown"], "lorc/crown", "#d4a72c", piece({ pieceShape: "silhouette" })],
+    ["piece", ["Espadas", "Swords"], "lorc/crossed-swords", "#a7adb4", piece({ pieceShape: "silhouette", colours: { base: K, front: "team", frame: "team", back: K } })],
   ];
-  // the honeycomb: 4 + 5 + 4 cells, 1000 × 926
-  const W = 1000, H = 926, cell = 195, rows = [[0, 4], [4, 5], [9, 4]];
-  let i = 0, cells = "";
-  rows.forEach(([start, k0], r) => {
-    for (let k = 0; k < k0; k++, i++) {
-      const cx = W / 2 + (k - (k0 - 1) / 2) * 204, cy = H * (.24 + r * .26);
-      cells += place(COMB[start + k], cx - cell / 2, cy - cell / 2, cell, start + k === 6 ? "cell mark" : "cell", i);
-    }
-  });
-  const hero = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="${n(["Componentes hechos con Tesserae Faber", "Components made with Tesserae Faber"])}">${defs}${cells}</svg>`;
+  let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const order = [...PICKS].sort(() => rnd() - 0.5), Wd = 1000, cell = 195, rowsOf = [4, 5, 4], Hd = 3 * 235 + 30;
+  let cells = "", i = 0;
+  for (const [r, k] of rowsOf.entries()) for (let c = 0; c < k; c++, i++) {
+    const [kind, names, path, colour, spec] = order[i], name = n(names), icon = path ? await iconOf(path) : undefined;
+    const role = { id: `hero_${kind}_${name}`, ...(kind === "coin" ? {} : { kind }), en: name, es: name, team: "townsfolk", colour, edition: "own", editionName: "Tesserae Faber", d: [], body: "", g: "" };
+    const t = buildToken(lib, role, { ...DEFAULT_SPEC, lang, ...(icon ? { icon } : {}), ...spec }, name);
+    const cx = Wd / 2 + (c - (k - 1) / 2) * 188 + (rnd() - 0.5) * 20, cy = 15 + cell / 2 + r * 235 + (rnd() - 0.5) * 20, rot = (rnd() - 0.5) * 12;
+    let s = cell * (kind === "info" ? 1.12 : kind === "piece" ? 0.9 : 1) * (0.95 + rnd() * 0.1);
+    const from = (rnd() - 0.5) * 100, up = rnd() < 0.38;
+    const png = up ? shot(t, 26 + rnd() * 10, rot * 1.5, from, 16 + rnd() * 10, from + (rnd() - 0.5) * 30) : shot(t, 8 + rnd() * 18, rot * 1.5, from);
+    if (up) s *= 1.12;
+    cells += `<g class="cell" style="--i:${i}"><image filter="url(#${up ? "float" : "lift"})" href="${png}" x="${(cx - s * 0.58).toFixed(1)}" y="${(cy - s * 0.58).toFixed(1)}" width="${(s * 1.16).toFixed(1)}" height="${(s * 1.16).toFixed(1)}"/></g>`;
+  }
+  const heroDefs = defs.replace("</defs>", `<filter id="float" x="-40%" y="-40%" width="180%" height="200%"><feDropShadow dx="0" dy="30" stdDeviation="16" flood-color="#000" flood-opacity=".45"/></filter></defs>`);
+  const hero = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${Wd} ${Hd}" role="img" aria-label="${n(["Componentes hechos con Tesserae Faber", "Components made with Tesserae Faber"])}">${heroDefs}${cells}</svg>`;
 
   // a cover strip: five tokens, overlapping
   const s = 120, step = 96;
