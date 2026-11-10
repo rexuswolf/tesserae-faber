@@ -60,4 +60,12 @@ describe("a base tray", () => {
       for (const [part, g] of Object.entries(t.parts)) if (g) expect(openEdges(g), `${text || "(none)"}: ${part}`).toBe(0);
     }
   });
+  it("stands raised text on the top, none of it sunk: its layers its colour alone", () => {
+    const role = { id: "x", kind: "base", team: "townsfolk", en: "2" } as unknown as Role;
+    const t = buildToken(lib, role, { ringBase: "32", relief: { text: true, frame: false, icon: false }, reliefHeight: 0.6 } as never, "2");
+    const box = new THREE.Box3().setFromBufferAttribute(t.parts.front!.attributes.position as THREE.BufferAttribute);
+    expect(box.min.z).toBeCloseTo(t.spec.height, 5);
+    expect(box.max.z).toBeCloseTo(t.spec.height + 0.6, 5);
+  });
 });
+

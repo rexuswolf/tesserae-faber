@@ -65,7 +65,8 @@ export function plateFeatures(items: { token: EstimateToken; vol: Volumes }[], n
       if (!vol[part]) continue;
       const slot = slotOf(colours[part] ?? colours.base), up = vol.above?.[part] || 0;
       add(slot, vol[part]); inlays += vol[part]; sunk += vol[part] - up;
-      if (slot !== base) (FACE.includes(part) ? face : back).add(slot);
+      // a colour in the face's mixed layers only for what's sunk into it: a raised part stands on the face, its layers its own
+      if (slot !== base && vol[part] - up > 1e-6) (FACE.includes(part) ? face : back).add(slot);
       if (up) { raised.add(slot); reliefLayers = Math.max(reliefLayers, Math.round((spec.reliefHeight ?? 0.6) / c.layer)); }
     }
     add(base, Math.max(0, vol.base - sunk - (vol.magnet || 0)) * bodyFill(h, c));

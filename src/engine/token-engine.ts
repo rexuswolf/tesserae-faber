@@ -309,10 +309,7 @@ function flipWinding(geom: THREE.BufferGeometry) {
 
 const merge = (list: (THREE.BufferGeometry | null | undefined)[]) => {
   const parts = list.filter((g): g is THREE.BufferGeometry => !!g);
-  const g = parts.length ? mergeGeometries(parts) : null;
-  // bevelled relief: what stands out of the face, summed (see partExtrude)
-  if (g && parts.every((p) => aboveOf.has(p))) aboveOf.set(g, parts.reduce((s, p) => s + aboveOf.get(p)!, 0));
-  return g;
+  return parts.length ? mergeGeometries(parts) : null;
 };
 
 const M = () => new THREE.Matrix4();
@@ -746,8 +743,8 @@ const bottomFace = (raised: boolean): Face => ({ z: 0, mirror: true, flush: !rai
 /** A face's matrix: on the bottom face, mirrored. */
 const onFace = (face: Face, m: THREE.Matrix4) => (face.mirror ? chain(S(-1, 1, 1), m) : m);
 const faceHeight = (spec: TokenSpec, part: ReliefPart, face: Face) => (face.flush ? spec.depth : inlayHeight(spec, part));
-/** Where a part's inlay starts: on the top face `depth` under the top (its relief above it); on
- *  the bottom face its relief under z = 0, so every part ends `depth` into the coin. */
+/** Where a part's inlay starts: on the top face `depth` under the top; on the bottom face so it ends `depth`
+ *  into the coin, a raised part's relief under z = 0. (partExtrude stands a raised part on its face, none of it sunk.) */
 const partZ = (spec: TokenSpec, part: ReliefPart, face: Face) => (face.bottom ? spec.depth - faceHeight(spec, part, face) : face.z);
 
 function buildFront(lib: Library, role: Role, text: string, spec: TokenSpec, face = topFace(spec)) {
@@ -1849,26 +1846,26 @@ const BEVEL_STEP = 0.2, BEVEL_GRID = 0.05, BEVEL_TOL = 0.04;
 const BEVEL_FRAMES = new Set(["rim", "double", "line", "corners"]);
 const bevelOf = (spec: TokenSpec, part: ReliefPart, face: Face) =>
   face.flush || !reliefOf(spec)[part] || !reliefTop(spec) || (part === "frame" && !BEVEL_FRAMES.has(String(spec.frame))) ? 0 : Math.max(0, spec.reliefBevel || 0);
-/** The volume of a bevelled part out of its face (mm³); a straight one's is its share of the prism. */
-const aboveOf = new WeakMap<THREE.BufferGeometry, number>();
-
 /**
- * A face part's inlay: `shapes` placed by `m` (a similarity: scale, turn, mirror) and extruded
- * through its face; when raised with a bevel, its relief in layers (bevelLayers).
+ * A face part: `shapes` placed by `m` (a similarity: scale, turn, mirror; `m` at the inlay's start, `depth` into the
+ * face) and extruded. A flush part is an inlay `depth` into the face. A raised one stands on the face and doesn't go
+ * into it: its layers then have only the raised colours, one colour change up from the body instead of a mixed layer
+ * each 0.2 mm of the inlay. With a bevel, its relief in layers (bevelLayers).
  */
 function partExtrude(shapes: THREE.Shape[], spec: TokenSpec, part: ReliefPart, face: Face, m: THREE.Matrix4, curveSegments = 5) {
-  const h = faceHeight(spec, part, face), b = bevelOf(spec, part, face), e = m.elements, k = Math.sqrt(Math.abs(e[0] * e[5] - e[4] * e[1])) || 1;
+  const full = faceHeight(spec, part, face), sink = full > spec.depth + 1e-9 ? spec.depth : 0, h = full - sink;
+  // on the top face it starts on the face, `depth` up from where the inlay would; on the bottom one it ends at z = 0
+  if (sink && !face.bottom) m = chain(m, T(0, 0, sink));
+  const b = bevelOf(spec, part, face), e = m.elements, k = Math.sqrt(Math.abs(e[0] * e[5] - e[4] * e[1])) || 1;
   // each curve cut by its printed length, not a set count: a large one stays round
   shapes = smoothShapes(shapes, k, curveSegments); curveSegments = 1;
   if (!b || !shapes.length) return extrude(shapes, h, m, curveSegments);
   const r = reliefTop(spec), d = h - r;
   const n = Math.max(1, Math.round(r / BEVEL_STEP)), step = r / n;
   const layers = bevelLayers(shapes, b / k, BEVEL_MIN_TOP / k, BEVEL_GRID / k, n, curveSegments);
-  // the relief is local z [d, h] on the top face, [0, r] on the bottom one (its outside at 0)
+  // the relief is local z [d, h] on the top face, [0, r] on the bottom one (its outside at 0); d is 0 for a raised part
   const up = layers.map((l) => extrude(l.shapes, (l.to - l.from) * step, chain(m, T(0, 0, face.bottom ? r - l.to * step : d + l.from * step)), curveSegments));
-  const g = merge([extrude(shapes, d, face.bottom ? chain(m, T(0, 0, r)) : m, curveSegments), ...up]);
-  if (g) aboveOf.set(g, up.reduce((s, l) => s + geometryVolume(l), 0));
-  return g;
+  return merge([d > 1e-6 ? extrude(shapes, d, face.bottom ? chain(m, T(0, 0, r)) : m, curveSegments) : null, ...up]);
 }
 
 /** The longest straight piece a curve is cut into, printed (mm): finer than the nozzle draws. */
@@ -2603,7 +2600,7 @@ function buildRing(lib: Library, role: Role, input: SpecInput | undefined, text?
     : L.sep === "none" ? null : partExtrude(memoShapes(`marks|${ringKey}`, () => ringMarks(L)), spec, "text", topFace(spec), T(0, 0, top), 1);
   const front = merge([...letters, dots]);
   const frame = L.line ? partExtrude(memoShapes(`lines|${L.outer}|${L.inner}|${L.line}`, () => ringLines(L)), spec, "frame", topFace(spec), T(0, 0, top), 64) : null;
-  const R = reliefOf(spec), r = reliefTop(spec), above = (g: THREE.BufferGeometry | null) => (g && r ? aboveOf.get(g) ?? geometryVolume(g) * r / (spec.depth + r) : 0);
+  const R = reliefOf(spec), r = reliefTop(spec), above = (g: THREE.BufferGeometry | null) => (g && r ? geometryVolume(g) : 0);
   return {
     parts: { base: extrude([annulus(L.outer, L.inner)], H, T(0, 0, 0), 64), front, icon: null, frame, back: null },
     colours: { ...partColours(role, spec), hole: "#0b090c" },
@@ -2765,7 +2762,7 @@ function buildTray(lib: Library, role: Role, input: SpecInput | undefined, text?
     return partExtrude(g.shapes, spec, "text", topFace(spec), chain(T(L.foot * Math.cos(a), L.foot * Math.sin(a), top), RZ(a + Math.PI / 2), S(L.em, L.em, 1), T(-g.center, 0, 0)), 4);
   }));
   const frame = L.line ? partExtrude(baseLines(L), spec, "frame", topFace(spec), T(0, 0, top), 24) : null;
-  const R = reliefOf(spec), r = reliefTop(spec), above = (g: THREE.BufferGeometry | null) => (g && r ? aboveOf.get(g) ?? geometryVolume(g) * r / (spec.depth + r) : 0);
+  const R = reliefOf(spec), r = reliefTop(spec), above = (g: THREE.BufferGeometry | null) => (g && r ? geometryVolume(g) : 0);
   return {
     parts: { base: body, front, icon: null, frame, back: null },
     colours: partColours(role, spec),
@@ -3105,9 +3102,8 @@ export function buildToken(lib: Library, role: Role, input: SpecInput | undefine
   const bp = bf ? frontPattern(lib, bf.role, bf.spec, bf.text) : null, bface = bottomFace(backUp);
   const bpGeom = bp && backSpec ? partExtrude(cutShapes(bp), backSpec, "frame", bface, onFace(bface, T(0, 0, partZ(backSpec, "frame", bface))), 1) : null;
   const backFrame = backSpec ? merge([buildFrame(backSpec, bface), bpGeom]) : null;
-  // The relief out of each face, per part (mm³): each raised element is a prism standing
-  // `depth` into the coin and `relief` out of it, so that share of its volume.
-  const R = reliefOf(spec), B = reliefOf(backSpec), r = reliefTop(spec), above = (g: THREE.BufferGeometry | null | undefined) => (g && r ? aboveOf.get(g) ?? geometryVolume(g) * r / (spec.depth + r) : 0);
+  // The relief out of each face, per part (mm³): a raised element stands on its face, all of it out of it.
+  const R = reliefOf(spec), B = reliefOf(backSpec), r = reliefTop(spec), above = (g: THREE.BufferGeometry | null | undefined) => (g && r ? geometryVolume(g) : 0);
   // The window's icon is in the coin colour, over the window; the classic one in the team
   // colour like the name. Either is its own part, raised or not; on a back face likewise.
   const iconColour = window ? colours.icon : colours.ink!;
