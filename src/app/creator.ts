@@ -443,16 +443,18 @@ function renderTokenPanel() {
   renderTokenColour(tk);
   const carries = contentNow(tk, shape);
   $("#ownTokIconRow").hidden = !SHAPE_FEATURES[shape].icon;
-  $("#ownTokNameHint").hidden = carries !== "icon" && carries !== "none";
+  // a piece prints no text (its name, in Token, names it in your lists)
+  $("#ownTokText").closest<HTMLElement>("label")!.hidden = shape === "piece";
+  $("#ownTokNameHint").hidden = shape === "piece" || (carries !== "icon" && carries !== "none");
   $("#ownTokNameHint").textContent = t(carries === "none" && shape === "coin" ? "own.content.plain" : "own.content.iconName");
-  renderIconChip("ownTok", tk.icon, carries === "text" && tk.icon ? t("own.iconNotPrinted") : "");
+  renderIconChip("ownTok", tk.icon, carries === "text" && tk.icon ? t("own.iconNotPrinted") : "", shape === "piece" ? t("piece.noIconHelp") : "");
   renderTextHint(tk);
   renderOwnFlip(tk);
   const sig = [tk.id, shape, tokenLang(), uiLang()].join("|");
   if (sig === panelFor) return;
   panelFor = sig;
   searchOpen.ownTok = searchOpen.ownTokFlip = false;
-  renderIconChip("ownTok", tk.icon, contentNow(tk, shape) === "text" && tk.icon ? t("own.iconNotPrinted") : "");
+  renderIconChip("ownTok", tk.icon, contentNow(tk, shape) === "text" && tk.icon ? t("own.iconNotPrinted") : "", shape === "piece" ? t("piece.noIconHelp") : "");
   $<HTMLInputElement>("#ownTokName").value = nameIn(tk.name, tokenLang());
   $<HTMLInputElement>("#ownTokText").value = nameIn(tk.text ?? tk.name, tokenLang());   // what it says: its name until it says something else
   $<HTMLInputElement>("#ownTokIq").value = ""; $("#ownTokHits").innerHTML = "";
@@ -569,9 +571,11 @@ const flipsOff = new Map<string, OwnFlip>();
 /** Whether an icon's search is open, the token's and its other state's. */
 const searchOpen: Record<string, boolean> = { ownTok: false, ownTokFlip: false };
 /** An icon as it's chosen: drawn, its name and where it's from, with Change (the search) and Remove; none, Choose. */
-function renderIconChip(id: string, icon: TokenIcon | null | undefined, note = "") {
+function renderIconChip(id: string, icon: TokenIcon | null | undefined, note = "", empty = "") {
   const open = searchOpen[id];
   $(`#${id}Search`).hidden = !open;
+  // none, where one does something (a piece): what it would do, and the button to choose one
+  if (!icon && empty) { $(`#${id}Chip`).innerHTML = `<div class="tp-chip-empty"><p>${esc(empty)}</p><button class="pill add main" type="button" data-icon-change>${esc(t(open ? "icon.done" : "icon.chooseOne"))}</button></div>`; return; }
   const name = icon ? icon.name || icon.id.split("/").pop() || "" : t("own.noIcon");
   const from = note || (icon ? t(icon.source === "upload" ? "icon.from.upload" : "icon.from.game") : "");
   $(`#${id}Chip`).innerHTML = `<span class="tp-chip-ic">${icon ? `<svg viewBox="0 0 ${ICON_VIEW} ${ICON_VIEW}" aria-hidden="true"><g transform="${safeTransform(icon.g)}">${safeIconMarkup(icon.body)}</g></svg>` : ""}</span>`

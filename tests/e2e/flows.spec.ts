@@ -318,10 +318,16 @@ test("a collection of pieces: a silhouette, a plain one and a hexagon, to the Ba
   await next(page);
   // the designer: its Composition has the outlines and the icon on top or not; the hexagon changes the preview
   await page.evaluate(() => (window as unknown as { __mm: { designToken(k: string): void } }).__mm.designToken("p2"));
-  const hex = page.locator('[data-choice="pieceShape"] [data-v="hexagon"]');
-  await expect(hex).toBeAttached({ timeout: 10_000 });
-  await expect(page.locator('[data-choice="pieceShape"] [data-v="silhouette"]')).toBeEnabled();   // it has an icon: its silhouette
+  // silhouette or shape; a shape shows the shapes
+  const kind = (k: string) => page.locator(`#pieceKinds [data-piece-kind="${k}"]`);
+  await expect(kind("silhouette")).toBeAttached({ timeout: 10_000 });
+  await expect(kind("silhouette")).toBeEnabled();   // it has an icon: its silhouette
   await expect(page.locator('[data-choice="pieceIcon"] [data-v]')).toHaveCount(3);   // on top, top and bottom, none
+  await expect(async () => {
+    await kind("shape").evaluate((b) => (b as HTMLElement).click());
+    await expect(kind("shape")).toHaveAttribute("aria-pressed", "true", { timeout: 1000 });
+  }).toPass();
+  const hex = page.locator('[data-choice="pieceShape"] [data-v="hexagon"]');
   const before = await page.locator("#workshop svg[aria-label]").first().innerHTML();
   // the tiles may draw themselves again meanwhile: click until the choice takes
   await expect(async () => {

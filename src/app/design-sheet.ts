@@ -1,6 +1,6 @@
 // Choosing a design (the design sheet), and each shape's default design.
 import { emit } from "./events.ts";
-import type { TokenShape, TokenSpec, MyDesign, TokenOverride, Role, PatternSpec, ReliefPart, Token, TokenStyle, SpecColours, SpecInput, CardBack, TokenIcon, BackFace, BackSay, TokenContent } from "../types.ts";
+import type { TokenShape, TokenSpec, MyDesign, TokenOverride, Role, PatternSpec, ReliefPart, Token, TokenStyle, SpecColours, SpecInput, CardBack, TokenIcon, BackFace, BackSay, TokenContent, PieceShape } from "../types.ts";
 import { DEFAULT_SPEC, reminderSpec, tokenSvg, SHAPE_FEATURES, shapeOf, roleName, shapeSpec, TOKEN_STYLES, FRAME_STYLES, ILLUSTRATIONS, isIllustration, illustrationPath, migrateBack, backShown, backLayoutContent, PATTERN_MIN, printsBack, cardBackOf, CARD_ICONS, CARD_JOINS, partColours, PATTERNS, patternDefaults, patternFilled, patternFixed, flipFace, reliefOf, hasRelief, FACE_FIELDS, ringBand, ringSize, baseSize, magnetLayout, pieceSpec, PIECE_SHAPES } from "../engine/token-engine.ts";
 import { tokenLang } from "./token-language.ts";
 import { iconFromSvg, GI_PLACE } from "../icons.ts";
@@ -17,7 +17,7 @@ import type { Vars } from "../i18n.ts";
 import { applyLook, prunedLook, withLookField, sameValue, lookFields, withoutLookField, setField, lookDiff, fieldOf } from "./looks.ts";
 import { tokenRole, queueEntry, tokenRem, queueLabel, itemSpec, smallLetters, nozzleMm, renderDesignStage, toastTimer, setToastTimer } from "./queue.ts";
 import { CHEVRON } from "./language.ts";
-import { renderIconField, openPart, openPanel, sectionsOf, showTab, backTabsOf, frontTabsOf, twoSided, editContent, faceOf, hasOwnLook, backChanged, syncView, renderWorkshop, editLook, changeFace, editSide, designSwatch } from "./workshop.ts";
+import { renderIconField, openPart, openPanel, sectionsOf, showTab, backTabsOf, frontTabsOf, twoSided, editContent, faceOf, hasOwnLook, backChanged, syncView, renderWorkshop, editLook, changeFace, editSide, designSwatch, partsOf } from "./workshop.ts";
 import { TALLER, tallerMine, renderTaller } from "./taller.ts";
 import { colourIssues, LIGHT_DEPTH } from "../colour-checks.ts";
 import type { InlayPart } from "../colour-checks.ts";
@@ -535,22 +535,35 @@ function lineFrames(shape: TokenShape, frame: string): [string, string][] {
   return [["none", t("frame.none")], [line, t(`frame.line.${shape}`)], ...(SHAPE_FEATURES[shape].corners ? [["corners", t("frame.corners")], ["laurel", t("frame.laurelCard")]] as [string, string][] : [])];
 }
 
-/** A piece's outlines and its icon on top or not (its Composition), each drawn on the token as it would come out. */
+/** The shape a piece last had, of the simple ones: Shape brings it back (a circle, the first time). */
+const pieceSimple: Record<string, string> = {};
+/**
+ * A piece's Composition: its icon's silhouette or a shape, each drawn as the piece comes out; under it the silhouette's
+ * margin, or the shapes as outlines; then its icon, on top, on top and underneath, or none. A token without an icon
+ * has no silhouette (its card waits for one) nor anything to put on top.
+ */
 function renderPieceTiles(face: { role: Role; text: string }, spec: TokenSpec) {
-  const s = pieceSpec(spec), iconNow = !s.pieceIcon ? "off" : s.pieceBack ? "both" : "on";
-  // a token without an icon has no silhouette: its tile waits for one (a piece of yours shows its icon's; in the Taller, the sample's)
-  const own = ownIcon(face.role.id), noIcon = !(own?.body || face.role.body || face.role.d?.length);
-  const tile = (v: string, pressed: boolean, label: string, look: SpecInput, side: "front" | "back" = "front", waits = false) =>
-    `<button class="back-tile" type="button" data-v="${v}" aria-pressed="${pressed}"${waits ? ` disabled title="${esc(t("style.needsIcon"))}"` : ""}>${waits ? "" : tokenSvg(state.lib!, face.role, { ...s, ...look }, { text: face.text, side })}<span>${esc(label)}</span>${waits ? `<small>${esc(t("style.needsIcon"))}</small>` : ""}</button>`;
-  $("[data-choice=pieceShape]").innerHTML = PIECE_SHAPES.map((v) => tile(v, s.pieceShape === v && !(v === "silhouette" && noIcon), t(`piece.shape.${v}`), { pieceShape: v }, "front", v === "silhouette" && noIcon)).join("");
-  // the icon on top, on top and underneath (its tile shows the underside: flush, mirrored), or none
-  $("[data-choice=pieceIcon]").innerHTML = [tile("on", iconNow === "on", t("piece.icon.on"), { pieceIcon: true, pieceBack: false }),
-    tile("both", iconNow === "both", t("piece.icon.both"), { pieceIcon: true, pieceBack: true, relief: { text: false, frame: false, icon: false } }, "back"),
-    tile("off", iconNow === "off", t("piece.icon.off"), { pieceIcon: false })].join("");
-  // without an icon: no margin round it, nothing to put on top
-  $("#pieceMarginRow").hidden = s.pieceShape !== "silhouette" || noIcon;
-  $("#pieceIconLabel").hidden = $("[data-choice=pieceIcon]").hidden = noIcon;
-  $("#pieceHint").textContent = s.pieceShape === "silhouette" && noIcon ? t("piece.hintNoIcon") : s.pieceShape !== "silhouette" ? t("piece.hintShape") : s.pieceIcon ? t("piece.hintSilhouette") : t("piece.hintPlain");
+  const s = pieceSpec(spec), own = ownIcon(face.role.id), noIcon = !(own?.body || face.role.body || face.role.d?.length);
+  const silhouette = s.pieceShape === "silhouette" && !noIcon, key = face.role.id;
+  if (!silhouette && s.pieceShape !== "silhouette") pieceSimple[key] = s.pieceShape;
+  const simple = (pieceSimple[key] ?? "circle") as PieceShape, draw = (look: SpecInput) => tokenSvg(state.lib!, face.role, { ...s, ...look }, { text: face.text });
+  const meeple = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3c2 0 3 1.6 3 3.4 0 1.2-.5 2-1.2 2.6 2.8.6 6.2 1.8 6.2 3.4 0 1-1.7 1.4-3.6 1.6l3 6.5h-5.2L12 17l-2.2 3.5H4.6l3-6.5c-1.9-.2-3.6-.6-3.6-1.6 0-1.6 3.4-2.8 6.2-3.4C9.5 8.4 9 7.6 9 6.4 9 4.6 10 3 12 3z" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="2 1.5"/></svg>`;
+  $("#pieceKinds").innerHTML = `<button type="button" data-piece-kind="silhouette" aria-pressed="${silhouette}"${noIcon ? ' disabled class="waits"' : ""}>${noIcon ? meeple : draw({ pieceShape: "silhouette" })}<b>${esc(t("piece.kind.silhouette"))}</b><small>${esc(t(noIcon ? "style.needsIcon" : "piece.kind.silhouetteSub"))}</small></button>`
+    + `<button type="button" data-piece-kind="shape" aria-pressed="${!silhouette}">${draw({ pieceShape: silhouette ? simple : s.pieceShape === "silhouette" ? simple : s.pieceShape })}<b>${esc(t("piece.kind.shape"))}</b><small>${esc(t(`piece.shape.${silhouette ? simple : s.pieceShape === "silhouette" ? simple : s.pieceShape}`))}</small></button>`;
+  $("#pieceMarginRow").hidden = !silhouette;
+  // the shapes as outlines only: the shape itself, not the drawing on it
+  $("[data-choice=pieceShape]").innerHTML = silhouette ? "" : PIECE_SHAPES.filter((v) => v !== "silhouette").map((v) =>
+    `<button type="button" data-v="${v}" aria-pressed="${s.pieceShape === v}">${draw({ pieceShape: v, pieceIcon: false })}${esc(t(`piece.shape.${v}`))}</button>`).join("");
+  $("#pieceHint").textContent = t(noIcon ? "piece.hintBare" : silhouette ? "piece.hintSilhouette" : "piece.hintShape");
+  const iconNow = !s.pieceIcon ? "off" : s.pieceBack ? "both" : "on";
+  $("#pieceIconBox").hidden = noIcon;
+  $("[data-choice=pieceIcon]").innerHTML = (["on", "both", "off"] as const).map((v) => `<button type="button" data-v="${v}" aria-pressed="${iconNow === v}">${esc(t(`piece.icon.${v}`))}</button>`).join("");
+  $("#pieceIconHint").textContent = t(`piece.iconHint.${iconNow}`);
+}
+/** Silhouette or shape: a shape is the one it last had, or a circle. */
+export function setPieceKind(kind: "silhouette" | "shape") {
+  const key = state.sel!.role.id;
+  changeLook((s) => { s.pieceShape = kind === "silhouette" ? "silhouette" : ((pieceSimple[key] ?? "circle") as PieceShape); });
 }
 /** A card's icon places and joins (its Layout tab) and its icon's size (its Icon tab), the tiles drawn on the token as it would come out. */
 function renderCardIconTiles(role: Role, text: string, spec: TokenSpec, hasIcon: boolean) {
@@ -943,6 +956,8 @@ export function syncControls(role: Role, spec: TokenSpec, token: Token) {
   if (shape === "base") { const bs = baseSize(s); $("#ringBaseHint").textContent = t("base.baseHelp", { inner: dec1(2 * bs.ri), outer: dec1(2 * bs.ro) }); }
   else { const rs = ringSize(s); $("#ringBaseHint").textContent = t("ring.baseHelp", { inner: dec1(2 * rs.inner), outer: dec1(2 * rs.outer) }); }
   $("#baseColourLabel").textContent = shapeText("coin.colour", shape);
+  // a shape with a Colours section of its own has its colour there, not here too
+  $("#baseColourLabel").hidden = $("[data-panel=body] .metal[data-colour=base]").hidden = partsOf(shape).includes("colours");
   $("label[for=height]").textContent = shapeText("range.height", shape);
   $("#depthHint").className = "hint" + (token.depthClamped ? " warn" : "");
   $("#depthHint").textContent = token.depthClamped ? t("depth.clamped", { max: token.depthClamped.toFixed(1), core: "0.4" }) : shapeText("depth.help", shape);

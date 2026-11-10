@@ -281,12 +281,19 @@
         </div>
         <!-- a piece's: its outline (its icon's silhouette or a simple shape), how far the silhouette reaches past the icon, the icon on top or not -->
         <div id="pieceLayoutBox" hidden>
+          <!-- what it's shaped as: its icon's silhouette or a shape (each drawn as it comes out); then the silhouette's
+               margin, or the shapes themselves (outlines only) -->
           <p class="metal-label" data-i18n="piece.shapeLabel"></p>
-          <div class="choices card-tiles piece-tiles" data-choice="pieceShape" data-i18n-attr="aria-label:piece.shapeLabel"></div>
+          <div class="piece-kinds" id="pieceKinds" role="group" data-i18n-attr="aria-label:piece.shapeLabel"></div>
           <div class="row" id="pieceMarginRow"><label for="pieceMargin" data-i18n="range.pieceMargin"></label><output data-for="pieceMargin"></output><input type="range" id="pieceMargin" min="0.4" max="4" step="0.2" value="2"></div>
-          <p class="metal-label" id="pieceIconLabel" data-i18n="piece.iconLabel"></p>
-          <div class="choices card-tiles piece-tiles" data-choice="pieceIcon" data-i18n-attr="aria-label:piece.iconLabel"></div>
+          <div class="piece-shapes" data-choice="pieceShape" data-i18n-attr="aria-label:piece.shapeLabel"></div>
           <p class="hint" id="pieceHint"></p>
+          <!-- its icon: on top, on top and underneath, or none -->
+          <div id="pieceIconBox">
+            <p class="metal-label" data-i18n="piece.iconLabel"></p>
+            <div class="seg3" data-choice="pieceIcon" data-i18n-attr="aria-label:piece.iconLabel"></div>
+            <p class="hint" id="pieceIconHint"></p>
+          </div>
         </div>
       </section>
       <section class="ws-panel" data-panel="text" role="tabpanel" hidden>

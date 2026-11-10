@@ -2143,6 +2143,30 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 #tpContent .field { gap: 4px; }
 #tpContent[hidden], #tpShape[hidden] { display: none; }
 .tp-carries button { white-space: nowrap; }
+/* a piece's Composition: silhouette or shape, large; the shapes small; its icon in three */
+#pieceLayoutBox > .metal-label, #pieceIconBox > .metal-label { margin-top: 18px; }
+#pieceLayoutBox > .metal-label:first-child { margin-top: 4px; }
+#pieceMarginRow { margin-top: 12px; }
+#pieceLayoutBox .hint { margin-top: 8px; }
+.piece-kinds { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.piece-kinds button { background: rgba(239, 230, 214, .05); border: 1px solid transparent; border-radius: 12px; padding: 12px 8px 10px; text-align: center; cursor: pointer; color: var(--bone); font: inherit; }
+.piece-kinds button svg { width: 88px; height: 88px; display: block; margin: 0 auto 6px; }
+.piece-kinds b { display: block; font-weight: 500; font-size: 14px; } .piece-kinds small { color: var(--dust); font-size: 12px; }
+.piece-kinds button[aria-pressed=true] { border-color: var(--brass); background: rgba(201, 150, 58, .14); }
+.piece-kinds button:disabled { opacity: .5; cursor: default; }
+.piece-kinds .waits svg { color: var(--dust); }
+.piece-shapes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px; }
+.piece-shapes:empty { display: none; }
+.piece-shapes button { background: rgba(239, 230, 214, .05); border: 1px solid transparent; border-radius: 10px; padding: 8px 4px 6px; cursor: pointer; color: var(--dust); font: inherit; font-size: 11.5px; text-align: center; }
+.piece-shapes button svg { width: 40px; height: 40px; display: block; margin: 0 auto 3px; }
+.piece-shapes button[aria-pressed=true] { border-color: var(--brass); color: var(--bone); background: rgba(201, 150, 58, .14); }
+.seg3 { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: rgba(239, 230, 214, .06); border-radius: 10px; padding: 3px; gap: 3px; }
+.seg3 button { border: 0; background: none; color: var(--dust); font: inherit; font-size: 13.5px; padding: 8px 4px; border-radius: 8px; cursor: pointer; }
+.seg3 button[aria-pressed=true] { background: var(--bone); color: var(--velvet-deep); font-weight: 600; }
+/* a piece without an icon: what one would do, and the button to choose it */
+.tp-chip-empty { border: 1px dashed var(--seam); border-radius: 12px; padding: 14px; text-align: center; color: var(--dust); font-size: 13.5px; }
+.tp-chip-empty p { margin: 0 0 10px; }
+.tp-chip:has(.tp-chip-empty) { border: 0; padding: 0; background: none; display: block; }
 .tp-chip { display: flex; align-items: center; gap: 12px; padding: 8px 12px 8px 8px; border: 1px solid var(--seam); border-radius: 12px; background: rgba(239, 230, 214, .04); }
 .tp-chip-ic { flex: none; width: 46px; height: 46px; border-radius: 9px; background: rgba(239, 230, 214, .06); display: grid; place-items: center; color: var(--bone); }
 .tp-chip-ic svg { width: 36px; height: 36px; fill: currentColor; }
