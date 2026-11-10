@@ -52,6 +52,16 @@ describe("a piece", () => {
     const box = new THREE.Box3().setFromBufferAttribute(t.parts.backIcon!.attributes.position as THREE.BufferAttribute);
     expect(box.min.z).toBeCloseTo(0, 5); expect(box.max.z).toBeCloseTo(t.spec.depth, 5);   // sunk from the bottom, as deep as the top's
     expect(t.colours.backIcon).toBe(t.colours.icon);
+    // a silhouette's is where the top's is (its outline's from below); a simple shape's mirrored, to read turned over
+    // where a drawing's weight lies across (its triangles' mean x, by area): a mirror image's is the other side
+    const meanX = (g: THREE.BufferGeometry) => { const p = g.attributes.position.array; let sx = 0, sa = 0;
+      for (let i = 0; i < p.length; i += 9) { const a = Math.abs((p[i + 3] - p[i]) * (p[i + 7] - p[i + 1]) - (p[i + 6] - p[i]) * (p[i + 4] - p[i + 1])); sx += a * (p[i] + p[i + 3] + p[i + 6]) / 3; sa += a; }
+      return sx / sa; };
+    const sil = buildToken(lib, piece("two-coins"), { pieceBack: true }, "");   // a lopsided icon
+    expect(Math.abs(meanX(sil.parts.icon!))).toBeGreaterThan(0.05);
+    expect(meanX(sil.parts.backIcon!)).toBeCloseTo(meanX(sil.parts.icon!), 2);
+    const hex = buildToken(lib, piece("two-coins"), { pieceBack: true, pieceShape: "hexagon" }, "");
+    expect(meanX(hex.parts.backIcon!)).toBeCloseTo(-meanX(hex.parts.icon!), 2);
     expect(tokenSvg(lib, piece("meeple"), { pieceBack: true }, { side: "back" })).toContain("scale(-1 1)");
   });
   it("is drawn as its outline in its colour, with its icon on it or not", () => {

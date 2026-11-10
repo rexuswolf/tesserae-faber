@@ -3119,8 +3119,10 @@ function buildPiece(lib: Library, role: Role, input: SpecInput | undefined): Tok
   const body = extrude(outline, spec.height, T(0, 0, 0), 1);
   const at = pieceIconAt(lib, role, spec), place = (z: number) => chain(T(0, at.dy, z), S(at.k, -at.k, 1), T(-at.cx, -at.cy, 0));
   const icon = spec.pieceIcon ? partExtrude(iconShapes(lib, role, spec), spec, "icon", face, place(partZ(spec, "icon", face))) : null;
-  // underneath: the same, flush and mirrored, so it reads the right way round when the piece is turned over
-  const under = bottomFace(false), backIcon = spec.pieceBack ? partExtrude(iconShapes(lib, role, spec), spec, "icon", under, onFace(under, place(partZ(spec, "icon", under)))) : null;
+  // underneath, flush: a silhouette's where it is on top (seen from below it's the outline's mirror image, as the
+  // outline is); a simple shape's mirrored, so it reads the right way round turned over (the shape the same either way)
+  const under = bottomFace(false), silhouette = spec.pieceShape === "silhouette";
+  const backIcon = spec.pieceBack ? partExtrude(iconShapes(lib, role, spec), spec, "icon", under, silhouette ? place(partZ(spec, "icon", under)) : onFace(under, place(partZ(spec, "icon", under)))) : null;
   const colours = partColours(role, spec), r = reliefTop(spec);
   return {
     parts: { base: body, front: null, icon, frame: null, back: null, ...(backIcon ? { backIcon } : {}) },
@@ -3137,7 +3139,7 @@ function pieceSvg(lib: Library, role: Role, input: SpecInput | undefined, side: 
   if (spec.pieceIcon && (side === "front" || spec.pieceBack)) {
     const icon = iconOf(role, spec), at = pieceIconAt(lib, role, spec);
     const raised = spec.relief.icon, rid = raised ? `tfr${++reliefIds}` : "";
-    const g = `<g fill="${c.ink}" transform="${side === "back" ? "scale(-1 1) " : ""}translate(0 ${(-at.dy).toFixed(3)}) scale(${at.k.toFixed(5)}) translate(${(-at.cx).toFixed(3)} ${(-at.cy).toFixed(3)})"><g transform="${icon.g}">${icon.body}</g></g>`;
+    const g = `<g fill="${c.ink}" transform="${side === "back" && spec.pieceShape === "silhouette" ? "scale(-1 1) " : ""}translate(0 ${(-at.dy).toFixed(3)}) scale(${at.k.toFixed(5)}) translate(${(-at.cx).toFixed(3)} ${(-at.cy).toFixed(3)})"><g transform="${icon.g}">${icon.body}</g></g>`;
     body += raised && side === "front" ? `${reliefFilter(rid, spec.reliefBevel || 0)}<g filter="url(#${rid})">${g}</g>` : g;
   }
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${-v} ${-v} ${2 * v} ${2 * v}" role="img" aria-label="${esc(label)}">${body}</svg>`;
