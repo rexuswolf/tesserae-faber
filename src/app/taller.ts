@@ -92,7 +92,7 @@ function sampleTokens(groups: string[]): Collection {
       { id: "sample-b1", shape: "base", group: g1, name: n("3", "3"), icon: null, linked: [] },
       { id: "sample-b2", shape: "base", group: g2, name: n("Orco 2", "Orc 2"), icon: null, linked: [] },
       { id: "sample-p1", shape: "piece", group: g1, name: n("Meeple", "Meeple"), icon: uiTokenIcon("meeple"), linked: [] },
-      { id: "sample-p2", shape: "piece", group: g2, name: n("Ficha", "Token"), icon: uiTokenIcon("stack"), linked: [] },
+      { id: "sample-p2", shape: "piece", group: g2, name: n("Pieza", "Piece"), icon: uiTokenIcon("stack"), linked: [] },
     ],
   };
 }

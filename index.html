@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tesserae Faber</title>
-<meta name="description" content="Make tokens for your tabletop games, design them and download them ready to print in 3D (multicolour, Bambu Lab) or on paper. Free, open source, no account.">
+<meta name="description" content="Make components for your tabletop games, design them and download them ready to print in 3D (multicolour, Bambu Lab) or on paper. Free, open source, no account.">
 <link rel="icon" type="image/svg+xml" href="/logo-mark.svg" id="favicon">
 <link rel="apple-touch-icon" href="/pwa/apple-touch-icon.png">
 <meta name="theme-color" content="#1c1a18">
@@ -754,7 +754,7 @@
     <button class="forge" type="button" id="gateAction" hidden></button>
     <button class="pill" type="button" id="gateSecondary" hidden></button>
     <footer class="ccc">
-      <p id="gateCcc" data-i18n="ccc.gate">Herramienta gratuita hecha por la comunidad para imprimir tus propios tokens de personaje. No está afiliada ni respaldada por The Pandemonium Institute.</p>
+      <p id="gateCcc" data-i18n="ccc.gate">Herramienta gratuita hecha por la comunidad para imprimir tus propios componentes de personaje. No está afiliada ni respaldada por The Pandemonium Institute.</p>
     </footer>
   </div>
 </div>
@@ -768,7 +768,7 @@
     if (/^\/botc(\/|$)/.test(location.pathname)) {
       if (en) {
         document.getElementById("gateTitle").textContent = "Opening the grimoire…";
-        document.getElementById("gateCcc").textContent = "A free, community-made tool for printing your own character tokens. Not affiliated with or endorsed by The Pandemonium Institute.";
+        document.getElementById("gateCcc").textContent = "A free, community-made tool for printing your own character components. Not affiliated with or endorsed by The Pandemonium Institute.";
       }
     } else {
       root.dataset.mode = "own";

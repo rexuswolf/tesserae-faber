@@ -81,7 +81,7 @@ test("Clocktower, as a collection: everything, its coins and cards, then the scr
   await page.locator('#library [data-ed="all"]').click();
   const everything = await count();
   await page.locator('#library [data-ed="f:coin"]').click();
-  await expect(page.locator("#edTitle")).toHaveText("Coins");
+  await expect(page.locator("#edTitle")).toHaveText("Tokens");   // the coins: tokens, now that everything is a component
   expect(await count()).toBeLessThan(everything);
   // its own words: reminders; and no copy to make (its library is private)
   await expect(page.locator("#rows").getByText(/\d reminders?$/).first()).toBeVisible();
@@ -519,7 +519,7 @@ test("a new group from a token's Token tab, even the second, is named there at o
   await expect(name).toHaveValue("Lobos");
   await page.waitForTimeout(600);
   await page.reload();
-  await page.getByRole("button", { name: /^Token Lobo/ }).click({ timeout: 30_000 });   // a reload opens on its Front
+  await page.getByRole("button", { name: /^Component Lobo/ }).click({ timeout: 30_000 });   // a reload opens on its Front
   await expect(page.locator('#ownTokGroups [aria-pressed="true"]')).toHaveText("Lobos");
   expect(errors).toEqual([]);
 });

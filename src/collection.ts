@@ -298,8 +298,8 @@ export const withName = (n: Names, lang: string, v: string): Names => (typeof n 
 
 /** What a first collection's names say, in the interface's language (Spanish or English). */
 const STARTER = {
-  es: { name: "Mi colección", group: "Categoría", token: "Mi primera ficha" },
-  en: { name: "My collection", group: "Category", token: "My first token" },
+  es: { name: "Mi colección", group: "Categoría", token: "Mi primer componente" },
+  en: { name: "My collection", group: "Category", token: "My first component" },
 };
 /** The first collection's token, as it came (nobody named it, gave it an icon or anything else): a placeholder to drop once there are real ones. */
 export const isUntouchedStarter = (tk: OwnToken) =>
