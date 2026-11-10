@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { baseLayout, baseSpec, baseSize } from "../../src/engine/token-engine.ts";
-import type { Library } from "../../src/types.ts";
+import * as THREE from "three";
+import { baseLayout, baseSpec, baseSize, buildToken } from "../../src/engine/token-engine.ts";
+import type { Library, Role } from "../../src/types.ts";
 
 // A stand-in font: every glyph 0.6 em wide (the layout only needs advances and the cap height).
 const lib = { capHeight: 0.7, glyphs: new Map(), font: { generateShapes: () => [] } } as unknown as Library;
-for (const ch of "0123456789 ABCDEFGHIJKLMNOPQRSTUVWXYZÁ") (lib.glyphs as Map<string, unknown>).set(ch, { shapes: [], center: 0.3, advance: 0.6 });
+// each glyph a plain block, enough to build the tray's letters
+const block = () => { const s = new THREE.Shape(); s.moveTo(0, 0); s.lineTo(0.5, 0); s.lineTo(0.5, 0.7); s.lineTo(0, 0.7); return [s]; };
+for (const ch of "0123456789 ABCDEFGHIJKLMNOPQRSTUVWXYZÁ") (lib.glyphs as Map<string, unknown>).set(ch, { shapes: block(), center: 0.3, advance: 0.6 });
 const layout = (text: string, base = "32") => baseLayout(lib, text, baseSpec({ ringBase: base }));
 
 describe("a base tray", () => {
@@ -39,5 +42,22 @@ describe("a base tray", () => {
     expect(L.tab).toBe(false);
     expect(L.letters).toEqual([]);
     expect(L.R).toBe(L.ro);
+  });
+  it("is closed solids a slicer takes as they are: every edge between exactly two faces", () => {
+    // the points welded as a slicer does (to a ten-thousandth of a mm), each edge's faces counted
+    const openEdges = (g: THREE.BufferGeometry) => {
+      const p = g.attributes.position.array, key = (i: number) => [0, 1, 2].map((k) => Math.round(p[3 * i + k] * 1e4)).join(",");
+      const edges = new Map<string, number>();
+      for (let t = 0; t < p.length / 9; t++) for (let k = 0; k < 3; k++) {
+        const a = key(3 * t + k), b = key(3 * t + ((k + 1) % 3));
+        if (a !== b) { const e = a < b ? `${a}|${b}` : `${b}|${a}`; edges.set(e, (edges.get(e) ?? 0) + 1); }
+      }
+      return [...edges.values()].filter((n) => n !== 2).length;
+    };
+    for (const text of ["", "2", "ORCO 3", "A VERY LONG NAME INDEED FOR A BASE"]) {
+      const role = { id: "x", kind: "base", team: "townsfolk", en: text || "-", ...(text ? {} : { content: "none" }) } as unknown as Role;
+      const t = buildToken(lib, role, { ringBase: "32", frame: "line" } as never, text);
+      for (const [part, g] of Object.entries(t.parts)) if (g) expect(openEdges(g), `${text || "(none)"}: ${part}`).toBe(0);
+    }
   });
 });

@@ -261,10 +261,30 @@ function parseSvgShapes(svgText: string) {
   return data.paths.flatMap((p) => SVGLoader.createShapes(p));
 }
 
+/** A closed outline's points with none (nearly) on top of the one before, nor the last on the first: a circle
+ *  drawn round to 2π ends a hair off its start, and that point would leave a side face of no width, its edges
+ *  shared by four faces (a slicer's "non-manifold edges"). */
+function cleanLoop(points: THREE.Vector2[]) {
+  const out: THREE.Vector2[] = [];
+  for (const p of points) if (!out.length || out[out.length - 1].distanceToSquared(p) > 1e-8) out.push(p);
+  while (out.length > 3 && out[0].distanceToSquared(out[out.length - 1]) <= 1e-8) out.pop();
+  return out;
+}
+/** Shapes redrawn as clean straight-sided outlines, `curveSegments` cuts to a curve; any of fewer than three points left out. */
+function cleanShapes(shapes: THREE.Shape[], curveSegments: number) {
+  return shapes.flatMap((s) => {
+    const { shape, holes } = s.extractPoints(curveSegments), outline = cleanLoop(shape);
+    if (outline.length < 3) return [];
+    const c = new THREE.Shape(outline);
+    c.holes = holes.map(cleanLoop).filter((h) => h.length >= 3).map((h) => new THREE.Path(h));
+    return [c];
+  });
+}
+
 /** Extrudes 2D shapes and applies a matrix, keeping triangles outward-facing. */
 function extrude(shapes: THREE.Shape[], depth: number, matrix: THREE.Matrix4, curveSegments = 5) {
   if (!shapes.length) return null;
-  let g: THREE.BufferGeometry = new THREE.ExtrudeGeometry(shapes, { depth, bevelEnabled: false, curveSegments });
+  let g: THREE.BufferGeometry = new THREE.ExtrudeGeometry(cleanShapes(shapes, curveSegments), { depth, bevelEnabled: false, curveSegments: 1 });
   g = g.index ? g.toNonIndexed() : g;
   const out = new THREE.BufferGeometry();
   out.setAttribute("position", g.attributes.position.clone());
@@ -2686,19 +2706,22 @@ function baseOutline(L: ReturnType<typeof baseLayout>, inset = 0) {
     s.lineTo(xs, yj);
     return s;
   }
-  // a tab wrapping further round than the tray is wide (the shortest letters still too long): sides along the radius
-  const a0 = -Math.PI / 2 - L.half, a1 = -Math.PI / 2 + L.half, rr = R - rc, tilt = Math.asin(rc / rr), along = Math.sqrt(rr * rr - rc * rc);
+  // a tab wrapping further round than the tray is wide (the shortest letters still too long): sides along the radius.
+  // Inset, the corners keep their centres (smaller by `inset`) and each side moves `inset` into the tab, parallel to it.
+  const a0 = -Math.PI / 2 - L.half, a1 = -Math.PI / 2 + L.half, rc0 = rc + inset, rr = L.R - rc0, tilt = Math.asin(rc0 / rr), along = Math.sqrt(rr * rr - rc0 * rc0);
   const c0 = a0 + tilt, c1 = a1 - tilt;
-  s.moveTo(ro * Math.cos(a1), ro * Math.sin(a1));
-  s.absarc(0, 0, ro, a1, a0 + TAU, false);
-  s.lineTo(along * Math.cos(a0), along * Math.sin(a0));
+  const side = (a: number, sign: number, t: number) => [t * Math.cos(a) - sign * inset * Math.sin(a), t * Math.sin(a) + sign * inset * Math.cos(a)] as const;
+  const onRim = Math.sqrt(Math.max(ro * ro - inset * inset, 0));
+  const [j0x, j0y] = side(a0, 1, onRim), [j1x, j1y] = side(a1, -1, onRim), [t0x, t0y] = side(a0, 1, along);
+  s.moveTo(j1x, j1y);
+  s.absarc(0, 0, ro, Math.atan2(j1y, j1x), Math.atan2(j0y, j0x) + TAU, false);
+  s.lineTo(t0x, t0y);
   s.absarc(rr * Math.cos(c0), rr * Math.sin(c0), rc, a0 - Math.PI / 2, c0, false);
   s.absarc(0, 0, R, c0, c1, false);
   s.absarc(rr * Math.cos(c1), rr * Math.sin(c1), rc, c1, a1 + Math.PI / 2, false);
-  s.lineTo(ro * Math.cos(a1), ro * Math.sin(a1));
+  s.lineTo(j1x, j1y);
   return s;
 }
-const pocketHole = (r: number) => { const h = new THREE.Path(); h.absarc(0, 0, r, 0, TAU, true); return h; };
 /** The fine lines along the tray's outer edge and round its pocket, as filled shapes. */
 function baseLines(L: ReturnType<typeof baseLayout>): THREE.Shape[] {
   if (!L.line) return [];
@@ -2706,13 +2729,37 @@ function baseLines(L: ReturnType<typeof baseLayout>): THREE.Shape[] {
   return [edge, annulus(L.ri + L.line, L.ri)];
 }
 
+/** The tray as one closed solid: its outline from 0 to `H`, the pocket of radius `ri` sunk in it down to the floor.
+ *  (A floor and a wall laid on it would share a face, and the slicer warns of non-manifold edges.) */
+function trayBody(outline: THREE.Shape, ri: number, H: number) {
+  let out = cleanLoop(outline.getPoints(24));
+  if (THREE.ShapeUtils.isClockWise(out)) out = out.reverse();
+  const pocket = new THREE.Path(); pocket.absarc(0, 0, ri, 0, TAU, false);
+  let hole = cleanLoop(pocket.getPoints(24));
+  if (THREE.ShapeUtils.isClockWise(hole)) hole = hole.reverse();
+  const pos: number[] = [], v = (p: THREE.Vector2, z: number) => [p.x, p.y, z];
+  const tri = (a: number[], b: number[], c: number[]) => pos.push(...a, ...b, ...c);
+  const quad = (a: number[], b: number[], c: number[], d: number[]) => { tri(a, b, c); tri(a, c, d); };
+  // the bottom (facing down) and the pocket's floor (facing up), each the whole of its outline
+  for (const [a, b, c] of THREE.ShapeUtils.triangulateShape(out, [])) tri(v(out[a], 0), v(out[c], 0), v(out[b], 0));
+  for (const [a, b, c] of THREE.ShapeUtils.triangulateShape(hole, [])) tri(v(hole[a], BASE_FLOOR), v(hole[b], BASE_FLOOR), v(hole[c], BASE_FLOOR));
+  // the top, round the pocket (facing up): earcut wants the hole clockwise
+  const cw = [...hole].reverse(), all = [...out, ...cw];
+  for (const [a, b, c] of THREE.ShapeUtils.triangulateShape(out, [cw])) tri(v(all[a], H), v(all[b], H), v(all[c], H));
+  // the outer side, facing out; the pocket's wall, facing in
+  out.forEach((p, i) => { const q = out[(i + 1) % out.length]; quad(v(p, 0), v(q, 0), v(q, H), v(p, H)); });
+  hole.forEach((p, i) => { const q = hole[(i + 1) % hole.length]; quad(v(p, BASE_FLOOR), v(p, H), v(q, H), v(q, BASE_FLOOR)); });
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  g.computeVertexNormals();
+  return g;
+}
+
 function buildTray(lib: Library, role: Role, input: SpecInput | undefined, text?: string | null): Token {
   const s = baseSpec(input);
   text ??= roleName(role, s.lang);
   const L = baseLayout(lib, role.content === "none" ? "" : text, s), H = BASE_FLOOR + s.height, spec: TokenSpec = { ...s, height: H }, top = H - spec.depth;
-  const floor = extrude([baseOutline(L)], BASE_FLOOR, T(0, 0, 0), 24);
-  const rim = baseOutline(L); rim.holes.push(pocketHole(L.ri));
-  const wall = extrude([rim], H - BASE_FLOOR, T(0, 0, BASE_FLOOR), 24);
+  const body = trayBody(baseOutline(L), L.ri, H);
   const front = merge(L.letters.map(({ ch, a }) => {
     const g = glyph(lib, ch);
     return partExtrude(g.shapes, spec, "text", topFace(spec), chain(T(L.foot * Math.cos(a), L.foot * Math.sin(a), top), RZ(a + Math.PI / 2), S(L.em, L.em, 1), T(-g.center, 0, 0)), 4);
@@ -2720,7 +2767,7 @@ function buildTray(lib: Library, role: Role, input: SpecInput | undefined, text?
   const frame = L.line ? partExtrude(baseLines(L), spec, "frame", topFace(spec), T(0, 0, top), 24) : null;
   const R = reliefOf(spec), r = reliefTop(spec), above = (g: THREE.BufferGeometry | null) => (g && r ? aboveOf.get(g) ?? geometryVolume(g) * r / (spec.depth + r) : 0);
   return {
-    parts: { base: merge([floor, wall]), front, icon: null, frame, back: null },
+    parts: { base: body, front, icon: null, frame, back: null },
     colours: partColours(role, spec),
     name: { letterHeight: L.cap, scale: L.cap / ([...(text || "").trim()].length <= 2 ? 6 : 4.5), total: null, tab: true },
     spec, magnet: null, depthClamped: null, faceUp: true,
