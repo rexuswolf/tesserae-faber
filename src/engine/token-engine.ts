@@ -92,8 +92,6 @@ export const FRAME_STYLES = [
   { id: "greca", label: "Greek key" },
   { id: "greca2", label: "Greek key, double" },
   { id: "greca3", label: "Greek key, interlocking" },
-  { id: "ola", label: "Running wave" },
-  { id: "aletas", label: "Pointed waves" },
 ];
 
 export const BACK_STYLES = [
