@@ -196,6 +196,8 @@ export interface TokenSpec {
   pieceMargin: number;
   /** Whether a piece shows its icon on top (else it's its outline alone, one colour). */
   pieceIcon: boolean;
+  /** Whether a piece shows its icon underneath too (mirrored, so it reads turned over); flush only, so with nothing raised. */
+  pieceBack?: boolean;
   /** A reminder's coin size, when the character style sets one. */
   reminderDiameter?: number;
   /** A linked token's (a reminder's, see reminderSpec): its own token, without its character's other state. */

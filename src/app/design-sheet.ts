@@ -537,12 +537,20 @@ function lineFrames(shape: TokenShape, frame: string): [string, string][] {
 
 /** A piece's outlines and its icon on top or not (its Composition), each drawn on the token as it would come out. */
 function renderPieceTiles(face: { role: Role; text: string }, spec: TokenSpec) {
-  const s = pieceSpec(spec), tile = (key: "pieceShape" | "pieceIcon", v: string, label: string, look: SpecInput) =>
-    `<button class="back-tile" type="button" data-v="${v}" aria-pressed="${String(s[key]) === v}">${tokenSvg(state.lib!, face.role, { ...s, ...look }, { text: face.text })}<span>${esc(label)}</span></button>`;
-  $("[data-choice=pieceShape]").innerHTML = PIECE_SHAPES.map((v) => tile("pieceShape", v, t(`piece.shape.${v}`), { pieceShape: v })).join("");
-  $("[data-choice=pieceIcon]").innerHTML = [true, false].map((v) => tile("pieceIcon", String(v), t(`piece.icon.${v ? "on" : "off"}`), { pieceIcon: v })).join("");
-  $("#pieceMarginRow").hidden = s.pieceShape !== "silhouette";
-  $("#pieceHint").textContent = s.pieceShape !== "silhouette" ? t("piece.hintShape") : s.pieceIcon ? t("piece.hintSilhouette") : t("piece.hintPlain");
+  const s = pieceSpec(spec), iconNow = !s.pieceIcon ? "off" : s.pieceBack ? "both" : "on";
+  // a token without an icon has no silhouette: its tile waits for one (a piece of yours shows its icon's; in the Taller, the sample's)
+  const own = ownIcon(face.role.id), noIcon = !(own?.body || face.role.body || face.role.d?.length);
+  const tile = (v: string, pressed: boolean, label: string, look: SpecInput, side: "front" | "back" = "front", waits = false) =>
+    `<button class="back-tile" type="button" data-v="${v}" aria-pressed="${pressed}"${waits ? ` disabled title="${esc(t("style.needsIcon"))}"` : ""}>${waits ? "" : tokenSvg(state.lib!, face.role, { ...s, ...look }, { text: face.text, side })}<span>${esc(label)}</span>${waits ? `<small>${esc(t("style.needsIcon"))}</small>` : ""}</button>`;
+  $("[data-choice=pieceShape]").innerHTML = PIECE_SHAPES.map((v) => tile(v, s.pieceShape === v && !(v === "silhouette" && noIcon), t(`piece.shape.${v}`), { pieceShape: v }, "front", v === "silhouette" && noIcon)).join("");
+  // the icon on top, on top and underneath (its tile shows the underside: flush, mirrored), or none
+  $("[data-choice=pieceIcon]").innerHTML = [tile("on", iconNow === "on", t("piece.icon.on"), { pieceIcon: true, pieceBack: false }),
+    tile("both", iconNow === "both", t("piece.icon.both"), { pieceIcon: true, pieceBack: true, relief: { text: false, frame: false, icon: false } }, "back"),
+    tile("off", iconNow === "off", t("piece.icon.off"), { pieceIcon: false })].join("");
+  // without an icon: no margin round it, nothing to put on top
+  $("#pieceMarginRow").hidden = s.pieceShape !== "silhouette" || noIcon;
+  $("#pieceIconLabel").hidden = $("[data-choice=pieceIcon]").hidden = noIcon;
+  $("#pieceHint").textContent = s.pieceShape === "silhouette" && noIcon ? t("piece.hintNoIcon") : s.pieceShape !== "silhouette" ? t("piece.hintShape") : s.pieceIcon ? t("piece.hintSilhouette") : t("piece.hintPlain");
 }
 /** A card's icon places and joins (its Layout tab) and its icon's size (its Icon tab), the tiles drawn on the token as it would come out. */
 function renderCardIconTiles(role: Role, text: string, spec: TokenSpec, hasIcon: boolean) {
@@ -770,7 +778,18 @@ function reliefParts(shape: TokenShape, face: TokenSpec): ReliefPart[] {
 function renderRelief(role: Role, shape: TokenShape, spec: TokenSpec, back: TokenSpec) {
   const s = faceOf(spec, "front"), on = raisedFace(s), twoFaces = shape === "coin";
   const plainBack = s.backMode === "design" && !selFlip(role);
+  if (shape === "piece") {
+    // a piece: flat or its icon raised (a piece without an icon, or with one underneath too, has nothing to raise)
+    const p = pieceSpec(s), can = p.pieceIcon && !p.pieceBack;
+    $("#reliefFaceBox").hidden = false; $("#reliefPartsBox").hidden = true; $("#reliefHeightBox").hidden = !on;
+    $("#reliefFaceBox .metal-label").textContent = t("relief.pieceLabel");
+    $("#reliefFace").innerHTML = (["none", "front"] as const).map((v) =>
+      `<button type="button" data-relief-face="${v}" aria-pressed="${(on ?? "none") === v}"${v === "front" && !can ? " disabled" : ""}>${esc(t(`relief.piece.${v}`))}</button>`).join("");
+    $("#reliefHint").textContent = on ? t("relief.raisedHelp.piece", { total: dec1(s.height + s.reliefHeight) }) : !p.pieceIcon ? t("relief.pieceNoIcon") : p.pieceBack ? t("relief.pieceBack") : shapeText("relief.flatHelp", shape);
+    return;
+  }
   $("#reliefFaceBox").hidden = !twoFaces;
+  $("#reliefFaceBox .metal-label").textContent = t("relief.faceLabel");
   $("#reliefFace").innerHTML = (["none", "front", "back"] as const).map((v) =>
     `<button type="button" data-relief-face="${v}" aria-pressed="${(on ?? "none") === v}"${v === "back" && plainBack ? " disabled" : ""}>${esc(t(`relief.face.${v}`))}</button>`).join("");
   // a one-faced shape: its front's parts, raised or not; a coin: the raised face's (none: nothing to pick)
@@ -943,6 +962,7 @@ export function syncControls(role: Role, spec: TokenSpec, token: Token) {
     // the back's layout and its drawing: one or the other is chosen (a drawing, on a token without another state)
     const drawn = s.backMode === "design" && !selFlip(role);
     if (key === "style" && (oneBack || side === "front")) continue;   // the tiles say it (renderBackStyleTiles, renderStyleTiles)
+    if (key === "pieceIcon" || key === "pieceShape") continue;   // renderPieceTiles says it
     if ((key === "back" && !drawn) || (key === "style" && side === "back" && drawn)) { b.setAttribute("aria-pressed", "false"); continue; }
     const v = key === "magnet" && faceBack && s.magnet === "pocket" ? "hidden" : from[key] ?? DEFAULT_SPEC[key] ?? (key === "edge" ? "smooth" : undefined);
     b.setAttribute("aria-pressed", String(String(v) === b.dataset.v));

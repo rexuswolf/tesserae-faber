@@ -240,7 +240,11 @@ export function wire() {
         if (key === "style" && (s.style ?? DEFAULT_SPEC.style) !== b.dataset.v) s.textSize = LAYOUT_TEXT[b.dataset.v as TokenStyle];
         // a frame that starts with a rim of its own width (the runes': fine)
         if (key === "frame" && FRAME_START_WIDTH[b.dataset.v!] != null && s.frame !== b.dataset.v) s.frameWidth = FRAME_START_WIDTH[b.dataset.v!];
-        if (key === "pieceIcon") { s.pieceIcon = b.dataset.v === "true"; return; }
+        if (key === "pieceIcon") {   // on top, on top and underneath (both flush: nothing raised), or none
+          const v = b.dataset.v; s.pieceIcon = v !== "off"; s.pieceBack = v === "both";
+          if (v === "both") s.relief = { text: false, frame: false, icon: false };
+          return;
+        }
         if (key === "edge" && b.dataset.v === "smooth") delete s.edge;   // smooth is unset: the coin as always
         else (s as unknown as Fields)[key] = b.dataset.v;
       });

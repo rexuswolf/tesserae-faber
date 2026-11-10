@@ -43,6 +43,17 @@ describe("a piece", () => {
       expect(t.foot).toEqual({ w: pieceFoot(t.spec), h: pieceFoot(t.spec) });
     }
   });
+  it("can carry its icon underneath too, flush and mirrored: then nothing is raised and the two inlays share the thickness", () => {
+    const s = pieceSpec({ pieceBack: true, height: 2, depth: 1.6, relief: { text: false, frame: false, icon: true } });
+    expect([s.pieceBack, s.relief.icon, s.depth]).toEqual([true, false, 0.8]);
+    expect(pieceSpec({ pieceBack: true, pieceIcon: false }).pieceBack).toBe(false);   // no icon, none underneath
+    const t = buildToken(lib, piece("meeple"), { pieceBack: true, height: 4 }, "");
+    expect(openEdges(t.parts.backIcon!)).toBe(0);
+    const box = new THREE.Box3().setFromBufferAttribute(t.parts.backIcon!.attributes.position as THREE.BufferAttribute);
+    expect(box.min.z).toBeCloseTo(0, 5); expect(box.max.z).toBeCloseTo(t.spec.depth, 5);   // sunk from the bottom, as deep as the top's
+    expect(t.colours.backIcon).toBe(t.colours.icon);
+    expect(tokenSvg(lib, piece("meeple"), { pieceBack: true }, { side: "back" })).toContain("scale(-1 1)");
+  });
   it("is drawn as its outline in its colour, with its icon on it or not", () => {
     const svg = (pieceIcon: boolean) => tokenSvg(lib, piece("meeple"), { pieceIcon, colours: { base: "#ff0000", front: "#ffffff", frame: "#ffffff", back: "#000000" } });
     expect(svg(true)).toContain('fill="#ff0000"');

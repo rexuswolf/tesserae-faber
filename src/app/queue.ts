@@ -115,10 +115,10 @@ export function queuePlan() {
         // a card's parts as buildCard makes them: its icon, frame and line, and its back's plate, phrase and icon, and frame
         ...(shape === "card" ? cardPlan(state.lib!, role, spec) : {
           parts: { base: 1, front: shape === "piece" ? null : 1, icon: has.icon && (shape !== "piece" || spec.pieceIcon) ? 1 : null, frame: spec.frame !== "none" ? 1 : null, back: hasBack ? 1 : null,
-            backIcon: face && has.icon ? 1 : null, backFrame: face && face.frame !== "none" ? 1 : null },
+            backIcon: (face && has.icon) || (shape === "piece" && spec.pieceBack) ? 1 : null, backFrame: face && face.frame !== "none" ? 1 : null },
           // the window's icon is in the coin colour; the classic one in the name's (on a back face, in the back's)
           colours: { base: c.base, front: c.front, icon: iconColour, frame: c.frame, back: c.back,
-            backIcon: face ? (face.style === "window" ? c.base : partColours(role, face).ink!) : iconColour, backFrame: c.backFrame },
+            backIcon: face ? (face.style === "window" ? c.base : partColours(role, face).ink!) : shape === "piece" ? c.ink! : iconColour, backFrame: c.backFrame },
         }),
       },
     };

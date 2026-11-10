@@ -319,7 +319,7 @@ test("a collection of pieces: a silhouette, a plain one and a hexagon, to the Ba
   await page.evaluate(() => (window as unknown as { __mm: { designToken(k: string): void } }).__mm.designToken("p2"));
   const hex = page.locator('[data-choice="pieceShape"] [data-v="hexagon"]');
   await expect(hex).toBeAttached({ timeout: 10_000 });
-  await expect(page.locator('[data-choice="pieceIcon"] [data-v]')).toHaveCount(2);
+  await expect(page.locator('[data-choice="pieceIcon"] [data-v]')).toHaveCount(3);   // on top, top and bottom, none
   const before = await page.locator("#workshop svg[aria-label]").first().innerHTML();
   // the tiles may draw themselves again meanwhile: click until the choice takes
   await expect(async () => {

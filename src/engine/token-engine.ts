@@ -3012,13 +3012,14 @@ const clampTo = (v: unknown, r: { min: number; max: number }, or: number) => (Nu
 /** A piece's spec: a body and an icon, nothing else (no name, frame, back or magnet); only its icon can stand raised. */
 export function pieceSpec(input: SpecInput | undefined): TokenSpec {
   const s = normalizeSpec({ ...DEFAULT_SPEC, ...input, colours: { ...DEFAULT_SPEC.colours, ...input?.colours } });
-  const pieceIcon = s.pieceIcon !== false;
+  const pieceIcon = s.pieceIcon !== false, pieceBack = pieceIcon && !!s.pieceBack;   // an icon underneath: both flush, nothing raised
   const spec: TokenSpec = {
-    ...s, style: "classic", relief: { text: false, frame: false, icon: pieceIcon && reliefOf(s).icon }, back: "none", backMode: "design", magnet: "none",
-    frame: "none", frontPattern: null, backPattern: null, pieceShape: oneOf(s.pieceShape, PIECE_SHAPES, "silhouette"), pieceIcon,
+    ...s, style: "classic", relief: { text: false, frame: false, icon: pieceIcon && !pieceBack && reliefOf(s).icon }, back: "none", backMode: "design", magnet: "none",
+    frame: "none", frontPattern: null, backPattern: null, pieceShape: oneOf(s.pieceShape, PIECE_SHAPES, "silhouette"), pieceIcon, pieceBack,
     pieceMargin: clampTo(s.pieceMargin, PIECE_MARGIN, DEFAULT_SPEC.pieceMargin), diameter: clampTo(s.diameter, PIECE_SIZE, 25), height: clampTo(s.height, PIECE_HEIGHT, 4),
   };
-  return { ...spec, depth: fittingDepth(spec).depth };
+  // with an icon underneath, both inlays share the thickness (whole 0.2 mm layers), as a coin's two faces do
+  return { ...spec, depth: pieceBack ? Math.min(spec.depth, Math.max(0.2, Math.floor(((spec.height - MIN_CORE) / 2) * 5) / 5)) : fittingDepth(spec).depth };
 }
 /** The square a piece fits in (mm): its size, and a silhouette's margin each side. */
 export const pieceFoot = (spec: TokenSpec) => spec.diameter + (spec.pieceShape === "silhouette" ? 2 * spec.pieceMargin : 0);
@@ -3056,9 +3057,36 @@ function simpleOutline(kind: PieceShape, size: number) {
     default: return poly(128, 0);
   }
 }
-/** Where a simple shape's icon goes: its share of the shape's size, and how far up its middle is (mm). */
-const PIECE_ICON: Partial<Record<PieceShape, { k: number; dy: number }>> = { triangle: { k: 0.46, dy: -0.11 }, star: { k: 0.42, dy: 0 }, diamond: { k: 0.5, dy: 0 }, heart: { k: 0.5, dy: 0.04 } };
-const pieceIconAt = (spec: TokenSpec) => { const p = PIECE_ICON[spec.pieceShape] ?? { k: 0.6, dy: 0 }; return { size: spec.diameter * p.k * (spec.iconScale || 1), dy: p.dy * spec.diameter }; };
+/** Where a simple shape's icon is centred: how far up from the shape's middle, as a share of its size (a triangle's is low, a heart's high). */
+const PIECE_ICON_DY: Partial<Record<PieceShape, number>> = { triangle: -0.11, heart: 0.04 };
+/** Room kept between a simple shape's icon and its edge (mm). */
+const PIECE_ICON_GAP = 2;
+const pieceIcons = new Map<string, { k: number; max: number; cx: number; cy: number; dy: number }>();
+/**
+ * Where a piece's icon goes (k mm per icon unit, its drawing's middle cx, cy, set dy mm up): a silhouette's, its whole
+ * square across the piece, as its outline was drawn from; a simple shape's, the drawing itself as large as fits
+ * PIECE_ICON_GAP inside the outline, centred on it, iconScale on top.
+ */
+function pieceIconAt(lib: Library, role: Role, spec: TokenSpec) {
+  if (spec.pieceShape === "silhouette") return { k: spec.diameter / TRACE_VIEW, cx: TRACE_VIEW / 2, cy: TRACE_VIEW / 2, dy: 0 };
+  const shapes = iconShapes(lib, role, spec), o = iconOutline(shapes), dy = (PIECE_ICON_DY[spec.pieceShape] ?? 0) * spec.diameter;
+  const key = [spec.pieceShape, spec.diameter, iconOf(role, spec).key].join("|");
+  if (!pieceIcons.has(key)) {
+    const outline = pieceOutline(lib, role, spec).map((sh) => toClip(sh.getPoints()));
+    const largest = (gap: number) => {
+      const inner = clipOuters(clipGrow(outline, -gap)).map((p) => p.map((q) => new THREE.Vector2(q.X / CLIP, q.Y / CLIP)));
+      const fits = (k: number) => inner.length > 0 && o.rel.every(([x, y]) => inner.some((poly) => inside(new THREE.Vector2(x * k, y * k + dy), poly)));
+      let lo = 0, hi = spec.diameter / Math.max(o.w, o.h, 1e-6);
+      for (let i = 0; i < 24; i++) { const m = (lo + hi) / 2; if (fits(m)) lo = m; else hi = m; }
+      return lo;
+    };
+    // its size, and the most iconScale may take it to: 0.6 mm clear of the edge
+    pieceIcons.set(key, { k: largest(PIECE_ICON_GAP), max: largest(0.6), cx: o.cx, cy: o.cy, dy });
+    if (pieceIcons.size > 500) pieceIcons.delete(pieceIcons.keys().next().value!);
+  }
+  const f = pieceIcons.get(key)!;
+  return { cx: f.cx, cy: f.cy, dy: f.dy, k: Math.min(f.max, f.k * (spec.iconScale || 1)) };
+}
 
 const pieceOutlines = new Map<string, THREE.Shape[]>();
 /**
@@ -3089,12 +3117,14 @@ export function pieceOutline(lib: Library, role: Role, spec: TokenSpec): THREE.S
 function buildPiece(lib: Library, role: Role, input: SpecInput | undefined): Token {
   const spec = pieceSpec(input), outline = pieceOutline(lib, role, spec), face = topFace(spec);
   const body = extrude(outline, spec.height, T(0, 0, 0), 1);
-  const at = spec.pieceShape === "silhouette" ? { size: spec.diameter, dy: 0 } : pieceIconAt(spec);
-  const icon = spec.pieceIcon ? partExtrude(iconShapes(lib, role, spec), spec, "icon", face, tracedMatrix(at.size, partZ(spec, "icon", face), false, at.dy)) : null;
+  const at = pieceIconAt(lib, role, spec), place = (z: number) => chain(T(0, at.dy, z), S(at.k, -at.k, 1), T(-at.cx, -at.cy, 0));
+  const icon = spec.pieceIcon ? partExtrude(iconShapes(lib, role, spec), spec, "icon", face, place(partZ(spec, "icon", face))) : null;
+  // underneath: the same, flush and mirrored, so it reads the right way round when the piece is turned over
+  const under = bottomFace(false), backIcon = spec.pieceBack ? partExtrude(iconShapes(lib, role, spec), spec, "icon", under, onFace(under, place(partZ(spec, "icon", under)))) : null;
   const colours = partColours(role, spec), r = reliefTop(spec);
   return {
-    parts: { base: body, front: null, icon, frame: null, back: null },
-    colours: { ...colours, icon: colours.ink! },
+    parts: { base: body, front: null, icon, frame: null, back: null, ...(backIcon ? { backIcon } : {}) },
+    colours: { ...colours, icon: colours.ink!, backIcon: colours.ink! },
     name: { letterHeight: Infinity, scale: 1, total: 0 },
     spec, magnet: null, depthClamped: null, foot: { w: pieceFoot(spec), h: pieceFoot(spec) },
     above: { icon: icon && spec.relief.icon && r ? geometryVolume(icon) : 0 },
@@ -3103,12 +3133,12 @@ function buildPiece(lib: Library, role: Role, input: SpecInput | undefined): Tok
 
 function pieceSvg(lib: Library, role: Role, input: SpecInput | undefined, side: "front" | "back", text?: string | null) {
   const spec = pieceSpec(input), c = partColours(role, spec), label = text ?? roleName(role, spec.lang), v = pieceFoot(spec) / 2;
-  let body = `<path fill="${c.base}" d="${shapesToPath(pieceOutline(lib, role, spec), 0, 0, 1)}"/>`;
-  if (side === "front" && spec.pieceIcon) {
-    const icon = iconOf(role, spec), at = spec.pieceShape === "silhouette" ? { size: spec.diameter, dy: 0 } : pieceIconAt(spec), k = at.size / TRACE_VIEW;
+  let body = `<path fill="${c.base}"${side === "back" ? ' transform="scale(-1 1)"' : ""} d="${shapesToPath(pieceOutline(lib, role, spec), 0, 0, 1)}"/>`;
+  if (spec.pieceIcon && (side === "front" || spec.pieceBack)) {
+    const icon = iconOf(role, spec), at = pieceIconAt(lib, role, spec);
     const raised = spec.relief.icon, rid = raised ? `tfr${++reliefIds}` : "";
-    const g = `<g fill="${c.ink}" transform="translate(0 ${(-at.dy).toFixed(3)}) scale(${k.toFixed(5)}) translate(${-TRACE_VIEW / 2} ${-TRACE_VIEW / 2})"><g transform="${icon.g}">${icon.body}</g></g>`;
-    body += raised ? `${reliefFilter(rid, spec.reliefBevel || 0)}<g filter="url(#${rid})">${g}</g>` : g;
+    const g = `<g fill="${c.ink}" transform="${side === "back" ? "scale(-1 1) " : ""}translate(0 ${(-at.dy).toFixed(3)}) scale(${at.k.toFixed(5)}) translate(${(-at.cx).toFixed(3)} ${(-at.cy).toFixed(3)})"><g transform="${icon.g}">${icon.body}</g></g>`;
+    body += raised && side === "front" ? `${reliefFilter(rid, spec.reliefBevel || 0)}<g filter="url(#${rid})">${g}</g>` : g;
   }
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${-v} ${-v} ${2 * v} ${2 * v}" role="img" aria-label="${esc(label)}">${body}</svg>`;
 }
