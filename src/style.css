@@ -294,6 +294,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .rf-minis svg { width: 24px; height: 24px; margin-right: -7px; border-radius: 50%; box-shadow: 0 0 0 2px var(--velvet-deep); }
 .rf-minis svg:last-child { margin-right: 0; }
 .rf-in { color: var(--brass); font-weight: 600; }
+/* on a phone the button is only its number, the name keeping the row ("2"; picked: "1/2", "2 ✓" in brass) */
+.rf-n { display: none; font-weight: 600; }
+.rf-n.on { color: var(--brass); }
 .rems-fold .gi, .rems-fold > svg:last-child { width: 12px; height: 12px; transition: rotate .2s; }
 .rems-fold[aria-expanded=true] > svg:last-child { rotate: 180deg; }
 /* open: the linked tokens large, each with its word under it */
@@ -1886,6 +1889,9 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
   #rows .row .row-acts { justify-self: start; margin-top: 4px; }
   #rows .row > .tok-w .tok.card svg { width: 74px; }
   #rows .row .rems-fold .rf-minis { display: none; }
+  #rows .row .rems-fold :is(.rf-long, .rf-in) { display: none; }
+  #rows .row .rems-fold .rf-n { display: inline; }
+  #rows .row .rems-fold { padding-inline: 12px; gap: 5px; }
   #rows .row .rem-list { grid-column: 1 / -1; }
   .app[data-step="taller"]:not([data-tv="start"]) .tm-list { display: none; }
   .app[data-step="taller"]:not([data-tv="start"]) .tm-preview { min-height: calc(100% + 10px); align-content: center; }
