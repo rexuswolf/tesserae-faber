@@ -89,6 +89,8 @@ export const FRAME_STYLES = [
   { id: "arcos6x", label: "Six arcs, crossed" },
   { id: "arcos8", label: "Eight arcs" },
   { id: "arcos8x", label: "Eight arcs, crossed" },
+  { id: "greca", label: "Greek key" },
+  { id: "greca2", label: "Greek key, double" },
 ];
 
 export const BACK_STYLES = [
@@ -1118,6 +1120,58 @@ function ccw(sh: THREE.Shape) {
   const pts = sh.getPoints(8);
   return THREE.ShapeUtils.isClockWise(pts) ? new THREE.Shape(pts.reverse()) : sh;
 }
+/**
+ * Greek key patterns, one period each, rows from the outside in: "X" filled, "." the coin. Their bottom row is the line
+ * the keys stand on, so the band is one piece; no two cells touch only at a corner.
+ */
+const MEANDERS: Record<string, string[]> = {
+  greca: ["XXXXX.", "X...X.", "X.XXX.", "X.....", "XXXXXX"],
+  greca2: ["XXXXXXX.", "X.....X.", "X.XXX.X.", "X.X...X.", "X.XXXXX.", "X.......", "XXXXXXXX"],
+};
+/**
+ * A Greek key round the face, between radii rIn and rIn + rows × s (s: one stroke, the same as one gap), its keys
+ * upright at the top: the pattern's cells bent round the circle, traced into outlines (the solid part on the left of
+ * each, so outer ones run anticlockwise and holes clockwise once the strip runs clockwise round the coin).
+ */
+function meander(rows: string[], rIn: number, s: number) {
+  const H = rows.length, W = rows[0].length, rMid = rIn + (H * s) / 2, N = Math.max(4, Math.round((TAU * rMid) / (W * s))), L = N * W;
+  const filled = (x: number, y: number) => y >= 0 && y < H && rows[H - 1 - y][((x % L) + L) % L % W] === "X";
+  const da = TAU / L, a0 = Math.PI / 2 + (W / 2) * da;
+  const next = new Map<string, [number, number]>(), key = (x: number, y: number) => `${((x % L) + L) % L},${y}`;
+  for (let x = 0; x < L; x++) for (let y = 0; y < H; y++) {
+    if (!filled(x, y)) continue;
+    if (!filled(x, y - 1)) next.set(key(x, y), [x + 1, y]);
+    if (!filled(x + 1, y)) next.set(key(x + 1, y), [x + 1, y + 1]);
+    if (!filled(x, y + 1)) next.set(key(x + 1, y + 1), [x, y + 1]);
+    if (!filled(x - 1, y)) next.set(key(x, y + 1), [x, y]);
+  }
+  const loops: THREE.Vector2[][] = [];
+  while (next.size) {
+    const start = next.keys().next().value!, loop: THREE.Vector2[] = [];
+    for (let k = start; next.has(k);) {
+      const [x, y] = k.split(",").map(Number), to = next.get(k)!;
+      next.delete(k);
+      loop.push(pt(rIn + y * s, a0 - x * da));
+      k = key(...to);
+    }
+    loops.push(loop);
+  }
+  const outers = loops.filter((l) => !THREE.ShapeUtils.isClockWise(l)).map((l) => polygon(l));
+  for (const hole of loops.filter((l) => THREE.ShapeUtils.isClockWise(l))) {
+    const host = outers.find((o) => inside(hole[0], o.getPoints())) ?? outers[0];
+    host?.holes.push(new THREE.Path(hole));
+  }
+  return outers;
+}
+/** Whether p is inside the polygon (even-odd). */
+function inside(p: THREE.Vector2, poly: THREE.Vector2[]) {
+  let c = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const a = poly[i], b = poly[j];
+    if ((a.y > p.y) !== (b.y > p.y) && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x) c = !c;
+  }
+  return c;
+}
 /** A band between two radii from angle a0 to a1 (radians, a0 < a1). */
 function arcBand(rOut: number, rIn: number, a0: number, a1: number, n = 96) {
   const pts: THREE.Vector2[] = [];
@@ -1296,6 +1350,15 @@ function makeFrameDesign(spec: TokenSpec): { shapes: THREE.Shape[]; inner: numbe
       sh.length = 0;
       for (let k = 0; k < n; k++) { const mid = first + (k * TAU) / n; sh.push(arcBand(r0, r0 - t, mid - span / 2, mid + span / 2, n === 2 ? 64 : 32)); }
       inner = r0 - t;
+      break;
+    }
+    case "greca": case "greca2": {
+      // A Greek key inside the rim, a stroke's width clear of it: strokes as wide as the gaps between them (0.8 rims,
+      // at least 0.6 mm), keys standing on a line on the inside, as many as fit round the coin.
+      const rows = MEANDERS[String(spec.frame)], s = Math.max(0.6, 0.8 * w), rIn = edge - s - rows.length * s;
+      sh.push(...meander(rows, rIn, s));
+      inner = rIn - s;                                          // a gap's width more, so a name never runs into the key's line
+
       break;
     }
     case "laurel": {
