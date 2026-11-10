@@ -377,7 +377,7 @@ test("the front page walks through the app: its chapters draw as they come near,
   const errors = await open(page, "/");
   await page.locator("[data-tour-go]").first().click();
   await expect(page.locator("#tourCovers .tour-cover")).toHaveCount(3);
-  await expect(page.locator("#tourShapes figure svg")).toHaveCount(4);
+  await expect(page.locator("#tourShapes figure svg")).toHaveCount(5);   // coins, cards, rings, bases and pieces
   await page.locator("#tourDesign").scrollIntoViewIfNeeded();
   const token = page.locator("#tourDesigned svg");
   await expect(token).toBeAttached();
