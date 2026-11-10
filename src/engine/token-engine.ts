@@ -602,6 +602,27 @@ export function iconShapeCount(icon: Pick<TokenIcon, "body"> & { g?: string }) {
 /** The square icons are drawn in (SVG units): an icon's `g` places its markup inside it. */
 export const ICON_VIEW = TRACE_VIEW;
 
+const classicSizes = new Map<string, number>();
+/**
+ * The classic layout's icon size (mm, the side of the square it's drawn in): the coin's diameter times iconScale, smaller
+ * only if that would reach the frame (to within CLASSIC_GAP of its inside), as a wide one like the Greek key would.
+ */
+function classicIconMm(lib: Library, role: Role, spec: TokenSpec) {
+  const want = spec.diameter * spec.iconScale, off = spec.iconOffsetY || 0, fd = spec.style === "classic" ? frameDesign(spec) : null;
+  if (!fd) return want;
+  const key = [iconOf(role, spec).key, want, off, fd.inner].join("|");
+  if (!classicSizes.has(key)) {
+    const pts = pointsOf(iconShapes(lib, role, spec)), limit = fd.inner - CLASSIC_GAP, c = TRACE_VIEW / 2;
+    const fits = (mm: number) => { const k = mm / TRACE_VIEW; return pts.every((q) => Math.hypot(k * (q.x - c), off - k * (q.y - c)) <= limit); };
+    let size = want;
+    if (!fits(want)) { let lo = 0, hi = want; for (let i = 0; i < 24; i++) { const m = (lo + hi) / 2; if (fits(m)) lo = m; else hi = m; } size = lo; }
+    classicSizes.set(key, size);
+    if (classicSizes.size > 2000) classicSizes.delete(classicSizes.keys().next().value!);
+  }
+  return classicSizes.get(key)!;
+}
+const CLASSIC_GAP = 0.4;
+
 /** Matrix placing traced-SVG shapes (y down, 0..127.56) centred on the coin. */
 function tracedMatrix(sizeMm: number, z: number, mirrorX = false, offsetY = 0) {
   const k = sizeMm / TRACE_VIEW;
@@ -745,7 +766,7 @@ export function faceIconSize(lib: Library, role: Role, input: SpecInput | undefi
   if (spec.style === "window") return NaN;
   const o = iconOutline(iconShapes(lib, role, spec));
   if (fitsIcon(spec)) return fittedIcon(lib, role, spec, text ?? roleName(role, spec.lang)).k * Math.max(o.w, o.h);
-  return (spec.diameter * spec.iconScale / TRACE_VIEW) * Math.max(o.w, o.h);
+  return (classicIconMm(lib, role, spec) / TRACE_VIEW) * Math.max(o.w, o.h);
 }
 
 /**
@@ -777,7 +798,7 @@ function buildFront(lib: Library, role: Role, text: string, spec: TokenSpec, fac
     const f = fittedIcon(lib, role, spec, text);
     icon = partExtrude(f.shapes, spec, "icon", face, onFace(face, chain(T(0, f.dy, iconZ), S(f.k, -f.k, 1), T(-f.cx, -f.cy, 0))));
   } else {
-    icon = partExtrude(iconShapes(lib, role, spec), spec, "icon", face, onFace(face, tracedMatrix(spec.diameter * spec.iconScale, iconZ, false, spec.iconOffsetY || 0)));
+    icon = partExtrude(iconShapes(lib, role, spec), spec, "icon", face, onFace(face, tracedMatrix(classicIconMm(lib, role, spec), iconZ, false, spec.iconOffsetY || 0)));
   }
   const L = arcName(lib, text, spec);
   const letters = L ? nameTurns(spec).flatMap((turn) => L.chars.map((c, i) => {
@@ -1865,7 +1886,7 @@ function frontInk(lib: Library, role: Role, spec: TokenSpec, text: string): { in
   const shapes = iconShapes(lib, role, spec), ink: Ring[] = [];
   const solid = fitsIcon(spec)
     ? ((f) => ringsOf(shapes, (x, y) => [(x - f.cx) * f.k, -(y - f.cy) * f.k + f.dy], 4))(fittedIcon(lib, role, spec, text))
-    : ((k, off) => ringsOf(shapes, (x, y) => [k * (x - TRACE_VIEW / 2), -k * (y - TRACE_VIEW / 2) + off], 4))((spec.diameter * spec.iconScale) / TRACE_VIEW, spec.iconOffsetY || 0);
+    : ((k, off) => ringsOf(shapes, (x, y) => [k * (x - TRACE_VIEW / 2), -k * (y - TRACE_VIEW / 2) + off], 4))(classicIconMm(lib, role, spec) / TRACE_VIEW, spec.iconOffsetY || 0);
   const L = arcName(lib, text, spec);
   if (L) for (const turn of nameTurns(spec)) L.chars.forEach((ch, i) => {
     if (ch === " ") return;
@@ -3303,7 +3324,7 @@ export function tokenSvg(lib: Library, role: Role, input: SpecInput | undefined,
   const c = partColours(role, spec);
   const R = spec.diameter / 2;
   const label = text ?? roleName(role, spec.lang);
-  const k = spec.diameter * spec.iconScale / TRACE_VIEW;
+  const k = classicIconMm(lib, role, spec) / TRACE_VIEW;
   // raised parts drawn with relief shading (reliefFilter); flat ones as they are
   const raised = side === "front" && hasRelief(spec) ? reliefOf(spec) : null, rid = raised ? `tfr${++reliefIds}` : "";
   const flatFrame = !!spec.reliefBevel && !BEVEL_FRAMES.has(String(spec.frame));
