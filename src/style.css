@@ -1637,13 +1637,14 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 .tour-txt ul.tour-legend li::before { content: none; }
 .tour-end .pill { color: var(--bone); }
 /* the front page's hero keeps two buttons: going back to your last collection is a line under them */
-.own-landing .ol-resume { border: 0; background: none; padding: 0; margin-top: 18px; gap: 10px; border-radius: 0; }
+.own-landing .ol-resume { border: 0; background: none; box-shadow: none; padding: 0; margin-top: 18px; gap: 10px; border-radius: 0; }
+.own-landing .ol-resume:hover { background: none; }
 .own-landing .ol-resume img { width: 26px; height: 26px; }
 .own-landing .ol-resume > span:nth-child(2) { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
-.own-landing .ol-resume small { font-size: 15px; }
+.own-landing .ol-resume small { font-size: 15px; color: color-mix(in srgb, var(--bone) 80%, var(--dust)); }
 .own-landing .ol-resume small::after { content: ":"; }
-.own-landing .ol-resume b { font-size: 15px; font-weight: 600; }
-.own-landing .ol-resume:hover b { color: #c9963a; }
+.own-landing .ol-resume b { font-size: 15px; font-weight: 600; color: var(--brass); text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; }
+.own-landing .ol-resume:hover b { text-decoration-thickness: 2px; }
 .own-landing .ol-resume .arrow { font-size: 18px; margin-left: 0; }
 /* a mouse turns the backs' tokens over while on them; the 3D stretch carries its chapter's head */
 .tour-faces.by-hover .tour-turn:hover .in { transform: rotateY(180deg); }
