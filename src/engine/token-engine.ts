@@ -92,6 +92,8 @@ export const FRAME_STYLES = [
   { id: "greca", label: "Greek key" },
   { id: "greca2", label: "Greek key, double" },
   { id: "greca3", label: "Greek key, interlocking" },
+  { id: "ola", label: "Waves" },
+  { id: "ola2", label: "Waves, two turns" },
 ];
 
 export const BACK_STYLES = [
@@ -1203,6 +1205,55 @@ function meander(rows: string[], rIn: number, s: number) {
   }
   return [...outers.values()];
 }
+/**
+ * The running wave (the Vitruvian scroll), one period in period units: a double spiral about (0.5, 0), r = R·f(θ/Θ)
+ * (Fermat's, √, or Archimedes', its turns evenly spaced), where the gold curl and the dark one meet; a smooth curve
+ * (Hermite) joins one spiral's outer end to the next one's, the wave's back. The whole is the same turned half round
+ * about the middle, so the dark between two waves is a wave as well. From the first point to the same one a period on.
+ */
+interface WaveForm { turns: number; R: number; phi: number; m: number; even: boolean; gap: number }
+const WAVES: Record<string, WaveForm> = {
+  // gap: the narrowest stroke or gap, as a share of the band's height (measured)
+  ola: { turns: 1, R: 0.42, phi: 150, m: 1.2, even: false, gap: 0.159 },
+  ola2: { turns: 2, R: 0.46, phi: 160, m: 1.2, even: true, gap: 0.105 },
+};
+const wavePeriods = new Map<string, [number, number][]>();
+function wavePeriod(f: WaveForm) {
+  const key = JSON.stringify(f);
+  if (wavePeriods.has(key)) return wavePeriods.get(key)!;
+  const n = 120, Th = f.turns * TAU, phi = THREE.MathUtils.degToRad(f.phi);
+  const A = (th: number): [number, number] => { const r = f.R * (f.even ? th / Th : Math.sqrt(th / Th)); return [0.5 + r * Math.cos(th + phi), r * Math.sin(th + phi)]; };
+  const B = (th: number): [number, number] => { const [x, y] = A(th); return [1 - x, -y]; };
+  const pts: [number, number][] = [];
+  for (let i = n; i > 0; i--) pts.push(A((Th * i) / n));
+  for (let i = 0; i <= n; i++) pts.push(B((Th * i) / n));
+  const e = 1e-4, b1 = B(Th), b0 = B(Th - e), a1 = A(Th), a0 = A(Th - e), p1: [number, number] = [a1[0] + 1, a1[1]];
+  const unit = (x: number, y: number) => { const l = Math.hypot(x, y); return [x / l, y / l]; };
+  const m = Math.hypot(p1[0] - b1[0], p1[1] - b1[1]) * f.m;
+  const t0 = unit(b1[0] - b0[0], b1[1] - b0[1]).map((v) => v * m), t1 = unit(a0[0] - a1[0], a0[1] - a1[1]).map((v) => v * m);
+  for (let i = 1; i < 40; i++) {
+    const u = i / 40, h00 = 2 * u ** 3 - 3 * u ** 2 + 1, h10 = u ** 3 - 2 * u ** 2 + u, h01 = -2 * u ** 3 + 3 * u ** 2, h11 = u ** 3 - u ** 2;
+    pts.push([h00 * b1[0] + h10 * t0[0] + h01 * p1[0] + h11 * t1[0], h00 * b1[1] + h10 * t0[1] + h01 * p1[1] + h11 * t1[1]]);
+  }
+  wavePeriods.set(key, pts);
+  return pts;
+}
+/**
+ * Waves round the face inside the rim, hanging from a gold band `base` mm wide drawn into the rim (0.05 mm past its
+ * inside): the band's outline the coin's, the waves' line its hole. Height h mm. Returns the shapes and the band's inside.
+ */
+function waveBand(f: WaveForm, edge: number, h: number, base: number) {
+  const per = wavePeriod(f), ys = per.map((q) => q[1]), y0 = Math.min(...ys), hp = Math.max(...ys) - y0;
+  const rMid = edge - base - h / 2, N = Math.max(6, Math.round((TAU * rMid) / (h / hp))), P = (TAU * rMid) / N, k = P;
+  const a0 = Math.PI / 2;
+  const line: THREE.Vector2[] = [];
+  for (let j = 0; j < N; j++) for (const [x, y] of per.slice(0, -1)) line.push(pt(edge - base - (y - y0) * k, a0 - ((j + x) * P) / rMid));
+  const rim = Array.from({ length: 6 * N }, (_, i) => pt(edge + 0.05, a0 + ((i + 0.37) * TAU) / (6 * N)));
+  const turn = (l: THREE.Vector2[], cw: boolean) => (THREE.ShapeUtils.isClockWise(l) === cw ? l : [...l].reverse());
+  const sh = polygon(turn(rim, false));
+  sh.holes.push(new THREE.Path(turn(line, true)));
+  return { shapes: [sh], inner: edge - base - hp * k };
+}
 /** Whether p is inside the polygon (even-odd). */
 function inside(p: THREE.Vector2, poly: THREE.Vector2[]) {
   let c = false;
@@ -1400,6 +1451,16 @@ function makeFrameDesign(spec: TokenSpec): { shapes: THREE.Shape[]; inner: numbe
       const rIn = MEANDER_HANGS.has(f) ? edge + 0.05 - rows.length * s : edge - s - rows.length * s;
       sh.push(...meander(rows, rIn, s));
       inner = rIn - s;                                          // a gap's width more, so a name never runs into the key's line
+      break;
+    }
+    case "ola": case "ola2": {
+      // The running wave hanging from the rim: the dark between two waves a wave too, whole, a gold band (a stroke wide)
+      // keeping it off the rim. Its narrowest stroke or gap 0.8 rims (at least 0.6 mm), so its height follows; the band
+      // at most 40 % of the face.
+      const f = WAVES[String(spec.frame)], s = Math.max(0.6, 0.8 * w), h = Math.min(s / f.gap, 0.4 * edge - s);
+      const band = waveBand(f, edge, h, s);
+      sh.push(...band.shapes);
+      inner = band.inner - s;
       break;
     }
     case "laurel": {

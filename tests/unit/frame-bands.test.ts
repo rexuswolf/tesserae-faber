@@ -17,10 +17,10 @@ const openEdges = (g: THREE.BufferGeometry) => {
   return [...edges.values()].filter((n) => n !== 2).length;
 };
 
-describe("the Greek key frames", () => {
+describe("the Greek key and wave frames", () => {
   it("are closed solids at any size, width and gap from the edge: every edge between exactly two faces", () => {
     // sizes and widths where a corner of the triangulation once fell on a key's side and left a crack
-    for (const frame of ["greca", "greca2", "greca3"]) for (const [d, w, inset] of [[32, 0.6, 0], [28, 0.8, 2], [42, 0.8, 0], [45, 1.6, 0], [25, 2, 0], [45, 0.8, 0], [55, 0.8, 0.8]]) {
+    for (const frame of ["greca", "greca2", "greca3", "ola", "ola2"]) for (const [d, w, inset] of [[32, 0.6, 0], [28, 0.8, 2], [42, 0.8, 0], [45, 1.6, 0], [25, 2, 0], [45, 0.8, 0], [55, 0.8, 0.8]]) {
       const t = buildToken(lib, role, { ...DEFAULT_SPEC, frame, diameter: d, frameWidth: w, frameInset: inset, style: "solo" } as never, "");
       expect(openEdges(t.parts.frame!), `${frame} ${d} mm, ${w}, ${inset}`).toBe(0);
     }
