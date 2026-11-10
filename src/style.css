@@ -2082,7 +2082,8 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
   .app[data-step="2"] .turn { left: 12px; bottom: 10px; }
   /* on a phone: the two side by side, under the list (or under the tabs, inside a part) */
   .cr-acts { margin-top: 0; padding: 10px 16px; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--seam); }
-  .cr-ic { justify-content: center; font-size: 13.5px; min-height: 36px; padding: 0 10px; }
+  .cr-ic { justify-content: center; font-size: 13.5px; min-height: 36px; padding: 0 8px; }
+  .cr-ic svg { display: none; }   /* half a phone wide: the words alone, on one line */
 }
 
 /* the Taller's head: its own place, over the controls (desktop) or over the parts' tabs (a phone) */
