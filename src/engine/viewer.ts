@@ -2,6 +2,7 @@
 // starts, so the sheet doesn't wait for it; on a phone it isn't needed until a token is opened.
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import type { PartName, Token } from "../types.ts";
 
 /** The parts the preview draws; `hole` is the open pocket seen from the back. */
@@ -13,6 +14,44 @@ type PixelWheel = WheelEvent & { mmPixels?: boolean };
 export type Viewer = ReturnType<typeof createViewer>;
 /** The camera views: "angle" (the default), "top", "back" and "side". */
 export type ViewKind = "angle" | "top" | "back" | "side";
+
+/**
+ * A size reference on the ground (z = 0): a line every 10 mm, a bolder one every 50 mm, fading out towards its edge
+ * (by each point's alpha: a black line on a see-through canvas would show dark).
+ */
+function sizeGrid(half: number) {
+  const pts: number[] = [], cols: number[] = [], c = new THREE.Color(0xefe6d6), n = 20;
+  for (let v = -half; v <= half + 1e-6; v += 10) {
+    const bold = Math.abs(Math.round(v) % 50) < 1e-6;
+    for (const [a, b] of [[[v, -half], [v, half]], [[-half, v], [half, v]]]) for (let i = 0; i < n; i++) for (const k of [i, i + 1]) {
+      const x = a[0] + ((b[0] - a[0]) * k) / n, y = a[1] + ((b[1] - a[1]) * k) / n;
+      pts.push(x, y, -0.05);
+      cols.push(c.r, c.g, c.b, Math.max(0, 1 - Math.hypot(x, y) / half) ** 1.3 * (bold ? 0.5 : 0.22));
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3)); g.setAttribute("color", new THREE.Float32BufferAttribute(cols, 4));
+  return new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false }));
+}
+/** The size of a standard six-sided die (mm), and the room between it and the token. */
+const DIE = 16, DIE_GAP = 5;
+/** A standard d6 beside the token, for its size: rounded edges, ivory, dark pips, opposite faces adding up to 7. */
+function sizeDie() {
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(new RoundedBoxGeometry(DIE, DIE, DIE, 4, 1.6), new THREE.MeshStandardMaterial({ color: 0xe9e3d6, roughness: 0.45 })));
+  const pip = new THREE.CircleGeometry(1.35, 24), mat = new THREE.MeshStandardMaterial({ color: 0x1d1b1f, roughness: 0.7 });
+  const at: Record<number, number[][]> = { 1: [[0, 0]], 2: [[-1, -1], [1, 1]], 3: [[-1, -1], [0, 0], [1, 1]], 4: [[-1, -1], [1, -1], [-1, 1], [1, 1]], 5: [[-1, -1], [1, -1], [0, 0], [-1, 1], [1, 1]], 6: [[-1, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [1, 1]] };
+  const faces: [number, [number, number, number]][] = [[1, [0, 0, 1]], [6, [0, 0, -1]], [2, [0, -1, 0]], [5, [0, 1, 0]], [3, [1, 0, 0]], [4, [-1, 0, 0]]];
+  for (const [num, nrm] of faces) for (const [u, v] of at[num]) {
+    const m = new THREE.Mesh(pip, mat), N = new THREE.Vector3(...nrm);
+    m.lookAt(N); m.position.copy(N.clone().multiplyScalar(DIE / 2 + 0.02));
+    const U = Math.abs(N.z) > 0.5 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 0, 1), W = new THREE.Vector3().crossVectors(N, U);
+    m.position.addScaledVector(U, u * 4.2).addScaledVector(W, v * 4.2);
+    g.add(m);
+  }
+  g.position.z = DIE / 2;
+  return g;
+}
 
 /** A rotatable preview bound to a canvas. */
 export function createViewer(canvas: HTMLCanvasElement, { background = null }: { background?: THREE.ColorRepresentation | null } = {}) {
@@ -78,7 +117,15 @@ export function createViewer(canvas: HTMLCanvasElement, { background = null }: {
     }
     magnetMesh.visible = cavityLines.visible = coinLines.visible = xray && magnetMesh.geometry.attributes.position != null;
   }
-  let diameter = 45;
+  let diameter = 45, foot = 45;
+  // the size references: the grid under the token, a d6 beside it (each seen from above only: from below, the Back
+  // view, they'd stand in front of the token's back)
+  let grid = sizeGrid(80), gridOn = true, dieOn = false;
+  const die = sizeDie();
+  scene.add(grid, die);
+  die.visible = false;
+  /** What the camera frames: the token, or with the die the two side by side (its middle that far along x). */
+  const framed = () => (dieOn ? { d: foot + 2 * (DIE_GAP + DIE) * 0.75, x: (foot / 2 + DIE_GAP + DIE / 2) / 2 } : { d: diameter, x: 0 });
 
   function resize() {
     const w = canvas.clientWidth, h = canvas.clientHeight;
@@ -92,6 +139,8 @@ export function createViewer(canvas: HTMLCanvasElement, { background = null }: {
   (function loop() {
     if (!running) return;
     controls.update();
+    const above = camera.position.z > 0;
+    grid.visible = gridOn && above; die.visible = dieOn && above;
     renderer.render(scene, camera);
     requestAnimationFrame(loop);
   })();
@@ -105,14 +154,15 @@ export function createViewer(canvas: HTMLCanvasElement, { background = null }: {
     controls.enableDamping = false;
     controls.update();
     controls.enableDamping = true;
-    const d = diameter;
+    // the die only counts seen from above: the Back view frames the token alone
+    const f = kind === "back" ? { d: diameter, x: 0 } : framed(), d = f.d, x = f.x;
     // close enough to read a letter, not so close the camera goes into the coin; never lost
     controls.minDistance = d * 0.8; controls.maxDistance = d * 6;
-    if (kind === "top") camera.position.set(0, -0.001, d * 2.5);
+    if (kind === "top") camera.position.set(x, -0.001, d * 2.5);
     else if (kind === "back") camera.position.set(0, 0.001, -d * 2.5);
-    else if (kind === "side") camera.position.set(d * 0.3, -d * 1.25, d * 0.42);
-    else camera.position.set(0, -d * 1.5, d * 1.85);
-    controls.target.set(0, 0, 0);
+    else if (kind === "side") camera.position.set(x + d * 0.3, -d * 1.25, d * 0.42);
+    else camera.position.set(x, -d * 1.5, d * 1.85);
+    controls.target.set(x, 0, 0);
     controls.update();
   }
 
@@ -121,6 +171,11 @@ export function createViewer(canvas: HTMLCanvasElement, { background = null }: {
       // A token of another size (a card after a coin): frame it again, from the same side.
       const resize = token.spec.diameter !== diameter;
       diameter = token.spec.diameter;
+      // its footprint across (a card's long side, a piece's square, a coin's diameter): the die stands beside it
+      foot = token.foot ? Math.max(token.foot.w, token.foot.h) : diameter;
+      die.position.set(foot / 2 + DIE_GAP + DIE / 2, foot * 0.12, DIE / 2);
+      const half = Math.max(80, Math.ceil((foot * 1.4) / 10) * 10);
+      if (Math.abs((grid.geometry.boundingSphere?.radius ?? 0) - half * Math.SQRT2) > 1) { scene.remove(grid); grid.geometry.dispose(); grid = sizeGrid(half); grid.geometry.computeBoundingSphere(); scene.add(grid); }
       if (resize) setView(view);
       for (const [name, mesh] of Object.entries(meshes) as [ViewPart, PartMesh][]) {
         mesh.geometry.dispose();
@@ -135,6 +190,9 @@ export function createViewer(canvas: HTMLCanvasElement, { background = null }: {
       applyXray();
     },
     setXray(on: boolean) { xray = on; applyXray(); },
+    /** The grid on the ground, and the d6 beside the token (the camera then takes both in). */
+    setGrid(on: boolean) { gridOn = on; },
+    setDie(on: boolean) { if (dieOn !== on) { dieOn = on; setView(view); } },
     setView,
     controls,
     /** The scene, for a page that lights it its own way (the prototypes' raking light). */

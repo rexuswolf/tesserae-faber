@@ -428,6 +428,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
 .turn { position: absolute; left: 10px; bottom: 10px; display: flex; gap: 4px; }
 .turn .pill { padding: 4px 10px; font-size: 12.5px; }
+.refs { position: absolute; right: 10px; bottom: 10px; display: flex; gap: 4px; }
+.refs .pill { padding: 4px 10px; font-size: 12.5px; }
 .caption { position: absolute; left: 30px; right: 110px; top: 24px; pointer-events: none; }
 .caption h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 30px; line-height: 1.05; overflow-wrap: anywhere; }
 .caption p { margin: 4px 0 0; color: var(--dust); font-size: 13px; }
@@ -864,6 +866,8 @@ dialog .import { margin-top: 10px; }
   .view-panel { flex: none; height: 186px; padding: 6px 8px 4px; }
   .turn { flex-direction: column; align-items: flex-start; left: 8px; bottom: 8px; gap: 3px; }
   .turn .pill { padding: 2px 9px; font-size: 12px; }
+  .refs { flex-direction: column; align-items: flex-end; right: 8px; bottom: 8px; gap: 3px; }
+  .refs .pill { padding: 2px 9px; font-size: 12px; }
   .caption { left: 20px; right: 80px; top: 14px; }
   .caption h2 { font-size: 19px; }
   .caption p { display: none; }

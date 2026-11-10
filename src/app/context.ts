@@ -181,7 +181,7 @@ setTimeout(() => session.remove("mm-reloaded"), 10000);
 // The 3D preview loads on its own (WebGL and camera controls), so the sheet doesn't wait for
 // it. Until it's ready, calls are remembered and replayed: the latest token, view and X-ray.
 /** The calls the app makes to the preview, with their arguments. */
-type ViewerCalls = { setToken: [Token]; setXray: [boolean]; setView: [ViewKind] };
+type ViewerCalls = { setToken: [Token]; setXray: [boolean]; setView: [ViewKind]; setGrid: [boolean]; setDie: [boolean] };
 let viewer: Viewer | null = null;
 const viewerWaiting: { [M in keyof ViewerCalls]?: ViewerCalls[M] } = {};
 export const view3d = <M extends keyof ViewerCalls>(method: M, ...args: ViewerCalls[M]) => {
@@ -191,7 +191,7 @@ export function loadViewer() {
   import("../engine/viewer.ts").then(({ createViewer }) => {
     viewer = createViewer($<HTMLCanvasElement>("#view"));
     view3d("setView", "angle");
-    for (const m of ["setToken", "setXray", "setView"] as const) if (viewerWaiting[m]) (viewer[m] as (...a: unknown[]) => void)(...viewerWaiting[m]);
+    for (const m of ["setGrid", "setDie", "setToken", "setXray", "setView"] as const) if (viewerWaiting[m]) (viewer[m] as (...a: unknown[]) => void)(...viewerWaiting[m]);
   }).catch((err) => console.error("3D preview failed to load", err));
 }
 

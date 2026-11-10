@@ -1,6 +1,6 @@
 // Wiring: the page's event handlers, set once when the app starts.
 import { emit } from "./events.ts";
-import { $, hit, input, state, MY_DESIGNS_KEY, $$, storeJSON, view3d, LAYOUT_TEXT, RANGES, MAX_SVG, coll } from "./context.ts";
+import { $, hit, input, state, MY_DESIGNS_KEY, $$, storeJSON, loadJSON, view3d, LAYOUT_TEXT, RANGES, MAX_SVG, coll } from "./context.ts";
 import type { Part, FaceTab, Fields, RangeKey, Side } from "./context.ts";
 import { openScriptDialog, goEdition, drawer, saveFromDialog, scriptCustomizes, shareScript, scriptOf, scriptJsonWithOwn, syncHomebrew, openSharedScript, PHONE } from "./scripts-ui.ts";
 import { saveFile, shapeOf, FACE_FIELDS, DEFAULT_SPEC, PATTERN_MIN, backLayoutContent } from "../engine/token-engine.ts";
@@ -173,6 +173,12 @@ export function wire() {
       if ((part === "front" || part === "back") && part !== want) { showTab({ part: want }); renderWorkshop(); }
     }
   });
+  // the size references, each on or off, remembered
+  for (const [id, key, call, def] of [["viewGrid", "tesserae-view-grid", "setGrid", true], ["viewDie", "tesserae-view-die", "setDie", false]] as const) {
+    const on = loadJSON<boolean>(key, def) === true;
+    $("#" + id).setAttribute("aria-pressed", String(on)); view3d(call, on);
+    $("#" + id).onclick = () => { const v = $("#" + id).getAttribute("aria-pressed") !== "true"; $("#" + id).setAttribute("aria-pressed", String(v)); storeJSON(key, v); view3d(call, v); };
+  }
   $("#xray").onclick = () => {
     const on = $("#xray").getAttribute("aria-pressed") !== "true";
     $("#xray").setAttribute("aria-pressed", String(on));
