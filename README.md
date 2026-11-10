@@ -42,7 +42,7 @@ file to share it or carry on on another device.
 - ***5e Fantasy***: conditions, spells and markers.
 - ***Draw Steel***: hero resources and conditions.
 
-## Coins, cards, rings and bases
+## Coins, cards, rings, bases and pieces
 
 Not everything is a coin. A collection can have each kind, and each kind is designed and printed its own way.
 
@@ -52,13 +52,14 @@ Not everything is a coin. A collection can have each kind, and each kind is desi
 | **Cards** | 85 × 55 mm, with their phrase, their icon and their back |
 | **Rings** | slip round a miniature's base (25 to 50 mm), with its condition all the way round |
 | **Bases** | trays the miniature's base sits in, with a number or a name on the tab |
+| **Pieces** | solid playing pieces, printed lying down: an icon's silhouette (like a meeple, its outline grown by a margin, its holes filled) or a simple shape (circle, hexagon, square, octagon, triangle, diamond, star, heart), 15 to 60 mm and 2 to 12 mm thick, with the icon on top, on top and underneath, or none |
 
 ## Design them
 
 A design sets how every token looks at once: colours, frame, lettering, back. Change something and the token changes
 at once: what you see is what you'll print.
 
-- Frames of all kinds: laurel, beads, runes, rope, moon phases…
+- Frames of all kinds: laurel, beads, runes, rope, Greek keys, waves, poker chip, arcs, moon phases…
 - Background patterns, such as harlequin, scales or quartered.
 - A raised name, frame or icon, to feel them by touch.
 - A hole for a magnet, open or hidden inside.
@@ -110,4 +111,5 @@ code written for this project; everything below belongs to its owners and keeps 
   still in `public/` for the design prototypes.
 - **Libraries**: [three.js](https://threejs.org) (MIT), [Firebase](https://firebase.google.com) (Apache 2.0),
   [JSZip](https://stuk.github.io/jszip/) (MIT or GPLv3), [jsPDF](https://github.com/parallax/jsPDF) (MIT),
-  [svg2pdf.js](https://github.com/yWorks/svg2pdf.js) (MIT) and [imagetracerjs](https://github.com/jankovicsandras/imagetracerjs) (public domain).
+  [svg2pdf.js](https://github.com/yWorks/svg2pdf.js) (MIT), [clipper-lib](https://sourceforge.net/projects/jsclipper/)
+  (Boost Software License, the pieces' silhouettes) and [imagetracerjs](https://github.com/jankovicsandras/imagetracerjs) (public domain).

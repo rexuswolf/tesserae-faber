@@ -1562,7 +1562,7 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 .tour-cover small { display: block; color: rgba(255, 255, 255, .7); font-size: 13px; margin-top: 2px; }
 /* shapes */
 /* each shape and its caption in two shared rows: the shapes centred on one line, the captions starting level */
-.tour-shapes { display: grid; grid-template-columns: 1fr 1.5fr 1fr 1.1fr; gap: 10px 18px; }
+.tour-shapes { display: grid; grid-template-columns: 1fr 1.5fr 1fr 1.1fr 0.8fr; gap: 10px 18px; }
 .tour-shapes figure { margin: 0 0 8px; display: grid; grid-row: span 2; grid-template-rows: subgrid; row-gap: 10px; justify-items: center; align-items: center; }
 .tour-shapes figcaption { align-self: start; }
 .tour-shapes figure > span { width: 100%; }
@@ -1624,6 +1624,7 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
   .tour-covers, .tour-box { grid-template-columns: 1fr; }
   .tour-cover { grid-template-columns: 1fr 1.3fr; align-items: center; }
   .tour-shapes { grid-template-columns: 1fr 1fr; }
+  .tour-shapes figure:last-child:nth-child(odd) { grid-column: 1 / -1; width: 50%; justify-self: center; }   /* the fifth: alone, in the middle */
   .tour-out { max-width: 220px; width: 100%; margin: 0 auto; }
   .tour-explode { height: 190vh; }
   .tour-stick { align-content: center; gap: 4px; }

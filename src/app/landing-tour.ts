@@ -11,6 +11,7 @@ import type { Role, TokenSpec, TokenIcon, Hex } from "../types.ts";
 import { gameIcon, gameIconPreview } from "../icons.ts";
 import { uiLang, t } from "../i18n.ts";
 import { $, esc } from "./context.ts";
+import { uiTokenIcon } from "../ui-icons.ts";
 
 /** A collection ready to draw: its tokens as roles (each with its group's colour), their library, its styles. */
 interface Kit { c: Collection; lib: Library; byId: Map<string, Role>; style: (shape: string, i?: number) => TokenSpec }
@@ -78,6 +79,8 @@ async function pick(sen: Kit | null, d5: Kit | null, ds: Kit | null, lang: strin
       [draw(sen, "ley", sen.style("card")), "tour.card", "tour.cardSub"],
       [ring ? tokenSvg(d5.lib, ring, d5.style("ring")) : "", "tour.ring", "tour.ringSub"],
       [base ? tokenSvg(d5.lib, base, { ...DEFAULT_SPEC, lang, ringBase: "32", colours: { ...DEFAULT_SPEC.colours, base: "#d4a72c", front: FILAMENTS.black, frame: FILAMENTS.black } }) : "", "tour.base", "tour.baseSub"],
+      // a meeple: its silhouette in red, the meeple raised in white on it
+      [ring ? tokenSvg(d5.lib, { ...ring, id: "tour-piece", kind: "piece" }, { ...DEFAULT_SPEC, lang, icon: uiTokenIcon("meeple") ?? undefined, pieceShape: "silhouette", pieceMargin: 2, diameter: 25, relief: { text: false, frame: false, icon: true }, colours: { ...DEFAULT_SPEC.colours, base: "#c4262b", front: FILAMENTS.white, frame: FILAMENTS.white } }) : "", "tour.piece", "tour.pieceSub"],
     ];
     $("#tourShapes").innerHTML = shapes.map(([svg, b, sub]) => `<figure><span class="tour-tok">${svg}</span><figcaption><b>${esc(t(b))}</b>${esc(t(sub))}</figcaption></figure>`).join("");
   }

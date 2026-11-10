@@ -37,6 +37,8 @@ A collection is laid out like this:
   than one type also gets **Everything**. A type also says its tokens' shape: coins, cards (85 × 55 mm, with a back of
   their own), condition rings (a flat ring over a miniature's base, its name all the way round) or base trays (a tray the
   miniature's base sits in, with a tab carrying a number or a name). Rings and trays are for 25, 32, 40 or 50 mm bases.
+  Or pieces: solid playing pieces printed lying down, their outline their icon's silhouette (grown and filled with
+  clipper-lib) or a simple shape, the icon on top, on top and underneath, or none.
 - **Groups**: the colours, and the filters and order of the sheet (Draw Steel's classes, El Senado's sides).
 - **Tokens**: each of one type and one group, with its **linked tokens**, which come and go with it. Names can come in
   several languages. A token can have a colour of its own (`colour`), worn instead of its group's.
@@ -69,7 +71,7 @@ token's content (`Role`), a token's design (`TokenSpec`), a built `Token`, queue
   `emit("picks" | "looks" | "all")`, and each view listens with `on(…)` and redraws itself), its Spanish and English
   text, and its look.
 - `src/collection.ts`: the collections: their shape, their JSON file, and where they're kept.
-  `public/collections/` holds the ones that come with the app; `src/shape-designs.ts` the designs made for rings and cards.
+  `public/collections/` holds the ones that come with the app; `src/shape-designs.ts` the designs made for rings, cards, bases and pieces.
 - `src/ports.ts`, `src/services.ts`, `src/adapters/`: what the app needs from outside (a private library, the admin's
   sign-in, what this browser keeps) as interfaces of its own; everything kept in the browser goes through
   `services.ts` (`local`, `session`, `readJSON`, `writeJSON`), never `localStorage` directly. `services.ts` picks the
