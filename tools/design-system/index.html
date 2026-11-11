@@ -145,7 +145,7 @@ code { font-size: .92em; }
 }
 
 /* The components (.action, .choice, .disclosure, .nav-link, .nav-item, .tabs) are the app's own, from src/style.css.
-   Only .field and the token dot are still proposals, drawn here. */
+   Only the token dot is drawn here. */
 .dsy-p .field { display: grid; gap: 4px; min-width: 0; }
 .dsy-p .field__label { font-size: var(--font-size-xs); color: var(--color-text-muted); }
 .dsy-p .field__control { width: 100%; border: 0; border-radius: var(--radius-stone); background: var(--color-bg-sunken); box-shadow: var(--shadow-sunken); color: var(--color-text-default); font: var(--font-size-base)/1.3 var(--font-family-ui); padding: 8px 11px; text-align: left; }
@@ -209,10 +209,10 @@ code { font-size: .92em; }
         <p><code>aria-pressed</code> varias · <code>aria-checked</code> una · <code>--row</code> con ficha · <code>--tile</code> con dibujo</p>
       </div>
       <div>
-        <h4>Campo <code>.field</code></h4>
+        <h4>Campo <code>.input</code> en <code>.field</code></h4>
         <p><b>Un valor que escribes o editas.</b> Una tesela hundida (la elección sobresale, el campo se hunde), con su etiqueta encima. Si se edita en otra parte, la flecha lo dice.</p>
-        <label class="field"><span class="field__label">Nombre</span><input class="field__control" value="Lavandera"></label>
-        <div class="field"><span class="field__label">Dice</span><button class="field__control">Empieza sabiendo que…</button></div>
+        <label class="field"><span class="field__label">Nombre</span><input class="input" value="Lavandera"></label>
+        <div class="field"><span class="field__label">Dice</span><button class="input" style="display:flex;justify-content:space-between;text-align:left">Empieza sabiendo que…</button></div>
       </div>
       <div>
         <h4>Desplegable <code>.disclosure</code></h4>

@@ -90,9 +90,9 @@ function renderWords() {
   $("#osWords").innerHTML = WORD_KINDS.map((k) => {
     const w = coll.words?.[k], app = appWord(lang, k), fem = w ? !!w.fem : !!app.fem;
     return `<div class="os-word" data-word="${k}"><b>${esc(app.one.charAt(0).toUpperCase() + app.one.slice(1))}</b>
-      <input class="text" data-part="one" value="${esc(w ? nameIn(w.one, lang) : "")}" placeholder="${esc(app.one)}" aria-label="${esc(t("own.wordOne"))}">
-      <input class="text" data-part="many" value="${esc(w ? nameIn(w.many, lang) : "")}" placeholder="${esc(app.many)}" aria-label="${esc(t("own.wordMany"))}">
-      ${lang === "es" ? `<select class="text" data-part="fem" aria-label="${esc(t("own.wordFem"))}"><option value="1"${fem ? " selected" : ""}>${esc(t("own.wordFem"))}</option><option value=""${fem ? "" : " selected"}>${esc(t("own.wordMasc"))}</option></select>` : ""}</div>`;
+      <input class="input" data-part="one" value="${esc(w ? nameIn(w.one, lang) : "")}" placeholder="${esc(app.one)}" aria-label="${esc(t("own.wordOne"))}">
+      <input class="input" data-part="many" value="${esc(w ? nameIn(w.many, lang) : "")}" placeholder="${esc(app.many)}" aria-label="${esc(t("own.wordMany"))}">
+      ${lang === "es" ? `<select class="input" data-part="fem" aria-label="${esc(t("own.wordFem"))}"><option value="1"${fem ? " selected" : ""}>${esc(t("own.wordFem"))}</option><option value=""${fem ? "" : " selected"}>${esc(t("own.wordMasc"))}</option></select>` : ""}</div>`;
   }).join("");
 }
 
@@ -289,7 +289,7 @@ function renderOwnGroups() {
   $("#ownGroupList").innerHTML = coll.groups.map((g) => `<div class="own-group">
     <details class="og-colour"><summary class="og-dot${metal(g.colour)}" style="--c: ${g.colour}" title="${esc(colourName(g.colour))}" aria-label="${esc(t("own.colour"))}: ${esc(colourName(g.colour))}"></summary>
       <span class="own-swatches og-menu">${colourSwatches(g.colour, (c) => `data-colour="${c}" data-for="${esc(g.id)}"`)}</span></details>
-    <input class="text" value="${esc(nameIn(g.name, lang))}" data-gname="${esc(g.id)}" aria-label="${esc(t("own.groupNameLabel"))}">
+    <input class="input" value="${esc(nameIn(g.name, lang))}" data-gname="${esc(g.id)}" aria-label="${esc(t("own.groupNameLabel"))}">
     <small>${esc(t("own.groupCount", { n: coll.tokens.filter((tk) => tk.group === g.id).length }))}</small>
     ${coll.groups.length > 1 ? `<button class="action action--quiet action--sm" type="button" data-gdel="${esc(g.id)}">${esc(t("own.deleteGroup"))}</button>` : "<span></span>"}
   </div>`).join("");
@@ -546,13 +546,13 @@ function renderGroupPills(tk: OwnToken) {
 /** The token's group, changed right here: its name and its colour (every token in it follows). */
 function renderGroupEdit(tk: OwnToken) {
   const g = coll.groups.find((x) => x.id === tk.group);
-  $("#ownTokGroupEdit").innerHTML = !g ? "" : `<input class="text" id="ownTokGroupName" value="${esc(nameIn(g.name, uiLang()))}" data-geid="${esc(g.id)}" aria-label="${esc(t("own.groupNameLabel"))}" autocomplete="off">`
+  $("#ownTokGroupEdit").innerHTML = !g ? "" : `<input class="input" id="ownTokGroupName" value="${esc(nameIn(g.name, uiLang()))}" data-geid="${esc(g.id)}" aria-label="${esc(t("own.groupNameLabel"))}" autocomplete="off">`
     + `<span class="own-swatches">${colourSwatches(g.colour, (c) => `data-gcolour="${c}"`)}</span>`
     + `<small class="hint">${esc(t("own.groupEditHelp"))}</small>`;
 }
 function renderOwnLinked(tk: OwnToken) {
   const lang = tokenLang();
-  $("#ownTokLinked").innerHTML = tk.linked.map((w, i) => `<span class="own-link"><input class="text" value="${esc(nameIn(w, lang))}" data-li="${i}" aria-label="${esc(t("own.linked"))}"><button class="action action--quiet action--sm" type="button" data-ldel="${i}" aria-label="${esc(t("own.remove"))}">✕</button></span>`).join("");
+  $("#ownTokLinked").innerHTML = tk.linked.map((w, i) => `<span class="own-link"><input class="input" value="${esc(nameIn(w, lang))}" data-li="${i}" aria-label="${esc(t("own.linked"))}"><button class="action action--quiet action--sm" type="button" data-ldel="${i}" aria-label="${esc(t("own.remove"))}">✕</button></span>`).join("");
 }
 /** The back: like the other tokens' (its design's, named), or its other state, with its name and icon. */
 /** Its back: another state (switched on: its name and icon), or the design's (off). */

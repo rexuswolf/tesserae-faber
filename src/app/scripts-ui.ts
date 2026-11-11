@@ -291,7 +291,7 @@ export async function shareScript() {
     if (posthogEnabled) posthog.capture("script_shared", { share_method: "clipboard" });
   }
   catch {
-    note.innerHTML = `${esc(t("script.copyBy"))} <input class="text" type="text" readonly value="${esc(link)}">`;
+    note.innerHTML = `${esc(t("script.copyBy"))} <input class="input" type="text" readonly value="${esc(link)}">`;
     note.querySelector("input")!.select();
   }
 }

@@ -355,7 +355,7 @@ export function renderTallerHead() {
   if (tallerHeadFor !== sig || !head.firstElementChild) {
     tallerHeadFor = sig;
     head.innerHTML = `<div class="th-top"><button class="nav-link nav-link--back th-back" type="button" data-taller-act="mine">${esc(t("taller.mine"))}</button><span class="th-shape">${uiIcon(SHAPE_ICONS[sh])}${esc(t(`taller.shape.${sh}`))}</span></div>
-      <input class="th-name" id="tallerName" type="text" autocomplete="off" maxlength="80" value="${esc(mine.name)}" aria-label="${esc(t("taller.nameLabel"))}">
+      <input class="input th-name" id="tallerName" type="text" autocomplete="off" maxlength="80" value="${esc(mine.name)}" aria-label="${esc(t("taller.nameLabel"))}">
       <p class="hint" id="tallerUses"></p>
       <div class="th-actions"><button class="action action--sm" type="button" data-taller-act="copy">${esc(t("taller.duplicate"))}</button><button class="action action--danger action--sm" type="button" data-taller-act="delete">${esc(t("taller.delete"))}</button><button class="action action--sm th-new" type="button" data-taller-act="new">+ ${esc(t("taller.new"))}</button></div>`;
   }

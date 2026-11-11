@@ -133,7 +133,7 @@
     <!-- what only narrows the list: the search and the groups' filter (a funnel, its list under it), on top of the list -->
     <div class="filters" role="search" data-i18n-attr="aria-label:filter.label">
       <div class="filter-row">
-        <label class="search-box"><svg class="gi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="m15.5 15.5 5 5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg><input type="search" id="search" class="search" autocomplete="off" data-i18n-attr="placeholder:sheet.search aria-label:sheet.search"></label>
+        <label class="search-box"><svg class="gi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="m15.5 15.5 5 5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg><input type="search" id="search" class="input input--search" autocomplete="off" data-i18n-attr="placeholder:sheet.search aria-label:sheet.search"></label>
         <div class="filt" id="filtWrap">
           <button class="action action--icon filt-btn" type="button" id="filtBtn" aria-haspopup="true" aria-expanded="false" aria-controls="teamChips" data-i18n-attr="aria-label:tray.team title:tray.team"><svg class="gi" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18l-7 8v6l-4-2v-4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><i class="filt-dot" aria-hidden="true"></i></button>
           <div class="chips filt-menu choice-group" id="teamChips" role="group" data-i18n-attr="aria-label:tray.team"></div>
@@ -236,7 +236,7 @@
           <div id="crOwn"></div>
           <!-- a token of Clocktower's or of a closed collection, or a linked token: its printed text, feminine name and icon -->
           <div class="token-only" id="contentClosed" hidden>
-            <label class="field"><span class="cr-fl"><b data-i18n="editor.printed"></b><small data-i18n="editor.printedHelp"></small></span><input class="text" type="text" id="printed" autocomplete="off"></label>
+            <label class="field"><span class="cr-fl"><b data-i18n="editor.printed"></b><small data-i18n="editor.printedHelp"></small></span><input class="input" type="text" id="printed" autocomplete="off"></label>
             <label class="check" id="femRow" hidden><input type="checkbox" id="fem"> <span id="femLabel"></span></label>
             <div class="field icon-field" id="iconField">
               <span class="cr-fl"><b data-i18n="icon.label"></b></span>
@@ -249,7 +249,7 @@
               <input type="file" id="iconFile" accept=".svg,image/svg+xml" hidden>
               <p class="hint" id="iconHint"></p>
               <div class="icon-search" id="iconSearch" hidden>
-                <input class="text" type="search" id="iconQuery" autocomplete="off" data-i18n-attr="placeholder:icon.placeholder">
+                <input class="input" type="search" id="iconQuery" autocomplete="off" data-i18n-attr="placeholder:icon.placeholder">
                 <div class="icon-results" id="iconResults"></div>
               </div>
             </div>
@@ -259,7 +259,7 @@
           <div class="back-say" id="backSayBox" hidden>
             <p class="metal-label" data-i18n="back.sayLabel"></p>
             <div class="choices choice-group" role="group" id="backSay" data-i18n-attr="aria-label:back.sayLabel"></div>
-            <input class="text" type="text" id="backPhrase" maxlength="60" autocomplete="off" data-i18n-attr="placeholder:back.phrasePlaceholder aria-label:back.say.phrase" hidden>
+            <input class="input" type="text" id="backPhrase" maxlength="60" autocomplete="off" data-i18n-attr="placeholder:back.phrasePlaceholder aria-label:back.say.phrase" hidden>
           </div>
           <p class="hint flip-note" id="sayNote" hidden></p>
           <!-- a coin's back: what it shows on the tokens without another state (their icon, an ornament, your SVG, nothing) -->
@@ -347,7 +347,7 @@
         <div id="cbFields">
           <div class="cb-group">
           <h4 class="cb-h" data-i18n="cardBack.groupContent"></h4>
-          <label class="field"><span data-i18n="cardBack.text"></span><input class="text" type="text" id="cbText" autocomplete="off" maxlength="60"></label>
+          <label class="field"><span data-i18n="cardBack.text"></span><input class="input" type="text" id="cbText" autocomplete="off" maxlength="60"></label>
           <label class="check" id="cbNameRow"><input type="checkbox" id="cbName"> <span data-i18n="cardBack.name"></span></label>
           <div class="field icon-field">
             <span data-i18n="cardBack.icon"></span>
@@ -359,7 +359,7 @@
             <input type="file" id="cbIconFile" accept=".svg,image/svg+xml" hidden>
             <p class="hint" id="cbIconHint"></p>
             <div class="icon-search" id="cbIconSearch" hidden>
-              <input class="text" type="search" id="cbIconQuery" autocomplete="off" data-i18n-attr="placeholder:icon.placeholder">
+              <input class="input" type="search" id="cbIconQuery" autocomplete="off" data-i18n-attr="placeholder:icon.placeholder">
               <div class="icon-results" id="cbIconResults"></div>
             </div>
           </div>
@@ -490,7 +490,7 @@
         <button type="button" role="tab" data-sp-tab="about" aria-selected="false" data-i18n="own.aboutH"></button>
       </div>
       <div class="sp-panel" data-sp="general" role="tabpanel">
-        <label class="field"><span data-i18n="own.name"></span><input class="text" id="osName" autocomplete="off"></label>
+        <label class="field"><span data-i18n="own.name"></span><input class="input" id="osName" autocomplete="off"></label>
         <h3 data-i18n="own.brandH"></h3>
         <div class="os-brand">
           <img id="osLogo" alt="" width="64" height="64">
@@ -513,10 +513,10 @@
           <label><input type="color" id="os-surface"><span data-i18n="own.c.surface"></span></label>
           <label><input type="color" id="os-text"><span data-i18n="own.c.text"></span></label>
           <label><input type="color" id="os-muted"><span data-i18n="own.c.muted"></span></label>
-          <label class="field"><span data-i18n="own.c.font"></span><select class="text" id="osFont"></select></label>
+          <label class="field"><span data-i18n="own.c.font"></span><select class="input" id="osFont"></select></label>
         </div>
         <h3 data-i18n="own.loaderH"></h3>
-        <label class="field"><span data-i18n="own.loaderText"></span><input class="text" id="osLoader" autocomplete="off" data-i18n-attr="placeholder:gate.opening"></label>
+        <label class="field"><span data-i18n="own.loaderText"></span><input class="input" id="osLoader" autocomplete="off" data-i18n-attr="placeholder:gate.opening"></label>
         <label class="check os-ccc"><input type="checkbox" id="osCcc"> <span><span data-i18n="own.cccLabel"></span><small data-i18n="own.cccHelp"></small></span></label>
       </div>
       <!-- its categories: one per token, and its colour -->
@@ -530,7 +530,7 @@
         <!-- one block of Markdown (src/markdown.ts), written beside how it reads; a phone: one, then the other -->
         <div class="md-edit" id="osAboutEdit">
           <div class="md-tabs tabs"><button type="button" class="nav-item nav-item--tab" aria-pressed="true" data-md="write" data-i18n="own.mdWrite"></button><button type="button" class="nav-item nav-item--tab" aria-pressed="false" data-md="preview" data-i18n="own.mdPreview"></button></div>
-          <textarea class="text" id="osAbout" aria-labelledby="osTitle"></textarea>
+          <textarea class="input" id="osAbout" aria-labelledby="osTitle"></textarea>
           <div class="md-preview about-md" id="osAboutPreview" aria-live="polite"></div>
         </div>
         <p class="hint md-help" data-i18n="own.aboutHelp"></p>
@@ -571,7 +571,7 @@
   <dialog class="qdrawer" id="queueDrawer" aria-labelledby="queueTitle">
     <div class="qd-head">
       <h2 id="queueTitle"></h2>
-      <button class="action" type="button" id="queueClear" data-i18n="queue.clear"></button>
+      <button class="action action--quiet action--sm" type="button" id="queueClear" data-i18n="queue.clear"></button>
       <button class="action action--icon icon-btn" type="button" id="queueClose" data-i18n-attr="aria-label:admin.close">×</button>
     </div>
     <div class="qd-body" id="queueBody"><div id="queue"></div></div>
@@ -623,7 +623,7 @@
       <div class="tour-box tour-maker">
         <div>
           <label for="tourName" data-i18n="tour.ownName"></label>
-          <input class="text" id="tourName" maxlength="22">
+          <input class="input" id="tourName" maxlength="22">
           <div class="tour-icons" id="tourIcons" role="group" data-i18n-attr="aria-label:tour.ownIcon"></div>
         </div>
         <div class="tour-out tour-tok" id="tourMade"></div>
@@ -750,7 +750,7 @@
     <p class="faber-wm gate-faber own-only">TESSERAE<span class="ip" aria-hidden="true"></span>FABER</p>
     <h2 id="gateTitle">Abriendo el grimorio…</h2>
     <p id="gateText"></p>
-    <form id="gateKeyForm" hidden><input class="text gate-key" type="text" id="gateKey" autocomplete="off" autocapitalize="characters" spellcheck="false" data-i18n-attr="placeholder:botc.keyPlaceholder aria-label:botc.keyPlaceholder"></form>
+    <form id="gateKeyForm" hidden><input class="input gate-key" type="text" id="gateKey" autocomplete="off" autocapitalize="characters" spellcheck="false" data-i18n-attr="placeholder:botc.keyPlaceholder aria-label:botc.keyPlaceholder"></form>
     <button class="action action--primary" type="button" id="gateAction" hidden></button>
     <button class="action" type="button" id="gateSecondary" hidden></button>
     <footer class="ccc">
@@ -823,7 +823,7 @@
   <h2 id="scriptDialogTitle" data-i18n="script.dialogTitle"></h2>
   <p class="hint" data-i18n="script.dialogIntro"></p>
   <label class="action file"><span data-i18n="script.file"></span><input type="file" id="scriptDialogFile" accept="application/json,.json" hidden></label>
-  <label class="field"><span data-i18n="script.paste"></span><textarea class="text" id="scriptDialogText" rows="5" spellcheck="false" placeholder='[{"id":"_meta","name":"…"},"washerwoman","librarian",…]'></textarea></label>
+  <label class="field"><span data-i18n="script.paste"></span><textarea class="input" id="scriptDialogText" rows="5" spellcheck="false" placeholder='[{"id":"_meta","name":"…"},"washerwoman","librarian",…]'></textarea></label>
   <p class="hint warn" id="scriptDialogWarn" data-i18n="script.customWarn" aria-live="polite" hidden></p>
   <p class="hint" id="scriptDialogNote" aria-live="polite"></p>
   <div class="dialog-actions"><button class="action" type="button" id="scriptDialogCancel" data-i18n="script.cancel"></button><button class="action action--primary" type="button" id="scriptDialogSave" data-i18n="script.add"></button></div>
@@ -835,19 +835,19 @@
     <div class="tp-fields" id="tpFields">
       <div id="tpShape"></div>
       <!-- its name: how it's found in your lists and the search (its front says it too, unless told otherwise) -->
-      <label class="field tp-name"><span data-i18n="own.name"></span><input class="text" id="ownTokName" autocomplete="off" data-i18n-attr="placeholder:own.namePlaceholder"><small class="hint" data-i18n="own.nameHelp"></small></label>
+      <label class="field tp-name"><span data-i18n="own.name"></span><input class="input" id="ownTokName" autocomplete="off" data-i18n-attr="placeholder:own.namePlaceholder"><small class="hint" data-i18n="own.nameHelp"></small></label>
       <div class="field" id="ownTokGroupRow"><span data-i18n="own.group"></span><div class="group-pills choice-group" id="ownTokGroups"></div><div class="group-edit" id="ownTokGroupEdit"></div></div>
       <section class="tp-face" id="tpFront">
         <h3 data-i18n="view.front"></h3>
         <!-- what its front says: its name unless it says something else; whether it says anything (unticked: its icon alone) -->
-        <div class="field"><label class="field"><span data-i18n="own.text"></span><input class="text" id="ownTokText" autocomplete="off"></label>
+        <div class="field"><label class="field"><span data-i18n="own.text"></span><input class="input" id="ownTokText" autocomplete="off"></label>
           <div id="tpContent"></div>
           <small class="hint" id="ownTokNameHint" data-i18n="own.content.iconName" hidden></small></div>
         <div class="field" id="ownTokIconRow"><span data-i18n="own.icon"></span>
           <div class="tp-chip" id="ownTokChip"></div>
           <div class="tp-search" id="ownTokSearch" hidden>
             <div class="own-icon-bar">
-              <input class="text" type="search" id="ownTokIq" autocomplete="off" data-i18n-attr="placeholder:icon.placeholder">
+              <input class="input" type="search" id="ownTokIq" autocomplete="off" data-i18n-attr="placeholder:icon.placeholder">
               <label class="action file"><span data-i18n="icon.upload"></span><input type="file" id="ownTokSvg" accept=".svg,image/svg+xml" hidden></label>
             </div>
             <div class="icon-results" id="ownTokHits"></div>
@@ -861,12 +861,12 @@
         <div class="flip-on"><label class="switch"><input type="checkbox" id="ownTokFlipOn"> <span data-i18n="own.flipOn"></span></label>
           <p class="hint" data-i18n="own.flipOnHelp"></p></div>
         <div class="own-flip" id="ownTokFlipBox">
-          <label class="field"><span data-i18n="own.flipText"></span><input class="text" id="ownTokFlipName" autocomplete="off" data-i18n-attr="placeholder:own.backEmpty"></label>
+          <label class="field"><span data-i18n="own.flipText"></span><input class="input" id="ownTokFlipName" autocomplete="off" data-i18n-attr="placeholder:own.backEmpty"></label>
           <div class="field"><span data-i18n="own.icon"></span>
             <div class="tp-chip" id="ownTokFlipChip"></div>
             <div class="tp-search" id="ownTokFlipSearch" hidden>
               <div class="own-icon-bar">
-                <input class="text" type="search" id="ownTokFlipIq" autocomplete="off" data-i18n-attr="placeholder:icon.placeholder">
+                <input class="input" type="search" id="ownTokFlipIq" autocomplete="off" data-i18n-attr="placeholder:icon.placeholder">
                 <label class="action file"><span data-i18n="icon.upload"></span><input type="file" id="ownTokFlipSvg" accept=".svg,image/svg+xml" hidden></label>
               </div>
               <div class="icon-results" id="ownTokFlipHits"></div>
@@ -900,7 +900,7 @@
     <form method="dialog"><button class="action action--icon action--quiet dz-x" data-i18n-attr="aria-label:admin.close">×</button></form>
   </header>
   <div class="dz-tabs tabs" id="dzTabs" role="tablist"></div>
-  <input class="text dz-search" type="search" id="dzSearch" autocomplete="off" data-i18n-attr="placeholder:dsheet.search aria-label:dsheet.search" hidden>
+  <input class="input dz-search" type="search" id="dzSearch" autocomplete="off" data-i18n-attr="placeholder:dsheet.search aria-label:dsheet.search" hidden>
   <div class="dz-body"><div class="dz-cards choice-group" id="dzCards" role="tabpanel"></div></div>
   <footer class="dz-foot"><span id="dzFor"></span><a id="dzTaller" href="/taller" data-to-taller><span data-i18n="design.toTaller"></span> <span aria-hidden="true">›</span></a></footer>
 </dialog>
@@ -909,7 +909,7 @@
 <dialog id="nameDlg" class="own-dialog ask-dialog">
   <form method="dialog" id="nameForm">
     <p id="nameText"></p>
-    <label class="field"><span data-i18n="dsheet.name"></span><input class="text" id="nameInput" autocomplete="off" required></label>
+    <label class="field"><span data-i18n="dsheet.name"></span><input class="input" id="nameInput" autocomplete="off" required></label>
     <div class="dialog-actions"><button class="action" type="button" id="nameCancel" data-i18n="script.cancel"></button><button class="action action--primary" value="ok" id="nameOk"></button></div>
   </form>
 </dialog>
@@ -925,8 +925,8 @@
 <!-- the generic creator: a list made, or tokens added to one of yours, from a list of names or a script -->
 <dialog id="ownCat" class="own-dialog" aria-labelledby="ownCatTitle">
   <h2 id="ownCatTitle"></h2>
-  <label class="field" id="ownCatNameRow"><span data-i18n="own.catName"></span><input class="text" id="ownCatName" autocomplete="off"></label>
-  <label class="field"><span data-i18n="own.catList"></span><textarea class="text" id="ownCatText" rows="5" spellcheck="false"></textarea></label>
+  <label class="field" id="ownCatNameRow"><span data-i18n="own.catName"></span><input class="input" id="ownCatName" autocomplete="off"></label>
+  <label class="field"><span data-i18n="own.catList"></span><textarea class="input" id="ownCatText" rows="5" spellcheck="false"></textarea></label>
   <p class="hint" data-i18n="own.catListHelp"></p>
   <label class="action file"><span data-i18n="own.catFile"></span><input type="file" id="ownCatFile" accept="application/json,.json,.txt" hidden></label>
   <p class="hint warn" id="ownCatNote" aria-live="polite"></p>
