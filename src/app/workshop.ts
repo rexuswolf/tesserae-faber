@@ -368,21 +368,21 @@ export function wireCardBack() {
 export function syncView(v: string | undefined) {
   const turned = (state.view === "back") !== (v === "back");
   state.view = v ?? "angle";
-  $$(".turn .pill[data-view]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.view === v)));
+  $$(".turn .choice[data-view]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.view === v)));
   if (turned && state.step === 2 && state.lib) renderDesignStage();   // the strip shows the coins from the side the view does
 }
 
 export function buildChoices() {
   const make = (key: string, list: { id: string }[]) => {
-    $(`[data-choice=${key}]`).innerHTML = list.map((s) => `<button class="pill" type="button" data-v="${s.id}">${esc(t(`${key}.${s.id}`))}</button>`).join("");
+    $(`[data-choice=${key}]`).innerHTML = list.map((s) => `<button class="choice" type="button" data-v="${s.id}">${esc(t(`${key}.${s.id}`))}</button>`).join("");
   };
   // Layouts are drawn as coin tiles by renderStyleTiles().
   make("magnet", [{ id: "none" }, { id: "pocket" }, { id: "hidden" }]);
   make("edge", [{ id: "smooth" }, { id: "reeded" }, { id: "segmented" }]);
-  $("[data-choice=magnetSize]").innerHTML = MAGNET_SIZES.map((v) => `<button class="pill" type="button" data-v="${v}">${v.replace("x", " × ")} mm</button>`).join("");
+  $("[data-choice=magnetSize]").innerHTML = MAGNET_SIZES.map((v) => `<button class="choice" type="button" data-v="${v}">${v.replace("x", " × ")} mm</button>`).join("");
   // a ring's mark between repeats: each drawn as itself, with its name
-  $("[data-choice=separator]").innerHTML = RING_SEPARATORS.map((id) => `<button class="pill" type="button" data-v="${id}">${SEPARATOR_MARKS[id]}${esc(t(`separator.${id}`))}</button>`).join("");
-  $("[data-choice=ringBase]").innerHTML = RING_BASES.map((v) => `<button class="pill" type="button" data-v="${v}">${v} mm</button>`).join("");
+  $("[data-choice=separator]").innerHTML = RING_SEPARATORS.map((id) => `<button class="choice" type="button" data-v="${id}">${SEPARATOR_MARKS[id]}${esc(t(`separator.${id}`))}</button>`).join("");
+  $("[data-choice=ringBase]").innerHTML = RING_BASES.map((v) => `<button class="choice" type="button" data-v="${v}">${v} mm</button>`).join("");
   // Frames are drawn as coin tiles by renderFrameTiles().
   // Backs are drawn as coin tiles by renderBackTiles().
   for (const side of ["front", "back"] as const) $(`[data-pat-side=${side}]`).innerHTML = patternGroupHtml(side);

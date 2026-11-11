@@ -165,7 +165,7 @@ export function wire() {
 
   // workshop
   // Front and Back turn the view; on a coin, they also open its FRONT or BACK when one of them is open.
-  $$(".turn .pill[data-view]").forEach((b) => b.onclick = () => {
+  $$(".turn .choice[data-view]").forEach((b) => b.onclick = () => {
     const v = b.dataset.view as ViewKind;
     view3d("setView", v); syncView(v);
     if (state.sel && editShape() === "coin" && (v === "top" || v === "back")) {

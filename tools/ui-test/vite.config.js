@@ -9,7 +9,8 @@ const here = (f) => fileURLToPath(new URL(f, import.meta.url));
 // the test page hooks run before the app (they set the language it starts in)
 const testHooks = {
   name: "test-hooks",
-  transformIndexHtml: (html) => html.replace('<script type="module" src="/src/main.ts">', '<script type="module" src="/tools/ui-test/test-hooks.js"></script>\n<script type="module" src="/src/main.ts">'),
+  // (after index.html changes, Vite asks for main.ts with a ?t=… of its own: the hooks go before it all the same)
+  transformIndexHtml: (html) => html.replace(/<script type="module" src="\/src\/main\.ts(\?[^"]*)?">/, (tag) => `<script type="module" src="/tools/ui-test/test-hooks.js"></script>\n${tag}`),
 };
 const choicesFile = fileURLToPath(new URL("../icon-review/choices.json", import.meta.url));
 

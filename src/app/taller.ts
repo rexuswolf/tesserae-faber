@@ -262,7 +262,7 @@ function renderTallerStart() {
   const n = taller.groups.filter((g) => g.kind !== "blank").reduce((a, g) => a + (g.designs[sh]?.length ?? 0), 0) + myDesigns[sh].length;
   const way = (attr: string, spec: TokenSpec, title: string, sub: string, cnt = "") => `<button class="tw-shape tw-way" type="button" ${attr}><span class="tw-tok ${sh}">${tallerPic(tok, spec)}</span><span><b>${esc(title)}</b><small>${esc(sub)}</small>${cnt ? `<span class="cnt">${esc(cnt)}</span>` : ""}</span></button>`;
   $("#tallerWizard").innerHTML = `${tallerSteps(2)}
-    <div class="tw-titlebar"><button class="link" type="button" data-tw-back>‹ ${esc(t("taller.step.shape"))}</button><h2 class="tw-title">${esc(t("taller.startQ"))}</h2></div>
+    <div class="tw-titlebar"><button class="nav-link nav-link--back" type="button" data-tw-back>${esc(t("taller.step.shape"))}</button><h2 class="tw-title">${esc(t("taller.startQ"))}</h2></div>
     <div class="tw-shapes tw-ways">${way("data-tw-scratch", blank.spec, t("taller.fromScratch"), t("taller.fromScratchSub"))}${tpl ? way("data-tw-templates", tallerBase(sh, tpl)!.spec, t("taller.fromTemplate"), t(myDesigns[sh].length ? "taller.fromTemplateSubMine" : "taller.fromTemplateSub"), t("taller.groupCount", { n })) : ""}</div>`;
 }
 function renderTallerBases() {
@@ -293,13 +293,13 @@ function renderTallerBases() {
   const mine = mineList.length ? `<details class="tw-grp" data-tw-group="${sh}:mine"${mineOpen ? " open" : ""}><summary class="tw-cover" style="--acc:#c9963a"><img src="${esc(APP_LOGO_SMALL)}" alt=""><span class="tw-cv-t"><b>${esc(t("taller.mine"))}</b><small>${esc(t("taller.groupCount", { n: mineList.length }))}</small></span><span class="tw-cv-minis" aria-hidden="true">${mineList.slice(0, 6).map((d) => designSwatch(d.spec, role)).join("")}</span>${CHEVRON}</summary><div class="tw-grp-rows">${mineList.map((d) => row(d)).join("")}</div></details>` : "";
   const go = esc(t("taller.go", { name: pick.name }));
   $("#tallerWizard").innerHTML = `${tallerSteps(2)}
-    <div class="tw-titlebar"><button class="link" type="button" data-tw-start>‹ ${esc(t("taller.startBack"))}</button><h2 class="tw-title">${esc(t("taller.templateQ"))}</h2></div>
+    <div class="tw-titlebar"><button class="nav-link nav-link--back" type="button" data-tw-start>${esc(t("taller.startBack"))}</button><h2 class="tw-title">${esc(t("taller.templateQ"))}</h2></div>
     <div class="tw-blist">
       <div class="tw-opts" role="radiogroup" aria-label="${esc(t("taller.step.base"))}">${mine}${opts}</div>
       <div class="tw-side">
         <div class="tw-pv">${tallerPreviewHtml(sh, pick.spec)}</div>
         <p class="tw-desc"><b>${esc(pick.name)}</b>${pick.help ? ` · ${esc(pick.help)}` : ""}</p>
-        <button class="forge" type="button" data-tw-go>${go} ›</button>
+        <button class="action action--primary" type="button" data-tw-go>${go} ›</button>
         <p class="hint tw-note">${esc(t("taller.goNote", { name: uniqueDesignName(sh, startName(pick)) }))}</p>
       </div>
     </div>`;
@@ -354,10 +354,10 @@ export function renderTallerHead() {
   const sig = `${mine.id}|${uiLang()}`;
   if (tallerHeadFor !== sig || !head.firstElementChild) {
     tallerHeadFor = sig;
-    head.innerHTML = `<div class="th-top"><button class="link th-back" type="button" data-taller-act="mine">‹ ${esc(t("taller.mine"))}</button><span class="th-shape">${uiIcon(SHAPE_ICONS[sh])}${esc(t(`taller.shape.${sh}`))}</span></div>
+    head.innerHTML = `<div class="th-top"><button class="nav-link nav-link--back th-back" type="button" data-taller-act="mine">${esc(t("taller.mine"))}</button><span class="th-shape">${uiIcon(SHAPE_ICONS[sh])}${esc(t(`taller.shape.${sh}`))}</span></div>
       <input class="th-name" id="tallerName" type="text" autocomplete="off" maxlength="80" value="${esc(mine.name)}" aria-label="${esc(t("taller.nameLabel"))}">
       <p class="hint" id="tallerUses"></p>
-      <div class="th-actions"><button class="pill" type="button" data-taller-act="copy">${esc(t("taller.duplicate"))}</button><button class="pill danger" type="button" data-taller-act="delete">${esc(t("taller.delete"))}</button><button class="pill th-new" type="button" data-taller-act="new">+ ${esc(t("taller.new"))}</button></div>`;
+      <div class="th-actions"><button class="action action--sm" type="button" data-taller-act="copy">${esc(t("taller.duplicate"))}</button><button class="action action--danger action--sm" type="button" data-taller-act="delete">${esc(t("taller.delete"))}</button><button class="action action--sm th-new" type="button" data-taller-act="new">+ ${esc(t("taller.new"))}</button></div>`;
   }
   const name = $<HTMLInputElement>("#tallerName");
   if (document.activeElement !== name) name.value = mine.name;

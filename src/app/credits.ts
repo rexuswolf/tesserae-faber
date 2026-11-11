@@ -54,7 +54,7 @@ function openCredits() {
   // About: what the app is and how it treats your things, then the credits
   $("#creditsBody").innerHTML = `${own}${ccc}${mark}<h2 class="credits-h">${esc(t("about.title"))}</h2><section class="about"><p>${esc(t(OWN ? "own.aboutApp" : "about.what"))}</p>
       <p class="hint">${esc(t("about.data"))}</p>
-      <p class="about-actions"><button type="button" class="pill" data-guide>${esc(t("guide.open"))}</button></p></section>
+      <p class="about-actions"><button type="button" class="action" data-guide>${esc(t("guide.open"))}</button></p></section>
     <h2 class="credits-h">${esc(t("credits.title"))}</h2>
     ${!OWN ? `<section><h3>${esc(t("credits.translations"))}</h3>
       <p class="hint">${esc(t("credits.translationsIntro")).replace("Villacuervos", link(VILLACUERVOS_URL, "Villacuervos"))}</p>

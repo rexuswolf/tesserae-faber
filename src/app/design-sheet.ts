@@ -121,7 +121,7 @@ export function renderQuickDesigns() {
   const sig = [key, cur, JSON.stringify(look ?? null), tokenLang(), uiLang(), text, list.map((x) => x.d.ref).join(), rest].join("|");
   if (sig === quickFor) return;
   quickFor = sig;
-  $("#styleQuick").innerHTML = `<div class="dstrip-h"><span class="dsel-l">${esc(t("design.label"))}</span><b>${esc(on?.d.name ?? "")}${look ? ` <i class="dq-own-i" title="${esc(t("design.custom"))}">✎</i>` : ""}</b><button type="button" class="link dstrip-all" data-dq-more>${esc(t("design.seeAll", { n: full.length }))} ›</button></div>`
+  $("#styleQuick").innerHTML = `<div class="dstrip-h"><span class="dsel-l">${esc(t("design.label"))}</span><b>${esc(on?.d.name ?? "")}${look ? ` <i class="dq-own-i" title="${esc(t("design.custom"))}">✎</i>` : ""}</b><button type="button" class="action action--quiet action--sm dstrip-all" data-dq-more>${esc(t("design.seeAll", { n: full.length }))} ›</button></div>`
     + `<div class="dstrip">${list.map(({ d, pick, on: o }) => `<button type="button" class="dq-s" data-dq-pick="${esc(pick)}" aria-pressed="${o}" title="${esc(d.name)}" aria-label="${esc(d.name)}">${tokenSvg(state.lib!, role, { ...specWith(applyLook(d.spec, look), key, reminder != null), back: "none", backMode: "design" }, { text })}</button>`).join("")}`
     + `<button type="button" class="dq-s dq-s-more" data-dq-more title="${esc(t("design.change"))}" aria-label="${esc(t("design.change"))}">${rest > 0 ? `+${rest}` : "+"}</button></div>`;
 }
@@ -147,7 +147,7 @@ export function renderEditorDesigns() {
   const mini = (spec: TokenSpec) => tokenSvg(state.lib!, role, { ...spec, back: "none", backMode: "design" }, { text });
   const row = (body: string, attrs: string, selected: boolean) => `<button type="button" role="option" class="cr-opt" aria-selected="${selected}" ${attrs}>${body}</button>`;
   const askHtml = (a: NonNullable<typeof crAsk>) => `<div class="cr-ask" role="group"><p>${esc(t(a.back ? "editor.askBack" : "editor.askSwitch", { name: a.name }))}</p>
-    <div><button type="button" class="forge" data-cr-ask="go">${esc(t(a.back ? "design.dropTweaks" : "editor.switchDrop"))}</button><button type="button" class="link" data-cr-ask="">${esc(t("editor.cancel"))}</button></div></div>`;
+    <div><button type="button" class="action action--primary action--sm" data-cr-ask="go">${esc(t(a.back ? "design.dropTweaks" : "editor.switchDrop"))}</button><button type="button" class="action action--quiet action--sm" data-cr-ask="">${esc(t("editor.cancel"))}</button></div></div>`;
   const desc = tweaked || !on ? "" : help(on.d);
   $("#crDesigns").innerHTML = `<p class="cr-desc${desc ? "" : " cr-desc-none"}"><b>${esc(tweaked ? t("editor.customised") : on?.d.name ?? "")}</b>${esc(desc)}</p>
     <div class="cr-list" role="listbox" aria-label="${esc(t("editor.design"))}">`
@@ -287,7 +287,7 @@ export function renderSays() {
   const mine = !!(own?.text || own?.fem || own?.icon);
   $("#saysLine").innerHTML = tk
     ? `<span class="says-what"><small class="says-l">${esc(t("content.says"))}</small><b>${esc(name)}</b><small>${esc([coll.groups.length > 1 ? nameIn(coll.groups.find((g) => g.id === tk.group)?.name, lang) : "", new Set(coll.tokens.map((x) => x.shape)).size < 2 ? "" : t(`own.shape.${tk.shape}`)].filter(Boolean).join(" · "))}</small></span>`
-      + `<button class="pill" type="button" data-content-edit="${esc(tk.id)}">${esc(t("content.edit"))}</button>`
+      + `<button class="action action--sm" type="button" data-content-edit="${esc(tk.id)}">${esc(t("content.edit"))}</button>`
     : `<button class="says-toggle" type="button" aria-expanded="${state.saysOpen}" aria-controls="contentClosed"><span class="says-l">${esc(t("content.says"))}</span><b>${esc(name)}${mine ? ` <i class="own-dot" title="${esc(t("sheet.own"))}">✎</i>` : ""}</b>${CHEVRON}</button>`;
   const box = $("#contentClosed");
   box.hidden = !!tk || !state.saysOpen;
@@ -385,7 +385,7 @@ function backReach() {
 function renderBackNote(role: Role, spec: TokenSpec, panel: string | null) {
   const box = $("#backNote"), s = faceOf(spec, "front"), plain = s.backMode === "design" && !selFlip(role);
   box.hidden = !plain || !panel || panel === "pattern" || panel === "layout";
-  box.innerHTML = box.hidden ? "" : `${esc(t("back.plainOn"))} <button class="pill" type="button" data-back-face>${esc(t("back.putFace"))}</button>`;
+  box.innerHTML = box.hidden ? "" : `${esc(t("back.plainOn"))} <button class="action" type="button" data-back-face>${esc(t("back.putFace"))}</button>`;
 }
 /** Whether the token being edited has its back plain (a token without another state, nothing on its back). */
 export const backDrawn = () => editLook().backMode === "design" && !selFlip(state.sel!.role);
@@ -409,7 +409,7 @@ export function renderColourWarn(role: Role, spec: TokenSpec) {
   box.innerHTML = [
     clash.length ? `<p><span aria-hidden="true">⚠</span> ${esc(shapeText("colour.clash", shape, { parts: parts(clash), n: clash.length }))}</p>` : "",
     light.length ? `<p><span aria-hidden="true">◐</span> ${esc(shapeText("colour.light", shape, { parts: parts(light), n: light.length, mm: dec1(LIGHT_DEPTH) }))}
-      <button class="pill" type="button" data-deepen>${esc(t(TALLER ? "colour.deepenDesign" : "colour.deepenToken", { mm: dec1(LIGHT_DEPTH) }))}</button></p>` : "",
+      <button class="action" type="button" data-deepen>${esc(t(TALLER ? "colour.deepenDesign" : "colour.deepenToken", { mm: dec1(LIGHT_DEPTH) }))}</button></p>` : "",
   ].join("");
 }
 /** A design text that names the token's body: the coin's, or the card's or ring's own version of it. */
@@ -441,7 +441,7 @@ export function colourNotes(way: string) {
       <p>${esc(t("print.clash", { n: clash.length }))}</p>${list(clash)}</div></div>` : "")
     + (light.length ? `<div class="q-note warn small-text"><span aria-hidden="true">◐</span><div>
       <p>${esc(t("print.light", { n: light.length, mm: dec1(LIGHT_DEPTH) }))}</p>${list(light)}
-      <p><button class="pill" type="button" data-deepen-all>${esc(t("print.deepenAll", { n: light.length, mm: dec1(LIGHT_DEPTH) }))}</button></p></div></div>` : "");
+      <p><button class="action" type="button" data-deepen-all>${esc(t("print.deepenAll", { n: light.length, mm: dec1(LIGHT_DEPTH) }))}</button></p></div></div>` : "");
 }
 /**
  * Deepens every selected token with light inlays on a dark coin, each on its own (a change over its
@@ -639,7 +639,7 @@ const BACK_SAYS: BackSay[] = ["name", "edition", "phrase", "none"];
 function renderBackSay(spec: TokenSpec) {
   // the icon alone (solo) says nothing
   const b = spec.backMode === "design" ? {} : spec.backFace ?? {}, say = (b.style ?? spec.style) === "solo" ? "none" : b.say ?? "name";
-  $("#backSay").innerHTML = BACK_SAYS.map((v) => `<button class="pill" type="button" data-v="${v}" aria-pressed="${v === say}">${esc(t(`back.say.${v}`))}</button>`).join("");
+  $("#backSay").innerHTML = BACK_SAYS.map((v) => `<button class="choice" type="button" data-v="${v}" aria-pressed="${v === say}">${esc(t(`back.say.${v}`))}</button>`).join("");
   const phrase = $<HTMLInputElement>("#backPhrase");
   phrase.hidden = say !== "phrase";
   if (document.activeElement !== phrase) phrase.value = b.phrase ?? "";
@@ -710,13 +710,13 @@ function patternSwatch(id: string, bg: string, fg: string, clip: string) {
 export function patternGroupHtml(side: PatSide) {
   const range = (k: string, label: string, min: number, max: number, step: number) =>
     `<div class="row"><label for="pat-${side}-${k}" ${k === "line" ? "data-pat-line-label" : ""}>${esc(label)}</label><output data-pat-out="${k}"></output><input type="range" id="pat-${side}-${k}" data-pat-range="${k}" min="${min}" max="${max}" step="${step}"></div>`;
-  return `<div class="choices pat-tiles" data-pat-choice role="group" aria-label="${esc(t("pattern.title"))}"></div>`
+  return `<div class="choices choice-group pat-tiles" data-pat-choice role="group" aria-label="${esc(t("pattern.title"))}"></div>`
     + `<button type="button" class="reset-f group" hidden data-reset="${patKey(side)}">↺</button>`
     + `<div class="pat-opts">`
     + range("scale", t("pattern.scale"), 2.4, 8, 0.1)
     + range("line", t("pattern.line"), PATTERN_MIN, 1.2, 0.05)
     + range("halo", t("pattern.halo"), PATTERN_MIN, 1.2, 0.05)
-    + (side === "front" ? `<p class="metal-label">${esc(t("pattern.colour"))}</p><div class="choices" data-pat-colour></div>` : "")
+    + (side === "front" ? `<p class="metal-label">${esc(t("pattern.colour"))}</p><div class="choices choice-group" data-pat-colour></div>` : "")
     + `<p class="hint" data-pat-hint></p></div>`;
 }
 /** Puts a face's pattern into its group: the swatches, the sliders' values, the colours and a line on what it does. */
@@ -742,7 +742,7 @@ function renderPattern(side: PatSide, role: Role, s: TokenSpec) {
   $("[data-pat-range=line]", box).closest<HTMLElement>(".row")!.hidden = isIllustration(p.id);   // a drawing: as drawn
   const colours = $("[data-pat-colour]", box);
   if (colours) colours.innerHTML = (["frame", "front"] as const).map((c) =>
-    `<button class="pill group-pill" type="button" data-pat-col="${c}" aria-pressed="${(p.colour ?? "frame") === c}" style="--c: ${pc[c]}"><i></i>${esc(t(`pattern.colour.${c}`))}</button>`).join("");
+    `<button class="choice group-pill" type="button" data-pat-col="${c}" aria-pressed="${(p.colour ?? "frame") === c}" style="--c: ${pc[c]}"><i></i>${esc(t(`pattern.colour.${c}`))}</button>`).join("");
   // the back's: behind its drawing, or (a face) behind its icon, name and frame, like the front's
   const drawn = side === "back" && s.backMode === "design" && !selFlip(role), face = faceOf(s, side);
   $("[data-pat-hint]", box).textContent = !drawn && face.style === "window" ? t("pattern.window")
@@ -813,7 +813,7 @@ function renderRelief(role: Role, shape: TokenShape, spec: TokenSpec, back: Toke
   const side: Side = twoFaces ? on ?? "front" : "front", face = side === "back" ? back : s, relief = reliefOf(face);
   $("#reliefPartsBox").hidden = twoFaces && !on;
   $("#reliefParts").innerHTML = reliefParts(shape, face).map((k) =>
-    `<button class="pill" type="button" data-relief-part="${k}" aria-pressed="${relief[k]}">${esc(shape === "coin" ? t(`face.${k}`) : shapeText(`relief.${k}.help`, shape))}</button>`).join("");
+    `<button class="choice" type="button" data-relief-part="${k}" aria-pressed="${relief[k]}">${esc(shape === "coin" ? t(`face.${k}`) : shapeText(`relief.${k}.help`, shape))}</button>`).join("");
   $("#reliefHeightBox").hidden = !on;
   const total = dec1(s.height + s.reliefHeight);
   $("#reliefHint").textContent = !on ? shapeText("relief.flatHelp", shape) : t(on === "front" ? "relief.raisedHelp" : "relief.raisedBackHelp", { total });
@@ -1094,7 +1094,7 @@ export function renderDesignBar() {
       const d = designOf(sh, defaultRef(sh))!;
       return `<button class="db-chip" type="button" data-default-shape="${sh}" aria-haspopup="dialog" aria-label="${esc(t("bar.chipAria", { shape: t(`type.${sh}.many`), name: d.name }))}">${designSwatch(d.spec, sampleRole(sh))}<span><small>${esc(t(`type.${sh}.many`))}</small><b>${esc(d.name)}</b></span>${CHEVRON}</button>`;
     }).join("")
-    + (changed.length ? `<button class="link db-original" type="button" data-default-original>${esc(t("bar.original"))}</button>` : "");
+    + (changed.length ? `<button class="action action--quiet action--sm db-original" type="button" data-default-original>${esc(t("bar.original"))}</button>` : "");
   if (dz.open && dz.mode === "default") renderDesignSheet();
 }
 /**
@@ -1134,7 +1134,7 @@ export function wireDesignBar() {
 export function ask(text: string, choices: { id: string; label: string; main?: boolean }[]): Promise<string | null> {
   const dlg = $<HTMLDialogElement>("#askDlg");
   $("#askText").textContent = text;
-  $("#askActions").innerHTML = `<button class="pill" type="button" data-ask="">${esc(t("script.cancel"))}</button>`
+  $("#askActions").innerHTML = `<button class="action" type="button" data-ask="">${esc(t("script.cancel"))}</button>`
     + choices.map((c) => `<button class="${c.main ? "forge" : "pill"}" type="button" data-ask="${esc(c.id)}">${esc(c.label)}</button>`).join("");
   dlg.showModal();
   $<HTMLElement>("#askActions .forge")?.focus();

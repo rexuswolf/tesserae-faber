@@ -145,7 +145,7 @@ export function renderSheet() {
   storeJSON(VIEW_KEY, { edition: state.edition, team: state.team });   // where to come back to
   // each team: its icon in the team colour, and how many characters it has here
   $("#teamChips").innerHTML = ([["all", t("team.all"), roles.length], ...teamsHere.map((tm) => [tm, TEAM_PLURAL[lang][tm], roles.filter((r) => r.team === tm).length])] as [Team | "all", string, number][])
-    .map(([id, label, n]) => `<button class="pill" type="button" data-team="${id}" aria-pressed="${state.team === id}"${id === "all" ? "" : ` style="--c: ${TEAMS[id].colour}"`}>${id === "all" ? "" : uiIcon(TEAM_ICONS[id])}<span class="lbl">${esc(label)}</span><small>${n}</small></button>`).join("");
+    .map(([id, label, n]) => `<button class="choice" type="button" data-team="${id}" aria-pressed="${state.team === id}"${id === "all" ? "" : ` style="--c: ${TEAMS[id].colour}"`}>${id === "all" ? "" : uiIcon(TEAM_ICONS[id])}<span class="lbl">${esc(label)}</span><small>${n}</small></button>`).join("");
   if (state.team !== "all") roles = roles.filter((r) => r.team === state.team);
   // a collection of yours with one group (a new one's): no groups to show yet
   const oneGroup = OWN && coll.groups.length < 2;

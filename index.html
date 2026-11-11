@@ -109,25 +109,25 @@
           <p id="edLead" class="lead"></p>
         </div>
         <!-- a collection of yours: a new token, beside its title (on a phone, its + alone) -->
-        <button class="forge own-new own-only" type="button" id="ownNewTok" data-i18n-attr="aria-label:own.newTokenAria"><svg class="gi" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg><span data-i18n="own.newTokenPlain"></span></button>
+        <button class="action action--primary own-new own-only" type="button" id="ownNewTok" data-i18n-attr="aria-label:own.newTokenAria"><svg class="gi" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg><span data-i18n="own.newTokenPlain"></span></button>
       </div>
       <div class="script-actions" id="scriptActions" hidden>
-        <button class="pill" type="button" id="scriptShare"></button>
-        <button class="pill" type="button" id="scriptJson" data-i18n="script.json"></button>
-        <button class="pill danger" type="button" id="scriptDelete" data-i18n="script.delete"></button>
+        <button class="action" type="button" id="scriptShare"></button>
+        <button class="action" type="button" id="scriptJson" data-i18n="script.json"></button>
+        <button class="action action--danger" type="button" id="scriptDelete" data-i18n="script.delete"></button>
         <p class="hint" id="scriptNote" aria-live="polite"></p>
         <p class="hint warn" id="scriptCustomWarn" data-i18n="script.customWarn" hidden></p>
       </div>
       <div class="own-actions own-only" id="ownActions" hidden>
-        <button class="pill" type="button" id="ownCatList" data-i18n="own.addFromList"></button>
-        <button class="pill" type="button" id="ownCatRename" data-i18n="own.renameCatalog"></button>
-        <button class="pill danger" type="button" id="ownCatDelete" data-i18n="own.deleteCatalog"></button>
+        <button class="action" type="button" id="ownCatList" data-i18n="own.addFromList"></button>
+        <button class="action" type="button" id="ownCatRename" data-i18n="own.renameCatalog"></button>
+        <button class="action action--danger" type="button" id="ownCatDelete" data-i18n="own.deleteCatalog"></button>
       </div>
       <!-- a new collection of yours: what to do first (gone once it has more tokens) -->
       <div class="own-welcome" id="ownWelcome" hidden>
         <h3 data-i18n="own.welcomeH"></h3>
         <ol><li data-i18n="own.welcome1"></li><li data-i18n="own.welcome2"></li><li data-i18n="own.welcome3"></li></ol>
-        <p><span data-i18n="own.welcomeMenu"></span> <button class="link" type="button" data-coll="settings" data-i18n="own.welcomeSettings"></button></p>
+        <p><span data-i18n="own.welcomeMenu"></span> <button class="action action--sm" type="button" data-coll="settings" data-i18n="own.welcomeSettings"></button></p>
       </div>
     </header>
     <!-- what only narrows the list: the search and the groups' filter (a funnel, its list under it), on top of the list -->
@@ -135,8 +135,8 @@
       <div class="filter-row">
         <label class="search-box"><svg class="gi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="m15.5 15.5 5 5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg><input type="search" id="search" class="search" autocomplete="off" data-i18n-attr="placeholder:sheet.search aria-label:sheet.search"></label>
         <div class="filt" id="filtWrap">
-          <button class="pill filt-btn" type="button" id="filtBtn" aria-haspopup="true" aria-expanded="false" aria-controls="teamChips" data-i18n-attr="aria-label:tray.team title:tray.team"><svg class="gi" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18l-7 8v6l-4-2v-4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><i class="filt-dot" aria-hidden="true"></i></button>
-          <div class="chips filt-menu" id="teamChips" role="group" data-i18n-attr="aria-label:tray.team"></div>
+          <button class="action action--icon filt-btn" type="button" id="filtBtn" aria-haspopup="true" aria-expanded="false" aria-controls="teamChips" data-i18n-attr="aria-label:tray.team title:tray.team"><svg class="gi" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18l-7 8v6l-4-2v-4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><i class="filt-dot" aria-hidden="true"></i></button>
+          <div class="chips filt-menu choice-group" id="teamChips" role="group" data-i18n-attr="aria-label:tray.team"></div>
         </div>
       </div>
     </div>
@@ -147,10 +147,10 @@
         <div class="design-bar" id="designBar"></div>
       </div>
       <div class="addmenu" id="addWrap">
-          <button class="pill add main" type="button" id="addBtn" aria-haspopup="menu" aria-expanded="false" aria-controls="addMenu"><svg class="gi plus" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 9V3h10v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><rect x="3" y="9" width="18" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7 14h10v7H7z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><span id="addLabel"></span><svg class="gi chev" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <button class="action add main" type="button" id="addBtn" aria-haspopup="menu" aria-expanded="false" aria-controls="addMenu"><svg class="gi plus" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 9V3h10v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><rect x="3" y="9" width="18" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7 14h10v7H7z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><span id="addLabel"></span><svg class="gi chev" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           <div class="menu" id="addMenu" role="menu" aria-labelledby="addBtn" hidden></div>
         </div>
-      <p class="built-copy built-only"><span data-i18n="own.copyLead"></span> <button class="link" type="button" data-coll="copy" data-i18n="own.copyAction"></button></p>
+      <p class="built-copy built-only"><span data-i18n="own.copyLead"></span> <button class="action action--sm" type="button" data-coll="copy" data-i18n="own.copyAction"></button></p>
     </div>
     <div id="rows"></div>
   </main>
@@ -188,11 +188,11 @@
         <div class="ds-row">
           <span class="ds-tok" id="styleTok" aria-hidden="true"></span>
           <span class="ds-txt"><span class="ws-style-l" data-i18n="design.label"></span><b id="styleName"></b><small id="styleCount"></small></span>
-          <button class="pill ds-change" type="button" id="styleChange" aria-haspopup="dialog" aria-controls="designDlg" data-i18n="design.change"></button>
+          <button class="action ds-change" type="button" id="styleChange" aria-haspopup="dialog" aria-controls="designDlg" data-i18n="design.change"></button>
         </div>
         <!-- the first designs it can take, a tap away (the sheet has them all) -->
         <div class="ds-quick" id="styleQuick" role="group" data-i18n-attr="aria-label:design.quickAria"></div>
-        <button class="pill ds-all" type="button" id="styleAll" hidden></button>
+        <button class="action ds-all" type="button" id="styleAll" hidden></button>
         <button class="own-mark" type="button" id="styleBack" hidden></button>
         <a class="ws-taller" id="designTaller" href="/taller"><span data-i18n="design.editInTaller"></span> <span aria-hidden="true">›</span></a>
         <p class="hint" id="designFlash" aria-live="polite" hidden></p>
@@ -242,9 +242,9 @@
               <span class="cr-fl"><b data-i18n="icon.label"></b></span>
               <div class="cr-iconrow"><span class="cr-icon" id="crIcon" aria-hidden="true"></span>
               <div class="icon-actions">
-                <button class="pill" type="button" id="iconSearchOpen" data-i18n="icon.search"></button>
-                <button class="pill" type="button" id="iconUpload" data-i18n="icon.upload"></button>
-                <button class="link" type="button" id="iconReset" data-i18n="icon.reset" hidden></button>
+                <button class="action" type="button" id="iconSearchOpen" data-i18n="icon.search"></button>
+                <button class="action" type="button" id="iconUpload" data-i18n="icon.upload"></button>
+                <button class="action action--quiet action--sm" type="button" id="iconReset" data-i18n="icon.reset" hidden></button>
               </div></div>
               <input type="file" id="iconFile" accept=".svg,image/svg+xml" hidden>
               <p class="hint" id="iconHint"></p>
@@ -258,29 +258,29 @@
           <h4 class="comp-design-h" id="compDesignH" hidden data-i18n="comp.designBack"></h4>
           <div class="back-say" id="backSayBox" hidden>
             <p class="metal-label" data-i18n="back.sayLabel"></p>
-            <div class="choices" role="group" id="backSay" data-i18n-attr="aria-label:back.sayLabel"></div>
+            <div class="choices choice-group" role="group" id="backSay" data-i18n-attr="aria-label:back.sayLabel"></div>
             <input class="text" type="text" id="backPhrase" maxlength="60" autocomplete="off" data-i18n-attr="placeholder:back.phrasePlaceholder aria-label:back.say.phrase" hidden>
           </div>
           <p class="hint flip-note" id="sayNote" hidden></p>
           <!-- a coin's back: what it shows on the tokens without another state (their icon, an ornament, your SVG, nothing) -->
           <div class="back-art" id="backArtBox" hidden>
             <p class="metal-label" data-i18n="back.artLabel"></p>
-            <div class="choices art-tiles" id="backArt"></div>
+            <div class="choices choice-group art-tiles" id="backArt"></div>
             <input type="file" id="upload" accept=".svg,image/svg+xml" hidden data-i18n-attr="aria-label:upload.aria">
             <p class="hint" id="uploadHint" hidden></p>
           </div>
           <p class="hint flip-note" id="artNote" hidden></p>
         </div>
         <p class="metal-label comp-h" id="compLayoutH" data-i18n="comp.layout"></p>
-        <div class="choices layout-tiles" data-choice="style"></div>
+        <div class="choices choice-group layout-tiles" data-choice="style"></div>
         <p class="hint" id="styleHint"></p>
         <!-- a card's: where its icon goes and how it sits with the phrase -->
         <div id="cardLayoutBox" hidden>
           <p class="metal-label" data-i18n="cardIcon.label"></p>
-          <div class="choices card-tiles" data-choice="cardIcon" data-i18n-attr="aria-label:cardIcon.label"></div>
+          <div class="choices choice-group card-tiles" data-choice="cardIcon" data-i18n-attr="aria-label:cardIcon.label"></div>
           <div id="cardJoinBox">
             <p class="metal-label" data-i18n="cardJoin.label"></p>
-            <div class="choices card-tiles" data-choice="cardJoin" data-i18n-attr="aria-label:cardJoin.label"></div>
+            <div class="choices choice-group card-tiles" data-choice="cardJoin" data-i18n-attr="aria-label:cardJoin.label"></div>
           </div>
           <p class="hint" id="cardLayoutHint"></p>
         </div>
@@ -309,7 +309,7 @@
         <div class="row"><label for="maxArc" data-i18n="range.maxArc"></label><output data-for="maxArc"></output><input type="range" id="maxArc" min="90" max="240" step="5" value="180"></div>
         <div id="separatorRow" hidden>
           <p class="metal-label" data-i18n="ring.separator"></p>
-          <div class="choices" data-choice="separator" data-i18n-attr="aria-label:ring.separator"></div>
+          <div class="choices choice-group" data-choice="separator" data-i18n-attr="aria-label:ring.separator"></div>
           <p class="hint" data-i18n="ring.separatorHelp"></p>
         </div>
         <p class="metal-label" id="frontColourLabel"></p>
@@ -328,7 +328,7 @@
         <p class="hint" id="iconColourHint"></p>
       </section>
       <section class="ws-panel" data-panel="frame" role="tabpanel" hidden>
-        <div class="choices" data-choice="frame"></div>
+        <div class="choices choice-group" data-choice="frame"></div>
         <div class="row"><label for="frameWidth" data-i18n="range.frameWidth"></label><output data-for="frameWidth"></output><input type="range" id="frameWidth" min="0.4" max="2" step="0.1" value="0.8"></div>
         <!-- a coin's frame in from its edge: its side all the base's colour -->
         <div class="row"><label for="frameInset" data-i18n="range.frameInset"></label><output data-for="frameInset"></output><input type="range" id="frameInset" min="0" max="2" step="0.1" value="0"></div>
@@ -352,9 +352,9 @@
           <div class="field icon-field">
             <span data-i18n="cardBack.icon"></span>
             <div class="icon-actions">
-              <button class="pill" type="button" id="cbIconSearchOpen" data-i18n="icon.search"></button>
-              <button class="pill" type="button" id="cbIconUpload" data-i18n="icon.upload"></button>
-              <button class="link" type="button" id="cbIconReset" data-i18n="cardBack.iconNone" hidden></button>
+              <button class="action" type="button" id="cbIconSearchOpen" data-i18n="icon.search"></button>
+              <button class="action" type="button" id="cbIconUpload" data-i18n="icon.upload"></button>
+              <button class="action action--quiet action--sm" type="button" id="cbIconReset" data-i18n="cardBack.iconNone" hidden></button>
             </div>
             <input type="file" id="cbIconFile" accept=".svg,image/svg+xml" hidden>
             <p class="hint" id="cbIconHint"></p>
@@ -367,16 +367,16 @@
           <div class="cb-group">
           <h4 class="cb-h" data-i18n="cardBack.groupLayout"></h4>
           <p class="metal-label" data-i18n="cardIcon.label"></p>
-          <div class="choices card-tiles" data-cb-choice="cardIcon" data-i18n-attr="aria-label:cardIcon.label"></div>
+          <div class="choices choice-group card-tiles" data-cb-choice="cardIcon" data-i18n-attr="aria-label:cardIcon.label"></div>
           <div id="cbJoinBox">
             <p class="metal-label" data-i18n="cardJoin.label"></p>
-            <div class="choices card-tiles" data-cb-choice="cardJoin" data-i18n-attr="aria-label:cardJoin.label"></div>
+            <div class="choices choice-group card-tiles" data-cb-choice="cardJoin" data-i18n-attr="aria-label:cardJoin.label"></div>
           </div>
           <div class="row" id="cbSizeRow"><label for="cbIconSize" data-i18n="range.cardIconSize"></label><output id="cbIconSizeOut"></output><input type="range" id="cbIconSize" min="12" max="40" step="1" value="30"></div>
           </div>
           <div class="cb-group">
           <h4 class="cb-h" data-i18n="face.frame"></h4>
-          <div class="choices" data-cb-choice="frame" data-i18n-attr="aria-label:face.frame"></div>
+          <div class="choices choice-group" data-cb-choice="frame" data-i18n-attr="aria-label:face.frame"></div>
           <div class="row" id="cbFrameWidthRow"><label for="cbFrameWidth" data-i18n="range.frameWidth"></label><output id="cbFrameWidthOut"></output><input type="range" id="cbFrameWidth" min="0.4" max="2" step="0.1" value="0.8"></div>
           </div>
           <div class="cb-group">
@@ -395,7 +395,7 @@
         <div class="row" id="diameterRow"><label for="diameter" data-i18n="range.diameter"></label><output data-for="diameter"></output><input type="range" id="diameter" min="30" max="60" step="1" value="45"></div>
         <div id="ringBaseRow" hidden>
           <p class="metal-label" data-i18n="ring.base"></p>
-          <div class="choices" data-choice="ringBase" data-i18n-attr="aria-label:ring.base"></div>
+          <div class="choices choice-group" data-choice="ringBase" data-i18n-attr="aria-label:ring.base"></div>
           <p class="hint" id="ringBaseHint"></p>
         </div>
         <p class="hint" id="cardSizeHint" data-i18n="card.size" hidden></p>
@@ -406,7 +406,7 @@
         <div class="metal" data-colour="base" data-i18n-attr="aria-label:coin.colour"></div>
         <div id="edgeRow" hidden>
           <p class="metal-label" data-i18n="edge.label"></p>
-          <div class="choices" data-choice="edge" data-i18n-attr="aria-label:edge.label"></div>
+          <div class="choices choice-group" data-choice="edge" data-i18n-attr="aria-label:edge.label"></div>
           <p class="hint" data-i18n="edge.help"></p>
         </div>
       </section>
@@ -418,7 +418,7 @@
         </div>
         <div id="reliefPartsBox">
           <p class="metal-label" data-i18n="relief.partsLabel"></p>
-          <div class="choices" id="reliefParts"></div>
+          <div class="choices choice-group" id="reliefParts"></div>
         </div>
         <div class="relief-height" id="reliefHeightBox">
           <div class="row" id="reliefHeightRow"><label for="reliefHeight" data-i18n="range.reliefHeight"></label><output data-for="reliefHeight"></output><input type="range" id="reliefHeight" min="0.4" max="1.2" step="0.2" value="0.6"></div>
@@ -427,8 +427,8 @@
         <p class="hint" id="reliefHint"></p>
       </section>
       <section class="ws-panel" data-panel="magnet" role="tabpanel" hidden>
-        <div class="choices" data-choice="magnet"></div>
-        <div class="choices" data-choice="magnetSize" id="magnetSizeRow"></div>
+        <div class="choices choice-group" data-choice="magnet"></div>
+        <div class="choices choice-group" data-choice="magnetSize" id="magnetSizeRow"></div>
         <p class="hint" id="magnetHint"></p>
       </section>
     </div>
@@ -436,8 +436,8 @@
          of yours, or dropped -->
     <div class="ds-tweak design-only" id="styleTweak" hidden>
       <p class="dt-what"><span aria-hidden="true">✎</span> <span data-i18n="design.tweakBar"></span></p>
-      <button class="pill" type="button" id="styleDrop" data-i18n="design.dropTweaks"></button>
-      <button class="forge" type="button" id="styleSave" data-i18n="design.saveAs"></button>
+      <button class="action" type="button" id="styleDrop" data-i18n="design.dropTweaks"></button>
+      <button class="action action--primary" type="button" id="styleSave" data-i18n="design.saveAs"></button>
     </div>
   </aside>
 
@@ -446,16 +446,16 @@
     <div class="view-panel">
       <div class="stage">
         <canvas id="view" data-i18n-attr="aria-label:view.aria"></canvas>
-        <div class="turn" role="group" data-i18n-attr="aria-label:view.group">
-          <button class="pill" type="button" data-view="angle" aria-pressed="true" data-i18n="view.angle"></button>
-          <button class="pill" type="button" data-view="top" aria-pressed="false" data-i18n="view.front"></button>
-          <button class="pill" type="button" data-view="back" aria-pressed="false" data-i18n="view.back"></button>
-          <button class="pill" type="button" id="xray" aria-pressed="false" hidden data-i18n="view.xray" data-i18n-attr="title:view.xrayHelp"></button>
+        <div class="turn choice-group choice-group--joined" role="group" data-i18n-attr="aria-label:view.group">
+          <button class="choice choice--sm" type="button" data-view="angle" aria-pressed="true" data-i18n="view.angle"></button>
+          <button class="choice choice--sm" type="button" data-view="top" aria-pressed="false" data-i18n="view.front"></button>
+          <button class="choice choice--sm" type="button" data-view="back" aria-pressed="false" data-i18n="view.back"></button>
         </div>
         <!-- size references, each on or off: a grid on the ground (1 cm), a d6 beside the token -->
         <div class="refs" role="group" data-i18n-attr="aria-label:view.refs">
-          <button class="pill" type="button" id="viewGrid" aria-pressed="true" data-i18n="view.grid" data-i18n-attr="title:view.gridHelp"></button>
-          <button class="pill" type="button" id="viewDie" aria-pressed="false" data-i18n="view.die" data-i18n-attr="title:view.dieHelp"></button>
+          <button class="choice choice--sm" type="button" id="viewGrid" aria-pressed="true" data-i18n="view.grid" data-i18n-attr="title:view.gridHelp"></button>
+          <button class="choice choice--sm" type="button" id="viewDie" aria-pressed="false" data-i18n="view.die" data-i18n-attr="title:view.dieHelp"></button>
+          <button class="choice choice--sm" type="button" id="xray" aria-pressed="false" hidden data-i18n="view.xray" data-i18n-attr="title:view.xrayHelp"></button>
         </div>
       </div>
       <div class="caption">
@@ -463,7 +463,7 @@
         <p id="sub"></p>
       </div>
       <div class="ws-actions">
-        <button class="pill" id="download" type="button" data-i18n="act.stl"></button>
+        <button class="action" id="download" type="button" data-i18n="act.stl"></button>
         <p class="hint note" id="exportNote"></p>
       </div>
     </div>
@@ -495,7 +495,7 @@
         <div class="os-brand">
           <img id="osLogo" alt="" width="64" height="64">
           <div class="os-brand-fields">
-            <span class="os-brand-actions"><label class="pill file"><span data-i18n="own.logoUpload"></span><input type="file" id="osLogoFile" accept=".svg,.png,.webp,.jpg,.jpeg,image/svg+xml,image/png,image/webp,image/jpeg" hidden></label><button class="pill" type="button" id="osLogoReset" data-i18n="own.logoReset"></button></span>
+            <span class="os-brand-actions"><label class="action file"><span data-i18n="own.logoUpload"></span><input type="file" id="osLogoFile" accept=".svg,.png,.webp,.jpg,.jpeg,image/svg+xml,image/png,image/webp,image/jpeg" hidden></label><button class="action" type="button" id="osLogoReset" data-i18n="own.logoReset"></button></span>
             <p class="hint warn" id="osLogoNote" aria-live="polite"></p>
           </div>
         </div>
@@ -523,7 +523,7 @@
       <div class="sp-panel" data-sp="groups" role="tabpanel" hidden>
         <p class="hint" data-i18n="own.groupsHelp"></p>
         <div class="own-groups" id="ownGroupList"></div>
-        <button class="pill" type="button" id="ownGroupAdd" data-i18n="own.addGroup"></button>
+        <button class="action" type="button" id="ownGroupAdd" data-i18n="own.addGroup"></button>
       </div>
       <div class="sp-panel" data-sp="about" role="tabpanel" hidden>
         <p class="hint" data-i18n="own.aboutText"></p>
@@ -538,8 +538,8 @@
     </div>
     <div class="sp-actions">
       <p class="hint" id="osState" aria-live="polite"></p>
-      <button class="pill" type="button" id="osCancel" data-i18n="own.discard"></button>
-      <button class="forge" type="button" id="osSave" data-i18n="own.save"></button>
+      <button class="action" type="button" id="osCancel" data-i18n="own.discard"></button>
+      <button class="action action--primary" type="button" id="osSave" data-i18n="own.save"></button>
     </div>
   </section>
 
@@ -565,13 +565,13 @@
     </button>
     <p class="hint" id="queueSummary"></p>
     <button class="flow-back" type="button" id="flowBack"></button>
-    <button class="forge" type="button" id="flowNext"></button>
+    <button class="action action--primary" type="button" id="flowNext"></button>
   </footer>
   <!-- your selection: characters with their copies and reminders -->
   <dialog class="qdrawer" id="queueDrawer" aria-labelledby="queueTitle">
     <div class="qd-head">
       <h2 id="queueTitle"></h2>
-      <button class="pill" type="button" id="queueClear" data-i18n="queue.clear"></button>
+      <button class="action" type="button" id="queueClear" data-i18n="queue.clear"></button>
       <button class="icon-btn" type="button" id="queueClose" data-i18n-attr="aria-label:admin.close">×</button>
     </div>
     <div class="qd-body" id="queueBody"><div id="queue"></div></div>
@@ -602,7 +602,7 @@
         <li><a href="#tourDesign" data-tour-go><span class="n">2</span><span><b data-i18n="own.step2"></b><span data-i18n="own.step2Sub"></span></span></a></li>
         <li><a href="#tourPrint" data-tour-go><span class="n">3</span><span><b data-i18n="own.step3"></b><span data-i18n="own.step3Sub"></span></span></a></li>
       </ol>
-      <div class="ol-cta"><button class="forge" type="button" data-tok-new data-i18n="own.homeNewTok"></button><a class="pill" href="/colecciones" data-i18n="own.landSee"></a></div>
+      <div class="ol-cta"><button class="action action--primary action--lg" type="button" data-tok-new data-i18n="own.homeNewTok"></button><a class="nav-link nav-link--go" href="/colecciones" data-i18n="own.landSee"></a></div>
       <a class="ol-resume" id="ownResume" hidden><img alt=""><span><small data-i18n="own.resume"></small><b></b></span><span class="arrow" aria-hidden="true">›</span></a>
       <p class="hint" data-own-note aria-live="polite"></p>
       <a class="tour-more" href="#tourPick" data-tour-go data-i18n="tour.more"></a>
@@ -627,7 +627,7 @@
           <div class="tour-icons" id="tourIcons" role="group" data-i18n-attr="aria-label:tour.ownIcon"></div>
         </div>
         <div class="tour-out tour-tok" id="tourMade"></div>
-        <button class="forge tour-make" type="button" data-tok-new="maker" data-i18n="tour.makeThis"></button>
+        <button class="action action--primary tour-make" type="button" data-tok-new="maker" data-i18n="tour.makeThis"></button>
       </div>
     </div>
     <div class="tour-sec flip">
@@ -703,7 +703,7 @@
   <section class="tour-end"><div class="tour-wrap">
     <h2 data-i18n="tour.endH"></h2>
     <p data-i18n="tour.endP"></p>
-    <div class="ol-cta"><button class="forge" type="button" data-tok-new data-i18n="own.homeNewTok"></button><a class="pill" href="/colecciones" data-i18n="own.landSee"></a><a class="pill" href="/taller" data-i18n="tour.openTaller"></a></div>
+    <div class="ol-cta"><button class="action action--primary action--lg" type="button" data-tok-new data-i18n="own.homeNewTok"></button><a class="nav-link nav-link--go" href="/colecciones" data-i18n="own.landSee"></a><a class="nav-link nav-link--go" href="/taller" data-i18n="tour.openTaller"></a></div>
     <p class="tour-links"><a href="https://github.com/rexuswolf/tesserae-faber" target="_blank" rel="noopener">GitHub</a><a href="https://ko-fi.com/rexuswolf" target="_blank" rel="noopener">Ko-fi</a><a href="#" data-about data-i18n="about.link"></a></p>
   </div></section>
 </main>
@@ -751,8 +751,8 @@
     <h2 id="gateTitle">Abriendo el grimorio…</h2>
     <p id="gateText"></p>
     <form id="gateKeyForm" hidden><input class="text gate-key" type="text" id="gateKey" autocomplete="off" autocapitalize="characters" spellcheck="false" data-i18n-attr="placeholder:botc.keyPlaceholder aria-label:botc.keyPlaceholder"></form>
-    <button class="forge" type="button" id="gateAction" hidden></button>
-    <button class="pill" type="button" id="gateSecondary" hidden></button>
+    <button class="action action--primary" type="button" id="gateAction" hidden></button>
+    <button class="action" type="button" id="gateSecondary" hidden></button>
     <footer class="ccc">
       <p id="gateCcc" data-i18n="ccc.gate">Herramienta gratuita hecha por la comunidad para imprimir tus propios componentes de personaje. No está afiliada ni respaldada por The Pandemonium Institute.</p>
     </footer>
@@ -791,7 +791,7 @@
 </script>
 
 <dialog id="credits" aria-labelledby="creditsTitle">
-  <form method="dialog" class="close"><button class="pill" data-i18n="admin.close"></button></form>
+  <form method="dialog" class="close"><button class="action" data-i18n="admin.close"></button></form>
   <h2 id="creditsTitle" data-i18n="about.heading"></h2>
   <div class="credits" id="creditsBody"></div>
   <p class="build-tag" id="buildTag"></p>
@@ -812,21 +812,21 @@
     <div class="tl-stage" id="tlangStage" aria-live="polite"></div>
   </div>
   <div class="tl-foot">
-    <button class="pill" type="button" id="tlangCancel" data-i18n="tlang.cancel"></button>
-    <button class="forge" type="button" id="tlangUse"></button>
-    <button class="forge" type="button" id="tlangClose" data-i18n="admin.close"></button>
+    <button class="action" type="button" id="tlangCancel" data-i18n="tlang.cancel"></button>
+    <button class="action action--primary" type="button" id="tlangUse"></button>
+    <button class="action action--primary" type="button" id="tlangClose" data-i18n="admin.close"></button>
   </div>
 </dialog>
 
 <dialog id="scriptDialog" class="script-dialog" aria-labelledby="scriptDialogTitle">
-  <form method="dialog" class="close"><button class="pill" data-i18n="admin.close"></button></form>
+  <form method="dialog" class="close"><button class="action" data-i18n="admin.close"></button></form>
   <h2 id="scriptDialogTitle" data-i18n="script.dialogTitle"></h2>
   <p class="hint" data-i18n="script.dialogIntro"></p>
-  <label class="pill file"><span data-i18n="script.file"></span><input type="file" id="scriptDialogFile" accept="application/json,.json" hidden></label>
+  <label class="action file"><span data-i18n="script.file"></span><input type="file" id="scriptDialogFile" accept="application/json,.json" hidden></label>
   <label class="field"><span data-i18n="script.paste"></span><textarea class="text" id="scriptDialogText" rows="5" spellcheck="false" placeholder='[{"id":"_meta","name":"…"},"washerwoman","librarian",…]'></textarea></label>
   <p class="hint warn" id="scriptDialogWarn" data-i18n="script.customWarn" aria-live="polite" hidden></p>
   <p class="hint" id="scriptDialogNote" aria-live="polite"></p>
-  <div class="dialog-actions"><button class="pill" type="button" id="scriptDialogCancel" data-i18n="script.cancel"></button><button class="forge" type="button" id="scriptDialogSave" data-i18n="script.add"></button></div>
+  <div class="dialog-actions"><button class="action" type="button" id="scriptDialogCancel" data-i18n="script.cancel"></button><button class="action action--primary" type="button" id="scriptDialogSave" data-i18n="script.add"></button></div>
 </dialog>
 
 <!-- a token of yours: its fields (what it is, what it carries), kept here until the designer shows them in its
@@ -836,7 +836,7 @@
       <div id="tpShape"></div>
       <!-- its name: how it's found in your lists and the search (its front says it too, unless told otherwise) -->
       <label class="field tp-name"><span data-i18n="own.name"></span><input class="text" id="ownTokName" autocomplete="off" data-i18n-attr="placeholder:own.namePlaceholder"><small class="hint" data-i18n="own.nameHelp"></small></label>
-      <div class="field" id="ownTokGroupRow"><span data-i18n="own.group"></span><div class="group-pills" id="ownTokGroups"></div><div class="group-edit" id="ownTokGroupEdit"></div></div>
+      <div class="field" id="ownTokGroupRow"><span data-i18n="own.group"></span><div class="group-pills choice-group" id="ownTokGroups"></div><div class="group-edit" id="ownTokGroupEdit"></div></div>
       <section class="tp-face" id="tpFront">
         <h3 data-i18n="view.front"></h3>
         <!-- what its front says: its name unless it says something else; whether it says anything (unticked: its icon alone) -->
@@ -848,7 +848,7 @@
           <div class="tp-search" id="ownTokSearch" hidden>
             <div class="own-icon-bar">
               <input class="text" type="search" id="ownTokIq" autocomplete="off" data-i18n-attr="placeholder:icon.placeholder">
-              <label class="pill file"><span data-i18n="icon.upload"></span><input type="file" id="ownTokSvg" accept=".svg,image/svg+xml" hidden></label>
+              <label class="action file"><span data-i18n="icon.upload"></span><input type="file" id="ownTokSvg" accept=".svg,image/svg+xml" hidden></label>
             </div>
             <div class="icon-results" id="ownTokHits"></div>
           </div>
@@ -867,7 +867,7 @@
             <div class="tp-search" id="ownTokFlipSearch" hidden>
               <div class="own-icon-bar">
                 <input class="text" type="search" id="ownTokFlipIq" autocomplete="off" data-i18n-attr="placeholder:icon.placeholder">
-                <label class="pill file"><span data-i18n="icon.upload"></span><input type="file" id="ownTokFlipSvg" accept=".svg,image/svg+xml" hidden></label>
+                <label class="action file"><span data-i18n="icon.upload"></span><input type="file" id="ownTokFlipSvg" accept=".svg,image/svg+xml" hidden></label>
               </div>
               <div class="icon-results" id="ownTokFlipHits"></div>
             </div>
@@ -877,16 +877,16 @@
       <!-- the rest of what it is: its own colour, catalogs and linked tokens; another like it, or none -->
       <div class="own-fields" id="tpMoreOpts">
         <div class="field"><span data-i18n="own.colour"></span>
-          <details class="tok-colour" id="ownTokColour"><summary></summary><div class="tok-colour-menu"></div></details>
+          <details class="tok-colour" id="ownTokColour"><summary></summary><div class="tok-colour-menu choice-group"></div></details>
           <p class="hint" id="ownTokColourHelp"></p></div>
         <div class="field" id="ownTokCatsRow"><span data-i18n="own.inCatalogs"></span><div class="own-cats" id="ownTokCats"></div></div>
         <div class="field"><span data-i18n="own.linked"></span><p class="hint" data-i18n="own.linkedHelp"></p>
           <div class="own-linked" id="ownTokLinked"></div>
-          <button class="pill" type="button" id="ownTokAddLinked" data-i18n="own.addLinked"></button>
+          <button class="action" type="button" id="ownTokAddLinked" data-i18n="own.addLinked"></button>
         </div>
         <div class="tp-tok-acts">
-          <button class="pill" type="button" id="ownTokAnother" data-i18n="own.another"></button>
-          <button class="pill danger" type="button" id="ownTokDelete" data-i18n="own.deleteToken"></button>
+          <button class="action" type="button" id="ownTokAnother" data-i18n="own.another"></button>
+          <button class="action action--danger" type="button" id="ownTokDelete" data-i18n="own.deleteToken"></button>
         </div>
       </div>
     </div>
@@ -910,7 +910,7 @@
   <form method="dialog" id="nameForm">
     <p id="nameText"></p>
     <label class="field"><span data-i18n="dsheet.name"></span><input class="text" id="nameInput" autocomplete="off" required></label>
-    <div class="dialog-actions"><button class="pill" type="button" id="nameCancel" data-i18n="script.cancel"></button><button class="forge" value="ok" id="nameOk"></button></div>
+    <div class="dialog-actions"><button class="action" type="button" id="nameCancel" data-i18n="script.cancel"></button><button class="action action--primary" value="ok" id="nameOk"></button></div>
   </form>
 </dialog>
 
@@ -928,26 +928,26 @@
   <label class="field" id="ownCatNameRow"><span data-i18n="own.catName"></span><input class="text" id="ownCatName" autocomplete="off"></label>
   <label class="field"><span data-i18n="own.catList"></span><textarea class="text" id="ownCatText" rows="5" spellcheck="false"></textarea></label>
   <p class="hint" data-i18n="own.catListHelp"></p>
-  <label class="pill file"><span data-i18n="own.catFile"></span><input type="file" id="ownCatFile" accept="application/json,.json,.txt" hidden></label>
+  <label class="action file"><span data-i18n="own.catFile"></span><input type="file" id="ownCatFile" accept="application/json,.json,.txt" hidden></label>
   <p class="hint warn" id="ownCatNote" aria-live="polite"></p>
-  <div class="dialog-actions"><button class="pill" type="button" id="ownCatCancel" data-i18n="script.cancel"></button><button class="forge" type="button" id="ownCatSave"></button></div>
+  <div class="dialog-actions"><button class="action" type="button" id="ownCatCancel" data-i18n="script.cancel"></button><button class="action action--primary" type="button" id="ownCatSave"></button></div>
 </dialog>
 
 <dialog id="scriptInvite" class="script-dialog" aria-labelledby="scriptInviteTitle">
   <h2 id="scriptInviteTitle" data-i18n="script.inviteTitle"></h2>
   <p id="scriptInviteText"></p>
   <div class="invite-tokens" id="scriptInviteTokens"></div>
-  <div class="dialog-actions"><button class="pill" type="button" id="scriptInviteSkip" data-i18n="script.inviteSkip"></button><button class="forge" type="button" id="scriptInviteSave" autofocus data-i18n="script.inviteSave"></button></div>
+  <div class="dialog-actions"><button class="action" type="button" id="scriptInviteSkip" data-i18n="script.inviteSkip"></button><button class="action action--primary" type="button" id="scriptInviteSave" autofocus data-i18n="script.inviteSave"></button></div>
 </dialog>
 
 <dialog id="admin" aria-labelledby="adminTitle">
-  <form method="dialog" class="close"><button class="pill" data-i18n="admin.close"></button></form>
+  <form method="dialog" class="close"><button class="action" data-i18n="admin.close"></button></form>
   <h2 id="adminTitle" data-i18n="admin.title"></h2>
   <section>
     <h3 data-i18n="admin.library"></h3>
     <p class="hint" id="libraryState"></p>
     <div class="import">
-      <label class="pill file"><span data-i18n="admin.uploadRoles"></span><input type="file" id="libraryFile" accept="application/json,.json" hidden></label>
+      <label class="action file"><span data-i18n="admin.uploadRoles"></span><input type="file" id="libraryFile" accept="application/json,.json" hidden></label>
     </div>
   </section>
 </dialog>

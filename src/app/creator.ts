@@ -291,7 +291,7 @@ function renderOwnGroups() {
       <span class="own-swatches og-menu">${colourSwatches(g.colour, (c) => `data-colour="${c}" data-for="${esc(g.id)}"`)}</span></details>
     <input class="text" value="${esc(nameIn(g.name, lang))}" data-gname="${esc(g.id)}" aria-label="${esc(t("own.groupNameLabel"))}">
     <small>${esc(t("own.groupCount", { n: coll.tokens.filter((tk) => tk.group === g.id).length }))}</small>
-    ${coll.groups.length > 1 ? `<button class="link" type="button" data-gdel="${esc(g.id)}">${esc(t("own.deleteGroup"))}</button>` : "<span></span>"}
+    ${coll.groups.length > 1 ? `<button class="action action--quiet action--sm" type="button" data-gdel="${esc(g.id)}">${esc(t("own.deleteGroup"))}</button>` : "<span></span>"}
   </div>`).join("");
 }
 
@@ -534,13 +534,13 @@ function renderTokenColour(tk: OwnToken) {
   $("#ownTokColourHelp").textContent = t("own.colourHelp");
   const group = coll.groups.find((g) => g.id === tk.group)?.colour ?? GROUP_COLOURS[0], now = tk.colour ?? group;
   $("#ownTokColour summary").innerHTML = `<i class="${metal(now).trim()}" style="--c: ${now}"></i><span>${esc(tk.colour ? colourName(tk.colour) : usual)}</span><b aria-hidden="true">▾</b>`;
-  $("#ownTokColour .tok-colour-menu").innerHTML = `<button class="pill group-pill" type="button" data-tcolour="" aria-pressed="${!tk.colour}" style="--c: ${group}"><i class="${metal(group).trim()}"></i>${esc(usual)}</button>`
+  $("#ownTokColour .tok-colour-menu").innerHTML = `<button class="choice group-pill" type="button" data-tcolour="" aria-pressed="${!tk.colour}" style="--c: ${group}"><i class="${metal(group).trim()}"></i>${esc(usual)}</button>`
     + `<span class="own-swatches">${colourSwatches(tk.colour, (c) => `data-tcolour="${c}"`)}</span>`;
 }
 /** The groups as their colours, the token's pressed, and a new one. */
 function renderGroupPills(tk: OwnToken) {
-  $("#ownTokGroups").innerHTML = coll.groups.map((g) => `<button class="pill group-pill" type="button" data-group="${esc(g.id)}" aria-pressed="${g.id === tk.group}" style="--c: ${g.colour}"><i class="${metal(g.colour).trim()}"></i>${esc(nameIn(g.name, uiLang()))}</button>`).join("")
-    + `<button class="pill" type="button" data-group-new>${esc(t("own.groupNew"))}</button>`;
+  $("#ownTokGroups").innerHTML = coll.groups.map((g) => `<button class="choice group-pill" type="button" data-group="${esc(g.id)}" aria-pressed="${g.id === tk.group}" style="--c: ${g.colour}"><i class="${metal(g.colour).trim()}"></i>${esc(nameIn(g.name, uiLang()))}</button>`).join("")
+    + `<button class="action" type="button" data-group-new>${esc(t("own.groupNew"))}</button>`;
   renderGroupEdit(tk);
 }
 /** The token's group, changed right here: its name and its colour (every token in it follows). */
@@ -552,7 +552,7 @@ function renderGroupEdit(tk: OwnToken) {
 }
 function renderOwnLinked(tk: OwnToken) {
   const lang = tokenLang();
-  $("#ownTokLinked").innerHTML = tk.linked.map((w, i) => `<span class="own-link"><input class="text" value="${esc(nameIn(w, lang))}" data-li="${i}" aria-label="${esc(t("own.linked"))}"><button class="link" type="button" data-ldel="${i}" aria-label="${esc(t("own.remove"))}">✕</button></span>`).join("");
+  $("#ownTokLinked").innerHTML = tk.linked.map((w, i) => `<span class="own-link"><input class="text" value="${esc(nameIn(w, lang))}" data-li="${i}" aria-label="${esc(t("own.linked"))}"><button class="action action--quiet action--sm" type="button" data-ldel="${i}" aria-label="${esc(t("own.remove"))}">✕</button></span>`).join("");
 }
 /** The back: like the other tokens' (its design's, named), or its other state, with its name and icon. */
 /** Its back: another state (switched on: its name and icon), or the design's (off). */
@@ -575,12 +575,12 @@ function renderIconChip(id: string, icon: TokenIcon | null | undefined, note = "
   const open = searchOpen[id];
   $(`#${id}Search`).hidden = !open;
   // none, where one does something (a piece): what it would do, and the button to choose one
-  if (!icon && empty) { $(`#${id}Chip`).innerHTML = `<div class="tp-chip-empty"><p>${esc(empty)}</p><button class="pill add main" type="button" data-icon-change>${esc(t(open ? "icon.done" : "icon.chooseOne"))}</button></div>`; return; }
+  if (!icon && empty) { $(`#${id}Chip`).innerHTML = `<div class="tp-chip-empty"><p>${esc(empty)}</p><button class="action add main" type="button" data-icon-change>${esc(t(open ? "icon.done" : "icon.chooseOne"))}</button></div>`; return; }
   const name = icon ? icon.name || icon.id.split("/").pop() || "" : t("own.noIcon");
   const from = note || (icon ? t(icon.source === "upload" ? "icon.from.upload" : "icon.from.game") : "");
   $(`#${id}Chip`).innerHTML = `<span class="tp-chip-ic">${icon ? `<svg viewBox="0 0 ${ICON_VIEW} ${ICON_VIEW}" aria-hidden="true"><g transform="${safeTransform(icon.g)}">${safeIconMarkup(icon.body)}</g></svg>` : ""}</span>`
     + `<span class="tp-chip-txt"><b>${esc(name)}</b>${from ? `<small>${esc(from)}</small>` : ""}</span>`
-    + `<span class="tp-chip-acts"><button class="link" type="button" data-icon-change>${esc(t(open ? "icon.done" : icon ? "icon.change" : "icon.choose"))}</button>${icon ? `<button class="link" type="button" data-icon-none>${esc(t("icon.remove"))}</button>` : ""}</span>`;
+    + `<span class="tp-chip-acts"><button class="action action--quiet action--sm" type="button" data-icon-change>${esc(t(open ? "icon.done" : icon ? "icon.change" : "icon.choose"))}</button>${icon ? `<button class="action action--quiet action--sm" type="button" data-icon-none>${esc(t("icon.remove"))}</button>` : ""}</span>`;
 }
 /** A linked token taken out: the ones after it move up, and their picks and own designs follow them. */
 function dropLinked(id: string, i: number) {
@@ -985,12 +985,12 @@ export async function renderOwnHome() {
   if (OWN_VIEW !== "list") history.replaceState(null, "", LIST_URL);   // a collection that isn't there: its list
   const { built, mine } = await collectionsByKind(), lang = uiLang();
   const when = (ms: number) => new Intl.DateTimeFormat(lang, { day: "numeric", month: "short" }).format(ms);
-  const exp = (id: string) => `<button class="link" type="button" data-oh-export="${esc(id)}">${esc(t("own.export"))}</button>`;
+  const exp = (id: string) => `<button class="action action--quiet action--sm" type="button" data-oh-export="${esc(id)}">${esc(t("own.export"))}</button>`;
   $("#ownHomeBuilt").innerHTML = built.map(({ b }) => `<article class="oh-cover" style="--acc:${esc(b.accent ?? "#c9963a")}${b.cover ? `;--cover:${esc(b.cover)}` : ""}">
       <a class="oh-cover-link" href="${b.href ?? collectionUrl(b.id)}">
         <span class="who"><img src="${esc(b.logo ?? APP_LOGO)}" alt=""><span><h3>${esc(nameIn(b.name, lang))}</h3><p>${esc(nameIn(b.text, lang))}</p></span></span>
         ${b.preview ? `<img class="strip" src="${esc(nameIn(b.preview, lang))}" alt="">` : ""}
-        <span class="go"><span class="forge">${esc(t("own.open"))}</span>
+        <span class="go"><span class="nav-link nav-link--go">${esc(t("own.open"))}</span>
           ${b.ccc ? `<img class="oh-ccc" src="/ccc-sleeve.png" alt="Community Created Content" width="172" height="68">` : ""}
           ${b.mark ? `<img class="oh-ccc oh-mark${b.mark.invert ? " invert" : ""}" src="${esc(b.mark.src)}" alt="${esc(b.mark.alt)}">` : ""}</span>
       </a>
@@ -998,7 +998,7 @@ export async function renderOwnHome() {
   $("#ownHomeBuiltH").hidden = !built.length;
   $("#ownHomeList").innerHTML = mine.map((c: CollectionEntry) => `<article class="oh-tile" style="--acc:${esc(c.accent ?? "#c9963a")}">
       <a class="oh-tile-link" href="${collectionUrl(c.id)}"><img src="${esc(c.logo || APP_LOGO_SMALL)}" alt=""><span><b>${esc(c.name)}</b><small>${esc(t("own.homeCount", { n: c.tokens, when: when(c.updated) }))}</small></span></a>
-      <span class="oh-actions">${exp(c.id)}<button class="link danger" type="button" data-oh-delete="${esc(c.id)}">${esc(t("own.homeDelete"))}</button></span>
+      <span class="oh-actions">${exp(c.id)}<button class="action action--danger action--sm" type="button" data-oh-delete="${esc(c.id)}">${esc(t("own.homeDelete"))}</button></span>
     </article>`).join("")
     || `<p class="oh-empty">${esc(t("own.mineEmpty"))}</p>`;
 }
