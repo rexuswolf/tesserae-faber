@@ -85,7 +85,7 @@ export function renderDesignSheet() {
     return m?.from ? t("dsheet.from", { name: m.from.name }) : t("dsheet.yours");
   };
   const tag = t(tokenMode ? "design.defaultItem" : "bar.originalTag");
-  const card = ({ d, pick, first, on }: Item) => `<button class="dz-card" type="button" data-dz-pick="${esc(pick)}" aria-pressed="${on}">`
+  const card = ({ d, pick, first, on }: Item) => `<button class="choice dz-card" type="button" data-dz-pick="${esc(pick)}" aria-pressed="${on}">`
     + (() => {
       // the front, and beside it the back (what it shows when turned over), each named
       const spec = specWith(applyLook(d.spec, look), key, reminder != null), front = tokenSvg(state.lib!, role, spec, { text });
@@ -122,8 +122,8 @@ export function renderQuickDesigns() {
   if (sig === quickFor) return;
   quickFor = sig;
   $("#styleQuick").innerHTML = `<div class="dstrip-h"><span class="dsel-l">${esc(t("design.label"))}</span><b>${esc(on?.d.name ?? "")}${look ? ` <i class="dq-own-i" title="${esc(t("design.custom"))}">✎</i>` : ""}</b><button type="button" class="action action--quiet action--sm dstrip-all" data-dq-more>${esc(t("design.seeAll", { n: full.length }))} ›</button></div>`
-    + `<div class="dstrip">${list.map(({ d, pick, on: o }) => `<button type="button" class="dq-s" data-dq-pick="${esc(pick)}" aria-pressed="${o}" title="${esc(d.name)}" aria-label="${esc(d.name)}">${tokenSvg(state.lib!, role, { ...specWith(applyLook(d.spec, look), key, reminder != null), back: "none", backMode: "design" }, { text })}</button>`).join("")}`
-    + `<button type="button" class="dq-s dq-s-more" data-dq-more title="${esc(t("design.change"))}" aria-label="${esc(t("design.change"))}">${rest > 0 ? `+${rest}` : "+"}</button></div>`;
+    + `<div class="dstrip choice-group">${list.map(({ d, pick, on: o }) => `<button type="button" class="choice dq-s" data-dq-pick="${esc(pick)}" aria-pressed="${o}" title="${esc(d.name)}" aria-label="${esc(d.name)}">${tokenSvg(state.lib!, role, { ...specWith(applyLook(d.spec, look), key, reminder != null), back: "none", backMode: "design" }, { text })}</button>`).join("")}`
+    + `<button type="button" class="action action--icon dq-s-more" data-dq-more title="${esc(t("design.change"))}" aria-label="${esc(t("design.change"))}">${rest > 0 ? `+${rest}` : "+"}</button></div>`;
 }
 /**
  * The editor's Design: the designs the token can take, as a list (its small token in each, the
@@ -145,7 +145,7 @@ export function renderEditorDesigns() {
     return m?.from ? t("dsheet.from", { name: m.from.name }) : t("dsheet.yours");
   };
   const mini = (spec: TokenSpec) => tokenSvg(state.lib!, role, { ...spec, back: "none", backMode: "design" }, { text });
-  const row = (body: string, attrs: string, selected: boolean) => `<button type="button" role="option" class="cr-opt" aria-selected="${selected}" ${attrs}>${body}</button>`;
+  const row = (body: string, attrs: string, selected: boolean) => `<button type="button" role="option" class="choice cr-opt" aria-selected="${selected}" ${attrs}>${body}</button>`;
   const askHtml = (a: NonNullable<typeof crAsk>) => `<div class="cr-ask" role="group"><p>${esc(t(a.back ? "editor.askBack" : "editor.askSwitch", { name: a.name }))}</p>
     <div><button type="button" class="action action--primary action--sm" data-cr-ask="go">${esc(t(a.back ? "design.dropTweaks" : "editor.switchDrop"))}</button><button type="button" class="action action--quiet action--sm" data-cr-ask="">${esc(t("editor.cancel"))}</button></div></div>`;
   const desc = tweaked || !on ? "" : help(on.d);
@@ -156,7 +156,7 @@ export function renderEditorDesigns() {
       row(`<span class="cr-mini">${mini(specWith(d.spec, key, reminder != null))}</span><span>${esc(d.name)}</span>${first ? `<small>${esc(t("editor.fromColl"))}</small>` : ""}`,
         `data-cr-pick="${esc(pick)}" data-name="${esc(d.name)}"${o ? " data-on" : ""}`, !tweaked && o)
       + (crAsk && crAsk.pick === pick ? askHtml(crAsk) : "")).join("")
-    + `<button type="button" class="cr-opt cr-more" data-cr-more>${esc(t("editor.seeAll"))} ›</button></div>`;
+    + `<button type="button" class="action action--quiet action--sm cr-more" data-cr-more>${esc(t("editor.seeAll"))} ›</button></div>`;
 }
 export function wireEditorDesigns() {
   $("#crDesigns").onclick = (e) => {
@@ -323,7 +323,7 @@ export function renderTabs(role: Role, spec: TokenSpec) {
   $("#partsTok").hidden = !tokSec;
   // a row like its design's: what it is, its name and shape (no picture of it: the token is beside it, large)
   const tk = tokSec && ownTokenOf(state.sel!.role.id);
-  $("#partsTok").innerHTML = tk ? `<button type="button" class="cr-item" data-part="token" aria-selected="${isOpen(tokSec)}"><span class="cr-pic cr-pic-ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 10h6M7 14h10"/></svg></span><span class="cr-lbl">${esc(t("part.token"))}</span><small class="cr-val">${esc([nameIn(tk.name, tokenLang()), t(`own.shape.${shape}`)].filter(Boolean).join(" · "))}</small></button>` : "";
+  $("#partsTok").innerHTML = tk ? `<button type="button" class="nav-item cr-item" data-part="token" aria-selected="${isOpen(tokSec)}"><span class="cr-pic cr-pic-ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 10h6M7 14h10"/></svg></span><span class="cr-lbl">${esc(t("part.token"))}</span><small class="cr-val">${esc([nameIn(tk.name, tokenLang()), t(`own.shape.${shape}`)].filter(Boolean).join(" · "))}</small></button>` : "";
   const undo = $<HTMLButtonElement>("#partUndo"), here = openPart();
   undo.hidden = !changedHere.has(here);
   undo.innerHTML = `<span aria-hidden="true">↺</span> ${esc(t("part.undo"))}`;
@@ -465,10 +465,10 @@ function renderBackStyleTiles(role: Role, spec: TokenSpec, text: string, pressed
   $("[data-choice=style]").innerHTML = TOKEN_STYLES.map((st) => {
     // each at its own letter size but the one in use (as the front's tiles: a size doesn't carry over between layouts)
     const face = { ...b, style: st.id, ...backLayoutContent(st.id, b), ...(st.id !== pressed ? { textSize: LAYOUT_TEXT[st.id] } : {}) };
-    return `<button class="back-tile" type="button" data-v="${st.id}" aria-pressed="${pressed === st.id}">${tokenSvg(state.lib!, plain, { ...s, backMode: "own", backFace: face }, { side: "back", text })}<span>${esc(t(`style.${st.id}`))}</span></button>`;
+    return `<button class="choice back-tile" type="button" data-v="${st.id}" aria-pressed="${pressed === st.id}">${tokenSvg(state.lib!, plain, { ...s, backMode: "own", backFace: face }, { side: "back", text })}<span>${esc(t(`style.${st.id}`))}</span></button>`;
   }).join("")
     // and plain, nothing on it (a back design of none)
-    + `<button class="back-tile" type="button" data-v="plain" aria-pressed="${s.backMode === "design"}">${tokenSvg(state.lib!, plain, { ...s, back: "none", backMode: "design" }, { side: "back" })}<span>${esc(t("back.none"))}</span></button>`;
+    + `<button class="choice back-tile" type="button" data-v="plain" aria-pressed="${s.backMode === "design"}">${tokenSvg(state.lib!, plain, { ...s, back: "none", backMode: "design" }, { side: "back" })}<span>${esc(t("back.none"))}</span></button>`;
 }
 
 /** A text in a text's place: the words a layout waits for. */
@@ -505,12 +505,12 @@ function renderStyleTiles(face: { role: Role; text: string }, spec: TokenSpec) {
     const drawn = own ? roleWithContent(face.role.id, need && st.id === "solo" ? "none" : contentOfStyle(st.id)) ?? face.role : face.role;
     // a layout that waits, drawn as it will be: the icon it waits for a die of question marks (its text, Lorem ipsum)
     const role = need ? { ...drawn, ...(noIcon && st.id !== "text" ? ASK_ICON : {}), content: contentOfStyle(st.id) } : drawn;
-    return `<button class="back-tile" type="button" data-v="${st.id}" aria-pressed="${pressed === st.id}"${waits ? ` disabled title="${esc(t(need))}"` : ""}>${
+    return `<button class="choice back-tile" type="button" data-v="${st.id}" aria-pressed="${pressed === st.id}"${waits ? ` disabled title="${esc(t(need))}"` : ""}>${
       tokenSvg(state.lib!, role, { ...s, style: st.id, ...(st.id !== s.style ? { textSize: LAYOUT_TEXT[st.id] } : {}) }, { text: noText && st.id !== "solo" ? SAMPLE_TEXT : face.text })
     }<span>${esc(t(`style.${st.id}`))}</span>${waits ? `<small>${esc(t(need))}</small>` : ""}</button>`;
   }).join("")
     // a coin of yours can carry nothing: Plain (its frame, background and colours only)
-    + (own && shapeOf(face.role) === "coin" ? `<button class="back-tile" type="button" data-v="none" aria-pressed="${pressed === "none"}">${
+    + (own && shapeOf(face.role) === "coin" ? `<button class="choice back-tile" type="button" data-v="none" aria-pressed="${pressed === "none"}">${
       tokenSvg(state.lib!, roleWithContent(face.role.id, "none") ?? face.role, s, { text: face.text })}<span>${esc(t("style.none"))}</span></button>` : "");
 }
 
@@ -523,12 +523,12 @@ function renderFrameTiles(face: { role: Role; text: string }, spec: TokenSpec) {
   const s = { ...spec, diameter: 45, back: "none", backMode: "design" as const, frontPattern: null }, shape = shapeOf(face.role), { role, text } = face;   // the pattern left out, as in the layouts
   if (SHAPE_FEATURES[shape].frame === "line") {
     $("[data-choice=frame]").innerHTML = lineFrames(shape, s.frame).map(([v, label]) =>
-      `<button class="back-tile frame-tile" type="button" data-v="${v}" aria-pressed="${s.frame === v}">${tokenSvg(state.lib!, role, { ...s, frame: v }, { text })}<span>${esc(label)}</span></button>`).join("");
+      `<button class="choice back-tile frame-tile" type="button" data-v="${v}" aria-pressed="${s.frame === v}">${tokenSvg(state.lib!, role, { ...s, frame: v }, { text })}<span>${esc(label)}</span></button>`).join("");
     return;
   }
   const list = s.style === "window" ? FRAME_STYLES.filter((f) => f.id === "none" || f.id === "rim") : FRAME_STYLES;
   $("[data-choice=frame]").innerHTML = list.map((f) =>
-    `<button class="back-tile frame-tile" type="button" data-v="${f.id}" aria-pressed="${(s.style === "window" && s.frame !== "none" ? "rim" : s.frame) === f.id}">${
+    `<button class="choice back-tile frame-tile" type="button" data-v="${f.id}" aria-pressed="${(s.style === "window" && s.frame !== "none" ? "rim" : s.frame) === f.id}">${
       tokenSvg(state.lib!, role, { ...s, frame: f.id, frameWidth: f.id === "rim" || f.id === "double" ? Math.max(s.frameWidth, 0.8) : f.id === "runas" ? FRAME_START_WIDTH.runas : s.frameWidth }, { text })
     }<span>${esc(t(`frame.${f.id}`))}</span></button>`).join("");
 }
@@ -574,7 +574,7 @@ function renderCardIconTiles(role: Role, text: string, spec: TokenSpec, hasIcon:
   // a card of yours without an icon: the places for one wait for it (only None, its phrase alone, doesn't)
   const waits = (key: string, v: string) => key === "cardIcon" && v !== "none" && !!ownTokenOf(role.id) && !ownTokenOf(role.id)!.icon;
   const tile = (key: "cardIcon" | "cardJoin", v: string) =>
-    `<button class="back-tile" type="button" data-v="${v}" aria-pressed="${spec[key] === v}"${waits(key, v) ? ` disabled title="${esc(t("style.needsIcon"))}"` : ""}>${tokenSvg(state.lib!, role, { ...spec, [key]: v, ...(key === "cardJoin" && spec.cardIcon === "none" ? { cardIcon: "left" } : {}) }, { text })}<span>${esc(t(`${key}.${v}`))}</span>${waits(key, v) ? `<small>${esc(t("style.needsIcon"))}</small>` : ""}</button>`;
+    `<button class="choice back-tile" type="button" data-v="${v}" aria-pressed="${spec[key] === v}"${waits(key, v) ? ` disabled title="${esc(t("style.needsIcon"))}"` : ""}>${tokenSvg(state.lib!, role, { ...spec, [key]: v, ...(key === "cardJoin" && spec.cardIcon === "none" ? { cardIcon: "left" } : {}) }, { text })}<span>${esc(t(`${key}.${v}`))}</span>${waits(key, v) ? `<small>${esc(t("style.needsIcon"))}</small>` : ""}</button>`;
   // a card of yours: where its icon goes chooses what it carries too (none, its phrase; alone, its icon; beside it, both)
   $("[data-choice=cardIcon]").innerHTML = CARD_ICONS.map((v) => tile("cardIcon", v)).join("");
   $("[data-choice=cardJoin]").innerHTML = CARD_JOINS.map((v) => tile("cardJoin", v)).join("");
@@ -650,7 +650,7 @@ function renderBackArt(role: Role, spec: TokenSpec, text: string) {
   // the words alone (the text layout) show no icon
   const b = s.backMode === "design" ? {} : s.backFace ?? {}, art = (b.style ?? s.style) === "text" ? "none" : b.art ?? "token", plain = { ...role, flip: undefined };
   // each alone on the back (its words would only be small print here), in its frame and colours
-  const tile = (v: string, label: string) => `<button class="back-tile" type="button" data-v="${v}" aria-pressed="${v === art}">${
+  const tile = (v: string, label: string) => `<button class="choice back-tile" type="button" data-v="${v}" aria-pressed="${v === art}">${
     v === "custom" && !s.customSvg ? `<span class="upload-tile">SVG</span>` : tokenSvg(state.lib!, plain, { ...s, backMode: "own", backPattern: null, backFace: { ...b, style: "solo", say: "none", art: v } }, { side: "back", text })
   }<span>${esc(label)}</span></button>`;
   $("#backArt").innerHTML = [tile("token", t("back.art.token")), tile("custom", t("back.custom")), tile("none", t("back.art.none"))].join("");
@@ -728,7 +728,7 @@ function renderPattern(side: PatSide, role: Role, s: TokenSpec) {
   // the patterns, then the illustrations (one drawing filling what the frame leaves)
   const tiles: [string, string][] = [["none", t("pattern.none")], ...PATTERNS.map((x) => [x.id, t(`pattern.${x.id}`)] as [string, string]), ...ILLUSTRATIONS.map((id) => [id, t(`back.${id.slice(4)}`)] as [string, string])];
   $("[data-pat-choice]", box).innerHTML = tiles.map(([id, label]) =>
-    `<button class="back-tile" type="button" data-pat="${id}" aria-pressed="${(p?.id ?? "none") === id}">${patternSwatch(id, pc.base, colour, `patclip-${side}-${id}`)}<span>${esc(label)}</span></button>`).join("");
+    `<button class="choice back-tile" type="button" data-pat="${id}" aria-pressed="${(p?.id ?? "none") === id}">${patternSwatch(id, pc.base, colour, `patclip-${side}-${id}`)}<span>${esc(label)}</span></button>`).join("");
   $(".pat-opts", box).hidden = !p;
   if (!p) return;
   const d = patternDefaults(p.id), v = { scale: p.scale ?? d.scale, line: p.line ?? d.line, halo: p.halo ?? d.halo };

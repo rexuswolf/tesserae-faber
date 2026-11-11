@@ -32,7 +32,7 @@ export function renderSpine() {
   const lang = uiLang();
   // as a collection has them: everything, then a shape each (its characters' coins, the grimoire's info cards)
   const all = allCharacters(), info = state.lib!.roles.filter((r) => r.edition === "grimoire");
-  const entry = (ed: string, icon: string, name: string, sub: string, roles: Role[]) => `<button class="ed" type="button" data-ed="${ed}" aria-current="${state.edition === ed && !searchQuery()}">${uiIcon(icon)}
+  const entry = (ed: string, icon: string, name: string, sub: string, roles: Role[]) => `<button class="nav-item ed" type="button" data-ed="${ed}" aria-current="${state.edition === ed && !searchQuery()}">${uiIcon(icon)}
     <span>${esc(name)}<small>${esc(sub)}</small></span>${pickedBadge(roles)}</button>`;
   $("#library").innerHTML = entry("all", "stack", t("own.everything"), t("own.everythingCount", { n: all.length + info.length }), [...all, ...info])
     + entry("f:coin", "two-coins", t("type.coin.many"), t("ed.count", { c: all.length, r: all.reduce((n, r) => n + remindersOf(r).length, 0) }), all)
@@ -41,13 +41,13 @@ export function renderSpine() {
   $("#editions").innerHTML = EDITION_ORDER.filter((e) => e !== "grimoire" && state.lib!.roles.some((r) => r.edition === e)).map((e) => {
     const roles = state.lib!.roles.filter((r) => r.edition === e);
     const rem = roles.reduce((n, r) => n + remindersOf(r).length, 0);
-    return `<button class="ed" type="button" data-ed="${e}" aria-current="${state.edition === e && !searchQuery()}">
+    return `<button class="nav-item ed" type="button" data-ed="${e}" aria-current="${state.edition === e && !searchQuery()}">
       <span>${esc(EDITIONS[e].name[lang])} <i class="list-lock" title="${esc(t("own.listFixed"))}" aria-label="${esc(t("own.listFixed"))}">${LOCK}</i><small>${esc(e === "grimoire" ? t("ed.countInfo", { n: roles.length }) : t("ed.count", { c: roles.length, r: rem }))}</small></span>${pickedBadge(roles)}</button>`;
   }).join("");
   const scripts = loadScripts();
   $("#scripts").innerHTML = scripts.map((sc) => {
     const { roles, missing } = scriptRoles(sc);
-    return `<button class="ed" type="button" data-ed="s:${esc(sc.id)}" aria-current="${state.edition === `s:${sc.id}` && !searchQuery()}">
+    return `<button class="nav-item ed" type="button" data-ed="s:${esc(sc.id)}" aria-current="${state.edition === `s:${sc.id}` && !searchQuery()}">
       <span>${esc(sc.name)}<small>${esc(t("script.count", { n: roles.length, m: missing.length }))}</small></span>${pickedBadge(roles)}</button>`;
   }).join("") || `<p class="scripts-empty">${esc(t("script.empty"))} <button type="button" data-script-new>${esc(t("script.emptyAdd"))}</button></p>`;
 }

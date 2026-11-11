@@ -223,21 +223,21 @@ const tallerSteps = (n: number) => `<ol class="tw-steps">${["shape", "base", "de
 /** Your design as a card to open: drawn on the shape's first sample token, with what it is and where it's used. */
 function myDesignCard(sh: TokenShape, d: MyDesign, withShape: boolean) {
   const sub = [withShape ? t(`own.shape.${sh}`) : "", usesLine(sh, d.id)].filter(Boolean).join(" · ");
-  return `<button class="tl-design" type="button" data-taller-open="${sh}" data-ref="u:${esc(d.id)}" aria-pressed="${taller.view === "edit" && taller.ref === `u:${d.id}`}">${designSwatch(d.spec, tokenRole(taller.samples[sh][0]))}<span><b>${esc(d.name)}</b>${sub ? `<small>${esc(sub)}</small>` : ""}</span></button>`;
+  return `<button class="nav-item tl-design" type="button" data-taller-open="${sh}" data-ref="u:${esc(d.id)}" aria-pressed="${taller.view === "edit" && taller.ref === `u:${d.id}`}">${designSwatch(d.spec, tokenRole(taller.samples[sh][0]))}<span><b>${esc(d.name)}</b>${sub ? `<small>${esc(sub)}</small>` : ""}</span></button>`;
 }
 /** The first step: the three shapes, each drawn on a sample token, and your designs to carry on with. */
 function renderTallerShapes() {
   const shapes = TALLER_SHAPES.map((sh) => {
     const n = myDesigns[sh].length, from = taller.groups.findIndex((g) => g.kind === "from" && g.designs[sh]?.length);
     const look = from >= 0 ? tallerBase(sh, `g${from}:${taller.groups[from].designs[sh]![0].id}`)! : tallerBase(sh, firstBase(sh))!;
-    return `<button class="tw-shape" type="button" data-tw-shape="${sh}"><span class="tw-tok ${sh}">${tallerPic(taller.samples[sh][0], look.spec)}</span>
+    return `<button class="choice tw-shape" type="button" data-tw-shape="${sh}"><span class="tw-tok ${sh}">${tallerPic(taller.samples[sh][0], look.spec)}</span>
       <span><b>${esc(t(`taller.shape.${sh}`))}</b><small>${esc(t(`taller.shapeHelp.${sh}`))}</small>${n ? `<span class="cnt">${esc(t("taller.yoursN", { n }))}</span>` : ""}</span></button>`;
   }).join("");
   const mine = TALLER_SHAPES.flatMap((sh) => myDesigns[sh].map((d) => myDesignCard(sh, d, true)));
   $("#tallerWizard").innerHTML = `${tallerSteps(1)}
     <h2 class="tw-title">${esc(t("taller.shapeQ"))}</h2>
     <p class="tw-lead">${esc(t("taller.lead"))}</p>
-    <div class="tw-shapes">${shapes}</div>
+    <div class="tw-shapes choice-group">${shapes}</div>
     ${mine.length ? `<section class="tl-sec"><h3>${esc(t("taller.carryOn"))}<small>${mine.length}</small></h3><div class="tl-grid">${mine.join("")}</div></section>`
       : `<p class="hint tw-none">${esc(t("taller.noneYet"))}</p>`}`;
 }
@@ -260,10 +260,10 @@ const startName = (d: DesignEntry) => t(d.mine ? "style.copyOf" : "taller.mineNa
 function renderTallerStart() {
   const sh = taller.shape, tok = taller.samples[sh][0], blank = tallerBase(sh, firstBase(sh))!, tpl = firstTemplate(sh);
   const n = taller.groups.filter((g) => g.kind !== "blank").reduce((a, g) => a + (g.designs[sh]?.length ?? 0), 0) + myDesigns[sh].length;
-  const way = (attr: string, spec: TokenSpec, title: string, sub: string, cnt = "") => `<button class="tw-shape tw-way" type="button" ${attr}><span class="tw-tok ${sh}">${tallerPic(tok, spec)}</span><span><b>${esc(title)}</b><small>${esc(sub)}</small>${cnt ? `<span class="cnt">${esc(cnt)}</span>` : ""}</span></button>`;
+  const way = (attr: string, spec: TokenSpec, title: string, sub: string, cnt = "") => `<button class="choice tw-shape tw-way" type="button" ${attr}><span class="tw-tok ${sh}">${tallerPic(tok, spec)}</span><span><b>${esc(title)}</b><small>${esc(sub)}</small>${cnt ? `<span class="cnt">${esc(cnt)}</span>` : ""}</span></button>`;
   $("#tallerWizard").innerHTML = `${tallerSteps(2)}
     <div class="tw-titlebar"><button class="nav-link nav-link--back" type="button" data-tw-back>${esc(t("taller.step.shape"))}</button><h2 class="tw-title">${esc(t("taller.startQ"))}</h2></div>
-    <div class="tw-shapes tw-ways">${way("data-tw-scratch", blank.spec, t("taller.fromScratch"), t("taller.fromScratchSub"))}${tpl ? way("data-tw-templates", tallerBase(sh, tpl)!.spec, t("taller.fromTemplate"), t(myDesigns[sh].length ? "taller.fromTemplateSubMine" : "taller.fromTemplateSub"), t("taller.groupCount", { n })) : ""}</div>`;
+    <div class="tw-shapes tw-ways choice-group">${way("data-tw-scratch", blank.spec, t("taller.fromScratch"), t("taller.fromScratchSub"))}${tpl ? way("data-tw-templates", tallerBase(sh, tpl)!.spec, t("taller.fromTemplate"), t(myDesigns[sh].length ? "taller.fromTemplateSubMine" : "taller.fromTemplateSub"), t("taller.groupCount", { n })) : ""}</div>`;
 }
 function renderTallerBases() {
   const sh = taller.shape, role = tokenRole(taller.samples[sh][0]);
@@ -273,7 +273,7 @@ function renderTallerBases() {
   const more = (spec: TokenSpec) => `<span class="tw-more">${taller.samples[sh].slice(1, sh === "card" ? 3 : 4).map((k) => tallerPic(k, spec)).join("")}${SHAPE_FEATURES[sh].back ? tallerPic(taller.samples[sh][0], spec, "back") : ""}</span>`;
   const row = (d: DesignEntry, blank = false) => {
     const on = d.ref === pick.ref;
-    return `<button class="tw-opt" type="button" role="radio" aria-checked="${on}" data-tw-pick="${esc(d.ref)}"><span class="tw-sw">${designSwatch(d.spec, role)}${SHAPE_FEATURES[sh].back && printsBack(role, filled(d.spec)) ? `<span class="tw-swb">${tokenSvg(state.lib!, role, { ...filled(d.spec), lang: tokenLang(), icon: ownIcon(role.id), diameter: 45 }, { side: "back" })}</span>` : ""}</span><span class="tw-ot"><b>${esc(d.name)}${blank ? ` <span class="tw-tag">${esc(t("taller.blankTag"))}</span>` : ""}</b>${d.help ? `<small>${esc(d.help)}</small>` : ""}</span><span class="rad" aria-hidden="true"></span>${on ? more(d.spec) : ""}</button>`;
+    return `<button class="choice tw-opt" type="button" role="radio" aria-checked="${on}" data-tw-pick="${esc(d.ref)}"><span class="tw-sw">${designSwatch(d.spec, role)}${SHAPE_FEATURES[sh].back && printsBack(role, filled(d.spec)) ? `<span class="tw-swb">${tokenSvg(state.lib!, role, { ...filled(d.spec), lang: tokenLang(), icon: ownIcon(role.id), diameter: 45 }, { side: "back" })}</span>` : ""}</span><span class="tw-ot"><b>${esc(d.name)}${blank ? ` <span class="tw-tag">${esc(t("taller.blankTag"))}</span>` : ""}</b>${d.help ? `<small>${esc(d.help)}</small>` : ""}</span><span class="rad" aria-hidden="true"></span>${on ? more(d.spec) : ""}</button>`;
   };
   const note = (g: TallerGroup) => (g.kind === "blank" ? t("taller.blankNote") : g.kind === "from" ? t("taller.fromNote") : g.kind === "app" ? t("taller.appNote") : "");
   // the starting base in the open; each collection's designs folded (open where the chosen base is)
@@ -295,7 +295,7 @@ function renderTallerBases() {
   $("#tallerWizard").innerHTML = `${tallerSteps(2)}
     <div class="tw-titlebar"><button class="nav-link nav-link--back" type="button" data-tw-start>${esc(t("taller.startBack"))}</button><h2 class="tw-title">${esc(t("taller.templateQ"))}</h2></div>
     <div class="tw-blist">
-      <div class="tw-opts" role="radiogroup" aria-label="${esc(t("taller.step.base"))}">${mine}${opts}</div>
+      <div class="tw-opts choice-group" role="radiogroup" aria-label="${esc(t("taller.step.base"))}">${mine}${opts}</div>
       <div class="tw-side">
         <div class="tw-pv">${tallerPreviewHtml(sh, pick.spec)}</div>
         <p class="tw-desc"><b>${esc(pick.name)}</b>${pick.help ? ` · ${esc(pick.help)}` : ""}</p>

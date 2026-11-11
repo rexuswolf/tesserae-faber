@@ -165,9 +165,9 @@
     <!-- a token of yours: what it is, first, beside its design (its Token tab; on a phone inside a part, it's among the tabs) -->
     <div class="cr-cats cr-tok" id="partsTok" hidden></div>
     <div class="cr-cats design-only">
-      <button type="button" class="cr-item" data-cr="content" hidden><span class="cr-pic" id="crPicContent" aria-hidden="true"><b>Aa</b></span><span class="cr-lbl" data-i18n="editor.content"></span><small class="cr-val" id="crValContent"></small></button>
-      <button type="button" class="cr-item" data-cr="design"><span class="cr-pic" id="crPicDesign" aria-hidden="true"></span><span class="cr-lbl" data-i18n="editor.design"></span><small class="cr-val" id="crValDesign"></small></button>
-      <button type="button" class="cr-item cr-in" data-cr="part"><span class="cr-pic cr-pic-ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></span><span class="cr-lbl"><span data-i18n="editor.custom"></span> <span class="cr-arrow" aria-hidden="true">›</span></span><small class="cr-val" id="crValCustom"></small></button>
+      <button type="button" class="nav-item cr-item" data-cr="content" hidden><span class="cr-pic" id="crPicContent" aria-hidden="true"><b>Aa</b></span><span class="cr-lbl" data-i18n="editor.content"></span><small class="cr-val" id="crValContent"></small></button>
+      <button type="button" class="nav-item cr-item" data-cr="design"><span class="cr-pic" id="crPicDesign" aria-hidden="true"></span><span class="cr-lbl" data-i18n="editor.design"></span><small class="cr-val" id="crValDesign"></small></button>
+      <button type="button" class="nav-item cr-item cr-in" data-cr="part"><span class="cr-pic cr-pic-ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></span><span class="cr-lbl"><span data-i18n="editor.custom"></span> <span class="cr-arrow" aria-hidden="true">›</span></span><small class="cr-val" id="crValCustom"></small></button>
     </div>
     <!-- the design's settings: its parts, always in sight under their heading (no Customise to go into) -->
     <p class="cr-parts-h design-only" data-i18n="editor.parts"></p>
@@ -506,7 +506,7 @@
       </div>
       <div class="sp-panel" data-sp="look" role="tabpanel" hidden>
         <h3 data-i18n="own.colours"></h3>
-        <div class="os-themes" id="osThemes"></div>
+        <div class="os-themes choice-group" id="osThemes"></div>
         <div class="os-custom" id="osCustom" hidden>
           <label><input type="color" id="os-accent"><span data-i18n="own.c.accent"></span></label>
           <label><input type="color" id="os-background"><span data-i18n="own.c.background"></span></label>
@@ -548,9 +548,9 @@
     <div class="pp-in">
       <h2 data-i18n="print.title"></h2>
       <p class="hint" id="printLead"></p>
-      <div class="ways" role="radiogroup" data-i18n-attr="aria-label:queue.howAria">
-        <button class="way" type="button" role="radio" data-way="3d"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M4 3h16v4H4zM6 7v8h12V7M9 15v3h6v-3M3 21h18M12 10v2"/></svg><b data-i18n="queue.way3d"></b><small id="way3dSub"></small></button>
-        <button class="way" type="button" role="radio" data-way="paper"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M6 2h9l4 4v16H6z"/><path d="M15 2v4h4"/><circle cx="10" cy="11" r="2"/><circle cx="15" cy="11" r="2"/><circle cx="10" cy="16" r="2"/><circle cx="15" cy="16" r="2"/></svg><b data-i18n="queue.wayPaper"></b><small id="wayPaperSub"></small></button>
+      <div class="ways choice-group" role="radiogroup" data-i18n-attr="aria-label:queue.howAria">
+        <button class="choice way" type="button" role="radio" data-way="3d"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M4 3h16v4H4zM6 7v8h12V7M9 15v3h6v-3M3 21h18M12 10v2"/></svg><b data-i18n="queue.way3d"></b><small id="way3dSub"></small></button>
+        <button class="choice way" type="button" role="radio" data-way="paper"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M6 2h9l4 4v16H6z"/><path d="M15 2v4h4"/><circle cx="10" cy="11" r="2"/><circle cx="15" cy="11" r="2"/><circle cx="10" cy="16" r="2"/><circle cx="15" cy="16" r="2"/></svg><b data-i18n="queue.wayPaper"></b><small id="wayPaperSub"></small></button>
       </div>
       <div id="printDetail"></div>
       <p class="hint" id="printNote" aria-live="polite"></p>
@@ -901,7 +901,7 @@
   </header>
   <div class="dz-tabs" id="dzTabs" role="tablist"></div>
   <input class="text dz-search" type="search" id="dzSearch" autocomplete="off" data-i18n-attr="placeholder:dsheet.search aria-label:dsheet.search" hidden>
-  <div class="dz-body"><div class="dz-cards" id="dzCards" role="tabpanel"></div></div>
+  <div class="dz-body"><div class="dz-cards choice-group" id="dzCards" role="tabpanel"></div></div>
   <footer class="dz-foot"><span id="dzFor"></span><a id="dzTaller" href="/taller" data-to-taller><span data-i18n="design.toTaller"></span> <span aria-hidden="true">›</span></a></footer>
 </dialog>
 

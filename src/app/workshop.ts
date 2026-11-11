@@ -307,7 +307,7 @@ export function wireIcons() {
       try { hits = await searchGameIcons(query); } catch { $("#iconResults").innerHTML = `<p class="hint warn">${esc(t("icon.searchFailed"))}</p>`; return; }
       if (input(e).value !== query) return;   // typed on meanwhile: that search shows instead
       $("#iconResults").innerHTML = hits.length
-        ? hits.map((p) => `<button type="button" class="icon-hit" data-gi="${esc(p)}" title="${esc(p.replace("/", " · "))}"><img src="${gameIconPreview(p)}" alt="" loading="lazy"><span>${esc(p.split("/")[1])}</span></button>`).join("")
+        ? hits.map((p) => `<button type="button" class="choice icon-hit" data-gi="${esc(p)}" title="${esc(p.replace("/", " · "))}"><img src="${gameIconPreview(p)}" alt="" loading="lazy"><span>${esc(p.split("/")[1])}</span></button>`).join("")
         : `<p class="hint">${esc(t(input(e).value.trim() ? "icon.none" : "icon.type"))}</p>`;
     }, 200);
   };
@@ -354,7 +354,7 @@ export function wireCardBack() {
       try { hits = await searchGameIcons(query); } catch { $("#cbIconResults").innerHTML = `<p class="hint warn">${esc(t("icon.searchFailed"))}</p>`; return; }
       if (input(e).value !== query) return;   // typed on meanwhile: that search shows instead
       $("#cbIconResults").innerHTML = hits.length
-        ? hits.map((p) => `<button type="button" class="icon-hit" data-gi="${esc(p)}" title="${esc(p.replace("/", " · "))}"><img src="${gameIconPreview(p)}" alt="" loading="lazy"><span>${esc(p.split("/")[1])}</span></button>`).join("")
+        ? hits.map((p) => `<button type="button" class="choice icon-hit" data-gi="${esc(p)}" title="${esc(p.replace("/", " · "))}"><img src="${gameIconPreview(p)}" alt="" loading="lazy"><span>${esc(p.split("/")[1])}</span></button>`).join("")
         : `<p class="hint">${esc(t(input(e).value.trim() ? "icon.none" : "icon.type"))}</p>`;
     }, 200);
   };

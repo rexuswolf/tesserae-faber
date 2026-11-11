@@ -131,7 +131,7 @@ export function renderOwnSpine() {
   const rolesOf = (ids: string[]) => ids.map(roleById).filter((r): r is Role => !!r);
   const sub = (roles: Role[], card: boolean) => card ? t("ed.countInfo", { n: roles.length }) : t("own.count", { n: roles.length, l: roles.reduce((n, r) => n + remindersOf(r).length, 0) });
   // everything the collection has at the top, then an entry per shape (where it has more than one)
-  const entry = (ed: string, icon: string, name: string, roles: Role[], small: string) => `<button class="ed" type="button" data-ed="${ed}" aria-current="${state.edition === ed && !q}">${uiIcon(icon)}
+  const entry = (ed: string, icon: string, name: string, roles: Role[], small: string) => `<button class="nav-item ed" type="button" data-ed="${ed}" aria-current="${state.edition === ed && !q}">${uiIcon(icon)}
       <span>${esc(name)}<small>${esc(small)}</small></span>${pickedBadge(roles)}</button>`;
   const shapes = shapesHere(), all = state.lib!.roles;
   $("#library").innerHTML = entry("all", "stack", t("own.everything"), all, t("own.everythingCount", { n: all.length }))
@@ -140,7 +140,7 @@ export function renderOwnSpine() {
   $("#editions").innerHTML = `<div class="spine-h spine-sec"><h2>${esc(t("own.lists"))}</h2><button class="spine-add" type="button" data-list-new title="${esc(t("own.newCatalog"))}" aria-label="${esc(t("own.newCatalog"))}">+</button></div>`
     + (coll.catalogs.map((k) => {
       const roles = rolesOf(k.tokens);
-      return `<button class="ed" type="button" data-ed="k:${esc(k.id)}" aria-current="${state.edition === `k:${k.id}` && !q}">
+      return `<button class="nav-item ed" type="button" data-ed="k:${esc(k.id)}" aria-current="${state.edition === `k:${k.id}` && !q}">
         <span>${esc(nameIn(k.name, lang))}${k.fixed ? ` <i class="list-lock" title="${esc(t("own.listFixed"))}" aria-label="${esc(t("own.listFixed"))}">${LOCK}</i>` : ""}<small>${esc(sub(roles, false))}</small></span>${pickedBadge(roles)}</button>`;
     }).join("") || `<p class="scripts-empty">${esc(t("own.noCatalogs"))}</p>`);
 }
@@ -626,7 +626,7 @@ function wireOwnToken() {
         let hits: string[];
         try { hits = query ? await searchGameIcons(query, 48) : []; } catch { $(`#${id}Hits`).innerHTML = `<p class="hint warn">${esc(t("icon.searchFailed"))}</p>`; return; }
         if (input(e).value.trim() !== query) return;
-        $(`#${id}Hits`).innerHTML = hits.map((p) => `<button type="button" class="icon-hit" data-gi="${esc(p)}" title="${esc(p.replace("/", " · "))}"><img src="${gameIconPreview(p)}" alt="" loading="lazy"><span>${esc(p.split("/")[1])}</span></button>`).join("")
+        $(`#${id}Hits`).innerHTML = hits.map((p) => `<button type="button" class="choice icon-hit" data-gi="${esc(p)}" title="${esc(p.replace("/", " · "))}"><img src="${gameIconPreview(p)}" alt="" loading="lazy"><span>${esc(p.split("/")[1])}</span></button>`).join("")
           || (query ? `<p class="hint">${esc(t("icon.none"))}</p>` : "");
       }, 200);
     };
@@ -804,8 +804,8 @@ function renderOwnThemes() {
   const th = coll.theme ?? "faber", custom = typeof th === "object" ? th : null;
   $("#osThemes").innerHTML = Object.entries(THEMES).map(([id, c]) => {
     const sw = c ?? { background: "#170812", surface: "#2a0f20", accent: "#c9a227", text: "#efe6d6" };
-    return `<button type="button" class="os-theme" data-theme-id="${id}" aria-pressed="${th === id}"><span style="background:${sw.background};border-color:${sw.surface}"><i style="background:${sw.accent}"></i><b style="color:${sw.text}">Aa</b></span>${esc(t(`own.theme.${id}`))}</button>`;
-  }).join("") + `<button type="button" class="os-theme" data-theme-id="custom" aria-pressed="${!!custom}"><span class="custom"><i></i><b>+</b></span>${esc(t("own.theme.custom"))}</button>`;
+    return `<button type="button" class="choice os-theme" data-theme-id="${id}" aria-pressed="${th === id}"><span style="background:${sw.background};border-color:${sw.surface}"><i style="background:${sw.accent}"></i><b style="color:${sw.text}">Aa</b></span>${esc(t(`own.theme.${id}`))}</button>`;
+  }).join("") + `<button type="button" class="choice os-theme" data-theme-id="custom" aria-pressed="${!!custom}"><span class="custom"><i></i><b>+</b></span>${esc(t("own.theme.custom"))}</button>`;
   const base = custom ?? (typeof th === "string" ? THEMES[th] : null) ?? THEMES.faber!;
   $("#osCustom").hidden = !custom;
   for (const k of ["accent", "background", "surface", "text", "muted"] as const) $<HTMLInputElement>(`#os-${k}`).value = base[k];
