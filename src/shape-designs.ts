@@ -107,7 +107,7 @@ export const CARD_DESIGNS = {
     spec: { frame: "rim", frameWidth: 0.6, height: 2, depth: 0.4, colours: { base: "team", front: black, frame: black } },
   },
   filete: {
-    id: "filete", name: { es: "Filete de oro", en: "Gold trim" },
+    id: "filete", name: { es: "Marco dorado", en: "Gold trim" },
     help: { es: "Negra, la frase en blanco y un marco de oro, como un libro antiguo: la misma sea cual sea el grupo.", en: "Black, the phrase in white and a gold frame, like an old book's: the same whatever the group." },
     spec: { frame: "rim", frameWidth: 1.2, height: 2, depth: 0.4, colours: { base: black, front: white, frame: gold } },
   },
