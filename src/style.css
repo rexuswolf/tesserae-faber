@@ -314,16 +314,15 @@ label.action { position: relative; }   /* a file picker: the input hides inside 
 .um-side small { color: var(--color-text-muted); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; padding: 0 6px; }
 .um-foot { margin-top: auto; color: var(--color-text-muted); font-size: 11.5px; padding: 0 6px; }
 .um-main { padding: 12px 14px; font: 400 21px/1.15 var(--font-family-display); }
-.tl-item { width: 100%; display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 1px 12px; align-items: center; padding: 8px 10px; border: 1px solid transparent; border-radius: 12px; background: none; color: inherit; font: inherit; cursor: pointer; text-align: left; }
-.tl-item:hover { background: color-mix(in srgb, var(--color-text-default) 5%, transparent); }
-.tl-item[aria-selected=true] { border-color: var(--color-border-accent); background: color-mix(in srgb, var(--color-accent-default) 10%, transparent); }
+.tl-item { width: 100%; display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 1px 12px; align-items: center; padding: 8px 10px; text-align: left; }
+
 .tl-item img { grid-row: span 2; width: 34px; height: 34px; border-radius: 50%; box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-text-default) 12%, transparent); }
 .tl-item b { font-weight: 600; font-size: 14.5px; }
 .tl-item small { grid-column: 2; color: var(--color-text-muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tl-item .dot { grid-row: span 2; grid-column: 3; width: 8px; height: 8px; border-radius: 50%; background: var(--color-accent-default); }
 .tl-item .chev { grid-row: span 2; grid-column: 3; color: var(--color-text-muted); transition: transform .15s; }
 .tl-item[aria-expanded=true] .chev { transform: rotate(180deg); }
-.tl-group[data-current=true] > .tl-item { border-color: color-mix(in srgb, var(--color-accent-default) 40%, transparent); }
+.tl-group[data-current=true] > .tl-item { color: var(--color-text-default); }   /* the group the current one is in */
 .tl-versions { margin: 2px 0 6px 27px; padding-left: 12px; border-left: 1px solid var(--color-border-default); }
 .tl-versions .tl-item { grid-template-columns: minmax(0, 1fr) auto; padding: 7px 10px; }
 .tl-versions .tl-item small { grid-column: 1; }
@@ -1945,7 +1944,6 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 
 /* ---- print: on the floor too; the two ways are tiles */
 .print-page { background: radial-gradient(80% 50% at 25% 0%, var(--color-bg-glow, transparent), transparent 70%), var(--texture-floor, none) var(--color-bg-canvas); }
-.way {  }
 
 /* ---- the editor: what the token says is a field (its label over it, the text in a tile, its arrow), not a grey line */
 .ws-says { align-items: stretch; }

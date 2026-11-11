@@ -122,7 +122,7 @@ export function drawLangDialog() {
   if (onTok) $("#tlangUse").textContent = t("tlang.use", { name: tlName(resolveLang(tl.pick)) });
 }
 function drawUiList() {
-  $("#tlangList").innerHTML = LANGUAGES.map((l) => `<button class="tl-item" type="button" role="option" aria-selected="${l.code === uiLang()}" data-ui="${l.code}" lang="${l.code}">
+  $("#tlangList").innerHTML = LANGUAGES.map((l) => `<button class="choice tl-item" type="button" role="option" aria-selected="${l.code === uiLang()}" data-ui="${l.code}" lang="${l.code}">
     <img src="${l.flag}" alt=""><b>${esc(l.name)}</b>${l.code === uiLang() ? '<i class="dot"></i>' : ""}</button>`).join("");
   drawUiStage(uiLang());
 }
@@ -139,16 +139,16 @@ function drawUiStage(code: string) {
     <div class="tl-card"><img src="${l.flag}" alt=""><span><b lang="${l.code}">${esc(l.name)}</b><small lang="${l.code}">${s("lang.note")}</small></span></div>`;
 }
 function drawTokenList() {
-  const item = (x: Translation, label: string | undefined, sub: string) => `<button class="tl-item" type="button" role="option" aria-selected="${x.id === tl.pick}" data-id="${x.id}">
+  const item = (x: Translation, label: string | undefined, sub: string) => `<button class="choice tl-item" type="button" role="option" aria-selected="${x.id === tl.pick}" data-id="${x.id}">
     ${isGrouped(x) ? "" : `<img src="${x.flag}" alt="">`}<b>${esc(label)}</b><small>${esc(sub)}</small>${x.id === tl.pick ? '<i class="dot"></i>' : ""}</button>`;
   const same = sameAsInterface();
-  $("#tlangList").innerHTML = `<button class="tl-item tl-same" type="button" role="option" aria-selected="${tl.pick === SAME}" data-id="${SAME}">
+  $("#tlangList").innerHTML = `<button class="choice tl-item tl-same" type="button" role="option" aria-selected="${tl.pick === SAME}" data-id="${SAME}">
       <span class="tl-both"><img src="${uiLanguage().flag}" alt=""><img src="${same.flag}" alt=""></span><b>${esc(t("tlang.same"))}</b><small>${esc(sameNote())}</small>${tl.pick === SAME ? '<i class="dot"></i>' : ""}</button>`
     + langGroups().map((g) => {
       if (g.items.length === 1) return item(g.items[0], g.name, tlCredit(g.items[0]));
       const open = tl.open.has(g.name), here = g.items.find((x) => x.id === tl.pick);
       return `<div class="tl-group" data-current="${!!here}">
-      <button class="tl-item" type="button" aria-expanded="${open}" data-group="${esc(g.name)}"><img src="${g.flag}" alt="">
+      <button class="disclosure tl-item" type="button" aria-expanded="${open}" data-group="${esc(g.name)}"><img src="${g.flag}" alt="">
         <b>${esc(g.name)}</b><small>${esc(t("tlang.versions", { n: g.items.length }))}${here ? ` · ${esc(here.version)}` : ""}</small>${CHEVRON}</button>
       ${open ? `<div class="tl-versions" role="group" aria-label="${esc(g.name)}">${g.items.map((x) => item(x, x.version, tlCredit(x))).join("")}</div>` : ""}</div>`;
     }).join("");
