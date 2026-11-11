@@ -6,7 +6,7 @@ import { tokenLang } from "./token-language.ts";
 import { iconFromSvg, GI_PLACE } from "../icons.ts";
 import { ownIcon, roleIdOf, charKey, textFor, remindersOf, charName, specFor, filamentName } from "./tokens.ts";
 import { isFilament, slotOf } from "../bambu/plates.ts";
-import { ownChanged, myDesigns, myEntry, collEntry, inheritedRef, refOf, originalRef, defaultRef, designOf, collLabel, designFor, uniqueDesignName, lookOf, storeMyDesigns, storeOverrides, shapesHere, tokensOf, designOverridden, defaults, storeDefaults, savedSpecOf, unsavedFields, markSaved } from "./designs.ts";
+import { ownChanged, myDesigns, myEntry, collEntry, inheritedRef, refOf, originalRef, defaultRef, designOf, collLabel, designFor, uniqueDesignName, lookOf, storeMyDesigns, storeOverrides, shapesHere, tokensOf, designOverridden, defaults, storeDefaults, savedSpecOf, unsavedFields, markSaved, savedPointOf, unsaved } from "./designs.ts";
 import type { DesignEntry } from "./designs.ts";
 import { appDesigns, APP_NAME, tallerUrl, newId, OWN, isLocked, nameIn } from "../collection.ts";
 import type { OwnToken } from "../collection.ts";
@@ -1068,6 +1068,25 @@ export function changeLook(mutate: (s: TokenSpec) => void) {
 let sheetTimer: ReturnType<typeof setTimeout> | number = 0;
 export function scheduleSheet() { clearTimeout(sheetTimer); sheetTimer = setTimeout(() => emit("looks"), 180); }
 /** A token's own text, feminine name, icon, design or look changes; with none left, it simply has its default design. */
+/** Its changes since it was saved undone: as it was saved. */
+export function undoChanges(key: string) {
+  const own: TokenOverride = { ...state.overrides.get(key) }, saved = savedPointOf(key).look;
+  if (saved) own.look = structuredClone(saved); else delete own.look;
+  setOwn(key, own);
+  state.flash = t("design.undoDone");
+  renderWorkshop();
+}
+/** The token being designed has changes not saved, and something would leave it. */
+export const leavingUnsaved = () => !TALLER && state.step === 2 && !!state.sel && unsaved(state.sel.key);
+/** Leaving a token with changes not saved: asked first, to save them or undo them. False: stay where you are. */
+export async function settleToken(): Promise<boolean> {
+  const sel = state.sel; if (!leavingUnsaved() || !sel) return true;
+  const name = textFor(sel.key, sel.role, sel.reminder);
+  const a = await ask(t("design.leaveAsk", { name }), [{ id: "undo", label: t("design.dropTweaks") }, { id: "save", label: t("design.saveChanges"), main: true }]);
+  if (a === "save") { markSaved(sel.key); renderWorkshop(); return true; }
+  if (a === "undo") { undoChanges(sel.key); return true; }
+  return false;
+}
 /** Back to its design as it is: its customisation goes (asked first, where it's picked). */
 export function dropLook(key: string) {
   const own: TokenOverride = { ...state.overrides.get(key) };
@@ -1101,7 +1120,7 @@ export function renderDesignBar() {
   // each shape's chip opens all its designs (the collection's and yours, in their tabs): no way to the Taller beside them
   $("#designBar").innerHTML = shapes.map((sh) => {
       const d = designOf(sh, defaultRef(sh))!;
-      return `<button class="action db-chip" type="button" data-default-shape="${sh}" aria-haspopup="dialog" aria-label="${esc(t("bar.chipAria", { shape: t(`type.${sh}.many`), name: d.name }))}">${designSwatch(d.spec, sampleRole(sh))}<span><small>${esc(t(`type.${sh}.many`))}</small><b>${esc(d.name)}</b></span>${CHEVRON}</button>`;
+      return `<button class="input input--select db-chip" type="button" data-default-shape="${sh}" aria-haspopup="dialog" aria-label="${esc(t("bar.chipAria", { shape: t(`type.${sh}.many`), name: d.name }))}">${designSwatch(d.spec, sampleRole(sh))}<span><small>${esc(t(`type.${sh}.many`))}</small><b>${esc(d.name)}</b></span>${CHEVRON}</button>`;
     }).join("")
     + (changed.length ? `<button class="action action--quiet action--sm db-original" type="button" data-default-original>${esc(t("bar.original"))}</button>` : "");
   if (dz.open && dz.mode === "default") renderDesignSheet();

@@ -135,7 +135,7 @@
       <div class="filter-row">
         <label class="search-box"><svg class="gi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="m15.5 15.5 5 5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg><input type="search" id="search" class="input input--search" autocomplete="off" data-i18n-attr="placeholder:sheet.search aria-label:sheet.search"></label>
         <div class="filt" id="filtWrap">
-          <button class="action action--icon filt-btn" type="button" id="filtBtn" aria-haspopup="true" aria-expanded="false" aria-controls="teamChips" data-i18n-attr="aria-label:tray.team title:tray.team"><svg class="gi" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18l-7 8v6l-4-2v-4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><i class="filt-dot" aria-hidden="true"></i></button>
+          <button class="disclosure filt-btn" type="button" id="filtBtn" aria-haspopup="true" aria-expanded="false" aria-controls="teamChips" data-i18n-attr="aria-label:tray.team title:tray.team"><svg class="gi" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18l-7 8v6l-4-2v-4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><i class="filt-dot" aria-hidden="true"></i></button>
           <div class="chips filt-menu choice-group" id="teamChips" role="group" data-i18n-attr="aria-label:tray.team"></div>
         </div>
       </div>
@@ -147,7 +147,7 @@
         <div class="design-bar" id="designBar"></div>
       </div>
       <div class="addmenu" id="addWrap">
-          <button class="action add main" type="button" id="addBtn" aria-haspopup="menu" aria-expanded="false" aria-controls="addMenu"><svg class="gi plus" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 9V3h10v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><rect x="3" y="9" width="18" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7 14h10v7H7z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><span id="addLabel"></span><svg class="gi chev" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <button class="disclosure add main" type="button" id="addBtn" aria-haspopup="menu" aria-expanded="false" aria-controls="addMenu"><svg class="gi plus" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 9V3h10v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><rect x="3" y="9" width="18" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7 14h10v7H7z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><span id="addLabel"></span><svg class="gi chev" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           <div class="menu" id="addMenu" role="menu" aria-labelledby="addBtn" hidden></div>
         </div>
       <p class="built-copy built-only"><span data-i18n="own.copyLead"></span> <button class="action action--sm" type="button" data-coll="copy" data-i18n="own.copyAction"></button></p>
@@ -880,7 +880,7 @@
       <!-- the rest of what it is: its own colour, catalogs and linked tokens; another like it, or none -->
       <div class="own-fields" id="tpMoreOpts">
         <div class="field"><span data-i18n="own.colour"></span>
-          <details class="tok-colour" id="ownTokColour"><summary></summary><div class="tok-colour-menu choice-group"></div></details>
+          <details class="tok-colour" id="ownTokColour"><summary class="input input--select"></summary><div class="tok-colour-menu choice-group"></div></details>
           <p class="hint" id="ownTokColourHelp"></p></div>
         <div class="field" id="ownTokCatsRow"><span data-i18n="own.inCatalogs"></span><div class="own-cats" id="ownTokCats"></div></div>
         <div class="field"><span data-i18n="own.linked"></span><p class="hint" data-i18n="own.linkedHelp"></p>

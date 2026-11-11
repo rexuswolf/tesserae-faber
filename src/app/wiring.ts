@@ -11,10 +11,10 @@ import { persistPicks, editToken, isPicked, setPick, renderQueue, goStep, flow, 
 import { renderSpine, renderSheet, onCopyStep, openRows, toggleCharacter, openAddMenu, addShown } from "./sheet.ts";
 import { editOwnToken, wireCollSwitch, wireOwn, setOwnContent } from "./creator.ts";
 import { wireEditor, openContent } from "./editor.ts";
-import { wireDesignBar, deepenAll, openDesignSheet, wireDesignSheet, saveLookAsDesign, setOwn, rememberReturn, renderSays, setBackFace, backDrawn, changeLook, deepen, resetField, setReliefFace, toggleReliefPart, changePattern, changeCardBack, changeBackContent, FRAME_START_WIDTH, setPieceKind } from "./design-sheet.ts";
+import { wireDesignBar, deepenAll, openDesignSheet, wireDesignSheet, saveLookAsDesign, setOwn, rememberReturn, renderSays, setBackFace, backDrawn, changeLook, deepen, resetField, setReliefFace, toggleReliefPart, changePattern, changeCardBack, changeBackContent, FRAME_START_WIDTH, setPieceKind, undoChanges } from "./design-sheet.ts";
 import { OWN } from "../collection.ts";
 import { TALLER } from "./taller.ts";
-import { designFor, rereadMyDesigns, markSaved, savedPointOf } from "./designs.ts";
+import { designFor, rereadMyDesigns, markSaved } from "./designs.ts";
 import { adminSignIn } from "./boot.ts";
 import { printerOf, nozzleOf } from "../bambu/plates.ts";
 import type { ViewKind } from "../engine/viewer.ts";
@@ -201,13 +201,7 @@ export function wire() {
   };
   // its changes since it was saved: kept as the point to come back to, or undone to it
   $("#styleSave").onclick = () => { const key = state.sel!.key; markSaved(key); state.flash = t("design.savedDone"); renderWorkshop(); };
-  $("#styleDrop").onclick = () => {
-    const key = state.sel!.key, own: TokenOverride = { ...state.overrides.get(key) }, saved = savedPointOf(key).look;
-    if (saved) own.look = structuredClone(saved); else delete own.look;
-    setOwn(key, own);
-    state.flash = t("design.undoDone");
-    renderWorkshop();
-  };
+  $("#styleDrop").onclick = () => undoChanges(state.sel!.key);
   $("#styleSaveDesign").onclick = () => void saveLookAsDesign(state.sel!.key);
   $("#styleBack").onclick = () => {
     const key = state.sel!.key, own: TokenOverride = { ...state.overrides.get(key) };

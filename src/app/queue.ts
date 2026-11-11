@@ -15,7 +15,7 @@ import type { PaperSize, SheetSlot } from "../pdf/layout.ts";
 import { plateFeatures } from "../bambu/estimate.ts";
 import { drawer } from "./scripts-ui.ts";
 import { renderWorkshop, viewTab, showTab } from "./workshop.ts";
-import { dec1, colourNotes } from "./design-sheet.ts";
+import { dec1, colourNotes, leavingUnsaved, settleToken } from "./design-sheet.ts";
 import posthog, { posthogEnabled } from "../posthog.ts";
 import { posthogAppLogger } from "../posthog-logger.ts";
 import { OWN, nameIn, builtIn, APP_NAME } from "../collection.ts";
@@ -209,6 +209,12 @@ export function goStep(step: number, address: "push" | "replace" | "keep" = "pus
   if (step === 4 && !settingsStep.can()) step = 1;   // settings: a collection of yours
   // leaving the settings with changes not saved: asked first; kept, it stays (Back too: the address again)
   if (state.step === 4 && step !== 4 && !settingsStep.leave()) { if (address === "keep") history.pushState(history.state, "", stepUrl(4)); return; }
+  // leaving a token's design with changes not saved: asked first, to save or undo them; Cancel stays (Back too)
+  if (step !== 2 && leavingUnsaved()) {
+    if (address === "keep") history.pushState(history.state, "", stepUrl(2));
+    void settleToken().then((ok) => { if (ok) goStep(step, address === "keep" ? "push" : address); });
+    return;
+  }
   state.step = step;
   const url = stepUrl(step);
   if (address !== "keep" && url !== location.pathname + location.search + location.hash) history[address === "push" ? "pushState" : "replaceState"](history.state, "", url);
@@ -346,6 +352,7 @@ export function dropFromDesign(key: string) {
 }
 /** Tapping one of your tokens: the workshop shows it. */
 export function designToken(key: string) {
+  if (key !== state.sel?.key && leavingUnsaved()) { void settleToken().then((ok) => { if (ok) designToken(key); }); return; }
   const was = state.sel && shapeOf(state.sel.role);
   selectToken(key);
   // another type: its design opens where it was left, the 3D view turned to it
@@ -357,6 +364,7 @@ export function designToken(key: string) {
 function revealPicked() { $("#designGrid .ds-cell[aria-current=true]")?.scrollIntoView({ inline: "nearest", block: "nearest" }); }
 /** "Design" on a token (its row, or the pen on one with its own changes): its design, picked or not. */
 export function editToken(key: string) {
+  if (key !== state.sel?.key && leavingUnsaved()) { void settleToken().then((ok) => { if (ok) editToken(key); }); return; }
   if ($<HTMLDialogElement>("#queueDrawer").open) $<HTMLDialogElement>("#queueDrawer").close();
   selectToken(key);
   showTab({ part: "front" });
