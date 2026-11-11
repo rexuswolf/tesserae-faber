@@ -12,7 +12,7 @@
 import { state, $, esc, hit } from "./context.ts";
 import type { Part } from "./context.ts";
 import { ownChanged, designFor, unsaved } from "./designs.ts";
-import { renderEditorDesigns, wireEditorDesigns, toast, renderSays } from "./design-sheet.ts";
+import { renderEditorDesigns, wireEditorDesigns, toast, renderSays, ask, dropLook } from "./design-sheet.ts";
 import { textFor } from "./tokens.ts";
 import { t } from "../i18n.ts";
 import { showTab, renderWorkshop } from "./workshop.ts";
@@ -67,6 +67,9 @@ export function renderEditor(key: string, shape: TokenShape) {
   $("#crActs").hidden = !changed && !tweaked;
   $("#crUnsaved").hidden = $("#crDrop").hidden = $("#crSave").hidden = !changed;
   $("#crSaveDesign").hidden = changed || !tweaked;
+  // customised: back to its design as it is, in one click (asked first)
+  $("#crToDesign").hidden = !tweaked;
+  $("#crToDesign").textContent = `↺ ${t("design.backTo", { name: designFor(key, shape).name })}`;
   renderEditorDesigns();
   // what used to show under the design (saved, dropped…): a moment at the bottom of the page
   if (state.flash && state.flash !== ed.flash) toast(state.flash);
@@ -91,5 +94,10 @@ export function wireEditor() {
   $("#crSave").onclick = () => $("#styleSave").click();
   $("#crSaveDesign").onclick = () => $("#styleSaveDesign").click();
   $("#crDrop").onclick = () => $("#styleDrop").click();
+  $("#crToDesign").onclick = async () => {
+    const key = state.sel?.key; if (!key) return;
+    const name = designFor(key).name;
+    if (await ask(t("editor.askBack", { name }), [{ id: "back", label: t("design.dropTweaks"), main: true }]) === "back") dropLook(key);
+  };
   show();
 }
