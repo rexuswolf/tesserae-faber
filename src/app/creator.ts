@@ -137,7 +137,7 @@ export function renderOwnSpine() {
   $("#library").innerHTML = entry("all", "stack", t("own.everything"), all, t("own.everythingCount", { n: all.length }))
     + (shapes.length > 1 ? shapes.map((sh) => { const roles = all.filter((r) => tokenShape(r.id) === sh); return entry(`f:${sh}`, SHAPE_ICONS[sh], t(`type.${sh}.many`), roles, sub(roles, sh === "card")); }).join("") : "");
   // the lists: the collection's own first (a lock: they came with it), then yours; "+" makes one
-  $("#editions").innerHTML = `<div class="spine-h spine-sec"><h2>${esc(t("own.lists"))}</h2><button class="spine-add" type="button" data-list-new title="${esc(t("own.newCatalog"))}" aria-label="${esc(t("own.newCatalog"))}">+</button></div>`
+  $("#editions").innerHTML = `<div class="spine-h spine-sec"><h2>${esc(t("own.lists"))}</h2><button class="action action--icon action--sm spine-add" type="button" data-list-new title="${esc(t("own.newCatalog"))}" aria-label="${esc(t("own.newCatalog"))}">+</button></div>`
     + (coll.catalogs.map((k) => {
       const roles = rolesOf(k.tokens);
       return `<button class="nav-item ed" type="button" data-ed="k:${esc(k.id)}" aria-current="${state.edition === `k:${k.id}` && !q}">

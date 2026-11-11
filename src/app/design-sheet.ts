@@ -606,7 +606,7 @@ function renderCardBack(role: Role, text: string, spec: TokenSpec) {
   // its tiles, on the back: the card in its colours with each choice
   const back = (change: Partial<CardBack>) => tokenSvg(state.lib!, role, { ...spec, cardBack: { ...b, ...change } }, { side: "back", text });
   const tile = (key: "cardIcon" | "cardJoin" | "frame", v: string, label: string) =>
-    `<button class="back-tile${key === "frame" ? " frame-tile" : ""}" type="button" data-v="${esc(v)}" aria-pressed="${b[key] === v}">${back({ [key]: v, ...(key === "cardJoin" && (b.cardIcon === "none" || b.cardIcon === "only") ? { cardIcon: "left" as const } : {}) })}<span>${esc(label)}</span></button>`;
+    `<button class="choice back-tile${key === "frame" ? " frame-tile" : ""}" type="button" data-v="${esc(v)}" aria-pressed="${b[key] === v}">${back({ [key]: v, ...(key === "cardJoin" && (b.cardIcon === "none" || b.cardIcon === "only") ? { cardIcon: "left" as const } : {}) })}<span>${esc(label)}</span></button>`;
   $("[data-cb-choice=cardIcon]").innerHTML = CARD_ICONS.map((v) => tile("cardIcon", v, t(`cardIcon.${v}`))).join("");
   $("[data-cb-choice=cardJoin]").innerHTML = CARD_JOINS.map((v) => tile("cardJoin", v, t(`cardJoin.${v}`))).join("");
   $("[data-cb-choice=frame]").innerHTML = lineFrames("card", b.frame).map(([v, label]) => tile("frame", v, label)).join("");
