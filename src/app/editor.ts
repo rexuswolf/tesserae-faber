@@ -12,7 +12,7 @@
 import { state, $, esc, hit } from "./context.ts";
 import type { Part } from "./context.ts";
 import { ownChanged, designFor, unsaved } from "./designs.ts";
-import { renderEditorDesigns, wireEditorDesigns, toast, renderSays, ask, dropLook } from "./design-sheet.ts";
+import { renderEditorDesigns, wireEditorDesigns, toast, renderSays, ask, dropLook, dropOwn } from "./design-sheet.ts";
 import { textFor } from "./tokens.ts";
 import { t } from "../i18n.ts";
 import { showTab, renderWorkshop } from "./workshop.ts";
@@ -64,12 +64,13 @@ export function renderEditor(key: string, shape: TokenShape) {
   $("#crPicDesign").innerHTML = pic;
   $("#crIcon").innerHTML = pic;
   // changes since it was saved: undo or save them; saved and customised, it can be kept as a design too
-  $("#crActs").hidden = !changed && !tweaked;
+  $("#crActs").hidden = !changed && !tweaked && !said;
   $("#crUnsaved").hidden = $("#crDrop").hidden = $("#crSave").hidden = !changed;
   $("#crSaveDesign").hidden = changed || !tweaked;
-  // customised: back to its design as it is, in one click (asked first)
-  $("#crToDesign").hidden = !tweaked;
-  $("#crToDesign").textContent = `↺ ${t("design.backTo", { name: designFor(key, shape).name })}`;
+  // customised or given its own words or icon: back to the original in one click (asked first);
+  // only its look changed, back to its design as it is
+  $("#crToDesign").hidden = !tweaked && !said;
+  $("#crToDesign").textContent = `↺ ${said ? t("design.backOriginal") : t("design.backTo", { name: designFor(key, shape).name })}`;
   renderEditorDesigns();
   // what used to show under the design (saved, dropped…): a moment at the bottom of the page
   if (state.flash && state.flash !== ed.flash) toast(state.flash);
@@ -96,8 +97,9 @@ export function wireEditor() {
   $("#crDrop").onclick = () => $("#styleDrop").click();
   $("#crToDesign").onclick = async () => {
     const key = state.sel?.key; if (!key) return;
-    const name = designFor(key).name;
-    if (await ask(t("editor.askBack", { name }), [{ id: "back", label: t("design.dropTweaks"), main: true }]) === "back") dropLook(key);
+    const o = state.overrides.get(key), said = !!(o?.text || o?.fem || o?.icon), name = designFor(key).name;
+    const a = await ask(t(said ? "editor.askOriginal" : "editor.askBack", { name }), [{ id: "back", label: said ? t("design.backOriginal") : t("design.dropTweaks"), main: true }]);
+    if (a === "back") { if (said) dropOwn(key); else dropLook(key); }
   };
   show();
 }

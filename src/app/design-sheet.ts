@@ -1095,6 +1095,14 @@ export function dropLook(key: string) {
   state.flash = t("design.dropDone", { name: designFor(key).name });
   renderWorkshop();
 }
+/** Back to the original: the text, icon and look you gave it go (its design stays the one picked). */
+export function dropOwn(key: string) {
+  const own: TokenOverride = { ...state.overrides.get(key) };
+  delete own.text; delete own.fem; delete own.icon; delete own.look;
+  setOwn(key, own); markSaved(key);
+  state.flash = t("design.originalDone");
+  renderWorkshop();
+}
 export function setOwn(key: string, own: TokenOverride) {
   if (!own.text && !own.fem && !own.icon && !own.style && !own.look) state.overrides.delete(key); else state.overrides.set(key, own);
   storeOverrides(); renderWorkshop(); scheduleSheet();
