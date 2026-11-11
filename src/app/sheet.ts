@@ -271,7 +271,10 @@ function rowHtml(r: Role, q: string, remHits: Set<number> | undefined) {
     ${thumb(ck, null)}
     <div class="who" data-pick="${ck}"><b>${esc(catalogText(r, null))}${flip && !OWN ? `<span class="flip-sep" title="${esc(t("sheet.flip"))}"> ⇄ </span>${esc(roleName(flip, tokenLang()))}` : ""}</b>${OWN ? (ownHome(r) && (q || catalogOf(state.edition) !== ownHomeCatalog(r.id)) ? `<em>${esc(ownHome(r))}</em>` : "") : q || state.edition === "all" || (state.edition.startsWith("s:") && r.kind !== "homebrew") ? `<em>${esc(editionName(r, lang))}</em>` : ""}${r.loading ? `<small>${esc(t("sheet.iconLoading"))}</small>` : ""}</div>
     ${rems.length ? `<div class="rems">${fold}${open ? `<div class="rem-list">${chips}</div>` : ""}</div>` : ""}
-    <div class="row-acts">${OWN && !READONLY && !isLocked(coll, r.id) ? `<button class="action own-edit" type="button" data-own-edit="${esc(r.id)}" aria-label="${esc(t("own.edit"))}" title="${esc(t("own.edit"))}">${PEN}<span class="ra-l">${esc(t("own.edit"))}</span></button>` : ""}${r.loading ? "" : `<button class="action own-edit" type="button" data-design-row="${ck}" aria-label="${esc(t("sheet.design"))}" title="${esc(t("sheet.design"))}">${ROLLER}<span class="ra-l">${esc(t("sheet.design"))}</span></button>`}</div>
+    <div class="row-acts">${OWN && !READONLY && !isLocked(coll, r.id)
+      // one way in: a token of yours is edited where it's designed (Edit opens it there, on its Component tab); another's can be redesigned
+      ? `<button class="action own-edit" type="button" data-own-edit="${esc(r.id)}" aria-label="${esc(t("own.edit"))}" title="${esc(t("own.edit"))}">${PEN}<span class="ra-l">${esc(t("own.edit"))}</span></button>`
+      : r.loading ? "" : `<button class="action own-edit" type="button" data-design-row="${ck}" aria-label="${esc(t("sheet.design"))}" title="${esc(t("sheet.design"))}">${ROLLER}<span class="ra-l">${esc(t("sheet.design"))}</span></button>`}</div>
   </div>`;
 }
 
