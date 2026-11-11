@@ -14,7 +14,7 @@ import { wireEditor, openContent } from "./editor.ts";
 import { wireDesignBar, deepenAll, openDesignSheet, wireDesignSheet, saveLookAsDesign, setOwn, rememberReturn, renderSays, setBackFace, backDrawn, changeLook, deepen, resetField, setReliefFace, toggleReliefPart, changePattern, changeCardBack, changeBackContent, FRAME_START_WIDTH, setPieceKind } from "./design-sheet.ts";
 import { OWN } from "../collection.ts";
 import { TALLER } from "./taller.ts";
-import { designFor, rereadMyDesigns } from "./designs.ts";
+import { designFor, rereadMyDesigns, markSaved, savedPointOf } from "./designs.ts";
 import { adminSignIn } from "./boot.ts";
 import { printerOf, nozzleOf } from "../bambu/plates.ts";
 import type { ViewKind } from "../engine/viewer.ts";
@@ -199,14 +199,16 @@ export function wire() {
     setTweak(open); local.set(TWEAK_KEY, open ? "1" : "0");
     if (open) viewTab();
   };
-  $("#styleSave").onclick = () => void saveLookAsDesign(state.sel!.key);
+  // its changes since it was saved: kept as the point to come back to, or undone to it
+  $("#styleSave").onclick = () => { const key = state.sel!.key; markSaved(key); state.flash = t("design.savedDone"); renderWorkshop(); };
   $("#styleDrop").onclick = () => {
-    const key = state.sel!.key, own: TokenOverride = { ...state.overrides.get(key) };
-    delete own.look;
+    const key = state.sel!.key, own: TokenOverride = { ...state.overrides.get(key) }, saved = savedPointOf(key).look;
+    if (saved) own.look = structuredClone(saved); else delete own.look;
     setOwn(key, own);
-    state.flash = t("design.dropDone", { name: designFor(key).name });
+    state.flash = t("design.undoDone");
     renderWorkshop();
   };
+  $("#styleSaveDesign").onclick = () => void saveLookAsDesign(state.sel!.key);
   $("#styleBack").onclick = () => {
     const key = state.sel!.key, own: TokenOverride = { ...state.overrides.get(key) };
     delete own.look; delete own.style;

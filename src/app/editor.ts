@@ -11,7 +11,7 @@
 // Customise's parts are tabs.
 import { state, $, esc, hit } from "./context.ts";
 import type { Part } from "./context.ts";
-import { ownChanged, designFor } from "./designs.ts";
+import { ownChanged, designFor, unsaved } from "./designs.ts";
 import { renderEditorDesigns, wireEditorDesigns, toast, renderSays } from "./design-sheet.ts";
 import { textFor } from "./tokens.ts";
 import { t } from "../i18n.ts";
@@ -54,16 +54,19 @@ export function renderEditor(key: string, shape: TokenShape) {
   if (ed.key !== key) { ed.key = key; ed.inside = false; }
   // its content's fields are the Content panel's: always open there
   if (!state.saysOpen) { state.saysOpen = true; renderSays(); }
-  const tweaked = ownChanged(key), own = state.overrides.get(key);
+  const tweaked = ownChanged(key), changed = unsaved(key), own = state.overrides.get(key);
   const said = !!(own?.text || own?.fem || own?.icon), text = textFor(key, role, reminder);
   const word = (s: string) => `<i>${esc(s)}</i>`;
   $("#crValContent").innerHTML = esc(text) + (said ? ` ${word(t("editor.changed"))}` : "");
   $("#crValDesign").innerHTML = tweaked ? word(t("editor.customised")) : esc(designFor(key, shape).name);
-  $("#crValCustom").innerHTML = tweaked ? word(t("editor.withChanges")) : esc(t("editor.customSub"));
+  $("#crValCustom").innerHTML = changed ? word(t("editor.withChanges")) : esc(t("editor.customSub"));
   const pic = $("#styleTok").innerHTML;
   $("#crPicDesign").innerHTML = pic;
   $("#crIcon").innerHTML = pic;
-  $("#crActs").hidden = !tweaked;
+  // changes since it was saved: undo or save them; saved and customised, it can be kept as a design too
+  $("#crActs").hidden = !changed && !tweaked;
+  $("#crUnsaved").hidden = $("#crDrop").hidden = $("#crSave").hidden = !changed;
+  $("#crSaveDesign").hidden = changed || !tweaked;
   renderEditorDesigns();
   // what used to show under the design (saved, dropped…): a moment at the bottom of the page
   if (state.flash && state.flash !== ed.flash) toast(state.flash);
@@ -86,6 +89,7 @@ export function wireEditor() {
     if (cat === "part") $<HTMLElement>("#parts [data-part]")?.click();
   });
   $("#crSave").onclick = () => $("#styleSave").click();
+  $("#crSaveDesign").onclick = () => $("#styleSaveDesign").click();
   $("#crDrop").onclick = () => $("#styleDrop").click();
   show();
 }

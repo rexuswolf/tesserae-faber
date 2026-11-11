@@ -6,7 +6,7 @@ import { tokenLang } from "./token-language.ts";
 import { iconFromSvg, GI_PLACE } from "../icons.ts";
 import { ownIcon, roleIdOf, charKey, textFor, remindersOf, charName, specFor, filamentName } from "./tokens.ts";
 import { isFilament, slotOf } from "../bambu/plates.ts";
-import { ownChanged, myDesigns, myEntry, collEntry, inheritedRef, refOf, originalRef, defaultRef, designOf, collLabel, designFor, uniqueDesignName, lookOf, storeMyDesigns, storeOverrides, shapesHere, tokensOf, designOverridden, defaults, storeDefaults } from "./designs.ts";
+import { ownChanged, myDesigns, myEntry, collEntry, inheritedRef, refOf, originalRef, defaultRef, designOf, collLabel, designFor, uniqueDesignName, lookOf, storeMyDesigns, storeOverrides, shapesHere, tokensOf, designOverridden, defaults, storeDefaults, savedSpecOf, unsavedFields, markSaved } from "./designs.ts";
 import type { DesignEntry } from "./designs.ts";
 import { appDesigns, APP_NAME, tallerUrl, newId, OWN, isLocked, nameIn } from "../collection.ts";
 import type { OwnToken } from "../collection.ts";
@@ -14,7 +14,7 @@ import { state, collDesigns, $, esc, hit, $$, READONLY, coll, view3d, LAYOUT_TEX
 import type { Side, RangeKey, Part } from "./context.ts";
 import { t, uiLang } from "../i18n.ts";
 import type { Vars } from "../i18n.ts";
-import { applyLook, prunedLook, withLookField, sameValue, lookFields, withoutLookField, setField, lookDiff, fieldOf } from "./looks.ts";
+import { applyLook, prunedLook, withLookField, sameValue, setField, lookDiff, fieldOf } from "./looks.ts";
 import { tokenRole, queueEntry, tokenRem, queueLabel, itemSpec, smallLetters, nozzleMm, renderDesignStage, toastTimer, setToastTimer } from "./queue.ts";
 import { CHEVRON } from "./language.ts";
 import { renderIconField, openPart, openPanel, sectionsOf, showTab, backTabsOf, frontTabsOf, twoSided, editContent, faceOf, hasOwnLook, backChanged, syncView, renderWorkshop, editLook, changeFace, editSide, designSwatch, partsOf } from "./workshop.ts";
@@ -165,7 +165,7 @@ export function wireEditorDesigns() {
     const answer = hit(e, "[data-cr-ask]");
     if (answer) {
       const a = crAsk; crAsk = null;
-      if (answer.dataset.crAsk && a) { if (a.back) $("#styleDrop").click(); else setTokenDesign(key, a.pick); }
+      if (answer.dataset.crAsk && a) { if (a.back) dropLook(key); else setTokenDesign(key, a.pick); }
       else renderEditorDesigns();
       return;
     }
@@ -362,15 +362,16 @@ const partOfField = (f: string, two: boolean): Part => PART_OF[f] ?? (!two && f.
 function changedParts(sel: { key: string; role: Role }, shape: TokenShape): Set<Part> {
   const parts = new Set<Part>(), two = twoSided(shape);
   if (TALLER) return parts;
-  for (const f of lookFields(state.overrides.get(sel.key)?.look)) parts.add(partOfField(f, two));
+  for (const f of unsavedFields(sel.key)) parts.add(partOfField(f, two));
   return parts;
 }
-/** A part's changes undone: its look as the design has it, and (a token of yours) what that face carries as the collection has it. */
+/** A part's changes since it was last saved undone: that part as it was saved. */
 function undoPart(part: Part) {
   const { key, role } = state.sel!, two = twoSided(shapeOf(role)), own: TokenOverride = { ...state.overrides.get(key) };
-  let look = own.look;
-  for (const f of lookFields(look)) if (partOfField(f, two) === part) look = withoutLookField(look!, f);
-  const kept = look && prunedLook(designFor(key).spec, look);
+  const saved = savedSpecOf(key);
+  let look = own.look ?? {};
+  for (const f of unsavedFields(key)) if (partOfField(f, two) === part) look = withLookField(look, f, fieldOf(saved, f));
+  const kept = prunedLook(designFor(key).spec, look);
   if (kept) own.look = kept; else delete own.look;
   setOwn(key, own);
   toast(t("part.undone", { part: partLabel(part, shapeOf(role)) }));
@@ -1022,13 +1023,13 @@ function fieldValue(spec: SpecInput, key: string) {
  */
 function resetBase(field: string): { spec: TokenSpec; title: string } | null {
   if (TALLER) { const from = tallerMine()?.from; return from ? { spec: from.spec, title: t("reset.toPreset", { name: from.name }) } : null; }
-  const { key } = state.sel!, d = designFor(key);
-  return lookFields(state.overrides.get(key)?.look).includes(field) ? { spec: d.spec, title: t("reset.toStyle", { name: d.name }) } : null;
+  const { key } = state.sel!;
+  return unsavedFields(key).includes(field) ? { spec: savedSpecOf(key), title: t("reset.toSaved") } : null;
 }
 export function resetField(field: string) {
   const base = resetBase(field); if (!base) return;
-  if (!TALLER) {   // the token's own change goes: its design's value again
-    const key = state.sel!.key, o = { ...state.overrides.get(key)! }, look = prunedLook(designFor(key).spec, withoutLookField(o.look!, field));
+  if (!TALLER) {   // the change since it was saved goes: the value it was saved with
+    const key = state.sel!.key, o = { ...state.overrides.get(key) }, look = prunedLook(designFor(key).spec, withLookField(o.look ?? {}, field, fieldOf(base.spec, field)));
     if (look) o.look = look; else delete o.look;
     setOwn(key, o);
     return;
@@ -1067,6 +1068,14 @@ export function changeLook(mutate: (s: TokenSpec) => void) {
 let sheetTimer: ReturnType<typeof setTimeout> | number = 0;
 export function scheduleSheet() { clearTimeout(sheetTimer); sheetTimer = setTimeout(() => emit("looks"), 180); }
 /** A token's own text, feminine name, icon, design or look changes; with none left, it simply has its default design. */
+/** Back to its design as it is: its customisation goes (asked first, where it's picked). */
+export function dropLook(key: string) {
+  const own: TokenOverride = { ...state.overrides.get(key) };
+  delete own.look;
+  setOwn(key, own); markSaved(key);
+  state.flash = t("design.dropDone", { name: designFor(key).name });
+  renderWorkshop();
+}
 export function setOwn(key: string, own: TokenOverride) {
   if (!own.text && !own.fem && !own.icon && !own.style && !own.look) state.overrides.delete(key); else state.overrides.set(key, own);
   storeOverrides(); renderWorkshop(); scheduleSheet();
@@ -1135,9 +1144,9 @@ export function ask(text: string, choices: { id: string; label: string; main?: b
   const dlg = $<HTMLDialogElement>("#askDlg");
   $("#askText").textContent = text;
   $("#askActions").innerHTML = `<button class="action" type="button" data-ask="">${esc(t("script.cancel"))}</button>`
-    + choices.map((c) => `<button class="${c.main ? "forge" : "pill"}" type="button" data-ask="${esc(c.id)}">${esc(c.label)}</button>`).join("");
+    + choices.map((c) => `<button class="${c.main ? "action action--primary" : "action"}" type="button" data-ask="${esc(c.id)}">${esc(c.label)}</button>`).join("");
   dlg.showModal();
-  $<HTMLElement>("#askActions .forge")?.focus();
+  $<HTMLElement>("#askActions .action--primary")?.focus();
   return new Promise((done) => {
     dlg.onclick = (e) => { const b = hit(e, "[data-ask]"); if (b) { dlg.close(); done(b.dataset.ask || null); } };
     dlg.onclose = () => done(null);   // Escape: as Cancel (a second answer is ignored)

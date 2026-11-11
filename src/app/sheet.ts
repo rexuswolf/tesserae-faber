@@ -15,7 +15,7 @@ import { roleById } from "./wiring.ts";
 import { tokenLang } from "./token-language.ts";
 import { renderDesignBar, setBarShapes } from "./design-sheet.ts";
 import { peekHint, CHEVRON } from "./language.ts";
-import { designOverridden } from "./designs.ts";
+import { designOverridden, forgetSaved } from "./designs.ts";
 import { syncView } from "./workshop.ts";
 
 // ------------------------------------------------------------ spine
@@ -285,7 +285,7 @@ export function selectToken(key: string | undefined) {
   const role = key && tokenRole(key);
   if (!key || !role) return;
   const was = state.sel?.reminder;
-  if (state.sel?.key !== key) { state.flash = ""; state.saysOpen = false; }   // another token: the last one's note goes
+  if (state.sel?.key !== key) { state.flash = ""; state.saysOpen = false; if (state.sel) forgetSaved(state.sel.key); }   // another token: the last one's note goes, its changes stay
   state.sel = { key, role, reminder: tokenRem(key) };
   syncStepUrl();
   if (state.sel!.reminder != null && was == null) { view3d("setView", "top"); syncView("top"); }

@@ -10,7 +10,7 @@ import { roleIdOf, charKey, remindersOf, remKey } from "./tokens.ts";
 import { shapeOf, migrateBack } from "../engine/token-engine.ts";
 import { tokenRole } from "./queue.ts";
 import { TALLER, taller } from "./taller.ts";
-import { applyLook, lookFrom, lookFields, printsAs, keptBefore, yoursBeforeInset } from "./looks.ts";
+import { applyLook, lookFrom, lookFields, printsAs, keptBefore, yoursBeforeInset, lookDiff } from "./looks.ts";
 import { placeGameIcon } from "../icons.ts";
 import { local } from "../services.ts";
 import { startedFrom } from "./workshop.ts";
@@ -80,8 +80,29 @@ export function refOf(key: string, shape = shapeOf(tokenRole(key))): string {
 export const designFor = (key: string, shape = shapeOf(tokenRole(key))) => designOf(shape, refOf(key, shape))!;
 /** A token's look: its design's, with its own changes. */
 export const lookOf = (key: string): TokenSpec => migrateBack(applyLook(designFor(key).spec, state.overrides.get(key)?.look));
-/** The token has changes of its own to its design's look. */
+/** The token has changes of its own to its design's look: it's customised (a state of its own, kept like any other). */
 export const ownChanged = (key: string) => !!state.overrides.get(key)?.look;
+
+// ---- the saved point: what "Undo changes" goes back to. A token's changes are kept as they're made (nothing is
+// lost); the saved point is its look when it was opened, or when Save changes was last pressed. Leaving the token
+// keeps what it has; a design picked for it starts the point again.
+const savedPoint = new Map<string, { style?: string; look?: LookChanges }>();
+const pointNow = (key: string) => { const o = state.overrides.get(key); return { style: o?.style, look: o?.look && structuredClone(o.look) }; };
+/** The token's saved point (taken now, the first time it's asked for, or when its design has changed since). */
+export function savedPointOf(key: string) {
+  const p = savedPoint.get(key);
+  if (p && p.style === state.overrides.get(key)?.style) return p;
+  const now = pointNow(key); savedPoint.set(key, now); return now;
+}
+/** Save changes: what it has now is the point to go back to. */
+export const markSaved = (key: string) => { savedPoint.set(key, pointNow(key)); };
+/** Left: its changes stay, the point goes (the next time it's opened starts from what it has). */
+export const forgetSaved = (key: string) => { savedPoint.delete(key); };
+/** Its look as last saved. */
+export const savedSpecOf = (key: string): TokenSpec => migrateBack(applyLook(designFor(key).spec, savedPointOf(key).look));
+/** The fields changed since it was last saved (none in the Taller, where a design is changed as it's made). */
+export const unsavedFields = (key: string): string[] => TALLER ? [] : lookDiff(savedSpecOf(key), lookOf(key));
+export const unsaved = (key: string) => unsavedFields(key).length > 0;
 /** The token has a design of its own or changes to it: an override of the collection's default. */
 export const designOverridden = (key: string) => { const o = state.overrides.get(key); return !!o?.look || (!!o?.style && !!designOf(shapeOf(tokenRole(key)), o.style)); };
 /** Every token of a shape (characters and their linked tokens), the one being made apart. */

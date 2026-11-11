@@ -4,7 +4,7 @@ import type { TokenShape, TokenSpec, BackFace, SpecInput, SpecColours, TokenIcon
 import { shapeOf, SHAPE_FEATURES, DEFAULT_SPEC, FACE_FIELDS, reliefOf, backLookOf, flipFace, buildToken, TEAMS, tokenSvg, MAGNET_SIZES, RING_SEPARATORS, RING_BASES, cardBackOf } from "../engine/token-engine.ts";
 import { state, coll, defSpec, STYLE_KEEPS, knownStyles, $, view3d, esc, input, hit, $$, SEPARATOR_MARKS, COLOUR_CHOICES, READONLY } from "./context.ts";
 import type { Part, Side, FaceTab, Fields } from "./context.ts";
-import { lookOf, designFor, ownChanged, designOf, inheritedRef, collLabel, defaultRef } from "./designs.ts";
+import { lookOf, designFor, ownChanged, designOf, inheritedRef, collLabel, defaultRef, unsaved } from "./designs.ts";
 import { changeLook, renderSays, renderTabs, syncControls, renderColourWarn, dz, renderDesignSheet, setOwn, patternGroupHtml, setCardBack, changeCardBack, setCardBackIcon, renderQuickDesigns } from "./design-sheet.ts";
 import { APP_NAME, tallerUrl, OWN, isLocked } from "../collection.ts";
 import type { StyleDef } from "../collection.ts";
@@ -252,10 +252,14 @@ function renderDesignRow(key: string, shape: TokenShape) {
   const d = designFor(key, shape), def = designOf(shape, inheritedRef(key, shape))!, tweaked = ownChanged(key);
   const { role, reminder } = state.sel!;
   $("#styleTok").innerHTML = tokenSvg(state.lib!, role, specFor(key, reminder != null), { text: textFor(key, role, reminder) });
-  $("#styleName").innerHTML = esc(d.name) + (tweaked ? ` · ${esc(t("design.custom"))} <span aria-hidden="true">✎</span>` : "");
+  $("#styleName").innerHTML = esc(d.name) + (tweaked ? ` · ${esc(t("design.custom"))}` : "");
   $("#styleCount").textContent = d.ref === def.ref ? t("design.isDefault") : d.mine ? t("design.yours") : t("design.fromSrc", { name: d.ref.startsWith("a:") ? APP_NAME : collLabel() });
   $("#styleChange").setAttribute("aria-label", `${t("design.change")}: ${t("design.label")} ${d.name}`);
-  $("#styleTweak").hidden = !tweaked;
+  // changes since it was saved: undo or save them; saved and customised, it can be kept as a design too
+  const changed = unsaved(key);
+  $("#styleTweak").hidden = !changed && !tweaked;
+  $(".dt-what", $("#styleTweak")).hidden = $("#styleDrop").hidden = $("#styleSave").hidden = !changed;
+  $("#styleSaveDesign").hidden = changed || !tweaked;
   // a design chosen for this token (not its shape's default): offered for all of them
   const all = $<HTMLButtonElement>("#styleAll");
   all.hidden = reminder != null || d.ref === defaultRef(shape);
