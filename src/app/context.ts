@@ -1,7 +1,7 @@
 // Shared app state, page helpers and the keys of what this browser keeps.
 import type { ReliefPart, TokenStyle, TokenShape, Team, Role, TokenSpec, Library, TokenOverride, Token } from "../types.ts";
 import { DEFAULT_SPEC, normalizeSpec } from "../engine/token-engine.ts";
-import { OWN, OWN_ID, MODE, rememberCollection, loadCollection, builtIn, APP_LOGO, nameIn, stylesOf, ownStylesOf, knownStylesOf } from "../collection.ts";
+import { OWN, OWN_ID, MODE, THEME_VARS, rememberCollection, loadCollection, builtIn, APP_LOGO, nameIn, stylesOf, ownStylesOf, knownStylesOf } from "../collection.ts";
 import type { Collection, StyleDef } from "../collection.ts";
 import type { AppUser } from "../ports.ts";
 import { uiLang, t } from "../i18n.ts";
@@ -130,7 +130,7 @@ if (READONLY && BUILT) coll = { ...coll, name: BUILT.name, ...(BUILT.theme ? { t
 export function keepGateLook() {
   try {
     const root = document.documentElement, vars: Record<string, string> = {};
-    for (const k of ["--velvet", "--velvet-mid", "--velvet-deep", "--brass", "--bone", "--dust", "--seam", "--glow", "--display"]) { const v = root.style.getPropertyValue(k); if (v) vars[k] = v; }
+    for (const k of THEME_VARS) { const v = root.style.getPropertyValue(k); if (v) vars[k] = v; }
     const logo = coll.brand?.logo && coll.brand.logo.length < 30000 ? coll.brand.logo : APP_LOGO;   // a big uploaded logo isn't worth keeping twice
     const lang = uiLang();
     writeJSON(`midnight-mint-gate:${location.pathname}`, {

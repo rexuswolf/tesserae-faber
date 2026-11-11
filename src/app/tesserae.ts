@@ -1,7 +1,7 @@
 // Tesserae: the app's material, after its mark. Small stones set in grout: the floor under the list, the band of
 // tesserae round a picked token (hexagons at its corners, as round the logo). The material is the app's, the colours
 // each collection's: these images are drawn from the theme's own (its text, accent and background) whenever it
-// changes, and handed to the stylesheet as --band-on and --floor.
+// changes, and handed to the stylesheet as --texture-band-selected and --texture-floor.
 
 type Rgb = [number, number, number];
 const BLACK: Rgb = [0, 0, 0];
@@ -40,13 +40,13 @@ const painted = new WeakMap<HTMLElement, string>();
  *  front pages', which keep the app's own. */
 export function paintTesserae(root: HTMLElement = document.documentElement) {
   const cs = getComputedStyle(root);
-  const accent = rgb(cs.getPropertyValue("--brass")), text = rgb(cs.getPropertyValue("--bone")), bg = rgb(cs.getPropertyValue("--velvet-deep"));
+  const accent = rgb(cs.getPropertyValue("--theme-accent")), text = rgb(cs.getPropertyValue("--theme-text")), bg = rgb(cs.getPropertyValue("--theme-background"));
   // the stylesheet not in yet (the first frame of a dev load): try again on the next
   if (!accent || !text || !bg) { requestAnimationFrame(() => paintTesserae(root)); return; }
   const key = [accent, text, bg].join();
   if (painted.get(root) === key) return;
   painted.set(root, key);
   // the band in the accent let down into the background, its corners the accent itself: it marks, it doesn't glare
-  root.style.setProperty("--band-on", band(mix(accent, bg, 0.3), mix(accent, bg, 0.5), mix(accent, BLACK, 0)));
-  root.style.setProperty("--floor", floor(bg, text));
+  root.style.setProperty("--texture-band-selected", band(mix(accent, bg, 0.3), mix(accent, bg, 0.5), mix(accent, BLACK, 0)));
+  root.style.setProperty("--texture-floor", floor(bg, text));
 }

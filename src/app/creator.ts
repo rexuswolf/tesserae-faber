@@ -1,7 +1,7 @@
 // Collections of your own: the creator, a token's panel, the collection's look and the list.
 import { emit } from "./events.ts";
 import { paintTesserae } from "./tesserae.ts";
-import { OWN, nameIn, storeMyLists, foldAbout, storeCollection, OWN_ID, builtIn, tallerUrl, readTokenList, newId, withName, copyBuiltIn, collectionUrl, collectionFile, readCollectionFile, addCollection, GROUP_COLOURS, SHAPES, collectionRoles, tokenRole as ownRole, isLocked, coinContent, THEMES, APP_LOGO, APP_LOGO_SMALL, APP_ICON, APP_NAME, hasCcc, THEME_FONTS, okLogo, builtInCollections, listCollections, lastCollection, openUrl, OWN_VIEW, LIST_URL, starterCollection, loadCollection, deleteCollection, isUntouchedStarter } from "../collection.ts";
+import { OWN, nameIn, storeMyLists, foldAbout, storeCollection, OWN_ID, builtIn, tallerUrl, readTokenList, newId, withName, copyBuiltIn, collectionUrl, collectionFile, readCollectionFile, addCollection, GROUP_COLOURS, SHAPES, collectionRoles, tokenRole as ownRole, isLocked, coinContent, THEMES, THEME_VARS, themeVars, APP_LOGO, APP_LOGO_SMALL, APP_ICON, APP_NAME, hasCcc, THEME_FONTS, okLogo, builtInCollections, listCollections, lastCollection, openUrl, OWN_VIEW, LIST_URL, starterCollection, loadCollection, deleteCollection, isUntouchedStarter } from "../collection.ts";
 import type { OwnWord, OwnWords, OwnCatalog, OwnToken, OwnTheme, CollectionEntry, OwnFlip } from "../collection.ts";
 import { FILAMENT_SLOTS, slotOf, isFilament } from "../bambu/plates.ts";
 import { PLA_BASIC } from "../bambu/pla-basic.ts";
@@ -733,12 +733,8 @@ export function applyOwnTheme() {
   // "botc" is the stylesheet's own colours: nothing to set
   const colours: OwnTheme | null = th === "botc" ? null : typeof th === "string" ? THEMES[th] ?? THEMES.faber : th;
   root.dataset.theme = th === "botc" ? "botc" : "";
-  const vars: Record<string, string | undefined> = colours ? {
-    "--velvet": colours.surface, "--velvet-mid": colours.surface, "--velvet-deep": colours.background, "--brass": colours.accent,
-    "--bone": colours.text, "--dust": colours.muted, "--seam": `${colours.text}1f`, "--glow": colours.glow ?? colours.surface,
-    "--display": colours.font ? `"${colours.font}", sans-serif` : undefined,
-  } : {};
-  for (const k of ["--velvet", "--velvet-mid", "--velvet-deep", "--brass", "--bone", "--dust", "--seam", "--glow", "--display"]) {
+  const vars: Partial<Record<string, string>> = colours ? themeVars(colours) : {};
+  for (const k of THEME_VARS) {
     if (vars[k]) root.style.setProperty(k, vars[k]!); else root.style.removeProperty(k);
   }
   paintTesserae(root);

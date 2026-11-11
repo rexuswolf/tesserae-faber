@@ -1,0 +1,593 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sistema de diseño</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Gloock&family=Marcellus&family=Instrument+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="/src/style.css">
+<style>
+/* The app's own stylesheet is loaded above, so every "today" sample is drawn by the real classes.
+   This page's own classes start with dsy-; the proposal's classes are scoped under .dsy-p. */
+html, body { height: auto; }
+body { padding: 0 0 80px; }
+.dsy-wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+.dsy-head { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--color-bg-canvas) 92%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--color-border-default); }
+.dsy-head .dsy-wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; padding-top: 14px; padding-bottom: 14px; }
+.dsy-head h1 { margin: 0; font: 400 26px/1.1 var(--font-family-display); flex: 1 1 auto; }
+.dsy-themes { display: flex; flex-wrap: wrap; gap: 6px; }
+.dsy-nav { display: flex; flex-wrap: wrap; gap: 4px 14px; flex-basis: 100%; font-size: 13px; }
+.dsy-nav a { color: var(--color-text-muted); text-decoration: none; }
+.dsy-nav a:hover { color: var(--color-text-default); }
+.dsy-lead { color: var(--color-text-muted); max-width: 760px; margin: 22px 0 0; }
+.dsy-sec { margin-top: 48px; scroll-margin-top: 120px; }
+.dsy-sec > h2 { margin: 0 0 4px; font: 400 26px/1.15 var(--font-family-display); }
+.dsy-sec > p { margin: 0 0 16px; color: var(--color-text-muted); max-width: 780px; font-size: 14px; }
+.dsy-sec h3 { margin: 26px 0 10px; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--color-text-muted); font-weight: 600; }
+.dsy-stat { display: flex; flex-wrap: wrap; gap: 10px; margin: 18px 0 0; }
+.dsy-stat div { flex: 1 1 150px; border: 1px solid var(--color-border-default); border-radius: 12px; padding: 10px 14px; background: var(--color-bg-surface); }
+.dsy-stat b { display: block; font: 400 28px/1.1 var(--font-family-display); }
+.dsy-stat b.warn { color: var(--color-status-warning); }
+.dsy-stat span { font-size: 12px; color: var(--color-text-muted); }
+.dsy-note { border-left: 3px solid var(--color-accent-default); padding: 8px 14px; background: var(--color-bg-surface); border-radius: 0 8px 8px 0; font-size: 13.5px; color: var(--color-text-muted); max-width: 780px; margin: 0 0 16px; }
+.dsy-note b { color: var(--color-text-default); font-weight: 600; }
+.dsy-rules { margin: 0 0 16px; padding-left: 20px; max-width: 780px; font-size: 14px; color: var(--color-text-muted); display: grid; gap: 6px; }
+.dsy-rules b { color: var(--color-text-default); font-weight: 600; }
+code { font-size: .92em; }
+
+/* tables */
+.dsy-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.dsy-table th { text-align: left; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--color-text-muted); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--color-border-default); }
+.dsy-table td { padding: 7px 8px; border-bottom: 1px solid var(--color-border-default); vertical-align: middle; }
+.dsy-table td code { color: var(--color-text-default); }
+.dsy-table td.new code { color: var(--color-accent-default); }
+.dsy-table td.old code { color: var(--color-text-muted); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--color-text-muted) 50%, transparent); }
+.dsy-table .sw { display: inline-block; width: 18px; height: 18px; border-radius: 4px; border: 1px solid var(--color-border-default); vertical-align: middle; margin-right: 6px; }
+.dsy-table .why { color: var(--color-text-muted); font-size: 12.5px; }
+.dsy-tablewrap { overflow-x: auto; }
+.dsy-group td { padding-top: 18px; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--color-text-muted); font-weight: 600; border-bottom: 0; }
+
+/* the grammar: one form per function */
+.dsy-grammar { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
+.dsy-grammar > div { border: 1px solid var(--color-border-default); border-radius: 12px; padding: 14px; background: var(--color-bg-surface); display: grid; gap: 10px; align-content: start; }
+.dsy-grammar h4 { margin: 0; font: 600 15px/1.2 var(--font-family-ui); display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.dsy-grammar h4 code { color: var(--color-accent-default); font-weight: 400; font-size: 12px; }
+.dsy-grammar p { margin: 0; font-size: 12.5px; color: var(--color-text-muted); line-height: 1.45; }
+.dsy-grammar p b { color: var(--color-text-default); font-weight: 600; }
+.dsy-live { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; min-width: 0; }
+
+/* the inventory */
+.dsy-inv td.n { text-align: center; font-variant-numeric: tabular-nums; }
+.dsy-inv td.n span { display: inline-block; min-width: 26px; padding: 1px 6px; border-radius: 999px; background: color-mix(in srgb, var(--color-text-default) 8%, transparent); }
+.dsy-inv tr.clash td:first-child code { color: var(--color-status-warning); }
+.dsy-inv tr.clash td.n span { background: color-mix(in srgb, var(--color-status-warning) 22%, transparent); color: var(--color-text-default); }
+.dsy-inv td.to code { color: var(--color-accent-default); }
+
+/* the same .pill, four jobs */
+.dsy-clash { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.dsy-clash > div { border: 1px solid var(--color-border-default); border-radius: 12px; padding: 12px; background: var(--color-bg-surface); display: grid; gap: 10px; }
+.dsy-clash small { color: var(--color-text-muted); font-size: 12px; }
+.dsy-clash .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.dsy-clash .row > span { color: var(--color-text-muted); font-size: 12px; width: 44px; }
+
+/* texture: today's floor beside a quieter one */
+.dsy-floors { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.dsy-floors > figure { margin: 0; display: grid; gap: 8px; }
+.dsy-floors figcaption { font-size: 12px; color: var(--color-text-muted); }
+.dsy-floors figcaption b { color: var(--color-text-default); }
+.dsy-floor { padding: 22px; border-radius: 12px; border: 1px solid var(--color-border-default); background-color: var(--color-bg-canvas); min-height: 250px; }
+.dsy-plate { border: 1px solid var(--color-border-default); border-radius: 14px; padding: 12px 14px; }
+.dsy-plate h5 { margin: 0 0 2px; font: 400 19px/1.15 var(--font-family-display); }
+.dsy-plate h5 small { font: 13px var(--font-family-ui); color: var(--color-text-muted); margin-left: 6px; }
+.dsy-plate .bar { height: 4px; border-radius: 2px; background: color-mix(in srgb, var(--color-text-default) 10%, transparent); margin: 8px 0 6px; }
+.dsy-plate .bar i { display: block; width: 62%; height: 100%; border-radius: 2px; background: var(--color-accent-default); }
+.dsy-plate p { margin: 0 0 10px; font-size: 13px; color: var(--color-text-muted); }
+.dsy-plate .toks { display: flex; flex-wrap: wrap; gap: 5px; }
+.dsy-plate .toks i { width: 34px; height: 34px; border-radius: 50%; border: 2px solid #2f86e0; display: grid; place-items: center; font: 600 7px/1 var(--font-family-ui); color: #2f86e0; font-style: normal; letter-spacing: .02em; }
+
+/* colours, tints, type, radii */
+.dsy-tints { display: grid; gap: 6px; }
+.dsy-tint { display: grid; grid-template-columns: 1fr 1fr minmax(0, 2.2fr); gap: 10px; align-items: center; padding: 8px; border-radius: 12px; background: var(--color-bg-surface); border: 1px solid var(--color-border-default); }
+.dsy-tint .dsy-chip { height: 40px; border-radius: 8px; display: grid; place-items: center; font-size: 11px; color: #fff; text-shadow: 0 1px 2px #000, 0 0 6px #000; border: 1px dashed var(--color-border-default); text-align: center; line-height: 1.2; padding: 2px; }
+.dsy-tint .dsy-what { font-size: 12px; color: var(--color-text-muted); min-width: 0; }
+.dsy-tint .dsy-what code { color: var(--color-text-default); }
+.dsy-tint .dsy-what small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dsy-tint-head { display: grid; grid-template-columns: 1fr 1fr minmax(0, 2.2fr); gap: 10px; padding: 0 8px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--color-text-muted); }
+.dsy-map { display: grid; gap: 4px; }
+.dsy-row { display: grid; grid-template-columns: 74px minmax(0, 1fr) 40px 96px minmax(0, 1fr); gap: 10px; align-items: center; padding: 6px 8px; border-radius: 8px; }
+.dsy-row:nth-child(odd) { background: color-mix(in srgb, var(--color-text-default) 3%, transparent); }
+.dsy-row.dsy-same .dsy-to { color: var(--color-text-muted); }
+.dsy-row code { font-size: 12px; }
+.dsy-row .dsy-n { color: var(--color-text-muted); font-size: 12px; text-align: right; }
+.dsy-row .dsy-sample { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; line-height: 1.2; }
+.dsy-row .dsy-to { color: var(--color-accent-default); font-size: 12px; }
+.dsy-row details { grid-column: 1 / -1; font-size: 12px; color: var(--color-text-muted); }
+.dsy-row details summary { cursor: pointer; width: max-content; }
+.dsy-row details div { padding: 4px 0 2px 12px; overflow-wrap: anywhere; }
+.dsy-maph { display: grid; grid-template-columns: 74px minmax(0, 1fr) 40px 96px minmax(0, 1fr); gap: 10px; padding: 0 8px 4px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--color-text-muted); }
+.dsy-scale { display: grid; gap: 2px; }
+.dsy-scale div { display: grid; grid-template-columns: 150px 54px minmax(0, 1fr); gap: 12px; align-items: baseline; padding: 4px 0; border-bottom: 1px solid var(--color-border-default); }
+.dsy-scale code { font-size: 12px; color: var(--color-accent-default); }
+.dsy-scale span { color: var(--color-text-muted); font-size: 12px; }
+.dsy-scale p { margin: 0; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; line-height: 1.15; }
+.dsy-radii { display: flex; flex-wrap: wrap; gap: 18px; }
+.dsy-radii figure { margin: 0; display: grid; justify-items: center; gap: 6px; font-size: 12px; color: var(--color-text-muted); text-align: center; max-width: 130px; }
+.dsy-radii figure i { width: 84px; height: 56px; border: 1.5px solid var(--color-accent-default); background: color-mix(in srgb, var(--color-accent-default) 10%, transparent); }
+.dsy-radii code { color: var(--color-text-default); }
+.dsy-rbox { width: 54px; height: 30px; border: 1.5px solid var(--color-text-muted); justify-self: start; }
+.dsy-rbox.to { border-color: var(--color-accent-default); }
+
+/* ================= the proposal =================
+   Names after Style Dictionary's CTI order (category-type-item-state), three tiers:
+   1 theme: the inputs a theme sets (applyOwnTheme would set only these)
+   2 semantic: what each value is for, worked out from the theme here, in CSS
+   3 component: only where a component needs its own knob
+   Here tier 1 is read from today's variables, so the theme buttons above still work. */
+.dsy-p {
+  /* The tiers the app already has (style.css: --theme-*, --color-bg-canvas …) are read as they are. These are the ones
+     the proposal adds. */
+  --color-bg-sunken: color-mix(in srgb, var(--theme-background) 70%, #000);
+  --color-bg-selected: color-mix(in srgb, var(--theme-surface) 80%, var(--theme-accent));
+  --color-accent-hover: color-mix(in srgb, var(--theme-accent) 85%, var(--theme-text));
+  --color-border-strong: color-mix(in srgb, var(--theme-text) 40%, transparent);
+  --color-border-selected: var(--theme-accent);
+  --color-status-danger: #d8584b;
+  --color-status-danger-text: #f0a198;
+  --font-size-3xs: 10px; --font-size-2xs: 11px; --font-size-xs: 12px; --font-size-sm: 13px; --font-size-md: 14px; --font-size-base: 15px;
+  --font-size-lg: 16px; --font-size-xl: 18px; --font-size-2xl: 22px; --font-size-3xl: 26px; --font-size-4xl: 32px; --font-size-5xl: 38px;
+  --font-size-6xl: 46px; --font-size-7xl: 62px;
+  --radius-stone: 3px; --radius-panel: 14px; --radius-round: 50%; --radius-badge: 999px;
+  --shadow-raised: inset 0 1px 0 color-mix(in srgb, var(--theme-text) 7%, transparent), 0 1px 0 #0006;
+  --shadow-sunken: inset 0 1px 2px #0008;
+  --shadow-selected: inset 0 0 0 2px var(--color-border-selected);
+}
+
+/* ACTION: does something now. The cut of the mark's hexagon, and only actions have it. BEM: .action, .action--modifier */
+.dsy-p .action { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 0; clip-path: var(--shape-cut);
+  background: var(--color-bg-raised); color: var(--color-text-default); font: 500 var(--font-size-md)/1.2 var(--font-family-ui); padding: 8px 18px; cursor: pointer; white-space: nowrap; }
+.dsy-p .action:hover:not(:disabled) { background: var(--color-bg-raised-hover); }
+.dsy-p .action:focus-visible { clip-path: none; border-radius: 4px; outline: 2px solid var(--color-accent-default); }
+.dsy-p .action:disabled { opacity: .45; cursor: default; }
+.dsy-p .action--primary { background: var(--color-accent-default); color: var(--color-text-on-accent); font-weight: 600; padding: 11px 26px; }
+.dsy-p .action--primary:hover:not(:disabled) { background: var(--color-accent-hover); }
+.dsy-p .action--quiet { background: none; color: var(--color-text-muted); }
+.dsy-p .action--quiet:hover:not(:disabled) { color: var(--color-text-default); }
+.dsy-p .action--danger { color: var(--color-status-danger-text); }
+.dsy-p .action--danger:hover:not(:disabled) { background: color-mix(in srgb, var(--color-status-danger) 22%, var(--color-bg-raised)); }
+.dsy-p .action--sm { font-size: var(--font-size-sm); padding: 4px 15px; }
+.dsy-p .action--icon { width: 40px; height: 34px; padding: 0; clip-path: var(--shape-cut-compact); font-size: var(--font-size-xl); }
+.dsy-p .action--icon.action--sm { width: 30px; height: 26px; font-size: var(--font-size-md); }
+
+/* CHOICE: a state you set, and it stays marked. A raised stone; picked, the accent ring. Many may be on: a box in its corner.
+   One of several (radio): the group joins them, no box. */
+.dsy-p .choice { position: relative; display: inline-grid; justify-items: center; align-content: center; gap: 4px; border: 0; border-radius: var(--radius-stone);
+  background: var(--color-bg-raised); box-shadow: var(--shadow-raised); color: var(--color-text-default); font: var(--font-size-sm)/1.2 var(--font-family-ui); padding: 6px 12px; cursor: pointer; text-align: center; }
+.dsy-p .choice:hover { background: var(--color-bg-raised-hover); }
+.dsy-p .choice:is([aria-pressed=true], [aria-checked=true]) { background: var(--color-bg-selected); box-shadow: var(--shadow-selected); }
+.dsy-p .choice[aria-pressed]::after { content: ""; position: absolute; top: -5px; right: -5px; width: 15px; height: 15px; border-radius: 3px; background: var(--color-bg-canvas); box-shadow: inset 0 0 0 1px var(--color-border-strong); }
+.dsy-p .choice[aria-pressed=true]::after { content: "✓"; display: grid; place-items: center; background: var(--color-accent-default); color: var(--color-text-on-accent); font-size: 10px; font-weight: 700; box-shadow: none; }
+.dsy-p .choice--row { grid-auto-flow: column; justify-content: start; gap: 8px; padding: 4px 12px 4px 5px; }
+.dsy-p .choice__media { width: 26px; height: 26px; border-radius: 50%; background: color-mix(in srgb, var(--theme-text) 14%, transparent); }
+.dsy-p .choice--tile { padding: 8px 8px 7px; font-size: var(--font-size-xs); min-width: 64px; }
+.dsy-p .choice--tile .choice__media { width: 44px; height: 44px; border-radius: var(--radius-stone); }
+.dsy-p .choice-group { display: inline-flex; gap: 2px; padding: 2px; border-radius: calc(var(--radius-stone) + 2px); background: var(--color-bg-sunken); }
+.dsy-p .choice-group .choice { box-shadow: none; background: none; }
+.dsy-p .choice-group .choice[aria-checked=true] { background: var(--color-bg-selected); box-shadow: var(--shadow-selected); }
+
+/* FIELD: a value you type or edit. A sunken stone, its label over it. */
+.dsy-p .field { display: grid; gap: 4px; min-width: 0; }
+.dsy-p .field__label { font-size: var(--font-size-xs); color: var(--color-text-muted); }
+.dsy-p .field__control { width: 100%; border: 0; border-radius: var(--radius-stone); background: var(--color-bg-sunken); box-shadow: var(--shadow-sunken); color: var(--color-text-default); font: var(--font-size-base)/1.3 var(--font-family-ui); padding: 8px 11px; text-align: left; }
+.dsy-p .field__control:focus-visible { outline: 2px solid var(--color-accent-default); outline-offset: 0; }
+.dsy-p button.field__control { display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+.dsy-p button.field__control::after { content: "›"; color: var(--color-text-muted); font-size: var(--font-size-xl); line-height: 1; }
+
+/* DISCLOSURE: shows or hides something. No body of its own: its words and a chevron that turns. */
+.dsy-p .disclosure { display: inline-flex; align-items: center; gap: 8px; border: 0; background: none; padding: 4px 0; color: var(--color-text-muted); font: 500 var(--font-size-sm)/1.2 var(--font-family-ui); cursor: pointer; }
+.dsy-p .disclosure:hover { color: var(--color-text-default); }
+.dsy-p .disclosure::after { content: ""; width: 7px; height: 7px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: translateY(-2px) rotate(45deg); transition: transform .15s; }
+.dsy-p .disclosure[aria-expanded=true]::after { transform: translateY(1px) rotate(-135deg); }
+.dsy-p .disclosure__media { width: 22px; height: 22px; border-radius: 50%; background: color-mix(in srgb, var(--theme-text) 14%, transparent); }
+
+/* NAVIGATION: takes you somewhere. Accent text: underlined in a sentence, an arrow on its own; in a list, the current one wears the bar. */
+.dsy-p .nav-link { color: var(--color-text-accent); text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; font: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+.dsy-p .nav-link--go, .dsy-p .nav-link--back { text-decoration: none; font-weight: 500; }
+.dsy-p .nav-link--go::after { content: " →"; }
+.dsy-p .nav-link--back::before { content: "← "; }
+.dsy-p .nav-link:hover { color: var(--color-text-default); }
+.dsy-p .nav-item { position: relative; display: block; width: 100%; text-align: left; border: 0; background: none; color: var(--color-text-default); padding: 8px 12px 8px 14px; border-radius: var(--radius-stone); font: var(--font-size-md)/1.25 var(--font-family-ui); cursor: pointer; }
+.dsy-p .nav-item:hover { background: color-mix(in srgb, var(--theme-text) 4%, transparent); }
+.dsy-p .nav-item[aria-current]:not([aria-current=false]) { background: color-mix(in srgb, var(--theme-text) 7%, transparent); }
+.dsy-p .nav-item[aria-current]:not([aria-current=false])::before { content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; background: var(--color-accent-default); }
+
+/* TOKEN: round is for what the app makes (a coin, a ring), never for a control. */
+.dsy-p .token-dot { width: 40px; height: 40px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--theme-text) 30%, var(--theme-surface)), var(--theme-surface)); box-shadow: inset 0 0 0 3px var(--color-accent-default); }
+
+@media (max-width: 760px) {
+  .dsy-wrap { padding: 0 16px; }
+  .dsy-head h1 { font-size: 22px; }
+  .dsy-themes { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; max-width: 100%; }
+  .dsy-themes .pill { padding: 4px 12px; font-size: 13px; }
+  .dsy-head .dsy-wrap { padding-top: 10px; padding-bottom: 10px; gap: 8px; }
+  .dsy-floors { grid-template-columns: 1fr; }
+  .dsy-floor { padding: 14px; min-height: 0; }
+  .dsy-tint, .dsy-tint-head { grid-template-columns: 1fr 1fr; }
+  .dsy-tint .dsy-what { grid-column: 1 / -1; }
+  .dsy-tint-head span:last-child { display: none; }
+  .dsy-row, .dsy-maph { grid-template-columns: 56px minmax(0, 1fr) 30px 70px; }
+  .dsy-row > :nth-child(5), .dsy-maph > :nth-child(5) { display: none; }
+  .dsy-scale div { grid-template-columns: 112px 40px minmax(0, 1fr); }
+  .dsy-table .why { display: none; }
+}
+</style>
+</head>
+<body>
+<header class="dsy-head">
+  <div class="dsy-wrap">
+    <h1>Sistema de diseño</h1>
+    <div class="dsy-themes" id="themes" role="group" aria-label="Tema"></div>
+    <nav class="dsy-nav">
+      <a href="#funciones">Formas y funciones</a><a href="#inventario">Inventario</a><a href="#textura">Textura</a><a href="#nombres">Nombres</a><a href="#tintes">Colores a mano</a><a href="#letra">Letra</a><a href="#esquinas">Esquinas</a>
+    </nav>
+  </div>
+</header>
+<main class="dsy-wrap dsy-p">
+  <p class="dsy-lead">Propuesta de sistema de diseño, al lado de lo que hay hoy en <code>src/style.css</code> y en el marcado (leídos en directo). Lo de «hoy» lo dibujan las clases reales de la app. Cambia de tema arriba: Clocktower es el de la app de Clocktower; los demás, los que puede elegir una colección.</p>
+  <div class="dsy-stat" id="stats"></div>
+
+  <!-- ============================================================ functions -->
+  <section class="dsy-sec" id="funciones">
+    <h2>Una forma por función</h2>
+    <p>Cada control hace una de cinco cosas, y su forma dice cuál. Dos controles con la misma forma hacen siempre lo mismo; si hacen cosas distintas, no se parecen. Parte de las notas «Tesserae» de <code>style.css</code> (el corte del logo para lo que se pulsa, la tesela de 3 px), pero repartido por función.</p>
+
+    <h3>Hoy: la misma forma, cuatro trabajos</h3>
+    <div class="dsy-clash">
+      <div><div class="row"><span>Hoy</span><button class="pill">Duplicar</button></div><div class="row"><span>Pasa a</span><button class="action">Duplicar</button></div><small><b>Acción.</b> Duplica la ficha.</small></div>
+      <div><div class="row"><span>Hoy</span><button class="pill" aria-pressed="true">Mostrar reverso</button></div><div class="row"><span>Pasa a</span><button class="choice" aria-pressed="true">Mostrar reverso</button></div><small><b>Conmutador.</b> Se queda encendido.</small></div>
+      <div><div class="row"><span>Hoy</span><button class="pill">Más opciones</button></div><div class="row"><span>Pasa a</span><button class="disclosure" aria-expanded="false">Más opciones</button></div><small><b>Desplegable.</b> Abre una lista.</small></div>
+      <div><div class="row"><span>Hoy</span><a class="pill" href="#funciones">Abrir el taller</a></div><div class="row"><span>Pasa a</span><a class="nav-link nav-link--go" href="#funciones">Abrir el taller</a></div><small><b>Navegación.</b> Lleva a otra página.</small></div>
+    </div>
+
+    <h3>La propuesta</h3>
+    <div class="dsy-grammar">
+      <div>
+        <h4>Acción <code>.action</code></h4>
+        <p><b>Hace algo ahora</b> (imprimir, duplicar, borrar). Lleva el corte del hexágono del logo, y nada más lo lleva. Cuánto destaca lo dice la variante, nunca otra forma.</p>
+        <div class="dsy-live"><button class="action action--primary">Imprimir</button><button class="action">Duplicar</button><button class="action action--quiet">Cancelar</button></div>
+        <div class="dsy-live"><button class="action action--danger">Borrar</button><button class="action action--sm">Editar</button><button class="action action--icon" aria-label="Girar">↻</button><button class="action action--icon action--sm" aria-label="Añadir">+</button><button class="action action--primary" disabled>Imprimir</button></div>
+        <p><code>--primary</code> una por pantalla · <code>--quiet</code> · <code>--danger</code> · <code>--icon</code> · <code>--sm</code></p>
+      </div>
+      <div>
+        <h4>Elección <code>.choice</code></h4>
+        <p><b>Fija un estado que se queda marcado</b>: filtros, opciones, diseños, temas. Una tesela en relieve; elegida, el anillo del acento. Si pueden ir varias a la vez, una casilla en la esquina; si es una de varias, van juntas en un grupo.</p>
+        <div class="dsy-live"><button class="choice" aria-pressed="true">Aldeanos</button><button class="choice" aria-pressed="false">Forasteros</button><button class="choice choice--row" aria-pressed="true"><i class="choice__media"></i>Envenenado</button></div>
+        <div class="dsy-live"><span class="choice-group" role="radiogroup"><button class="choice" role="radio" aria-checked="true">Redonda</button><button class="choice" role="radio" aria-checked="false">Carta</button><button class="choice" role="radio" aria-checked="false">Anillo</button></span></div>
+        <div class="dsy-live"><button class="choice choice--tile" role="radio" aria-checked="false"><i class="choice__media"></i>Clásica</button><button class="choice choice--tile" role="radio" aria-checked="true"><i class="choice__media"></i>Laurel</button><button class="choice choice--tile" role="radio" aria-checked="false"><i class="choice__media"></i>Greca</button></div>
+        <p><code>aria-pressed</code> varias · <code>aria-checked</code> una · <code>--row</code> con ficha · <code>--tile</code> con dibujo</p>
+      </div>
+      <div>
+        <h4>Campo <code>.field</code></h4>
+        <p><b>Un valor que escribes o editas.</b> Una tesela hundida (la elección sobresale, el campo se hunde), con su etiqueta encima. Si se edita en otra parte, la flecha lo dice.</p>
+        <label class="field"><span class="field__label">Nombre</span><input class="field__control" value="Lavandera"></label>
+        <div class="field"><span class="field__label">Dice</span><button class="field__control">Empieza sabiendo que…</button></div>
+      </div>
+      <div>
+        <h4>Desplegable <code>.disclosure</code></h4>
+        <p><b>Muestra u oculta algo aquí mismo.</b> Sin cuerpo propio: sus palabras y un galón que gira. Si hace falta, con lo que encierra delante.</p>
+        <div class="dsy-live"><button class="disclosure" aria-expanded="false">Ajustes finos</button><button class="disclosure" aria-expanded="true"><i class="disclosure__media"></i>3 recordatorios</button></div>
+        <div class="dsy-live"><button class="disclosure" aria-expanded="false"><i class="disclosure__media"></i>12 en la cola</button></div>
+      </div>
+      <div>
+        <h4>Navegación <code>.nav-link</code> <code>.nav-item</code></h4>
+        <p><b>Te lleva a otro sitio.</b> Texto en el acento: subrayado dentro de una frase, con flecha cuando va solo. En una lista (la barra lateral, los pasos), la actual lleva la barra.</p>
+        <div class="dsy-live"><a class="nav-link" href="#funciones">las instrucciones</a><a class="nav-link nav-link--go" href="#funciones">Abrir el taller</a><button class="nav-link nav-link--back">Volver</button></div>
+        <div style="max-width:220px"><button class="nav-item" aria-current="true">Trouble Brewing</button><button class="nav-item">Bad Moon Rising</button></div>
+      </div>
+      <div>
+        <h4>Ficha (no es un control)</h4>
+        <p><b>Lo redondo es lo que la app fabrica</b>: monedas, anillos, fichas. Ningún botón es redondo, para que nunca se confunda una ficha con un control.</p>
+        <div class="dsy-live"><i class="token-dot"></i><i class="token-dot" style="width:28px;height:28px"></i></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ inventory -->
+  <section class="dsy-sec" id="inventario">
+    <h2>Inventario: cada clase de control y lo que hace</h2>
+    <p>Leído del marcado (<code>index.html</code> y las plantillas de <code>src/</code>). La función sale de la etiqueta y sus atributos: <code>&lt;a&gt;</code> es navegación; <code>aria-expanded</code> o <code>&lt;summary&gt;</code>, desplegable; <code>aria-checked</code> o <code>role=radio|tab|option</code>, elección; <code>aria-pressed</code>, conmutador; lo demás, acción. No salen los atributos que el código pone después (<code>setAttribute</code>), así que alguna clase hace más de lo que se ve aquí. En naranja, las que hacen más de una cosa.</p>
+    <div class="dsy-tablewrap"><table class="dsy-table dsy-inv" id="inv"></table></div>
+  </section>
+
+  <!-- ============================================================ texture -->
+  <section class="dsy-sec" id="textura">
+    <h2>La textura, con mesura</h2>
+    <p>Las teselas son la seña de la app, pero un suelo con mucho contraste detrás de contenido denso (fichas pequeñas, cifras, barras) lo carga todo y hace que se lea peor. Hoy, además, las placas de la impresión son transparentes (<code>.q-plate</code>, con un 2,5 % de blanco) y el suelo se ve a través de ellas.</p>
+    <ol class="dsy-rules">
+      <li><b>El suelo solo en el lienzo.</b> <code>--texture-floor</code> va únicamente sobre <code>--color-bg-canvas</code>, es decir, en los márgenes y en lo que queda entre tarjetas.</li>
+      <li><b>Nada con contenido es transparente sobre él.</b> Tarjetas, placas, paneles y diálogos llevan un fondo opaco (<code>--color-bg-surface</code>); los tintes semitransparentes quedan para los estados (encima, elegido).</li>
+      <li><b>Un suelo en voz baja.</b> Que las piedras se distingan del fondo como mucho un 2 % (hoy, hasta un 5 %), con una lechada suave, para que se intuya y no se lea como una rejilla.</li>
+      <li><b>Una sola textura por zona.</b> Sobre contenido, la única textura es la banda de la ficha elegida (<code>--texture-band-selected</code>). La tira de la barra superior se queda; no se añaden más.</li>
+    </ol>
+    <div class="dsy-floors">
+      <figure><div class="dsy-floor" id="floorNow"></div><figcaption><b>Hoy.</b> El suelo de <code>tesserae.ts</code> y una placa transparente.</figcaption></figure>
+      <figure><div class="dsy-floor" id="floorNew"></div><figcaption><b>Propuesta.</b> Un suelo más tranquilo y la placa opaca.</figcaption></figure>
+    </div>
+  </section>
+
+  <!-- ============================================================ names -->
+  <section class="dsy-sec" id="nombres">
+    <h2>Nombres de los tokens</h2>
+    <div class="dsy-note"><b>La norma.</b> El orden de <b>Style Dictionary</b> (categoría-tipo-elemento-estado: <code>--color-bg-raised-hover</code>), en tres niveles. <b>1 · Tema</b>: lo que pone cada tema (<code>--theme-*</code>); <code>applyOwnTheme</code> solo tocaría estos. <b>2 · Semántico</b>: para qué es cada valor (<code>--color-*</code>, <code>--font-*</code>, <code>--radius-*</code>…), sacado del tema en el CSS. <b>3 · Componente</b>: solo cuando un componente necesite su propio ajuste. Las clases, en <b>BEM</b>: <code>.bloque</code>, <code>.bloque__parte</code>, <code>.bloque--variante</code>. Si algún día hace falta, los mismos nombres pasan tal cual a un <code>tokens.json</code> en el formato del W3C (Design Tokens Community Group).</div>
+    <div class="dsy-tablewrap"><table class="dsy-table" id="names"></table></div>
+  </section>
+
+  <!-- ============================================================ hand-written colours -->
+  <section class="dsy-sec" id="tintes">
+    <h2>Colores escritos a mano</h2>
+    <p>Tonos de Clocktower escritos como número en vez de como variable. En el tema Clocktower las dos columnas se ven iguales; en cualquier otro tema, la de la izquierda se queda beige, dorada o morada. Cada uno pasa a su token semántico.</p>
+    <div class="dsy-tint-head"><span>Hoy</span><span>Con el token</span><span>Dónde</span></div>
+    <div class="dsy-tints" id="tints"></div>
+    <h3>La portada: colores fijos de Faber</h3>
+    <p class="hint" style="margin-bottom:10px">La portada (<code>.own-home</code>, <code>.ol-*</code>, <code>.oh-*</code>, la visita guiada) se viste de Faber sea cual sea el tema, y está bien así. Pero repite <code>#c9963a</code> o <code>#1c1a18</code> en cada regla. Propuesta: que <code>.own-home</code> fije una vez los <code>--theme-*</code> de Faber, y que la portada use los mismos tokens semánticos que el resto. A la vista no cambia nada.</p>
+    <div class="dsy-tints" id="frontTints"></div>
+    <h3>Otros colores sueltos</h3>
+    <p class="hint" id="otherHex"></p>
+  </section>
+
+  <!-- ============================================================ type -->
+  <section class="dsy-sec" id="letra">
+    <h2>Tamaños de letra</h2>
+    <p>Cada tamaño que hay hoy, cuántas reglas lo usan y el escalón al que iría. Los medios píxeles se juntan con el entero de abajo. El logotipo (<code>.wm-mid</code>, <code>.wm-mint</code>) queda fuera: es un dibujo.</p>
+    <h3>La escala</h3>
+    <div class="dsy-scale" id="scale"></div>
+    <h3>Hoy → propuesta</h3>
+    <div class="dsy-maph"><span>Hoy</span><span>Muestra</span><span>Reglas</span><span>Pasa a</span><span>Muestra</span></div>
+    <div class="dsy-map" id="fsMap"></div>
+  </section>
+
+  <!-- ============================================================ corners -->
+  <section class="dsy-sec" id="esquinas">
+    <h2>Esquinas</h2>
+    <p>Cuatro formas, cada una con su función, y la píldora solo para insignias y contadores. Los radios de 2 a 12 px pasan a la tesela (3 px); los de 14 a 20 px, que son menús y diálogos, al panel (14 px); las píldoras de los botones, al corte.</p>
+    <div class="dsy-radii" id="radii"></div>
+    <h3>Hoy → propuesta</h3>
+    <div class="dsy-maph"><span>Hoy</span><span>Forma</span><span>Reglas</span><span>Pasa a</span><span>Forma</span></div>
+    <div class="dsy-map" id="rMap"></div>
+  </section>
+</main>
+
+<script type="module">
+import css from "/src/style.css?raw";
+import html from "/index.html?raw";
+import { THEMES, THEME_VARS, themeVars } from "/src/collection.ts";
+import { floor } from "/src/app/tesserae.ts";
+const sources = { "index.html": html, ...import.meta.glob(["/src/**/*.ts", "!/src/**/*.d.ts"], { query: "?raw", import: "default", eager: true }) };
+
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+// ---------- the stylesheet's rules: each selector with its declarations (@media's inner ones too)
+const clean = css.replace(/\/\*[\s\S]*?\*\//g, "");
+const rules = [];
+for (const m of clean.matchAll(/([^{}]+)\{([^{}]*)\}/g)) rules.push({ sel: m[1].trim().replace(/\s+/g, " "), body: m[2] });
+const where = (list) => [...new Set(list)].join(" · ");
+
+// ---------- themes: Clocktower is the stylesheet's own colours; the rest set what applyOwnTheme sets
+const NAMES = { botc: "Clocktower", faber: "Faber", graphite: "Grafito", forest: "Bosque", ocean: "Océano", ember: "Ascua" };
+function applyTheme(id) {
+  const root = document.documentElement, c = THEMES[id];
+  if (id === "botc") { root.removeAttribute("data-mode"); delete root.dataset.theme; }
+  else { root.dataset.mode = "own"; root.dataset.theme = ""; }
+  const v = c ? themeVars(c) : {};
+  for (const k of THEME_VARS) v[k] ? root.style.setProperty(k, v[k]) : root.style.removeProperty(k);
+  for (const b of document.querySelectorAll("#themes button")) b.setAttribute("aria-pressed", String(b.dataset.id === id));
+  try { localStorage.setItem("dsy-theme", id); } catch { /* the page works without it */ }
+  renderNames(); renderFloors();
+}
+$("#themes").innerHTML = Object.keys(NAMES).map((id) => `<button type="button" class="pill" data-id="${id}">${NAMES[id]}</button>`).join("");
+$("#themes").onclick = (e) => { const b = e.target.closest("button"); if (b) applyTheme(b.dataset.id); };
+
+// ---------- texture: today's floor (the app's own function) beside a quieter one
+const toRgb = (c) => { const m = /^#?([0-9a-f]{6})/i.exec(c.trim()); return m ? [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16)) : null; };
+const mixHex = (a, b, t) => "#" + a.map((v, i) => Math.round(v + (b[i] - v) * t).toString(16).padStart(2, "0")).join("");
+function quietFloor(bg, text) {
+  const tones = [0.01, 0.018, 0.006, 0.02, 0.013];
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60"><rect width="60" height="60" fill="${mixHex(bg, [0, 0, 0], 0.1)}"/>`;
+  for (let i = 0; i < 5; i++) for (let j = 0; j < 5; j++) s += `<rect x="${i * 12 + 0.5}" y="${j * 12 + 0.5}" width="11" height="11" rx="1.2" fill="${mixHex(bg, text, tones[(i * 3 + j * 2) % 5])}"/>`;
+  return `url("data:image/svg+xml,${encodeURIComponent(s + "</svg>")}")`;
+}
+const plate = (style) => `<div class="dsy-plate" style="${style}"><h5>Placa 1 · Aldeanos<small>17 de 24</small></h5><div class="bar"><i></i></div><p>≈ 49 g · ≈ 2 h</p>
+  <div class="toks">${["ABUELA", "CHISMOSO", "CORTESANO", "DAMA", "EXORCISTA", "JUGLAR", "LEÑADOR", "LUNÁTICO", "MANITAS", "MARINERO", "MATÓN", "MÉDICO"].map((w) => `<i>${w.slice(0, 5)}</i>`).join("")}</div></div>`;
+function renderFloors() {
+  const cs = getComputedStyle(document.documentElement);
+  const bg = toRgb(cs.getPropertyValue("--theme-background")), text = toRgb(cs.getPropertyValue("--theme-text"));
+  if (!bg || !text) return;
+  $("#floorNow").style.backgroundImage = floor(bg, text);
+  $("#floorNew").style.backgroundImage = quietFloor(bg, text);
+  $("#floorNow").innerHTML = plate("background: rgba(239, 230, 214, .025)");
+  $("#floorNew").innerHTML = plate("background: var(--color-bg-surface)");
+}
+
+// ---------- names: today's variable → its token, the tier, and the value it has now
+const NAME_ROWS = [
+  ["Nivel 1 · tema: lo que pone cada tema"],
+  ["--velvet-deep", "--theme-background", "Fondo del tema", true],
+  ["--velvet", "--theme-surface", "Superficie del tema", true],
+  ["--velvet-mid", "--theme-panel", "Paneles laterales (en las colecciones es la superficie)", true],
+  ["--brass", "--theme-accent", "Acento", true],
+  ["--bone", "--theme-text", "Texto", true],
+  ["--dust", "--theme-muted", "Texto apagado", true],
+  ["--glow", "--theme-glow", "Luz del fondo", true],
+  ["--display", "--theme-font-display", "Letra de los títulos", false],
+  ["Nivel 2 · semántico: para qué es"],
+  ["--velvet-deep", "--color-bg-canvas", "El fondo de la página: lo único que lleva textura", true],
+  ["--velvet", "--color-bg-surface", "Barras, tarjetas, placas: opacas", true],
+  ["--velvet-mid", "--color-bg-panel", "El taller, la cola, los menús laterales", true],
+  ["--tile", "--color-bg-raised", "Lo que sobresale: acciones y elecciones", true],
+  ["--tile-hi", "--color-bg-raised-hover", "Lo mismo, al pasar por encima", true],
+  ["--bone (de fondo)", "--color-bg-inverse", "Un segmento pulsado, una insignia", true],
+  ["", "--color-bg-sunken", "Lo que se hunde: campos (propuesta)", true],
+  ["", "--color-bg-selected", "Una elección marcada", true],
+  ["--bone", "--color-text-default", "Texto", true],
+  ["--dust", "--color-text-muted", "Pistas, etiquetas", true],
+  ["--brass (en texto)", "--color-text-accent", "Enlaces, texto en el acento", true],
+  ["--velvet-deep (sobre el acento)", "--color-text-on-accent", "Texto sobre el acento", true],
+  ["--velvet-deep (sobre --bone)", "--color-text-inverse", "Texto sobre un fondo invertido", true],
+  ["--brass", "--color-accent-default", "Acción principal, marcas", true],
+  ["#d8b23a", "--color-accent-hover", "Acción principal al pasar por encima", true],
+  ["--seam", "--color-border-default", "Líneas", true],
+  ["rgba(239, 230, 214, .4)", "--color-border-strong", "Línea marcada, casillas", true],
+  ["--dust (en un borde)", "--color-border-muted", "Borde apagado", true],
+  ["--brass (en un borde)", "--color-border-accent", "Borde en el acento", true],
+  ["--bone (en un borde)", "--color-border-inverse", "Borde de lo pulsado", true],
+  ["--brass (en outline)", "--color-focus-ring", "El foco del teclado", true],
+  ["", "--color-border-selected", "El anillo de lo elegido (propuesta)", true],
+  ["--warn", "--color-status-warning", "Avisos", true],
+  ["#d8584b", "--color-status-danger", "Borrar", true],
+  ["#f0a198", "--color-status-danger-text", "Texto de borrar", true],
+  ["--ui", "--font-family-ui", "Letra de la interfaz", false],
+  ["--display", "--font-family-display", "Letra de los títulos", false],
+  ["Midnight Mint Lettering", "--font-family-lettering", "Letra de las fichas", false],
+  ["35 tamaños", "--font-size-3xs … --font-size-7xl", "Ver «Letra»", false],
+  ["18 radios", "--radius-stone · --radius-panel · --radius-round · --radius-badge", "Ver «Esquinas»", false],
+  ["--hex", "--shape-cut", "El corte de las acciones", false],
+  ["--hex-s", "--shape-cut-compact", "El corte de una acción de icono", false],
+  ["", "--shadow-raised · --shadow-sunken · --shadow-selected", "Relieve, hundido, elegido", false],
+  ["--floor", "--texture-floor", "El suelo de teselas: solo sobre el lienzo", false],
+  ["--band-on", "--texture-band-selected", "La banda de una ficha elegida", false],
+  ["--strip", "--texture-strip", "La tira bajo la barra", false],
+  ["--measure", "--size-content-max", "Ancho máximo del contenido", false],
+  ["--spine-w", "--size-sidebar", "Ancho de la barra lateral", false],
+  ["Nivel 3 · componente: solo si hace falta"],
+  ["", "--action-padding-x", "p. ej., si una acción necesita otro relleno en un sitio", false],
+];
+function renderNames() {
+  const p = getComputedStyle($(".dsy-p"));
+  $("#names").innerHTML = `<tr><th>Antes</th><th>Token</th><th>Ahora vale</th><th class="why">Para qué</th></tr>` + NAME_ROWS.map(([a, b, why, colour]) => {
+    if (b === undefined) return `<tr class="dsy-group"><td colspan="4">${esc(a)}</td></tr>`;
+    const first = b.split(" ")[0], val = p.getPropertyValue(first).trim();
+    const shown = colour ? `<i class="sw" style="background:var(${first})"></i>` : "";
+    return `<tr><td class="old">${a ? `<code>${esc(a)}</code>` : `<span class="hint">nuevo</span>`}</td><td class="new"><code>${esc(b)}</code></td><td>${shown}<code style="color:var(--color-text-muted)">${esc(val.length > 40 ? val.slice(0, 38) + "…" : val)}</code></td><td class="why">${esc(why)}</td></tr>`;
+  }).join("");
+}
+
+// ---------- inventory: every control class in the markup, and what each use of it does
+const FNS = ["acción", "elección", "conmutador", "desplegable", "navegación"];
+const TO = { "acción": "action", "elección": "choice[aria-checked]", "conmutador": "choice[aria-pressed]", "desplegable": "disclosure", "navegación": "nav-link / nav-item" };
+const NOT_CLASS = /^(own-only|botc-only|design-only|built-only|group|main|add|danger|sm)$/;
+const inv = {};
+for (const [file, src] of Object.entries(sources)) {
+  for (const m of src.matchAll(/<(button|a|summary)\b([^>]*)>/g)) {
+    const attrs = m[2];
+    const cls = (/class="([^"$]*)/.exec(attrs)?.[1] ?? "").trim().split(/\s+/).filter((c) => c && !NOT_CLASS.test(c))[0] || "(sin clase)";
+    const fn = m[1] === "a" ? "navegación" : m[1] === "summary" || /aria-expanded/.test(attrs) ? "desplegable"
+      : /aria-checked|role="(radio|tab|option)"|aria-selected/.test(attrs) ? "elección" : /aria-pressed/.test(attrs) ? "conmutador" : "acción";
+    const k = `${m[1]}.${cls}`; inv[k] ??= { tag: m[1], cls, n: {}, files: new Set() };
+    inv[k].n[fn] = (inv[k].n[fn] ?? 0) + 1; inv[k].files.add(file.replace(/^\/src\//, "src/"));
+  }
+}
+const total = (r) => Object.values(r.n).reduce((x, y) => x + y, 0);
+const invRows = Object.values(inv).sort((a, b) => Object.keys(b.n).length - Object.keys(a.n).length || total(b) - total(a));
+const clashes = invRows.filter((r) => Object.keys(r.n).length > 1 && r.cls !== "(sin clase)");
+$("#inv").innerHTML = `<tr><th>Clase</th>${FNS.map((f) => `<th style="text-align:center">${f}</th>`).join("")}<th>Pasa a</th></tr>` + invRows.map((r) => {
+  const clash = Object.keys(r.n).length > 1;
+  return `<tr class="${clash ? "clash" : ""}"><td><code title="${esc([...r.files].join(", "))}">${r.tag === "button" ? "" : `&lt;${r.tag}&gt; `}.${esc(r.cls)}</code></td>${FNS.map((f) => `<td class="n">${r.n[f] ? `<span>${r.n[f]}</span>` : ""}</td>`).join("")}
+    <td class="to">${Object.keys(r.n).map((f) => `<code>.${TO[f]}</code>`).join(" · ")}</td></tr>`;
+}).join("");
+
+// ---------- colours written by hand: what Clocktower colour each is, and its semantic token
+const KNOWN = {
+  "239,230,214": "--color-text-default", "201,162,39": "--color-accent-default", "23,8,18": "--color-bg-canvas", "42,15,32": "--color-bg-surface", "184,162,176": "--color-text-muted",
+  "#efe6d6": "--color-text-default", "#c9a227": "--color-accent-default", "#170812": "--color-bg-canvas", "#2a0f20": "--color-bg-surface", "#200b19": "--color-bg-panel", "#b8a2b0": "--color-text-muted",
+  "#c9963a": "--color-accent-default", "#1c1a18": "--color-bg-canvas", "#26221f": "--color-bg-surface", "#ece3d0": "--color-text-default", "#b5aa94": "--color-text-muted", "201,150,58": "--color-accent-default",
+};
+const FRONT = /own-home|faber-wm|\.ol-|\.oh-|\.tour-|tw-cover/;
+const tints = new Map(), front = new Map(), others = new Map();
+let literalCount = 0, frontCount = 0;
+for (const r of rules) {
+  if (/^:root|^html\[data-mode=own\]:not\(\[data-theme=botc\]\)$/.test(r.sel)) continue;   // where the variables are defined
+  for (const m of r.body.matchAll(/rgba\(\s*(\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\s*\)|#[0-9a-fA-F]{3,8}\b/g)) {
+    const rgb = m[1] ? `${m[1]},${m[2]},${m[3]}` : null, key = rgb ? KNOWN[rgb] : KNOWN[m[0].toLowerCase()];
+    if (!key) { if (!rgb || rgb !== "0,0,0") { const o = others.get(m[0].toLowerCase()) ?? []; o.push(r.sel); others.set(m[0].toLowerCase(), o); } continue; }
+    const isFront = FRONT.test(r.sel), into = isFront ? front : tints;
+    if (isFront) frontCount++; else literalCount++;
+    const pct = rgb ? Math.round(parseFloat(m[4]) * 1000) / 10 : 100;
+    const id = `${key} ${pct} ${m[0]}`;
+    const t = into.get(id) ?? { key, pct, literal: m[0], sels: [] };
+    t.sels.push(r.sel); into.set(id, t);
+  }
+}
+const tintRow = (t, sameColour) => {
+  const to = t.pct === 100 ? `var(${t.key})` : `color-mix(in srgb, var(${t.key}) ${t.pct}%, transparent)`;
+  return `<div class="dsy-tint"><div class="dsy-chip" style="background:${t.literal}">${esc(t.literal)}</div><div class="dsy-chip" style="background:${sameColour ? t.literal : to}">${t.key}${t.pct === 100 ? "" : " " + t.pct + "%"}</div>
+    <div class="dsy-what"><code>${t.sels.length} ${t.sels.length === 1 ? "regla" : "reglas"}</code><small title="${esc(where(t.sels))}">${esc(where(t.sels))}</small></div></div>`;
+};
+$("#tints").innerHTML = [...tints.values()].sort((a, b) => b.sels.length - a.sels.length).map((t) => tintRow(t, false)).join("");
+$("#frontTints").innerHTML = [...front.values()].sort((a, b) => b.sels.length - a.sels.length).map((t) => tintRow(t, true)).join("");
+$("#otherHex").innerHTML = [...others].sort((a, b) => b[1].length - a[1].length).map(([c, s]) => `<span title="${esc(where(s))}" style="display:inline-flex;align-items:center;gap:5px;margin:0 12px 6px 0"><i style="width:14px;height:14px;border-radius:4px;background:${c};border:1px solid var(--color-border-default)"></i><code>${c}</code> ×${s.length}</span>`).join("") + "<br>Colores de equipo, de aviso o de los dibujos: cada uno irá a su token (<code>--color-team-*</code>, <code>--color-status-*</code>) o a su dibujo cuando los pasemos.";
+
+// ---------- type sizes
+const SCALE = [["--font-size-3xs", 10, "Insignias, contadores"], ["--font-size-2xs", 11, "Etiquetas en mayúsculas"], ["--font-size-xs", 12, "Notas, pies de ficha"], ["--font-size-sm", 13, "Pistas, controles pequeños"], ["--font-size-md", 14, "Botones, listas"], ["--font-size-base", 15, "Texto"], ["--font-size-lg", 16, "Texto destacado"], ["--font-size-xl", 18, "Títulos de bloque"], ["--font-size-2xl", 22, "Títulos de diálogo"], ["--font-size-3xl", 26, "Títulos de página en móvil"], ["--font-size-4xl", 32, "Títulos de página"], ["--font-size-5xl", 38, "Nombre del guion"], ["--font-size-6xl", 46, "Portada"], ["--font-size-7xl", 62, "Portada grande"]];
+const toStep = (px) => {
+  if (px <= 10.5) return 10; if (px < 12) return 11; if (px < 13) return 12; if (px < 14) return 13; if (px < 15) return 14; if (px < 16) return 15;
+  if (px < 17.5) return 16; if (px < 20) return 18; if (px < 24.5) return 22; if (px < 29) return 26; if (px < 36) return 32; if (px < 42) return 38; if (px < 54) return 46; return 62;
+};
+const BRAND = /\.wm-(mid|mint)\b/;
+const sizes = new Map();
+for (const r of rules) {
+  for (const m of r.body.matchAll(/(?:^|;)\s*font(?:-size)?\s*:\s*([^;]*)/g)) {
+    const px = /(?:^|\s)([\d.]+)px/.exec(m[1]); if (!px) continue;
+    const v = parseFloat(px[1]); const s = sizes.get(v) ?? { brand: [], sels: [] };
+    (BRAND.test(r.sel) ? s.brand : s.sels).push(r.sel); sizes.set(v, s);
+  }
+}
+const SAMPLE = "Elige tus fichas y llévalas a la impresora";
+const stepName = (px) => SCALE.find(([, v]) => v === px)?.[0].replace("--font-size-", "") ?? "";
+$("#scale").innerHTML = SCALE.map(([k, px, use]) => `<div><code>${k}</code><span>${px} px</span><p style="font-size:${px}px${px >= 22 ? ";font-family:var(--font-family-display)" : ""}">${use}</p></div>`).join("");
+$("#fsMap").innerHTML = [...sizes].sort((a, b) => a[0] - b[0]).map(([px, s]) => {
+  const n = s.sels.length, to = toStep(px), disp = px >= 22 ? ";font-family:var(--font-family-display)" : "";
+  const brand = s.brand.length ? ` <span title="${esc(where(s.brand))}">+${s.brand.length} logo</span>` : "";
+  return `<div class="dsy-row${to === px ? " dsy-same" : ""}"><code>${px} px</code><span class="dsy-sample" style="font-size:${px}px${disp}">${SAMPLE}</span><span class="dsy-n">${n}${brand}</span>
+    <span class="dsy-to">${to === px ? stepName(to) : `→ ${stepName(to)} (${to})`}</span><span class="dsy-sample" style="font-size:${to}px${disp}">${SAMPLE}</span>
+    ${n ? `<details><summary>Dónde</summary><div>${esc(where(s.sels))}</div></details>` : ""}</div>`;
+}).join("");
+
+// ---------- corners
+$("#radii").innerHTML = [
+  [`clip-path:var(--shape-cut);background:var(--color-accent-default);border:0`, "--shape-cut", "acción"],
+  [`border-radius:3px`, "--radius-stone · 3 px", "elección, campo"],
+  [`border-radius:14px`, "--radius-panel · 14 px", "menús, diálogos"],
+  [`border-radius:50%;width:56px`, "--radius-round", "fichas (nunca un control)"],
+  [`border-radius:999px;height:22px;width:44px`, "--radius-badge", "insignias, contadores"],
+].map(([st, k, use]) => `<figure><i style="${st}"></i><code>${k}</code>${use}</figure>`).join("");
+const toR = (px) => px === 0 ? 0 : px <= 12 ? 3 : px <= 20 ? 14 : px;
+const radii = new Map();
+for (const r of rules) for (const m of r.body.matchAll(/border-radius\s*:\s*([^;]+)/g)) {
+  const v = m[1].trim(); const l = radii.get(v) ?? []; l.push(r.sel); radii.set(v, l);
+}
+const rTo = (v) => v.replace(/([\d.]+)px/g, (_, n) => `${toR(parseFloat(n))}px`);
+$("#rMap").innerHTML = [...radii].sort((a, b) => parseFloat(a[0]) - parseFloat(b[0]) || a[0].localeCompare(b[0])).map(([v, sels]) => {
+  const to = rTo(v), pill = v === "999px";
+  const label = pill ? "corte, o insignia" : to === v ? "se queda" : "→ " + esc(to);
+  return `<div class="dsy-row${to === v && !pill ? " dsy-same" : ""}"><code>${esc(v)}</code><i class="dsy-rbox" style="border-radius:${v}"></i><span class="dsy-n">${sels.length}</span>
+    <span class="dsy-to">${label}</span><i class="dsy-rbox to" style="${pill ? "clip-path:var(--shape-cut);border-radius:0;background:var(--color-accent-default)" : `border-radius:${to}`}"></i>
+    <details><summary>Dónde</summary><div>${esc(where(sels))}</div></details></div>`;
+}).join("");
+
+// ---------- the numbers at the top
+const fsCount = [...sizes].filter(([, s]) => s.sels.length).length, fsTo = new Set([...sizes].filter(([, s]) => s.sels.length).map(([px]) => toStep(px))).size;
+const classCount = invRows.filter((r) => r.cls !== "(sin clase)" && r.tag === "button").length;
+$("#stats").innerHTML = `<div><b class="warn">${clashes.length}</b><span>clases de control que hacen más de una cosa</span></div>
+  <div><b class="warn">${classCount}</b><span>clases de botón hoy → 5 formas</span></div>
+  <div><b class="warn">${literalCount}</b><span>colores que no siguen el tema</span></div>
+  <div><b class="warn">${fsCount}</b><span>tamaños de letra → ${fsTo}</span></div>
+  <div><b class="warn">${radii.size}</b><span>radios → 4 formas y la insignia</span></div>`;
+
+let start = "graphite";
+try { start = localStorage.getItem("dsy-theme") || start; } catch { /* private window */ }
+applyTheme(start in NAMES ? start : "graphite");
+</script>
+</body>
+</html>

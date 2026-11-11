@@ -221,6 +221,15 @@ export const THEMES: Record<string, OwnTheme | null> = {
   ocean: { accent: "#6aa7ff", background: "#0d1320", surface: "#151d2e", text: "#e6ecf7", muted: "#93a0b8", glow: "#1a2742" },
   ember: { accent: "#ff8a5c", background: "#160f0d", surface: "#211714", text: "#f3e9e4", muted: "#b29c93", glow: "#33201a" },
 };
+/** A theme's colours as the stylesheet's tier-1 tokens (style.css: the rest are worked out from these). */
+export const THEME_VARS = ["--theme-background", "--theme-surface", "--theme-panel", "--theme-accent", "--theme-text", "--theme-muted", "--theme-glow", "--theme-font-display"] as const;
+export function themeVars(c: OwnTheme): Record<(typeof THEME_VARS)[number], string | undefined> {
+  return {
+    "--theme-background": c.background, "--theme-surface": c.surface, "--theme-panel": c.surface, "--theme-accent": c.accent,
+    "--theme-text": c.text, "--theme-muted": c.muted, "--theme-glow": c.glow ?? c.surface,
+    "--theme-font-display": c.font ? `"${c.font}", sans-serif` : undefined,
+  };
+}
 /** The fonts a theme can use for headings (the page loads these). */
 export const THEME_FONTS = ["Marcellus", "Bricolage Grotesque", "Gloock", "Instrument Sans"];
 const isHex = (v: unknown): v is Hex => typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v);

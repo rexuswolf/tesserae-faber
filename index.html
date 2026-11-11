@@ -781,7 +781,9 @@
       if (look && look.footer) document.getElementById("gateCcc").textContent = look.footer; else ccc.hidden = true;
       if (look) {
         root.dataset.theme = look.theme || "";
-        for (var k in look.vars) root.style.setProperty(k, look.vars[k]);
+        // a look kept before the tokens were renamed (2026-11) still names them the old way
+        var OLD = { "--velvet": "--theme-surface", "--velvet-mid": "--theme-panel", "--velvet-deep": "--theme-background", "--brass": "--theme-accent", "--bone": "--theme-text", "--dust": "--theme-muted", "--glow": "--theme-glow", "--display": "--theme-font-display" };
+        for (var k in look.vars) if (k !== "--seam") root.style.setProperty(OLD[k] || k, look.vars[k]);
         var bt = card.querySelector(".brand-title"); bt.textContent = look.name || ""; bt.hidden = !look.name;
       }
     }
