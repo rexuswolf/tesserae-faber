@@ -117,6 +117,7 @@ label.action { position: relative; }   /* a file picker: the input hides inside 
 .choice[aria-pressed]:not(.choice-group .choice)::after { content: ""; flex: none; order: 9; width: 14px; height: 14px; border-radius: var(--radius-stone);
   background: var(--color-bg-canvas); box-shadow: inset 0 0 0 1px var(--color-border-strong); }
 .choice[aria-pressed=true]:not(.choice-group .choice)::after { content: "✓"; display: grid; place-items: center; background: var(--choice-accent); color: var(--color-text-on-accent); font-size: 10px; font-weight: 700; line-height: 1; box-shadow: none; }
+.rem[data-on=some] .choice[aria-pressed=false]::after { content: "–"; display: grid; place-items: center; color: var(--color-text-accent); font-weight: 700; line-height: 1; }
 .choice--sm { font-size: 12.5px; padding: 4px 10px; }
 .choice__media { flex: none; width: 26px; height: 26px; border-radius: var(--radius-round); }
 .choice-group { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -129,8 +130,8 @@ label.action { position: relative; }   /* a file picker: the input hides inside 
 .disclosure { display: inline-flex; align-items: center; gap: 8px; border: 0; background: none; padding: 4px 0; color: var(--color-text-muted);
   font: 500 13.5px/1.2 var(--font-family-ui); cursor: pointer; text-align: left; }
 .disclosure:hover { color: var(--color-text-default); }
-.disclosure::after { content: ""; flex: none; width: 7px; height: 7px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: translateY(-2px) rotate(45deg); transition: transform .15s; }
-.disclosure[aria-expanded=true]::after { transform: translateY(1px) rotate(-135deg); }
+.disclosure:not(:has(.chev, > svg:last-child))::after { content: ""; flex: none; width: 7px; height: 7px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: translateY(-2px) rotate(45deg); transition: transform .15s; }
+.disclosure[aria-expanded=true]:not(:has(.chev, > svg:last-child))::after { transform: translateY(1px) rotate(-135deg); }
 
 .nav-link { color: var(--color-text-accent); text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; font: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
 .nav-link:hover { color: var(--color-text-default); }
@@ -184,8 +185,6 @@ label.action { position: relative; }   /* a file picker: the input hides inside 
 /* section headings in the sidebar; "Scripts" has an add button */
 .spine-sec { display: flex; align-items: center; justify-content: space-between; margin-top: 16px; }
 .spine-sec h2 { margin: 0; font: inherit; }
-.spine-add { width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--color-border-default); background: none; color: var(--color-text-default); font-size: 16px; line-height: 1; cursor: pointer; }
-.spine-add:hover { border-color: var(--color-border-accent); color: var(--color-text-accent); }
 .scripts-empty { margin: 2px 18px 0; font-size: 12px; color: var(--color-text-muted); line-height: 1.45; }
 .scripts-empty button { border: 0; background: none; padding: 0; color: var(--color-text-default); text-decoration: underline; text-underline-offset: 2px; font: inherit; cursor: pointer; }
 /* a script's actions on the sheet */
@@ -204,8 +203,6 @@ label.action { position: relative; }   /* a file picker: the input hides inside 
 /* top bar: brand, the three steps, the token language. The menu button opens the sidebar on phones (step 1). */
 .topbar { grid-area: top; display: flex; align-items: center; gap: 16px; padding: 10px 18px; background: var(--color-bg-surface); border-bottom: 1px solid var(--color-border-default); position: relative; z-index: 7; }
 .topbar #drawerOpen { display: none; }
-.icon-btn { width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--color-border-default); background: none; color: inherit; display: grid; place-items: center; cursor: pointer; flex: none; }
-.icon-btn:hover { border-color: var(--color-border-accent); }
 .flow-steps { display: flex; gap: 4px; margin: 0 auto; }
 .flow-step { display: flex; align-items: center; gap: 8px; padding: 6px 14px 6px 7px; border: 0; border-radius: 999px; background: none; color: var(--color-text-muted); font: inherit; cursor: pointer; }
 .flow-step i { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 13px; font-weight: 600; border: 1px solid var(--color-border-default); }
@@ -272,8 +269,7 @@ label.action { position: relative; }   /* a file picker: the input hides inside 
 .chips .choice small { color: var(--color-text-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 /* The language button, top right: the tokens' flag, the interface's as a badge on its corner when they
    differ, and "Tokens in English" beside them. Only the flag where there are no tokens (and on a phone). */
-.tlang-trigger { display: inline-flex; align-items: center; gap: 10px; padding: 6px 16px 6px 6px; border: 1px solid var(--color-border-default); border-radius: 999px; background: color-mix(in srgb, var(--color-text-default) 5%, transparent); color: inherit; font: inherit; cursor: pointer; text-align: left; transition: border-color .15s, background .15s; }
-.tlang-trigger:hover { border-color: var(--color-border-accent); background: color-mix(in srgb, var(--color-text-default) 9%, transparent); }
+.tlang-trigger { gap: 10px; padding: 6px 16px 6px 6px; }
 .tlang-trigger.only-ui { padding: 4px; }
 .lb-flags { position: relative; flex: none; display: block; width: 30px; height: 30px; }
 .lb-flags img { display: block; width: 100%; height: 100%; border-radius: 50%; box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-text-default) 15%, transparent); }
@@ -385,8 +381,7 @@ label.action { position: relative; }   /* a file picker: the input hides inside 
 #rows .row.no-rems .who { grid-row: 1 / 3; align-self: center; }
 #rows .row .rems { grid-area: rems; display: block; }
 /* folded: a button with the linked tokens' small faces, how many, and how many are in */
-.rems-fold { display: inline-flex; align-items: center; gap: 8px; padding: 3px 10px 3px 4px; border: 1px solid color-mix(in srgb, var(--color-text-default) 14%, transparent); border-radius: 999px; background: color-mix(in srgb, var(--color-bg-canvas) 45%, transparent); color: var(--color-text-muted); font: inherit; font-size: 13px; cursor: pointer; }
-.rems-fold:hover { border-color: color-mix(in srgb, var(--color-text-default) 40%, transparent); color: var(--color-text-default); }
+.rems-fold { gap: 8px; }
 .rf-minis { display: inline-flex; }
 .rf-minis svg { width: 24px; height: 24px; margin-right: -7px; border-radius: 50%; box-shadow: 0 0 0 2px var(--color-bg-canvas); }
 .rf-minis svg:last-child { margin-right: 0; }
@@ -399,22 +394,18 @@ label.action { position: relative; }   /* a file picker: the input hides inside 
 /* open: the linked tokens large, each with its word under it */
 .rem-list { display: flex; flex-wrap: wrap; gap: 10px 8px; margin-top: 10px; }
 .rem-list .rem { position: relative; }
-.rem-list .rem-chip { display: grid; justify-items: center; gap: 3px; width: 88px; padding: 6px 4px 5px; border-radius: 12px; white-space: normal; text-align: center; line-height: 1.15; font-size: 12px; }
+.rem-list .rem-chip { display: grid; justify-items: center; gap: 3px; width: 88px; padding: 6px 4px 5px; white-space: normal; text-align: center; line-height: 1.15; font-size: 12px; }
 .rem-list .rem-tok svg { width: 70px; height: 70px; }
 .rem-list .rem-chip .ck { position: absolute; top: 2px; right: 6px; margin: 0; }
 .rem-list .rem .own-pen { position: absolute; top: -4px; left: 2px; margin: 0; }
 /* a reminder chip: its small token and its word; gold with a check when it's in the queue */
 .rem { display: inline-flex; align-items: center; gap: 2px; }
-.rem-chip { display: inline-flex; align-items: center; gap: 7px; padding: 3px 12px 3px 3px; border: 1px solid color-mix(in srgb, var(--color-text-default) 14%, transparent); border-radius: 999px; background: color-mix(in srgb, var(--color-bg-canvas) 45%, transparent); cursor: pointer; font-size: 13px; white-space: nowrap; }
-.rem-chip:hover { border-color: color-mix(in srgb, var(--color-text-default) 40%, transparent); }
+.rem-chip { gap: 7px; padding: 3px 9px 3px 3px; font-size: 13px; }
 .rem-tok { position: relative; display: block; border-radius: 50%; }
 .rem-tok svg { display: block; width: 30px; height: 30px; border-radius: 50%; }
 .rem-chip small { color: var(--color-text-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
-.rem-chip .ck { display: none; color: var(--color-text-accent); font-weight: 700; margin-left: -2px; }
-.rem[data-on=all] .rem-chip { border-color: var(--color-border-accent); background: color-mix(in srgb, var(--color-accent-default) 16%, transparent); }
-.rem[data-on=all] .rem-chip .ck { display: inline; }
-.rem[data-on=some] .rem-chip { border-color: color-mix(in srgb, var(--color-accent-default) 55%, transparent); }
-.rem.hit .rem-chip { box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent-default) 45%, transparent); }
+.rem-chip .ck { display: none; }   /* the box at its end says it */
+.rem-list .rem-chip::after { position: absolute; top: 4px; right: 4px; }
 .rem .own-pen { background: var(--color-accent-default); color: var(--color-text-on-accent); border-radius: 999px; font-size: 10px; font-weight: 700; padding: 0 5px; line-height: 16px; margin-left: -10px; align-self: flex-start; }
 .rem-tok.loading::after { content: ""; position: absolute; left: 50%; top: 40%; width: 46%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; background: radial-gradient(circle, var(--team), transparent 70%); animation: icon-pulse 1.4s ease-in-out infinite; }
 /* A token you pick: dimmed until picked, then lit, with a check and its copies.
@@ -433,8 +424,7 @@ label.action { position: relative; }   /* a file picker: the input hides inside 
 .rem .tok-w .cp { height: 18px; font-size: 11px; margin-top: 4px; }
 .rem .tok-w .cp button { width: 19px; height: 18px; }
 .who { cursor: pointer; }
-.team-h .pick-team { margin-left: auto; border: 0; background: none; padding: 0; color: var(--color-text-muted); font: inherit; font-size: 12.5px; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
-.team-h .pick-team:hover { color: var(--color-text-default); }
+.team-h .pick-team { margin-left: auto; }
 .tok { position: relative; border: 0; background: none; padding: 0; cursor: pointer; border-radius: 50%; }
 .tok svg { display: block; border-radius: 50%; transition: transform .15s; }
 .tok:hover svg { transform: scale(1.06); }
@@ -484,8 +474,7 @@ label.action { position: relative; }   /* a file picker: the input hides inside 
 .ccc-banner { display: block; width: 100%; min-width: 0; }
 .ccc-banner img { display: block; width: 100%; height: auto; opacity: .9; }
 .ccc-banner:hover img { opacity: 1; }
-.guide-btn { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--color-border-default); background: color-mix(in srgb, var(--color-text-default) 5%, transparent); border-radius: 999px; padding: 5px 12px 5px 5px; white-space: nowrap; cursor: pointer; font-size: 13px; }
-.guide-btn:hover { border-color: var(--color-border-accent); }
+.guide-btn { gap: 7px; }
 .guide-btn .q { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: var(--color-accent-default); color: var(--color-text-on-accent); font-weight: 700; font-size: 12.5px; }
 .about-link { text-align: center; font-size: 12.5px; color: var(--color-text-muted); text-decoration: underline; text-underline-offset: 2px; }
 .about-link:hover { color: var(--color-text-default); }
@@ -701,8 +690,6 @@ label.action { position: relative; }   /* a file picker: the input hides inside 
 .stack { display: flex; padding-left: 10px; }
 .stack svg { width: 30px; height: 30px; margin-left: -10px; border-radius: 50%; box-shadow: 0 0 0 2px var(--color-bg-surface); }
 .queuebar .hint { flex: 1; margin: 0; }
-.flow-back { border: 0; background: none; color: var(--color-text-muted); font: inherit; padding: 8px 10px; cursor: pointer; white-space: nowrap; }
-.flow-back:hover { color: var(--color-text-default); }
 
 /* step 2: your tokens in the set's design */
 .design-stage { grid-area: main; display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; background: radial-gradient(80% 60% at 50% 0%, #33122a 0%, var(--color-bg-canvas) 75%); }
@@ -1201,9 +1188,9 @@ html[data-mode=own]:not([data-theme=botc]) .gate { background: radial-gradient(1
 .oh-cover .oh-actions { display: flex; gap: 14px; font-size: 13.5px; padding: 0 24px 18px; }
 /* a licence's mark, on Open's row at the cover's foot */
 .oh-cover .oh-ccc { margin-left: auto; width: 120px; height: auto; pointer-events: none; }
-.oh-new { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
-.oh-make { display: flex; align-items: center; justify-content: center; gap: 10px; border: 1px dashed var(--color-border-default); background: none; border-radius: 14px; padding: 13px 14px; color: var(--color-text-default); font: 500 16px/1.2 var(--font-family-ui); cursor: pointer; }
-.oh-make:hover { border-color: var(--color-border-accent); }
+.oh-new { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.oh-make { gap: 10px; font-size: 16px; padding: 13px 22px; }
+.action--primary.oh-make .plus { background: var(--color-text-on-accent); color: var(--color-accent-default); }
 .oh-make .plus { width: 28px; height: 24px; display: grid; place-items: center; background: var(--color-accent-default); color: var(--color-text-on-accent); font-weight: 700; clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%); }
 .oh-tiles { display: grid; gap: 8px; }
 .oh-tile { display: flex; align-items: center; gap: 12px; border-radius: 14px; padding: 10px 14px; border: 1px solid var(--color-border-default); background: #24201d; }
@@ -1333,7 +1320,7 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 @media (hover: none) { #rows .row { -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; } }
 @media (hover: hover) { .tok-w.backed:hover .tok-turn { transform: rotateY(180deg); } }
 @media (hover: hover) { .row:hover .tok-w.two .tok-turn { transform: rotateY(180deg); } .row:hover .tok-w.two.turned .tok-turn { transform: none; } }
-.turn-btn { position: absolute; right: -4px; bottom: -2px; z-index: 2; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; padding: 0; font-size: 12px; background: var(--color-bg-canvas); color: var(--color-text-accent); border: 1px solid var(--color-border-default); cursor: pointer; }
+.turn-btn { position: absolute; right: -4px; bottom: -2px; z-index: 2; }
 .who .flip-sep { color: var(--color-text-accent); font-weight: 400; }
 @media (prefers-reduced-motion: reduce) { .tok-w .tok-turn { transition: none; } }
 
@@ -1506,8 +1493,7 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 .design-dlg::backdrop { backdrop-filter: blur(3px); }
 .dz-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 18px 8px 22px; }
 .dz-head h2 { margin: 0; font-size: 26px; line-height: 1.1; }
-.dz-x { border: 0; background: none; color: var(--color-text-muted); font-size: 26px; line-height: 1; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; }
-.dz-x:hover { color: var(--color-text-default); background: color-mix(in srgb, var(--color-text-default) 7%, transparent); }
+.dz-x { font-size: 26px; line-height: 1; }
 .dz-tabs { flex: none; padding: 0 22px; }
 .dz-tabs .nav-item--tab { font-size: 14px; }
 .dz-search { flex: none; width: auto; margin: 12px 22px 0; }
@@ -1750,8 +1736,7 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 .dq-tok svg { max-width: 100%; max-height: 100%; display: block; }
 .dq small { font-size: 11px; line-height: 1.2; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* "Adjust this token": the parts and their fields, folded until asked for */
-.tweak-toggle { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; border: 0; border-top: 1px solid var(--color-border-default); background: none; color: var(--color-text-default); padding: 12px 16px; font: inherit; text-align: left; cursor: pointer; }
-.tweak-toggle:hover { background: color-mix(in srgb, var(--color-text-default) 4%, transparent); }
+.tweak-toggle { flex: none; justify-content: space-between; width: 100%; padding: 12px 16px; border-top: 1px solid var(--color-border-default); }
 .tweak-toggle > span:first-child { display: grid; gap: 1px; }
 .tweak-toggle small { color: var(--color-text-muted); font-size: 12.5px; }
 .tweak-toggle .chev { color: var(--color-text-accent); font-size: 20px; transition: transform .15s; }
@@ -1886,10 +1871,8 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 #rows .row .rems { display: contents; }
 #rows .row .rems-fold { grid-area: fold; justify-self: end; white-space: nowrap; }
 #rows .row .rem-list { grid-area: list; margin: 8px 0 4px; }
-#rows .row :is(.own-edit, .rems-fold) { border: 0; background: color-mix(in srgb, var(--color-text-default) 13%, transparent); color: var(--color-text-default); }
-#rows .row :is(.own-edit, .rems-fold):hover { background: color-mix(in srgb, var(--color-text-default) 22%, transparent); }
-.rem-list .rem-chip { border: 0; border-radius: 3px; background: var(--color-bg-raised-hover); }
-.rem-list .rem[data-on=all] .rem-chip { background: color-mix(in srgb, var(--color-bg-surface) 75%, var(--color-accent-default)); box-shadow: inset 0 0 0 2px var(--color-border-accent); }
+#rows .row .own-edit { background: color-mix(in srgb, var(--color-text-default) 13%, transparent); color: var(--color-text-default); }
+#rows .row .own-edit:hover { background: color-mix(in srgb, var(--color-text-default) 22%, transparent); }
 .design-bar .db-chip { flex: none; }
 #rows .row .tok-w .cp { margin-top: 3px; }
 /* picked: the band of tesserae, hexagons at the corners; the check a hexagon */
@@ -1900,14 +1883,14 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 
 /* ---- controls cut like the mark: hexagonal ends, no borders (the cut is the edge). Focused, the cut gives way to a
    plain outline, so focus always shows. */
-:is(.db-chip, .rems-fold, .own-edit, .qb-toggle) { border-radius: 0; clip-path: var(--shape-cut); }
+:is(.db-chip, .own-edit, .qb-toggle) { border-radius: 0; clip-path: var(--shape-cut); }
 /* the cut is the edge: a border would only show as stray lines above and below it */
-:is(.db-chip, .rems-fold, .own-edit, .qb-toggle):not(:focus-visible) { border-color: transparent !important; }
-:is(.db-chip, .rems-fold, .own-edit, .qb-toggle):not([aria-pressed=true], [aria-selected=true]) { background: var(--color-bg-raised); }
-:is(.db-chip, .rems-fold, .own-edit, .qb-toggle):not([aria-pressed=true], [aria-selected=true]):hover { background: var(--color-bg-raised-hover); }
+:is(.db-chip, .own-edit, .qb-toggle):not(:focus-visible) { border-color: transparent !important; }
+:is(.db-chip, .own-edit, .qb-toggle):not([aria-pressed=true], [aria-selected=true]) { background: var(--color-bg-raised); }
+:is(.db-chip, .own-edit, .qb-toggle):not([aria-pressed=true], [aria-selected=true]):hover { background: var(--color-bg-raised-hover); }
 /* "Pick to print" is a shortcut (picking is tapping the tokens): quiet, so each screen has one main action, Print */
 .action.add.main { color: var(--color-text-accent); font-weight: 600; }
-:is(.db-chip, .rems-fold, .own-edit, .qb-toggle):focus-visible { clip-path: none; border-radius: 4px; }
+:is(.db-chip, .own-edit, .qb-toggle):focus-visible { clip-path: none; border-radius: 4px; }
 .db-chip { padding: 4px 16px 4px 10px; }
 .flow-step i, .ed .got, .tlang-trigger .lb-flags + * .got { border-radius: 0; clip-path: var(--shape-cut-compact); }
 .flow-step i { border: 0; background: color-mix(in srgb, var(--color-text-default) 10%, transparent); }
@@ -1988,9 +1971,9 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 .oh-top .oh-gh { border: 0; border-radius: 0; clip-path: var(--shape-cut); background: var(--color-bg-raised); padding-inline: 16px; }
 .oh-top .oh-gh:hover { background: var(--color-bg-raised-hover); }
 .oh-top .oh-gh:focus-visible { clip-path: none; border-radius: 4px; }
-:is(.oh-cover, .oh-tile, .oh-make, .oh-empty, .ol-resume, .ol-taller, .tour-cover, .tour-box, .ol-steps a) { border-radius: 4px; }
-:is(.oh-tile, .oh-make, .ol-resume) { border: 0; background: var(--color-bg-raised); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-text-default) 7%, transparent), 0 1px 0 #0006; }
-:is(.oh-tile, .oh-make, .ol-resume):hover { background: var(--color-bg-raised-hover); }
+:is(.oh-cover, .oh-tile, .oh-empty, .ol-resume, .ol-taller, .tour-cover, .tour-box, .ol-steps a) { border-radius: 4px; }
+:is(.oh-tile, .ol-resume) { border: 0; background: var(--color-bg-raised); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-text-default) 7%, transparent), 0 1px 0 #0006; }
+:is(.oh-tile, .ol-resume):hover { background: var(--color-bg-raised-hover); }
 
 /* ================================================================ the editor, as a game's creator
    Desktop: three columns. The menu (a token's Content, Design and Customise ›, each with its value; inside
@@ -2157,14 +2140,11 @@ html[data-readonly] [data-coll].own-only, html[data-readonly] hr.own-only, html[
 
 /* ---- no steps: the tokens are home; elsewhere the top bar's "‹ Tokens" goes back */
 .flow-steps { margin: 0 auto 0 0; padding-left: 8px; }
-.top-back { display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px 7px 10px; border: 0; border-radius: 3px; background: var(--color-bg-raised); color: var(--color-text-default); font: inherit; font-size: 14.5px; font-weight: 600; cursor: pointer; }
-.top-back:hover { background: var(--color-bg-raised-hover); }
-.top-back > span { color: var(--color-text-accent); font-size: 18px; line-height: 1; margin-top: -2px; }
 /* the bottom bar, when it comes: a tray rising with the selection */
 .queuebar:not([hidden]) { animation: bar-in .2s ease-out; }
 @keyframes bar-in { from { transform: translateY(100%); } }
 @media (prefers-reduced-motion: reduce) { .queuebar:not([hidden]) { animation: none; } }
-@media (max-width: 900px) { .flow-steps { padding-left: 0; } .top-back { padding: 7px 12px 7px 8px; font-size: 14px; } }
+@media (max-width: 900px) { .flow-steps { padding-left: 0; } }
 /* a coin back's words: what it says (its name, the edition's, its own, nothing), and its own words under it */
 .back-say { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin: 0 0 14px; }
 .back-say[hidden] { display: none; }

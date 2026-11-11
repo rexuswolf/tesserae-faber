@@ -230,7 +230,7 @@ export function renderQueue() {
   const queue = queueNow(), n = queue.length, step = state.step;
   const chars = new Set([...state.pick.keys()].filter((k) => k.startsWith("c:"))).size, rems = queue.filter(isReminder).length;
   // no steps to follow: the tokens are home. Anywhere else (designing one, printing), the top bar has the way back
-  $("#flowSteps").innerHTML = step > 1 ? `<button class="top-back" type="button" data-goto="1"><span aria-hidden="true">‹</span> ${esc(t("flow.step1"))}</button>` : "";
+  $("#flowSteps").innerHTML = step > 1 ? `<button class="nav-link nav-link--back top-back" type="button" data-goto="1">${esc(t("flow.step1"))}</button>` : "";
   // the bottom bar only where it does something: on the tokens once some are picked, and printing (Download)
   $("#queuebar").hidden = step === 2 || step === 4 || (step === 1 && !n);
   $("#queueCount").textContent = n ? t("queue.count", { n }) : t("pick.nothing");

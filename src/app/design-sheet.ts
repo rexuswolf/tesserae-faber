@@ -711,7 +711,7 @@ export function patternGroupHtml(side: PatSide) {
   const range = (k: string, label: string, min: number, max: number, step: number) =>
     `<div class="row"><label for="pat-${side}-${k}" ${k === "line" ? "data-pat-line-label" : ""}>${esc(label)}</label><output data-pat-out="${k}"></output><input type="range" id="pat-${side}-${k}" data-pat-range="${k}" min="${min}" max="${max}" step="${step}"></div>`;
   return `<div class="choices choice-group pat-tiles" data-pat-choice role="group" aria-label="${esc(t("pattern.title"))}"></div>`
-    + `<button type="button" class="reset-f group" hidden data-reset="${patKey(side)}">↺</button>`
+    + `<button type="button" class="action action--quiet action--sm reset-f group" hidden data-reset="${patKey(side)}">↺</button>`
     + `<div class="pat-opts">`
     + range("scale", t("pattern.scale"), 2.4, 8, 0.1)
     + range("line", t("pattern.line"), PATTERN_MIN, 1.2, 0.05)
@@ -1092,7 +1092,7 @@ export function renderDesignBar() {
   // each shape's chip opens all its designs (the collection's and yours, in their tabs): no way to the Taller beside them
   $("#designBar").innerHTML = shapes.map((sh) => {
       const d = designOf(sh, defaultRef(sh))!;
-      return `<button class="db-chip" type="button" data-default-shape="${sh}" aria-haspopup="dialog" aria-label="${esc(t("bar.chipAria", { shape: t(`type.${sh}.many`), name: d.name }))}">${designSwatch(d.spec, sampleRole(sh))}<span><small>${esc(t(`type.${sh}.many`))}</small><b>${esc(d.name)}</b></span>${CHEVRON}</button>`;
+      return `<button class="action db-chip" type="button" data-default-shape="${sh}" aria-haspopup="dialog" aria-label="${esc(t("bar.chipAria", { shape: t(`type.${sh}.many`), name: d.name }))}">${designSwatch(d.spec, sampleRole(sh))}<span><small>${esc(t(`type.${sh}.many`))}</small><b>${esc(d.name)}</b></span>${CHEVRON}</button>`;
     }).join("")
     + (changed.length ? `<button class="action action--quiet action--sm db-original" type="button" data-default-original>${esc(t("bar.original"))}</button>` : "");
   if (dz.open && dz.mode === "default") renderDesignSheet();

@@ -182,7 +182,7 @@ export function renderSheet() {
     if (oneGroup) return `<section class="team">${rows}</section>`;
     // a group of one: "pick the group" would only pick that token, so it isn't offered
     return `<section class="team"><div class="team-h"><i style="background:${TEAMS[team].colour}"></i><span>${esc(TEAM_PLURAL[lang][team])}</span><small>${list.length}</small>
-      ${list.length > 1 ? `<button class="pick-team" type="button" data-pick-team="${team}">${esc(t(teamOn ? "pick.teamOff" : "pick.team"))}</button>` : ""}</div>${rows}</section>`;
+      ${list.length > 1 ? `<button class="action action--quiet action--sm pick-team" type="button" data-pick-team="${team}">${esc(t(teamOn ? "pick.teamOff" : "pick.team"))}</button>` : ""}</div>${rows}</section>`;
   }).join("");
   peekHint();
 }
@@ -242,7 +242,7 @@ function rowHtml(r: Role, q: string, remHits: Set<number> | undefined) {
     const backed = !isRem && !two && SHAPE_FEATURES[shapeOf(r)].back && printsBack(r, full);
     const face = tokenSvg(state.lib!, r, spec, { text: name });
     const art = two || backed ? `<span class="tok-turn">${face}${tokenSvg(state.lib!, r, { ...full, diameter: 45 }, { side: "back" })}</span>` : face;
-    return `<span class="tok-w${two ? " two" : backed ? " backed" : ""}"><button class="tok${isCard(r) ? " card" : ""}${loading}" type="button" data-pick="${key}" aria-pressed="${copies > 0}" aria-label="${esc(name)}">${art}<span class="ck" aria-hidden="true">✓</span></button>${two ? `<button class="turn-btn" type="button" data-turn title="${esc(t("sheet.turn"))}" aria-label="${esc(t("sheet.turn"))}">⇄</button>` : ""}${own ? ownPen(key, name) : ""}</span>`;
+    return `<span class="tok-w${two ? " two" : backed ? " backed" : ""}"><button class="tok${isCard(r) ? " card" : ""}${loading}" type="button" data-pick="${key}" aria-pressed="${copies > 0}" aria-label="${esc(name)}">${art}<span class="ck" aria-hidden="true">✓</span></button>${two ? `<button class="action action--icon action--sm turn-btn" type="button" data-turn title="${esc(t("sheet.turn"))}" aria-label="${esc(t("sheet.turn"))}">⇄</button>` : ""}${own ? ownPen(key, name) : ""}</span>`;
   };
   const rems = remindersOf(r);
   // a two-state token shows its front; its other state is named under it
@@ -257,7 +257,7 @@ function rowHtml(r: Role, q: string, remHits: Set<number> | undefined) {
     const keys = idx.map((i) => remKey(r, i)), on = keys.filter(isPicked).length, own = keys.find(hasOwn);
     const count = keys.length > 1 ? `<small>×${keys.length}${on && on < keys.length ? ` · ${on}/${keys.length}` : ""}</small>` : "";
     return `<div class="rem${idx.some((i) => remHits?.has(i)) ? " hit" : ""}" data-on="${on === keys.length ? "all" : on ? "some" : "none"}">
-      <button class="rem-chip" type="button" data-pick-rems="${keys.join(" ")}" aria-pressed="${on === keys.length}" aria-label="${esc(keys.length > 1 ? `${w} ×${keys.length}` : w)}"><span class="rem-tok${loadingTok}">${tokenSvg(state.lib!, r, remSpec(keys[0]), { text: textFor(keys[0], r, idx[0]) })}</span><span class="rem-w">${esc(w)}</span>${count}<span class="ck" aria-hidden="true">✓</span></button>${own ? ownPen(own, w) : ""}</div>`;
+      <button class="choice rem-chip" type="button" data-pick-rems="${keys.join(" ")}" aria-pressed="${on === keys.length}" aria-label="${esc(keys.length > 1 ? `${w} ×${keys.length}` : w)}"><span class="rem-tok${loadingTok}">${tokenSvg(state.lib!, r, remSpec(keys[0]), { text: textFor(keys[0], r, idx[0]) })}</span><span class="rem-w">${esc(w)}</span>${count}<span class="ck" aria-hidden="true">✓</span></button>${own ? ownPen(own, w) : ""}</div>`;
   }).join("");
   // Folded, the row shows how many linked tokens it has (and how many are in) with their small faces;
   // open, the linked tokens large, to pick. A search that found one opens its row.
@@ -266,12 +266,12 @@ function rowHtml(r: Role, q: string, remHits: Set<number> | undefined) {
   const minis = [...groups].slice(0, 4).map(([w, idx]) => tokenSvg(state.lib!, r, remSpec(remKey(r, idx[0])), { text: w })).join("");
   // its words in full for a screen reader; on a phone it shows only a number ("2", "1/2", "2 ✓"), so the name keeps the row
   const foldLabel = `${t("sheet.linked", { n: rems.length })}${inN ? `, ${inN === rems.length ? t("sheet.linkedAll") : t("sheet.linkedSome", { n: inN, of: rems.length })}` : ""}`;
-  const fold = rems.length && !isCard(r) ? `<button class="rems-fold" type="button" data-rems-fold="${ck}" aria-expanded="${open}" aria-label="${esc(foldLabel)}"><span class="rf-minis" aria-hidden="true">${minis}</span><span class="rf-long" aria-hidden="true">${esc(t("sheet.linked", { n: rems.length }))}</span>${inN ? `<b class="rf-in" aria-hidden="true">${esc(inN === rems.length ? t("sheet.linkedAll") : t("sheet.linkedSome", { n: inN, of: rems.length }))}</b>` : ""}<span class="rf-n${inN ? " on" : ""}" aria-hidden="true">${inN === rems.length ? `${rems.length} ✓` : inN ? `${inN}/${rems.length}` : rems.length}</span>${CHEVRON}</button>` : "";
+  const fold = rems.length && !isCard(r) ? `<button class="disclosure rems-fold" type="button" data-rems-fold="${ck}" aria-expanded="${open}" aria-label="${esc(foldLabel)}"><span class="rf-minis" aria-hidden="true">${minis}</span><span class="rf-long" aria-hidden="true">${esc(t("sheet.linked", { n: rems.length }))}</span>${inN ? `<b class="rf-in" aria-hidden="true">${esc(inN === rems.length ? t("sheet.linkedAll") : t("sheet.linkedSome", { n: inN, of: rems.length }))}</b>` : ""}<span class="rf-n${inN ? " on" : ""}" aria-hidden="true">${inN === rems.length ? `${rems.length} ✓` : inN ? `${inN}/${rems.length}` : rems.length}</span>${CHEVRON}</button>` : "";
   return `<div class="row${isCard(r) ? " info" : ""}${rems.length ? "" : " no-rems"}${open ? " open" : ""}" data-picked="${isPicked(ck)}" data-row="${ck}">
     ${thumb(ck, null)}
     <div class="who" data-pick="${ck}"><b>${esc(catalogText(r, null))}${flip && !OWN ? `<span class="flip-sep" title="${esc(t("sheet.flip"))}"> ⇄ </span>${esc(roleName(flip, tokenLang()))}` : ""}</b>${OWN ? (ownHome(r) && (q || catalogOf(state.edition) !== ownHomeCatalog(r.id)) ? `<em>${esc(ownHome(r))}</em>` : "") : q || state.edition === "all" || (state.edition.startsWith("s:") && r.kind !== "homebrew") ? `<em>${esc(editionName(r, lang))}</em>` : ""}${r.loading ? `<small>${esc(t("sheet.iconLoading"))}</small>` : ""}</div>
     ${rems.length ? `<div class="rems">${fold}${open ? `<div class="rem-list">${chips}</div>` : ""}</div>` : ""}
-    <div class="row-acts">${OWN && !READONLY && !isLocked(coll, r.id) ? `<button class="own-edit" type="button" data-own-edit="${esc(r.id)}" aria-label="${esc(t("own.edit"))}" title="${esc(t("own.edit"))}">${PEN}<span class="ra-l">${esc(t("own.edit"))}</span></button>` : ""}${r.loading ? "" : `<button class="own-edit" type="button" data-design-row="${ck}" aria-label="${esc(t("sheet.design"))}" title="${esc(t("sheet.design"))}">${ROLLER}<span class="ra-l">${esc(t("sheet.design"))}</span></button>`}</div>
+    <div class="row-acts">${OWN && !READONLY && !isLocked(coll, r.id) ? `<button class="action own-edit" type="button" data-own-edit="${esc(r.id)}" aria-label="${esc(t("own.edit"))}" title="${esc(t("own.edit"))}">${PEN}<span class="ra-l">${esc(t("own.edit"))}</span></button>` : ""}${r.loading ? "" : `<button class="action own-edit" type="button" data-design-row="${ck}" aria-label="${esc(t("sheet.design"))}" title="${esc(t("sheet.design"))}">${ROLLER}<span class="ra-l">${esc(t("sheet.design"))}</span></button>`}</div>
   </div>`;
 }
 

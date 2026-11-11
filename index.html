@@ -20,7 +20,7 @@
 
   <!-- top bar: the three steps (pick, design, print) and the language (the interface and the tokens) -->
   <header class="topbar" id="topbar">
-    <button class="icon-btn" type="button" id="drawerOpen" aria-controls="spine" aria-expanded="false" data-i18n-attr="aria-label:top.menu">
+    <button class="action action--icon icon-btn" type="button" id="drawerOpen" aria-controls="spine" aria-expanded="false" data-i18n-attr="aria-label:top.menu">
       <svg viewBox="0 0 18 18" width="18" height="18" aria-hidden="true"><path d="M3 5h12M3 9h12M3 13h12" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
     <!-- the collection is the brand (Clocktower at /botc too): its menu goes to the other collections and, for one
          of your own, to its settings -->
@@ -44,7 +44,7 @@
     <a class="taller-back" id="tallerBack" href="/colecciones"><span aria-hidden="true">‹</span><span><small data-i18n="taller.back"></small><b></b></span></a>
     <p class="taller-title"><span aria-hidden="true">✦</span> <b data-i18n="taller.title"></b></p>
     <nav class="flow-steps" id="flowSteps" data-i18n-attr="aria-label:flow.aria"></nav>
-    <button class="tlang-trigger" id="tokenLangBtn" type="button" aria-haspopup="dialog" data-lang-open></button>
+    <button class="action tlang-trigger" id="tokenLangBtn" type="button" aria-haspopup="dialog" data-lang-open></button>
   </header>
 
   <!-- the sidebar: editions (more groups, like scripts, can join them), then the guide, the admin and the credits.
@@ -73,7 +73,7 @@
       <hr class="spine-rule">
       <!-- the lists: Clocktower's scripts, its editions first (locked: they're the game's), then yours; a collection draws its own heading -->
       <div class="spine-h spine-sec botc-only"><h2 data-i18n="spine.scripts"></h2>
-        <button class="spine-add" type="button" id="scriptNew" data-i18n-attr="aria-label:script.new title:script.new">+</button></div>
+        <button class="action action--icon action--sm spine-add" type="button" id="scriptNew" data-i18n-attr="aria-label:script.new title:script.new">+</button></div>
       <div id="editions"></div>
       <div id="scripts" class="botc-only"></div>
     </div>
@@ -81,8 +81,8 @@
     <!-- the guide, with the admin beside it (signed in, or ?admin to sign in); under them, about the tool and its
          credits (with the Community Created Content mark, where it applies). The language is at the top right. -->
     <div class="foot-row">
-      <button class="guide-btn" type="button" data-guide aria-haspopup="dialog"><span class="q" aria-hidden="true">?</span><span data-i18n="guide.open"></span></button>
-      <button type="button" class="admin-sign-in" id="adminSignIn" hidden data-i18n="gate.signIn"></button>
+      <button class="action action--sm guide-btn" type="button" data-guide aria-haspopup="dialog"><span class="q" aria-hidden="true">?</span><span data-i18n="guide.open"></span></button>
+      <button type="button" class="action action--sm admin-sign-in" id="adminSignIn" hidden data-i18n="gate.signIn"></button>
       <details class="me" hidden>
         <summary data-i18n-attr="aria-label:me.aria"><img id="avatar" alt="" referrerpolicy="no-referrer"><span data-i18n="me.adminLabel"></span></summary>
         <div class="menu">
@@ -171,7 +171,7 @@
     </div>
     <!-- the design's settings: its parts, always in sight under their heading (no Customise to go into) -->
     <p class="cr-parts-h design-only" data-i18n="editor.parts"></p>
-    <button type="button" class="cr-back design-only" id="crBack"><span aria-hidden="true">‹</span> <b id="crBackLabel"></b></button>
+    <button type="button" class="nav-link nav-link--back cr-back design-only" id="crBack"><b id="crBackLabel"></b></button>
     <div class="parts" id="parts" role="tablist" data-i18n-attr="aria-label:ws.sections"></div>
     <!-- this token's own changes: back to its design, or kept as a design of yours; at the foot of the menu -->
     <div class="cr-acts design-only" id="crActs" hidden>
@@ -199,7 +199,7 @@
       </div>
     </div>
     <!-- the fine changes, folded until asked for (the Taller's editor always shows them) -->
-    <button class="tweak-toggle design-only" type="button" id="tweakToggle" aria-expanded="false" aria-controls="styleFields"><span><b data-i18n="tweak.title"></b><small data-i18n="tweak.sub"></small></span><span class="chev" aria-hidden="true">›</span></button>
+    <button class="disclosure tweak-toggle design-only" type="button" id="tweakToggle" aria-expanded="false" aria-controls="styleFields"><span><b data-i18n="tweak.title"></b><small data-i18n="tweak.sub"></small></span><span class="chev" aria-hidden="true">›</span></button>
     <!-- the token's parts: a coin's FRONT · BACK · COIN · MAGNET, a ring's FRONT · RING, a card's FRONT · CARD -->
     <div class="ws-body" id="styleFields">
       <!-- the editor's Content: what the token carries printed (its text, its icon), over the collection's -->
@@ -212,7 +212,7 @@
       <div class="ws-warn" id="colourWarn" hidden></div>
       <div class="face-tabs tabs" id="faceTabs" role="tablist" data-i18n-attr="aria-label:ws.faceTabs" hidden></div>
       <!-- the open part changed: its changes undone (the rest of the token keeps its) -->
-      <button type="button" class="part-undo" id="partUndo" hidden></button>
+      <button type="button" class="action action--sm part-undo" id="partUndo" hidden></button>
       <p class="hint back-note" id="backNote" hidden></p>
       <!-- a face (the front, or a back of its own): its layout, name, icon and frame, each part flush or raised -->
       <!-- its colours, together (each also where its part is) -->
@@ -559,12 +559,12 @@
 
   <!-- the selection and the way on -->
   <footer class="queuebar" id="queuebar">
-    <button class="qb-toggle" type="button" id="queueToggle" aria-haspopup="dialog">
+    <button class="action qb-toggle" type="button" id="queueToggle" aria-haspopup="dialog">
       <span class="stack" id="queueStack"></span>
       <span id="queueCount"></span>
     </button>
     <p class="hint" id="queueSummary"></p>
-    <button class="flow-back" type="button" id="flowBack"></button>
+    <button class="nav-link nav-link--back flow-back" type="button" id="flowBack"></button>
     <button class="action action--primary" type="button" id="flowNext"></button>
   </footer>
   <!-- your selection: characters with their copies and reminders -->
@@ -572,7 +572,7 @@
     <div class="qd-head">
       <h2 id="queueTitle"></h2>
       <button class="action" type="button" id="queueClear" data-i18n="queue.clear"></button>
-      <button class="icon-btn" type="button" id="queueClose" data-i18n-attr="aria-label:admin.close">×</button>
+      <button class="action action--icon icon-btn" type="button" id="queueClose" data-i18n-attr="aria-label:admin.close">×</button>
     </div>
     <div class="qd-body" id="queueBody"><div id="queue"></div></div>
     <div class="toast" id="queueToast" hidden><span></span><button type="button" data-i18n="queue.undo"></button></div>
@@ -590,7 +590,7 @@
     <!-- the code, open on GitHub -->
     <a class="oh-gh" href="https://github.com/rexuswolf/tesserae-faber" target="_blank" rel="noopener" data-i18n-attr="title:app.github aria-label:app.github"><svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg><span>GitHub</span></a>
     <!-- the interface language (no tokens here, so only its flag) -->
-    <button class="tlang-trigger oh-lang" type="button" aria-haspopup="dialog" data-lang-open></button>
+    <button class="action tlang-trigger oh-lang" type="button" aria-haspopup="dialog" data-lang-open></button>
   </header>
   <section class="ol-hero">
     <div class="ol-text">
@@ -717,14 +717,14 @@
     <!-- the code, open on GitHub -->
     <a class="oh-gh" href="https://github.com/rexuswolf/tesserae-faber" target="_blank" rel="noopener" data-i18n-attr="title:app.github aria-label:app.github"><svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg><span>GitHub</span></a>
     <!-- the interface language (no tokens here, so only its flag) -->
-    <button class="tlang-trigger oh-lang" type="button" aria-haspopup="dialog" data-lang-open></button>
+    <button class="action tlang-trigger oh-lang" type="button" aria-haspopup="dialog" data-lang-open></button>
   </header>
   <section class="oh-band oh-page-h"><div><h1 data-i18n="own.listTitle"></h1><p class="ol-lead" data-i18n="own.listLead"></p></div></section>
   <section class="oh-band oh-yours"><div>
     <div class="oh-zone"><h2 data-i18n="own.mineH"></h2><p data-i18n="own.mineLead"></p></div>
     <div class="oh-new">
-      <button class="oh-make" type="button" data-own-new><span class="plus" aria-hidden="true">+</span><span data-i18n="own.homeNewPlain"></span></button>
-      <button class="oh-make" type="button" id="ownHomeImport" data-i18n="own.importJson"></button>
+      <button class="action action--primary oh-make" type="button" data-own-new><span class="plus" aria-hidden="true">+</span><span data-i18n="own.homeNewPlain"></span></button>
+      <button class="action oh-make" type="button" id="ownHomeImport" data-i18n="own.importJson"></button>
     </div>
     <input type="file" id="ownHomeFile" accept="application/json,.json" hidden>
     <p class="hint" data-own-note aria-live="polite"></p>
@@ -897,7 +897,7 @@
 <dialog id="designDlg" class="design-dlg" aria-labelledby="dzTitle">
   <header class="dz-head">
     <h2 id="dzTitle"></h2>
-    <form method="dialog"><button class="dz-x" data-i18n-attr="aria-label:admin.close">×</button></form>
+    <form method="dialog"><button class="action action--icon action--quiet dz-x" data-i18n-attr="aria-label:admin.close">×</button></form>
   </header>
   <div class="dz-tabs tabs" id="dzTabs" role="tablist"></div>
   <input class="text dz-search" type="search" id="dzSearch" autocomplete="off" data-i18n-attr="placeholder:dsheet.search aria-label:dsheet.search" hidden>
