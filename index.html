@@ -210,7 +210,7 @@
       <!-- how it looks: its design's, with this token's changes (in the Taller: the design's) -->
       <h3 class="ws-bh" id="lookHead"><span id="lookTitle"></span> <small id="lookSub"></small></h3>
       <div class="ws-warn" id="colourWarn" hidden></div>
-      <div class="face-tabs" id="faceTabs" role="tablist" data-i18n-attr="aria-label:ws.faceTabs" hidden></div>
+      <div class="face-tabs tabs" id="faceTabs" role="tablist" data-i18n-attr="aria-label:ws.faceTabs" hidden></div>
       <!-- the open part changed: its changes undone (the rest of the token keeps its) -->
       <button type="button" class="part-undo" id="partUndo" hidden></button>
       <p class="hint back-note" id="backNote" hidden></p>
@@ -296,7 +296,7 @@
           <!-- its icon: on top, on top and underneath, or none -->
           <div id="pieceIconBox">
             <p class="metal-label" data-i18n="piece.iconLabel"></p>
-            <div class="seg3" data-choice="pieceIcon" data-i18n-attr="aria-label:piece.iconLabel"></div>
+            <div class="seg3 choice-group choice-group--joined" data-choice="pieceIcon" data-i18n-attr="aria-label:piece.iconLabel"></div>
             <p class="hint" id="pieceIconHint"></p>
           </div>
         </div>
@@ -342,7 +342,7 @@
       </section>
       <!-- a card's back: a face of its own (cardBack), the same on every card of the design -->
       <section class="ws-panel" data-panel="cardBack" role="tabpanel" hidden>
-        <span class="seg2 cb-on" role="group" id="cbOn" data-i18n-attr="aria-label:cardBack.label"><button type="button" data-v="off" data-i18n="cardBack.off"></button><button type="button" data-v="on" data-i18n="cardBack.on"></button></span>
+        <span class="seg2 cb-on choice-group choice-group--joined" role="group" id="cbOn" data-i18n-attr="aria-label:cardBack.label"><button type="button" class="choice" data-v="off" data-i18n="cardBack.off"></button><button type="button" class="choice" data-v="on" data-i18n="cardBack.on"></button></span>
         <p class="hint" data-i18n="cardBack.help"></p>
         <div id="cbFields">
           <div class="cb-group">
@@ -414,7 +414,7 @@
       <section class="ws-panel" data-panel="relief" role="tabpanel" hidden>
         <div id="reliefFaceBox">
           <p class="metal-label" data-i18n="relief.faceLabel"></p>
-          <span class="seg2" role="group" id="reliefFace" data-i18n-attr="aria-label:relief.faceLabel"></span>
+          <span class="seg2 choice-group choice-group--joined" role="group" id="reliefFace" data-i18n-attr="aria-label:relief.faceLabel"></span>
         </div>
         <div id="reliefPartsBox">
           <p class="metal-label" data-i18n="relief.partsLabel"></p>
@@ -529,7 +529,7 @@
         <p class="hint" data-i18n="own.aboutText"></p>
         <!-- one block of Markdown (src/markdown.ts), written beside how it reads; a phone: one, then the other -->
         <div class="md-edit" id="osAboutEdit">
-          <div class="md-tabs"><button type="button" aria-pressed="true" data-md="write" data-i18n="own.mdWrite"></button><button type="button" aria-pressed="false" data-md="preview" data-i18n="own.mdPreview"></button></div>
+          <div class="md-tabs tabs"><button type="button" class="nav-item nav-item--tab" aria-pressed="true" data-md="write" data-i18n="own.mdWrite"></button><button type="button" class="nav-item nav-item--tab" aria-pressed="false" data-md="preview" data-i18n="own.mdPreview"></button></div>
           <textarea class="text" id="osAbout" aria-labelledby="osTitle"></textarea>
           <div class="md-preview about-md" id="osAboutPreview" aria-live="polite"></div>
         </div>
@@ -806,7 +806,7 @@
   </div>
   <div class="tl-split">
     <div class="tl-side">
-      <div class="tl-tabs" id="tlangTabs" role="tablist"></div>
+      <div class="tl-tabs tabs" id="tlangTabs" role="tablist"></div>
       <div class="tl-list" id="tlangList" role="listbox"></div>
     </div>
     <div class="tl-stage" id="tlangStage" aria-live="polite"></div>
@@ -899,7 +899,7 @@
     <h2 id="dzTitle"></h2>
     <form method="dialog"><button class="dz-x" data-i18n-attr="aria-label:admin.close">×</button></form>
   </header>
-  <div class="dz-tabs" id="dzTabs" role="tablist"></div>
+  <div class="dz-tabs tabs" id="dzTabs" role="tablist"></div>
   <input class="text dz-search" type="search" id="dzSearch" autocomplete="off" data-i18n-attr="placeholder:dsheet.search aria-label:dsheet.search" hidden>
   <div class="dz-body"><div class="dz-cards choice-group" id="dzCards" role="tabpanel"></div></div>
   <footer class="dz-foot"><span id="dzFor"></span><a id="dzTaller" href="/taller" data-to-taller><span data-i18n="design.toTaller"></span> <span aria-hidden="true">›</span></a></footer>

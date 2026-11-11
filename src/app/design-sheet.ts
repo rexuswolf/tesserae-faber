@@ -73,7 +73,7 @@ export function renderDesignSheet() {
   const role = tokenMode ? state.sel!.role : sampleRole(sh), key = tokenMode ? state.sel!.key : charKey(role), reminder = tokenMode ? state.sel!.reminder : null;
   const look = tokenMode ? state.overrides.get(key)?.look : undefined, text = textFor(key, role, reminder);
   $("#dzTitle").textContent = t(tokenMode ? "dsheet.title" : `dsheet.title.${sh}`);
-  $("#dzTabs").innerHTML = (["coll", "mine"] as const).map((tab) => `<button type="button" role="tab" data-dz-tab="${tab}" aria-selected="${dz.tab === tab}" tabindex="${dz.tab === tab ? 0 : -1}">${esc(t(`dsheet.${tab}`, { n: (tab === "coll" ? coll : mine).length }))}</button>`).join("");
+  $("#dzTabs").innerHTML = (["coll", "mine"] as const).map((tab) => `<button type="button" class="nav-item nav-item--tab" role="tab" data-dz-tab="${tab}" aria-selected="${dz.tab === tab}" tabindex="${dz.tab === tab ? 0 : -1}">${esc(t(`dsheet.${tab}`, { n: (tab === "coll" ? coll : mine).length }))}</button>`).join("");
   const search = $<HTMLInputElement>("#dzSearch");
   search.hidden = dz.tab !== "mine" || mine.length <= 6;
   const q = search.hidden ? "" : dz.q.trim().toLocaleLowerCase();
@@ -315,7 +315,7 @@ export function renderTabs(role: Role, spec: TokenSpec) {
     const dot = changedHere.has(s.part) && !marked.has(s.part) && !!marked.add(s.part);   // a part in several sections: its first
     // a shape without layouts: its text is what its face carries, its Composition, as every other shape's
     const faceName = (f: string) => t(f === "text" && !SHAPE_FEATURES[shape].layout ? "face.layout" : `face.${f}`);
-    return `<button type="button" role="tab" data-part="${s.part}"${s.face ? ` data-face="${s.face}"` : ""} aria-selected="${isOpen(s)}">${esc(s.face ? faceName(s.face) : s.part === "body" ? t(`part.body.${shape}`) : t(`part.${s.part}`))}${dot ? `<i class="part-dot" title="${esc(t("part.changed"))}" aria-label="${esc(t("part.changed"))}"></i>` : ""}</button>`;
+    return `<button type="button" class="nav-item" role="tab" data-part="${s.part}"${s.face ? ` data-face="${s.face}"` : ""} aria-selected="${isOpen(s)}">${esc(s.face ? faceName(s.face) : s.part === "body" ? t(`part.body.${shape}`) : t(`part.${s.part}`))}${dot ? `<i class="part-dot" title="${esc(t("part.changed"))}" aria-label="${esc(t("part.changed"))}"></i>` : ""}</button>`;
   };
   $("#parts").innerHTML = secs.map(tab).join("");
   // a token of yours: its Token tab over its design (what it is, then how it looks); among the tabs only inside a part on a phone
@@ -332,7 +332,7 @@ export function renderTabs(role: Role, spec: TokenSpec) {
   // a two-sided shape's front and a coin's back: their tabs (a card's back is one panel)
   const faceOpen = (part === "back" && shape !== "card") || (part === "front" && twoSided(shape));
   $("#faceTabs").hidden = !faceOpen;
-  if (faceOpen) $("#faceTabs").innerHTML = (part === "back" ? backTabsOf(shape) : frontTabsOf(shape, editContent())).map((f) => `<button type="button" role="tab" data-face="${f}" aria-selected="${f === panel}">${esc(t(`face.${f}`))}</button>`).join("");
+  if (faceOpen) $("#faceTabs").innerHTML = (part === "back" ? backTabsOf(shape) : frontTabsOf(shape, editContent())).map((f) => `<button type="button" class="nav-item nav-item--tab" role="tab" data-face="${f}" aria-selected="${f === panel}">${esc(t(`face.${f}`))}</button>`).join("");
   renderBackNote(role, spec, part === "back" && faceOpen ? panel : null);
   // Composition: its own panel, and the text's and the icon's under it; with no layouts, the text's panel is where the face's content goes
   const comp = panel === "layout";
@@ -561,7 +561,7 @@ function renderPieceTiles(face: { role: Role; text: string }, spec: TokenSpec) {
   $("#pieceHint").textContent = t(noIcon ? "piece.hintBare" : silhouette ? "piece.hintSilhouette" : "piece.hintShape");
   const iconNow = !s.pieceIcon ? "off" : s.pieceBack ? "both" : "on";
   $("#pieceIconBox").hidden = noIcon;
-  $("[data-choice=pieceIcon]").innerHTML = (["on", "both", "off"] as const).map((v) => `<button type="button" data-v="${v}" aria-pressed="${iconNow === v}">${esc(t(`piece.icon.${v}`))}</button>`).join("");
+  $("[data-choice=pieceIcon]").innerHTML = (["on", "both", "off"] as const).map((v) => `<button type="button" class="choice" data-v="${v}" aria-pressed="${iconNow === v}">${esc(t(`piece.icon.${v}`))}</button>`).join("");
   $("#pieceIconHint").textContent = t(`piece.iconHint.${iconNow}`);
 }
 /** Silhouette or shape: a shape is the one it last had, or a circle. */
@@ -801,14 +801,14 @@ function renderRelief(role: Role, shape: TokenShape, spec: TokenSpec, back: Toke
     $("#reliefFaceBox").hidden = false; $("#reliefPartsBox").hidden = true; $("#reliefHeightBox").hidden = !on;
     $("#reliefFaceBox .metal-label").textContent = t("relief.pieceLabel");
     $("#reliefFace").innerHTML = (["none", "front"] as const).map((v) =>
-      `<button type="button" data-relief-face="${v}" aria-pressed="${(on ?? "none") === v}"${v === "front" && !can ? " disabled" : ""}>${esc(t(`relief.piece.${v}`))}</button>`).join("");
+      `<button type="button" class="choice" data-relief-face="${v}" aria-pressed="${(on ?? "none") === v}"${v === "front" && !can ? " disabled" : ""}>${esc(t(`relief.piece.${v}`))}</button>`).join("");
     $("#reliefHint").textContent = on ? t("relief.raisedHelp.piece", { total: dec1(s.height + s.reliefHeight) }) : !p.pieceIcon ? t("relief.pieceNoIcon") : p.pieceBack ? t("relief.pieceBack") : shapeText("relief.flatHelp", shape);
     return;
   }
   $("#reliefFaceBox").hidden = !twoFaces;
   $("#reliefFaceBox .metal-label").textContent = t("relief.faceLabel");
   $("#reliefFace").innerHTML = (["none", "front", "back"] as const).map((v) =>
-    `<button type="button" data-relief-face="${v}" aria-pressed="${(on ?? "none") === v}"${v === "back" && plainBack ? " disabled" : ""}>${esc(t(`relief.face.${v}`))}</button>`).join("");
+    `<button type="button" class="choice" data-relief-face="${v}" aria-pressed="${(on ?? "none") === v}"${v === "back" && plainBack ? " disabled" : ""}>${esc(t(`relief.face.${v}`))}</button>`).join("");
   // a one-faced shape: its front's parts, raised or not; a coin: the raised face's (none: nothing to pick)
   const side: Side = twoFaces ? on ?? "front" : "front", face = side === "back" ? back : s, relief = reliefOf(face);
   $("#reliefPartsBox").hidden = twoFaces && !on;

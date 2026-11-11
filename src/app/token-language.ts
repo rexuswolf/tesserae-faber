@@ -115,7 +115,7 @@ export function drawLangDialog() {
   const tabs = $("#tlangTabs");
   tabs.hidden = !tokens;
   tabs.innerHTML = tokens ? ([["ui", ui.flag, t("lang.tabUi")], ["tok", resolveLang(tl.pick).flag, t("lang.tabTokens")]] as const)
-    .map(([id, flag, label]) => `<button type="button" role="tab" data-tab="${id}" aria-selected="${tl.tab === id}"><img src="${flag}" alt="">${esc(label)}</button>`).join("") : "";
+    .map(([id, flag, label]) => `<button type="button" class="nav-item nav-item--tab" role="tab" data-tab="${id}" aria-selected="${tl.tab === id}"><img src="${flag}" alt="">${esc(label)}</button>`).join("") : "";
   $("#tlangList").setAttribute("aria-label", t(onTok ? "lang.tabTokens" : "lang.tabUi"));
   if (onTok) drawTokenList(); else drawUiList();
   for (const [id, show] of [["#tlangCancel", onTok], ["#tlangUse", onTok], ["#tlangClose", !onTok]] as const) $(id).hidden = !show;
