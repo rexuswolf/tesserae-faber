@@ -25,12 +25,13 @@ export function band(a: string, b: string, corner: string) {
   return url(s + "</svg>");
 }
 
-/** The floor: 12px stones a shade off the background, in darker grout; five tones so it doesn't read as a grid. */
+/** The floor: 12px stones a shade off the background, in grout a little darker; five tones so it doesn't read as a grid.
+ *  Quiet on purpose (2 % at most): it's felt under the page, never read over what's on it. */
 export function floor(bg: Rgb, text: Rgb) {
-  const tones = [0.025, 0.04, 0.015, 0.05, 0.03];
-  let s = `<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60"><rect width="60" height="60" fill="${mix(bg, BLACK, 0.22)}"/>`;
+  const tones = [0.01, 0.016, 0.006, 0.019, 0.012];
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60"><rect width="60" height="60" fill="${mix(bg, BLACK, 0.1)}"/>`;
   for (let i = 0; i < 5; i++) for (let j = 0; j < 5; j++) {
-    s += `<rect x="${i * 12 + 0.6}" y="${j * 12 + 0.6}" width="10.8" height="10.8" rx="1.2" fill="${mix(bg, text, tones[(i * 3 + j * 2) % 5]!)}"/>`;
+    s += `<rect x="${i * 12 + 0.5}" y="${j * 12 + 0.5}" width="11" height="11" rx="1.2" fill="${mix(bg, text, tones[(i * 3 + j * 2) % 5]!)}"/>`;
   }
   return url(s + "</svg>");
 }
