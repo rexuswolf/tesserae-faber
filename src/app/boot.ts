@@ -1,6 +1,6 @@
 // Loading: the gate (loading screen), starting the app and the admin's sign-in.
 import { emit } from "./events.ts";
-import { $, coll, READONLY, state, loadViewer, loadJSON, VIEW_KEY, setGateState, setColl } from "./context.ts";
+import { $, coll, READONLY, state, prefetchViewer, loadJSON, VIEW_KEY, setGateState, setColl } from "./context.ts";
 import { signIn, loadRoles, isAdmin, signOut as signOutUser, onUser , canSeeBotc, unlockBotc} from "../services.ts";
 import { t, uiLang } from "../i18n.ts";
 import { handingOver } from "../handoff.ts";
@@ -132,7 +132,7 @@ function startApp() {
   renderAccount();
   if (!started) {
     started = true;
-    loadViewer();
+    prefetchViewer();   // started by the design step (goStep)
     wire();
   }
   const first = state.lib!.roles.find((r) => r.en === "Fortune Teller") || state.lib!.roles[0];

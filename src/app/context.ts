@@ -187,12 +187,22 @@ const viewerWaiting: { [M in keyof ViewerCalls]?: ViewerCalls[M] } = {};
 export const view3d = <M extends keyof ViewerCalls>(method: M, ...args: ViewerCalls[M]) => {
   if (viewer) (viewer[method] as (...a: ViewerCalls[M]) => void)(...args); else viewerWaiting[method] = args;
 };
+// It starts the first time the design step shows it (WebGL takes a moment the token list shouldn't
+// wait for); its code is fetched earlier, when the page has nothing else to do (prefetchViewer).
+let viewerAsked = false;
+const viewerModule = () => import("../engine/viewer.ts");
+export function prefetchViewer() {
+  const go = () => void viewerModule().catch(() => {});
+  if ("requestIdleCallback" in window) requestIdleCallback(go, { timeout: 5000 }); else setTimeout(go, 2000);
+}
 export function loadViewer() {
-  import("../engine/viewer.ts").then(({ createViewer }) => {
+  if (viewerAsked) return;
+  viewerAsked = true;
+  viewerModule().then(({ createViewer }) => {
     viewer = createViewer($<HTMLCanvasElement>("#view"));
     view3d("setView", "angle");
     for (const m of ["setGrid", "setDie", "setToken", "setXray", "setView"] as const) if (viewerWaiting[m]) (viewer[m] as (...a: unknown[]) => void)(...viewerWaiting[m]);
-  }).catch((err) => console.error("3D preview failed to load", err));
+  }).catch((err) => { viewerAsked = false; console.error("3D preview failed to load", err); });
 }
 
 /** The mark each ring separator pill shows before its name. */

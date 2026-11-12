@@ -107,6 +107,49 @@ export function addShown(how: string) {
 
 // ------------------------------------------------------------ sheet
 
+// The sheet's token pictures are drawn as they come near the screen: drawing all of them at once
+// (a token, its back and its reminders, for every row) held the first screen for seconds on a phone.
+// Each starts as an empty square <svg> (the CSS sizes it as the token, so nothing moves) whose drawing
+// waits here; the ones on screen are drawn at once, so redrawing the sheet (a pick) doesn't blink.
+// Only coins wait: they're always square; a card, ring, base or piece has proportions of its own.
+const lazyMakers = new Map<string, () => string>();
+let lazySeq = 0, lazyIo: IntersectionObserver | null = null, lazyRoot: Element | null = null;
+function lazySvg(make: () => string, coin: boolean) {
+  if (!coin || typeof IntersectionObserver === "undefined") return make();
+  const id = String(++lazySeq);
+  lazyMakers.set(id, make);
+  return `<svg data-lazy="${id}" viewBox="0 0 1 1" aria-hidden="true"></svg>`;
+}
+function fillLazy(el: Element) {
+  const make = lazyMakers.get((el as HTMLElement).dataset.lazy!);
+  lazyIo?.unobserve(el);
+  if (!make) return;
+  lazyMakers.delete((el as HTMLElement).dataset.lazy!);
+  el.outerHTML = make();
+}
+/** The element the sheet scrolls in (the page itself on a phone). */
+function scroller(el: Element) {
+  for (let p = el.parentElement; p; p = p.parentElement) if (/auto|scroll/.test(getComputedStyle(p).overflowY)) return p;
+  return null;
+}
+const AHEAD = 600;   // px beyond the screen drawn early, so scrolling finds them ready
+/** After the rows change: draw what's on screen now, the rest when it comes near. */
+function drawLazy(rows: HTMLElement) {
+  const waiting = [...rows.querySelectorAll("svg[data-lazy]")];
+  if (!waiting.length) return;
+  const root = scroller(rows);
+  if (!lazyIo || root !== lazyRoot) {
+    lazyIo?.disconnect();
+    lazyRoot = root;
+    lazyIo = new IntersectionObserver((entries) => { for (const e of entries) if (e.isIntersecting) fillLazy(e.target); }, { root, rootMargin: `${AHEAD}px 0px` });
+  }
+  const box = (root ?? document.documentElement).getBoundingClientRect(), top = Math.max(box.top, 0) - AHEAD, bottom = Math.min(box.bottom, innerHeight) + AHEAD;
+  for (const el of waiting) {
+    const r = el.getBoundingClientRect();
+    if (r.height && r.bottom >= top && r.top <= bottom) fillLazy(el); else lazyIo.observe(el);
+  }
+}
+
 export const searchQuery = () => fold($<HTMLInputElement>("#search").value.trim());
 
 export function renderSheet() {
@@ -173,6 +216,7 @@ export function renderSheet() {
   $("#addLabel").textContent = t("add.print");
   if (!$("#addMenu").hidden) renderAddMenu();
 
+  lazyMakers.clear(); lazyIo?.disconnect();   // the rows are drawn anew: what waited for the old ones goes
   if (!roles.length) { $("#rows").innerHTML = `<p class="empty">${esc(t(OWN && !q ? "own.empty" : "sheet.noResults"))}</p>`; return; }
   $("#rows").innerHTML = TEAM_ORDER.map((team) => {
     const list = roles.filter((r) => r.team === team).sort((a, b) => collator().compare(catalogText(a, null), catalogText(b, null)));
@@ -184,6 +228,7 @@ export function renderSheet() {
     return `<section class="team"><div class="team-h"><i style="background:${TEAMS[team].colour}"></i><span>${esc(TEAM_PLURAL[lang][team])}</span><small>${list.length}</small>
       ${list.length > 1 ? `<button class="action action--quiet action--sm pick-team" type="button" data-pick-team="${team}">${esc(t(teamOn ? "pick.teamOff" : "pick.team"))}</button>` : ""}</div>${rows}</section>`;
   }).join("");
+  drawLazy($("#rows"));
   peekHint();
 }
 
@@ -223,7 +268,8 @@ export function toggleCharacter(key: string) {
   emit("picks");
 }
 function rowHtml(r: Role, q: string, remHits: Set<number> | undefined) {
-  const lang = uiLang(), ck = charKey(r);
+  const lang = uiLang(), ck = charKey(r), coin = shapeOf(r) === "coin";
+  const remCoin = coin && !OWN;   // Clocktower's reminders are coins; a collection's linked tokens can be any shape
   // Each token is a toggle: picked tokens light up with a check, and show their copies.
   const thumb = (key: string, reminder: number | null) => {
     const isRem = reminder != null;
@@ -240,8 +286,8 @@ function rowHtml(r: Role, q: string, remHits: Set<number> | undefined) {
     // a one-sided token whose design prints a back turns over too: pointed at, or held down on a phone
     const full = specFor(key, false);
     const backed = !isRem && !two && SHAPE_FEATURES[shapeOf(r)].back && printsBack(r, full);
-    const face = tokenSvg(state.lib!, r, spec, { text: name });
-    const art = two || backed ? `<span class="tok-turn">${face}${tokenSvg(state.lib!, r, { ...full, diameter: 45 }, { side: "back" })}</span>` : face;
+    const face = lazySvg(() => tokenSvg(state.lib!, r, spec, { text: name }), coin);
+    const art = two || backed ? `<span class="tok-turn">${face}${lazySvg(() => tokenSvg(state.lib!, r, { ...full, diameter: 45 }, { side: "back" }), coin)}</span>` : face;
     return `<span class="tok-w${two ? " two" : backed ? " backed" : ""}"><button class="tok${isCard(r) ? " card" : ""}${loading}" type="button" data-pick="${key}" aria-pressed="${copies > 0}" aria-label="${esc(name)}">${art}<span class="ck" aria-hidden="true">✓</span></button>${two ? `<button class="action action--icon action--sm turn-btn" type="button" data-turn title="${esc(t("sheet.turn"))}" aria-label="${esc(t("sheet.turn"))}">⇄</button>` : ""}${own ? ownPen(key, name) : ""}</span>`;
   };
   const rems = remindersOf(r);
@@ -257,13 +303,13 @@ function rowHtml(r: Role, q: string, remHits: Set<number> | undefined) {
     const keys = idx.map((i) => remKey(r, i)), on = keys.filter(isPicked).length, own = keys.find(hasOwn);
     const count = keys.length > 1 ? `<small>×${keys.length}${on && on < keys.length ? ` · ${on}/${keys.length}` : ""}</small>` : "";
     return `<div class="rem${idx.some((i) => remHits?.has(i)) ? " hit" : ""}" data-on="${on === keys.length ? "all" : on ? "some" : "none"}">
-      <button class="choice rem-chip" type="button" data-pick-rems="${keys.join(" ")}" aria-pressed="${on === keys.length}" aria-label="${esc(keys.length > 1 ? `${w} ×${keys.length}` : w)}"><span class="rem-tok${loadingTok}">${tokenSvg(state.lib!, r, remSpec(keys[0]), { text: textFor(keys[0], r, idx[0]) })}</span><span class="rem-w">${esc(w)}</span>${count}<span class="ck" aria-hidden="true">✓</span></button>${own ? ownPen(own, w) : ""}</div>`;
+      <button class="choice rem-chip" type="button" data-pick-rems="${keys.join(" ")}" aria-pressed="${on === keys.length}" aria-label="${esc(keys.length > 1 ? `${w} ×${keys.length}` : w)}"><span class="rem-tok${loadingTok}">${lazySvg(() => tokenSvg(state.lib!, r, remSpec(keys[0]), { text: textFor(keys[0], r, idx[0]) }), remCoin)}</span><span class="rem-w">${esc(w)}</span>${count}<span class="ck" aria-hidden="true">✓</span></button>${own ? ownPen(own, w) : ""}</div>`;
   }).join("");
   // Folded, the row shows how many linked tokens it has (and how many are in) with their small faces;
   // open, the linked tokens large, to pick. A search that found one opens its row.
   const open = rems.length > 0 && !isCard(r) && (openRows.has(ck) || !!remHits?.size);
   const inN = rems.filter((_, i) => isPicked(remKey(r, i))).length;
-  const minis = [...groups].slice(0, 4).map(([w, idx]) => tokenSvg(state.lib!, r, remSpec(remKey(r, idx[0])), { text: w })).join("");
+  const minis = [...groups].slice(0, 4).map(([w, idx]) => lazySvg(() => tokenSvg(state.lib!, r, remSpec(remKey(r, idx[0])), { text: w }), remCoin)).join("");
   // its words in full for a screen reader; on a phone it shows only a number ("2", "1/2", "2 ✓"), so the name keeps the row
   const foldLabel = `${t("sheet.linked", { n: rems.length })}${inN ? `, ${inN === rems.length ? t("sheet.linkedAll") : t("sheet.linkedSome", { n: inN, of: rems.length })}` : ""}`;
   const fold = rems.length && !isCard(r) ? `<button class="disclosure rems-fold" type="button" data-rems-fold="${ck}" aria-expanded="${open}" aria-label="${esc(foldLabel)}"><span class="rf-minis" aria-hidden="true">${minis}</span><span class="rf-long" aria-hidden="true">${esc(t("sheet.linked", { n: rems.length }))}</span>${inN ? `<b class="rf-in" aria-hidden="true">${esc(inN === rems.length ? t("sheet.linkedAll") : t("sheet.linkedSome", { n: inN, of: rems.length }))}</b>` : ""}<span class="rf-n${inN ? " on" : ""}" aria-hidden="true">${inN === rems.length ? `${rems.length} ✓` : inN ? `${inN}/${rems.length}` : rems.length}</span>${CHEVRON}</button>` : "";

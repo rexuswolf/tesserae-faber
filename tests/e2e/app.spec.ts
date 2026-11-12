@@ -11,7 +11,8 @@ async function open(page: Page, path: string) {
   await expect(page.locator("#gate")).toBeHidden({ timeout: 30_000 });
   return { errors, adapters };
 }
-const tokens = (page: Page) => page.locator("svg[aria-label$='token']");
+// a sheet draws its tokens as they come near the screen: the rest wait as empty <svg data-lazy>
+const tokens = (page: Page) => page.locator("svg[aria-label$='token'], svg[data-lazy]");
 
 for (const [path, adapters, minTokens] of [
   ["/botc?admin", ["auth", "roles"], 100],
@@ -96,5 +97,5 @@ test("Clocktower is private: its key first, and nothing of its library without i
   await page.locator("#gateKey").fill("test-key");
   await page.locator("#gateAction").click();
   await expect(page.locator("#gate")).toBeHidden({ timeout: 30_000 });
-  await expect(page.locator("svg[aria-label$='token']").nth(99)).toBeAttached();
+  await expect(tokens(page).nth(99)).toBeAttached();
 });

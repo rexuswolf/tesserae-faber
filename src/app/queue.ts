@@ -1,6 +1,6 @@
 // What's picked and the print queue: selection, steps, the drawer and steps 2 and 3.
 import { on, emit } from "./events.ts";
-import { loadJSON, PICK_KEY, QUEUE_KEY, storeJSON, state, PLATE_LABEL, PLATE_GROUP, $, esc, hit, TEAM_ORDER, TEAM_PLURAL, $$, coll } from "./context.ts";
+import { loadJSON, PICK_KEY, QUEUE_KEY, storeJSON, state, PLATE_LABEL, PLATE_GROUP, $, esc, hit, TEAM_ORDER, TEAM_PLURAL, $$, coll, loadViewer } from "./context.ts";
 import { roleById } from "./wiring.ts";
 import { remKey, charKey, textFor, ownIcon, sortKeys, specFor, filamentName, remindersOf } from "./tokens.ts";
 import { renderSheet, hasOwn, selectToken, ownPen } from "./sheet.ts";
@@ -221,6 +221,7 @@ export function goStep(step: number, address: "push" | "replace" | "keep" = "pus
   $("#app").dataset.step = String(step);
   drawer(false);
   if (step === 2) {
+    loadViewer();   // the 3D preview, the first time it shows
     renderWorkshop(); renderDesignStage();
     revealPicked();
   }
