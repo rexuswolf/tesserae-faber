@@ -100,6 +100,8 @@ export type TokenShape = "coin" | "card" | "ring" | "base" | "piece";
 export type TokenStyle = "classic" | "window" | "solo" | "double" | "text";
 /** A coin's side edge. */
 export type CoinEdge = "smooth" | "reeded" | "segmented";
+/** A coin's outline: round, or a regular polygon with rounded corners (a flat at the bottom). */
+export type CoinOutline = "round" | "square" | "pentagon" | "hexagon";
 export type MagnetKind = "none" | "pocket" | "hidden";
 /** The face parts that can stand out of the coin. */
 export type ReliefPart = "text" | "frame" | "icon";
@@ -215,6 +217,10 @@ export interface TokenSpec {
   /** A coin's side edge (canto): smooth when unset; "reeded", ridges all round like a real coin;
    *  "segmented", reeded sections alternating with smooth ones. See COIN_EDGES. */
   edge?: CoinEdge;
+  /** A coin's outline: round when unset; a square, pentagon or hexagon is as wide across its flats as the
+   *  round one across (diameter), its frame, name and back following its edges (see COIN_OUTLINES). Only
+   *  a round coin has a reeded edge. */
+  outline?: CoinOutline;
   /** The name a back design prints (Edition, medallion, shield): unset, the edition's (a collection's
    *  token: its catalog's); "collection", the collection's own name (a token outside one: as unset). */
   backText?: "collection";

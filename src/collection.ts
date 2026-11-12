@@ -534,6 +534,7 @@ function readSpec(v: unknown): SpecInput | null {
     else if (k === "frontPattern" || k === "backPattern") { const p = readPattern(x); if (p) out[k] = p; }
     else if (k === "backText") { if (x === "collection") out[k] = x; }
     else if (k === "edge") { if (x === "smooth" || x === "reeded" || x === "segmented") out[k] = x; }
+    else if (k === "outline") { if (x === "square" || x === "pentagon" || x === "hexagon") out[k] = x; }   // round is unset
     else if (k === "reliefBevel") { if (typeof x === "number" && x >= 0 && x <= 0.4) out[k] = x; }
     else if (k === "cardIcon") { if (CARD_ICONS.includes(x as CardIcon)) out[k] = x; }
     else if (k === "cardJoin") { if (CARD_JOINS.includes(x as CardJoin)) out[k] = x; }

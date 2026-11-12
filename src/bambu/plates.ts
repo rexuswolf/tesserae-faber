@@ -5,6 +5,7 @@
 
 import FLUSH from "./flush.json";
 import type { Foot, Hex, PartName, Plate, PlateItem, PlanToken, PlatePlan } from "../types.ts";
+import { coinExtent } from "../engine/token-engine.ts";
 
 // Filament number = index + 1. Must match COLOURS in tools/make_bambu_template.py.
 export const FILAMENT_SLOTS = [
@@ -152,7 +153,8 @@ export function planPlates<I extends PlateItem>(items: I[], { bed = A1_BED }: { 
   const feet = groups.map((group) => {
     const mineItems = items.filter((it) => it.group === group);
     const card = mineItems.find((it) => it.token.foot)?.token.foot;
-    const diameter = card ? card.w : Math.max(...mineItems.map((it) => it.token.spec.diameter));
+    // a polygon coin by the circle round its corners, so neighbours never meet
+    const diameter = card ? card.w : Math.max(...mineItems.map((it) => 2 * coinExtent(it.token.spec)));
     return { group, diameter, foot: card ?? diameter };
   });
   // The tower one width for the whole project: Bambu's, or one narrow enough for a group's strip, whichever

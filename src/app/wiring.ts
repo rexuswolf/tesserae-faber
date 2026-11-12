@@ -225,7 +225,7 @@ export function wire() {
   // A face's choices and sliders go to the face being edited (the front, or a back of its own); the rest to the token.
   const FACE_KEYS = new Set<string>(FACE_FIELDS);
   const change = (key: string, mutate: (s: TokenSpec) => void) => (FACE_KEYS.has(key) ? changeFace(editSide(), mutate) : changeLook(mutate));
-  for (const key of ["style", "frame", "magnet", "magnetSize", "ringBase", "separator", "edge", "cardIcon", "cardJoin", "pieceShape", "pieceIcon"]) {
+  for (const key of ["style", "frame", "magnet", "magnetSize", "ringBase", "separator", "edge", "outline", "cardIcon", "cardJoin", "pieceShape", "pieceIcon"]) {
     $(`[data-choice=${key}]`).onclick = (e) => {
       const b = hit(e, "button"); if (!b) return;
       // the back's layouts end with Plain: nothing on it
@@ -248,6 +248,7 @@ export function wire() {
           return;
         }
         if (key === "edge" && b.dataset.v === "smooth") delete s.edge;   // smooth is unset: the coin as always
+        else if (key === "outline" && b.dataset.v === "round") delete s.outline;   // round likewise
         else (s as unknown as Fields)[key] = b.dataset.v;
       });
       // a layout for the back: the token behind, no longer plain; and what it says and shows, as that layout has them

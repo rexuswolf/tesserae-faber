@@ -8,7 +8,7 @@
 // so it doesn't weigh on the app's first load.
 import { jsPDF } from "jspdf";
 import { svg2pdf } from "svg2pdf.js";
-import { tokenSvg, CARD, isCard, isRing, isPiece, pieceFoot, ringSize } from "../engine/token-engine.ts";
+import { tokenSvg, CARD, isCard, isRing, isPiece, isBase, pieceFoot, ringSize, coinExtent, coinOutlinePoints } from "../engine/token-engine.ts";
 import { PAGE, layoutCoins, backX } from "./layout.ts";
 import type { SheetSlot } from "./layout.ts";
 import type { Library, Role, TokenSpec } from "../types.ts";
@@ -25,11 +25,12 @@ const baseColour = (svg: string) => svg.match(/^<svg[^>]*><(?:circle|rect|path)[
 
 /** A coin or a card (c from layoutCoins), with a little bleed in its colour under it; a ring
  *  (`hole`, its hole's radius) has its bleed inside the hole too, which is cut out. */
-async function drawToken(doc: jsPDF, svg: string, cx: number, c: SheetSlot, hole = 0) {
+async function drawToken(doc: jsPDF, svg: string, cx: number, c: SheetSlot, hole = 0, poly: TokenSpec | null = null) {
   const fill = baseColour(svg);
   if (fill) {
     doc.setFillColor(fill);
     if (c.card) doc.roundedRect(cx - c.w / 2 - BLEED, c.y - c.h / 2 - BLEED, c.w + 2 * BLEED, c.h + 2 * BLEED, c.r + BLEED, c.r + BLEED, "F");
+    else if (poly) outline(doc, poly, cx, c.y, BLEED, "F");
     else doc.circle(cx, c.y, c.d / 2 + BLEED, "F");
     if (hole) { doc.setFillColor("#ffffff"); doc.circle(cx, c.y, hole - BLEED, "F"); }
   }
@@ -37,6 +38,15 @@ async function drawToken(doc: jsPDF, svg: string, cx: number, c: SheetSlot, hole
   const el = parser!.parseFromString(svg, "image/svg+xml").documentElement;
   await svg2pdf(el, doc, { x: cx - c.w / 2 - 0.5, y: c.y - c.h / 2 - 0.5, width: c.w + 1, height: c.h + 1 });
 }
+
+/** A polygon coin's outline on the page, centred at (cx, cy), grown by `grow` mm: its bleed ("F") or its cut line ("S"). */
+function outline(doc: jsPDF, spec: TokenSpec, cx: number, cy: number, grow: number, style: "F" | "S") {
+  const pts = coinOutlinePoints(spec, grow)!;   // mm, y up: the page's y runs down
+  const steps = pts.map(([x, y], i) => { const [px, py] = pts[i ? i - 1 : 0]; return i ? [x - px, -(y - py)] : [0, 0]; }).slice(1);
+  doc.lines(steps, cx + pts[0][0], cy - pts[0][1], [1, 1], style, true);
+}
+/** A plain coin drawn with sides (its spec's outline): not a ring, a base, a piece or a card. */
+const polyCoin = (role: Role, spec: TokenSpec) => (!isCard(role) && !isRing(role) && !isBase(role) && !isPiece(role) && coinOutlinePoints(spec) ? spec : null);
 
 /**
  * Builds the PDF.
@@ -50,7 +60,8 @@ export async function buildPrintPdf(lib: Library, entries: { role: Role; spec: T
 } = {}) {
   // Paper has no magnets: drop the 3D-only pocket from the back.
   const paper = entries.map((e) => ({ ...e, spec: { ...e.spec, magnet: "none" as const } }));
-  const pages = layoutCoins(paper.map((e) => (isCard(e.role) ? CARD : isPiece(e.role) ? pieceFoot(e.spec) : e.spec.diameter)));   // a piece: the square it fits in
+  // a piece: the square it fits in; a coin with sides, the circle round its corners
+  const pages = layoutCoins(paper.map((e) => (isCard(e.role) ? CARD : isPiece(e.role) ? pieceFoot(e.spec) : polyCoin(e.role, e.spec) ? 2 * coinExtent(e.spec) : e.spec.diameter)));
   const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait", compress: true });
   doc.setProperties({ title, creator: "Tesserae Faber" });
   // Hints for viewers that honour them (Acrobat): real size, and duplex on the long edge or one-sided.
@@ -66,7 +77,7 @@ export async function buildPrintPdf(lib: Library, entries: { role: Role; spec: T
       for (const c of coins) {
         const { role, spec, text } = paper[c.index];
         const svg = tokenSvg(lib, role, spec, { side, text });
-        await drawToken(doc, svg, side === "front" ? c.x : backX(c.x), c, isRing(role) ? ringSize(spec).inner : 0);
+        await drawToken(doc, svg, side === "front" ? c.x : backX(c.x), c, isRing(role) ? ringSize(spec).inner : 0, polyCoin(role, spec));
         await step();
       }
       // Cut guides on the front only: a thin grey line on the edge of each token (and round a ring's hole).
@@ -75,7 +86,8 @@ export async function buildPrintPdf(lib: Library, entries: { role: Role; spec: T
         for (const c of coins) {
           if (c.card) doc.roundedRect(c.x - c.w / 2, c.y - c.h / 2, c.w, c.h, c.r, c.r, "S");
           const { role, spec } = paper[c.index];
-          if (!c.card && !isPiece(role)) doc.circle(c.x, c.y, c.d / 2, "S");   // a piece's outline is its own guide
+          if (polyCoin(role, spec)) outline(doc, spec, c.x, c.y, 0, "S");   // a coin with sides: along them
+          else if (!c.card && !isPiece(role)) doc.circle(c.x, c.y, c.d / 2, "S");   // a piece's outline is its own guide
           if (isRing(role)) doc.circle(c.x, c.y, ringSize(spec).inner, "S");
         }
       }

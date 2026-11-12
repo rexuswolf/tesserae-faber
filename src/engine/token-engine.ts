@@ -20,7 +20,7 @@ import { Font } from "three/addons/loaders/FontLoader.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import ClipperLib from "clipper-lib";
 import type {
-  Role, Team, Hex, CoinEdge, ColourRef, TokenSpec, SpecInput, TokenStyle, Relief, ReliefPart, Library, Glyph,
+  Role, Team, Hex, CoinEdge, CoinOutline, ColourRef, TokenSpec, SpecInput, TokenStyle, Relief, ReliefPart, Library, Glyph,
   PartColours, TokenParts, Token, MagnetLayout, TokenIcon, TokenShape, FaceField, BackFace, RingSeparator, AutoText,
   PatternId, PatternSpec, PartName, CardIcon, CardJoin, CardBack, PieceShape,
 } from "../types.ts";
@@ -41,19 +41,133 @@ export const TEAMS: Record<Team, { label: Record<string, string>; colour: Hex; f
   info: { label: { en: "Info tokens", es: "Fichas de información" }, colour: "#c9a227", file: "yellow" },
 };
 
+/** A coin's outline (spec.outline; unset is round): a square, pentagon or hexagon as wide across its flats as the diameter. */
+export const COIN_OUTLINES: { id: CoinOutline; label: string; sides: number }[] = [
+  { id: "round", label: "Round", sides: 0 }, { id: "square", label: "Square", sides: 4 }, { id: "pentagon", label: "Pentagon", sides: 5 }, { id: "hexagon", label: "Hexagon", sides: 6 },
+];
+const sidesOf = (spec: Pick<TokenSpec, "outline">) => COIN_OUTLINES.find((o) => o.id === spec.outline)?.sides ?? 0;
+
+/**
+ * A polygon coin's outline, and where the round coin's points go on it. The round coin's designs (frame,
+ * name, back) are drawn for a circle; a polygon coin's flats are as far from the centre as the circle's
+ * edge, so the circle fits inside it. A point d mm in from the circle's edge, a fraction t of the way round
+ * from the bottom, goes d mm in from the polygon's edge, the same fraction of the way round: round the
+ * polygon d mm in (its flats R − d from the centre, its corners rounded by what's left of theirs), so a
+ * frame keeps its width and its beads their spacing, and nothing deeper than a corner's radius turns
+ * inside out. Only what lives near the edge is moved (mapShapes); the middle (the icon, words in the
+ * middle) stays and still fits. Coin coordinates (mm, y up), a flat at the bottom; null for a round coin.
+ */
+interface PolyOutline { ring: [number, number][]; extent: number; map: (x: number, y: number) => [number, number]; along: (depth: number, round?: number) => PolyPath; inside: (x: number, y: number) => number }
+/** A way round a rounded polygon from its bottom flat's middle, anticlockwise: its length, and the point s along it with its direction (radians). */
+interface PolyPath { length: number; at: (s: number) => { x: number; y: number; dir: number } }
+const polyOutlines = new Map<string, PolyOutline>();
+function polyOutline(spec: Pick<TokenSpec, "diameter" | "outline">): PolyOutline | null {
+  const n = sidesOf(spec);
+  if (!n) return null;
+  const R = spec.diameter / 2, key = `${n}|${R}`;
+  let o = polyOutlines.get(key);
+  if (!o) { o = makePolyOutline(n, R); polyOutlines.set(key, o); if (polyOutlines.size > 40) polyOutlines.delete(polyOutlines.keys().next().value!); }
+  return o;
+}
+/** The rounded polygon whose flats are `apothem` from the centre, its corners rounded by `rho` (0: sharp), as a path (PolyPath). */
+function polyPath(n: number, apothem: number, rho: number): PolyPath {
+  const inner = apothem - rho, e = 2 * inner * Math.tan(Math.PI / n), arc = (rho * 2 * Math.PI) / n, unit = e + arc, length = n * unit;
+  return {
+    length,
+    at: (s) => {
+      const u = ((((s + e / 2) % length) + length) % length), j = Math.floor(u / unit), w = u - j * unit;
+      const phi = -Math.PI / 2 + (j * 2 * Math.PI) / n;                   // edge j's outward normal (edge 0, the bottom)
+      if (w < e || rho <= 0) {
+        const along = Math.min(w, e) - e / 2;
+        return { x: apothem * Math.cos(phi) - along * Math.sin(phi), y: apothem * Math.sin(phi) + along * Math.cos(phi), dir: phi + Math.PI / 2 };
+      }
+      const a = phi + (w - e) / rho, cr = inner / Math.cos(Math.PI / n), ca = phi + Math.PI / n;   // round the corner after edge j
+      return { x: cr * Math.cos(ca) + rho * Math.cos(a), y: cr * Math.sin(ca) + rho * Math.sin(a), dir: a + Math.PI / 2 };
+    },
+  };
+}
+function makePolyOutline(n: number, R: number): PolyOutline {
+  const rc = R / 6, paths = new Map<number, PolyPath>();
+  // round the polygon d mm in (to a hundredth of a mm, kept); with `round`, its corners rounded at least by
+  // that much of its own radius (a name's path: letters turn gently, inside the polygon)
+  const along = (depth: number, round = 0) => {
+    const d = Math.round(depth * 100) / 100, key = d + round * 1e4;
+    let p = paths.get(key);
+    if (!p) { p = polyPath(n, R - d, Math.max(rc - d, round * (R - d))); paths.set(key, p); if (paths.size > 4000) paths.delete(paths.keys().next().value!); }
+    return p;
+  };
+  const edge = along(0), steps = n * 64;
+  const ring = Array.from({ length: steps }, (_, i): [number, number] => { const q = edge.at((i * edge.length) / steps); return [q.x, q.y]; });
+  const map = (x: number, y: number): [number, number] => {
+    const r = Math.hypot(x, y);
+    if (r < 1e-9) return [x, y];
+    const t = (Math.atan2(y, x) + Math.PI / 2) / (2 * Math.PI), p = along(R - r), q = p.at(t * p.length);
+    return [q.x, q.y];
+  };
+  // how far in from the edge a point is (mm; negative outside): the polygon inside by the corners' radius, less that radius
+  const a = R - rc, h = a * Math.tan(Math.PI / n), step = (2 * Math.PI) / n;
+  const inside = (x: number, y: number) => {
+    const j = Math.round((Math.atan2(y, x) + Math.PI / 2) / step), phi = -Math.PI / 2 + j * step;
+    const u = x * Math.cos(phi) + y * Math.sin(phi), v = Math.abs(-x * Math.sin(phi) + y * Math.cos(phi));
+    const out = u > a && v > h ? Math.hypot(u - a, v - h) : u - a;   // past a corner: to the corner; else to the flat
+    return rc - out;
+  };
+  return { ring, extent: Math.max(...ring.map(([x, y]) => Math.hypot(x, y))), map, along, inside };
+}
+/** How far a coin reaches from its centre (mm): its radius, or a polygon coin's corners. Plates and pages space coins by it. */
+export const coinExtent = (spec: Pick<TokenSpec, "diameter" | "outline">) => polyOutline(spec)?.extent ?? spec.diameter / 2;
+/** A polygon coin's outline (mm, y up), grown by `grow` mm (a page's bleed round it), for a cut line; null for a round coin. */
+export function coinOutlinePoints(spec: Pick<TokenSpec, "diameter" | "outline">, grow = 0): [number, number][] | null {
+  const poly = polyOutline(spec);
+  if (!poly) return null;
+  const path = poly.along(-grow), n = sidesOf(spec) * 64;
+  return Array.from({ length: n }, (_, i): [number, number] => { const q = path.at((i * path.length) / n); return [q.x, q.y]; });
+}
+
+/**
+ * The round coin's shapes on a polygon coin (polyOutline): each moved point by point, the ones that keep
+ * clear of the middle (all of them at least `band` of the radius out) and, with `all`, every one. Unchanged
+ * on a round coin.
+ */
+function mapShapes(spec: Pick<TokenSpec, "diameter" | "outline">, shapes: THREE.Shape[], { all = false, div = 12 } = {}): THREE.Shape[] {
+  const poly = polyOutline(spec);
+  if (!poly) return shapes;
+  const R = spec.diameter / 2;
+  const move = (pts: THREE.Vector2[]) => pts.map((p) => new THREE.Vector2(...poly.map(p.x, p.y)));
+  return shapes.map((sh) => {
+    const outer = sh.getPoints(div);
+    if (!all && Math.min(...outer.map((p) => Math.hypot(p.x, p.y))) < 0.42 * R) return sh;   // the middle: as it is
+    const o = new THREE.Shape(move(densify(outer)));
+    o.holes = sh.holes.map((h) => new THREE.Path(move(densify(h.getPoints(div)))));
+    return o;
+  });
+}
+/** A closed outline with no stretch longer than `step` mm, so a straight one bends where the polygon turns. */
+function densify(pts: THREE.Vector2[], step = 0.8) {
+  const out: THREE.Vector2[] = [];
+  pts.forEach((p, i) => {
+    const q = pts[(i + 1) % pts.length], n = Math.max(1, Math.ceil(p.distanceTo(q) / step));
+    for (let k = 0; k < n; k++) out.push(p.clone().lerp(q, k / n));
+  });
+  return out;
+}
+
 /** A coin's side edge (spec.edge; unset is smooth). */
 export const COIN_EDGES: { id: CoinEdge; label: string }[] = [{ id: "smooth", label: "Smooth" }, { id: "reeded", label: "Reeded" }, { id: "segmented", label: "Segmented" }];
 /** How deep a reeded edge's grooves cut into the coin (mm), and their pitch along the edge. */
 export const EDGE_DEPTH = 0.4, EDGE_PITCH = 1.15;
-const edged = (spec: Pick<TokenSpec, "edge">) => spec.edge === "reeded" || spec.edge === "segmented";
+// only a round coin has a reeded edge
+const edged = (spec: Pick<TokenSpec, "edge" | "outline">) => !sidesOf(spec) && (spec.edge === "reeded" || spec.edge === "segmented");
 /** The face's edge: the coin's, or inside a reeded edge's grooves (frames and patterns stay in the solid coin). */
-const faceRadius = (spec: Pick<TokenSpec, "diameter" | "edge">) => spec.diameter / 2 - (edged(spec) ? EDGE_DEPTH : 0);
+const faceRadius = (spec: Pick<TokenSpec, "diameter" | "edge" | "outline">) => spec.diameter / 2 - (edged(spec) ? EDGE_DEPTH : 0);
 /**
  * A reeded coin's outline (mm, y up): teeth `EDGE_DEPTH` deep every EDGE_PITCH, flat tops and
  * floors (each over 0.4 mm) and steep flanks, so each layer prints as one toothed loop. A
  * segmented edge alternates 12 sections, reeded and smooth. Null for a smooth coin.
  */
-export function coinOutline(spec: Pick<TokenSpec, "diameter" | "edge">): [number, number][] | null {
+export function coinOutline(spec: Pick<TokenSpec, "diameter" | "edge" | "outline">): [number, number][] | null {
+  const poly = polyOutline(spec);
+  if (poly) return poly.ring;
   if (!edged(spec)) return null;
   const R = spec.diameter / 2, r = R - EDGE_DEPTH, n = Math.round((TAU * R) / EDGE_PITCH / 12) * 12, da = TAU / n;
   const P = (rad: number, a: number): [number, number] => [rad * Math.cos(a), rad * Math.sin(a)];
@@ -572,7 +686,8 @@ function editionBack(lib: Library, role: Role, spec: TokenSpec) {
     shapes.push(sparkle(0, y, L.star, L.star * 0.32));
     for (const x of [-1, 1]) shapes.push(disc(Math.max(0.3, L.star * 0.2), x * L.star * 2.1, y));
   }
-  return shapes;
+  // on a polygon coin its two rims follow the outline; the name and stars stay in the middle
+  return [...mapShapes(spec, shapes.slice(0, 2), { all: true }), ...shapes.slice(2)];
 }
 
 /**
@@ -811,6 +926,8 @@ function buildFront(lib: Library, role: Role, text: string, spec: TokenSpec, fac
   const L = arcName(lib, text, spec);
   const letters = L ? nameTurns(spec).flatMap((turn) => L.chars.map((c, i) => {
     if (c === " ") return null;
+    // on a polygon coin: placed as on the round one, then onto its outline
+    if (sidesOf(spec)) return partExtrude(placedLetter(lib, spec, c, L.radius, L.angles[i], L.em, turn), spec, "text", face, onFace(face, T(0, 0, top)), 1);
     const g = glyph(lib, c);
     const a = THREE.MathUtils.degToRad(L.angles[i]);
     return partExtrude(g.shapes, spec, "text", face, onFace(face, chain(RZ(turn),
@@ -819,6 +936,22 @@ function buildFront(lib: Library, role: Role, text: string, spec: TokenSpec, fac
   })) : [];
   // no name ("solo"): nothing to be too small
   return { geom: merge(letters), icon, name: L ?? { letterHeight: Infinity, scale: 1, total: 0 } };
+}
+
+/**
+ * A letter of an arc name on a polygon coin (mm, y up): as on the round coin, its baseline `radius` from the
+ * centre (R − radius in from the edge) and as far along it from the bottom as the round coin has it (its
+ * angle `deg` along a circle of that radius), but along the polygon that far in (PolyOutline.along, its corners
+ * well rounded, so the letters turn gently round them), turned as it turns. The letter keeps its shape and the name its spacing; a turned name (the double style's top
+ * one) starts halfway round. The round coin draws its letters with a matrix instead.
+ */
+function placedLetter(lib: Library, spec: TokenSpec, ch: string, radius: number, deg: number, em: number, turn: number) {
+  const g = glyph(lib, ch), poly = polyOutline(spec)!, path = poly.along(spec.diameter / 2 - radius, 0.45);
+  const fromBottom = ((((deg + 90) % 360) + 540) % 360) - 180;   // the angle from the bottom, either way (the layout's run 230°–310°)
+  const s = radius * THREE.MathUtils.degToRad(fromBottom) + (turn ? path.length / 2 : 0), q = path.at(s);
+  const c = Math.cos(q.dir), sn = Math.sin(q.dir);
+  const place = (p: THREE.Vector2) => { const x0 = (p.x - g.center) * em, y0 = p.y * em; return new THREE.Vector2(q.x + x0 * c - y0 * sn, q.y + x0 * sn + y0 * c); };
+  return g.shapes.map((sh) => { const o = new THREE.Shape(sh.getPoints(6).map(place)); o.holes = sh.holes.map((h) => new THREE.Path(h.getPoints(6).map(place))); return o; });
 }
 
 function buildFrame(spec: TokenSpec, face = topFace(spec)) {
@@ -841,8 +974,9 @@ function buildBack(lib: Library, role: Role, text: string, spec: TokenSpec) {
   // The back is seen from below, so mirror X to read correctly when flipped over.
   const mirror = S(-1, 1, 1);
   const shapes: THREE.Shape[] = [];
+  // on a polygon coin, what lives at the edge (rings, marks) follows its outline; the middle stays (mapShapes)
   const designed = backDesign(spec.back, R);
-  if (designed) return extrude(designed, d, chain(mirror), 24);
+  if (designed) return extrude(mapShapes(spec, designed), d, chain(mirror), 24);
   switch (spec.back) {
     case "seal":
       return extrude(lib.seal, d, chain(mirror, tracedMatrix(spec.diameter, 0)));
@@ -853,12 +987,12 @@ function buildBack(lib: Library, role: Role, text: string, spec: TokenSpec) {
       shapes.push(radialBar(-1.2, R * 0.42, 1.4, THREE.MathUtils.degToRad(92.5))); // hour hand
       shapes.push(radialBar(-1.6, R * 0.66, 0.9, THREE.MathUtils.degToRad(120))); // minute hand
       shapes.push(circleShape(1.6));
-      return extrude(shapes, d, chain(mirror), 24);
+      return extrude(mapShapes(spec, shapes), d, chain(mirror), 24);
     }
     case "rings":
       for (const [o, i] of [[R - 0.6, R - 1.6], [R * 0.72, R * 0.72 - 0.8], [R * 0.44, R * 0.44 - 0.8]]) shapes.push(ringShape(o, i));
       shapes.push(circleShape(R * 0.16));
-      return extrude(shapes, d, chain(mirror), 32);
+      return extrude(mapShapes(spec, shapes), d, chain(mirror), 32);
     case "edition": {
       const ed = editionBack(lib, role, spec);
       return ed ? extrude(ed, d, chain(mirror), 32) : null;
@@ -871,7 +1005,7 @@ function buildBack(lib: Library, role: Role, text: string, spec: TokenSpec) {
       const k = Math.min((spec.diameter * 0.7) / size.x, (spec.textSize * 1.4) / Math.max(size.y, 1e-6));
       const cx = (box.min.x + box.max.x) / 2, cy = (box.min.y + box.max.y) / 2;
       shapes.push(ringShape(R - 0.6, R - 1.4));
-      const ring = extrude(shapes, d, chain(mirror), 32);
+      const ring = extrude(mapShapes(spec, shapes), d, chain(mirror), 32);
       const word = extrude(s, d, chain(mirror, S(k, k, 1), T(-cx, -cy, 0)), 4);
       return merge([ring, word]);
     }
@@ -1317,9 +1451,11 @@ function edgeRing(rOut: number, rIn: number, n: number) {
 const frameDesigns = new Map<string, { shapes: THREE.Shape[]; inner: number } | null>();
 /** Filled shapes for the front frame and its inner edge, or null for none (the same ones for the same frame). */
 export function frameDesign(spec: TokenSpec): { shapes: THREE.Shape[]; inner: number } | null {
-  const key = `${spec.frame}|${spec.frameWidth}|${frameInsetOf(spec)}|${faceRadius(spec)}`;
+  const key = `${spec.frame}|${spec.frameWidth}|${frameInsetOf(spec)}|${faceRadius(spec)}|${spec.outline ?? ""}`;
   if (!frameDesigns.has(key)) {
-    frameDesigns.set(key, makeFrameDesign(spec));
+    // drawn for the round coin; on a polygon one, every part of it follows the outline (it all lives at the edge)
+    const round = makeFrameDesign(spec);
+    frameDesigns.set(key, round && sidesOf(spec) ? { shapes: mapShapes(spec, round.shapes, { all: true }).map(ccw), inner: round.inner } : round);
     if (frameDesigns.size > 100) frameDesigns.delete(frameDesigns.keys().next().value!);
   }
   return frameDesigns.get(key)!;
@@ -1425,9 +1561,12 @@ function makeFrameDesign(spec: TokenSpec): { shapes: THREE.Shape[]; inner: numbe
     case "ficha": {
       // A poker chip: eight blocks across its edge, each 40 % of its eighth wide and four rims deep (at least 2.2 mm),
       // the coin's colour between them, and a dashed ring inside them, 0.8 mm in. No rim of its own: the blocks are the edge.
+      // On a polygon coin, one block in the middle of each flat (a square's on its corners too, eight still): where
+      // the round coin's blocks go round it (mapShapes), a block there.
+      const sides = sidesOf(spec), blocks = sides === 4 ? 8 : sides || 8, first = sides ? -Math.PI / 2 : Math.PI / 2;
       const band = Math.max(2.2, 4 * w), rIn = out - band, half = (TAU / 8) * 0.2;
       sh.length = 0;
-      for (let k = 0; k < 8; k++) { const a = Math.PI / 2 + (k * TAU) / 8; sh.push(arcBand(out, rIn, a - half, a + half, 12)); }
+      for (let k = 0; k < blocks; k++) { const a = first + (k * TAU) / blocks; sh.push(arcBand(out, rIn, a - half, a + half, 12)); }
       const rd = rIn - 0.8, t = Math.max(0.5, w * 0.7), n = 24, dash = (TAU / n) * 0.55;
       for (let k = 0; k < n; k++) { const a = Math.PI / 2 + (k + 0.5) * (TAU / n); sh.push(arcBand(rd, rd - t, a - dash / 2, a + dash / 2, 6)); }
       inner = rd - t;
@@ -1918,10 +2057,11 @@ function openField(F: Float32Array, core: Uint8Array, W: number, H: number, px: 
  * where it is at least the halo away from them and PATTERN_EDGE inside the coin's edge, opened so
  * nothing in it is thinner than PATTERN_MIN, pieces smaller than that left out.
  */
-function cutPattern(p: PatternSpec, R: number, ink: Ring[], solid: Ring[] = [], inner = R, edge = Infinity): PatternCut {
+function cutPattern(p: PatternSpec, R: number, ink: Ring[], solid: Ring[] = [], inner = R, edge = Infinity, poly: PolyOutline | null = null): PatternCut {
   const ill = isIllustration(p.id);
   const P = ill ? { sdf: () => 0, line: PATTERN_MIN, width: PATTERN_MIN, gap: PATTERN_MIN } : patternField(p), halo = Math.max(PATTERN_MIN, p.halo ?? PATTERN_HALO), px = PATTERN_GRID, rho = PATTERN_MIN / 2;
-  const x0 = -R - 2 * px, W = Math.ceil((2 * R + 4 * px) / px) + 1, H = W, N = W * H;
+  const E = poly?.extent ?? R;                          // a polygon coin's corners reach past R
+  const x0 = -E - 2 * px, W = Math.ceil((2 * E + 4 * px) / px) + 1, H = W, N = W * H;
   const inkSet = new Uint8Array(N);
   rasterise(ink, inkSet, W, H, x0, x0, px);
   if (solid.length) fillSolid(solid, inkSet, W, H, x0, px, halo);
@@ -1936,11 +2076,13 @@ function cutPattern(p: PatternSpec, R: number, ink: Ring[], solid: Ring[] = [], 
     drawn = new Float32Array(N);
     for (let k = 0; k < N; k++) drawn[k] = shape[k] ? toRest[k] * px : -toShape[k] * px;
   }
-  // its outer edge a perfect circle: inside the coin's edge, and the halo inside the frame's innermost point (`edge`)
-  const F = new Float32Array(N), core = new Uint8Array(N), rOut = Math.min(R - PATTERN_EDGE, edge - halo);
+  // its outer edge the coin's own, as far in as it must be: inside the coin's edge, and the halo inside the frame's
+  // innermost point (`edge`, a radius: on a polygon coin, that far in from its edge too)
+  const F = new Float32Array(N), core = new Uint8Array(N), rOut = Math.min(R - PATTERN_EDGE, edge - halo), depth = R - rOut;
   for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
     const x = x0 + i * px, y = x0 + j * px, k = j * W + i;
-    const f = Math.min(drawn ? drawn[k] : P.sdf(x, y), dInk[k] * px - halo - px, rOut - Math.hypot(x, y));   // less a cell: the ink may reach that far past a cell centre
+    const toEdge = poly ? poly.inside(x, y) - depth : rOut - Math.hypot(x, y);
+    const f = Math.min(drawn ? drawn[k] : P.sdf(x, y), dInk[k] * px - halo - px, toEdge);   // less a cell: the ink may reach that far past a cell centre
     F[k] = f;
     if (f > rho - px / 2) core[k] = 1;                 // eroded by half the least width
   }
@@ -1976,6 +2118,7 @@ function frontInk(lib: Library, role: Role, spec: TokenSpec, text: string): { in
   const L = arcName(lib, text, spec);
   if (L) for (const turn of nameTurns(spec)) L.chars.forEach((ch, i) => {
     if (ch === " ") return;
+    if (sidesOf(spec)) { ink.push(...ringsOf(placedLetter(lib, spec, ch, L.radius, L.angles[i], L.em, turn), undefined, 1)); return; }   // where a polygon coin has it
     const g = glyph(lib, ch), a = (L.angles[i] * Math.PI) / 180, c = Math.cos(a + Math.PI / 2), s = Math.sin(a + Math.PI / 2), ct = Math.cos(turn), st = Math.sin(turn);
     ink.push(...ringsOf(g.shapes, (gx, gy) => {
       const x = (gx - g.center) * L.em, y = gy * L.em, px = L.radius * Math.cos(a) + x * c - y * s, py = L.radius * Math.sin(a) + x * s + y * c;
@@ -1991,7 +2134,7 @@ function frontInk(lib: Library, role: Role, spec: TokenSpec, text: string): { in
  * medallion's ring, not inside a letter or a moon).
  */
 function backInk(lib: Library, role: Role, spec: TokenSpec): Ring[] {
-  const shapes = spec.back === "edition" ? editionBack(lib, role, spec) : backDesign(spec.back, spec.diameter / 2);
+  const shapes = spec.back === "edition" ? editionBack(lib, role, spec) : mapShapes(spec, backDesign(spec.back, spec.diameter / 2) ?? []);
   return ringsOf(shapes ?? [], undefined, 24).map((r) => {
     const a = Math.abs(polyArea(r.outer));
     return { outer: r.outer, holes: r.holes.filter((h) => Math.abs(polyArea(h)) > 0.6 * a) };
@@ -2003,10 +2146,10 @@ function frontPattern(lib: Library, role: Role, spec: TokenSpec, text: string): 
   const p = spec.frontPattern;
   if (!p || !PATTERN_IDS.has(p.id) || spec.style === "window" || !SHAPE_FEATURES[shapeOf(role)].pattern) return null;
   const key = ["front", JSON.stringify({ ...p, colour: null }), iconOf(role, spec).key, text, spec.style, spec.diameter, spec.textSize, spec.spacing, spec.margin, spec.maxArc,
-    spec.frame, spec.frameWidth, frameInsetOf(spec), spec.iconScale, spec.iconOffsetY, JSON.stringify(spec.autoText ?? null), faceRadius(spec)].join("|");
+    spec.frame, spec.frameWidth, frameInsetOf(spec), spec.iconScale, spec.iconOffsetY, JSON.stringify(spec.autoText ?? null), faceRadius(spec), spec.outline ?? ""].join("|");
   // an illustration fills what the frame leaves, a little clear of it
   const fd = frameDesign(spec), inner = fd ? fd.inner - 0.8 : faceRadius(spec);
-  return cached(key, () => { const { ink, solid } = frontInk(lib, role, spec, text); return cutPattern(p, faceRadius(spec), ink, solid, inner, fd ? fd.inner : Infinity); });
+  return cached(key, () => { const { ink, solid } = frontInk(lib, role, spec, text); return cutPattern(p, faceRadius(spec), ink, solid, inner, fd ? fd.inner : Infinity, polyOutline(spec)); });
 }
 
 /** The back's pattern, behind its design; null for none (or a back that is a face: backFaceOf draws it there, like a front's). */
@@ -2014,8 +2157,8 @@ function backPattern(lib: Library, role: Role, spec: TokenSpec): PatternCut | nu
   const p = spec.backPattern;
   if (!p || !PATTERN_IDS.has(p.id) || spec.back === FACE_BACK || spec.back === "custom" || spec.back === "seal" || !SHAPE_FEATURES[shapeOf(role)].pattern) return null;
   const ed = backEdition(role, spec)?.name.en ?? "";
-  const key = ["back", JSON.stringify(p), spec.back, spec.back === "custom" ? spec.customSvg : "", ed, spec.lang, spec.diameter, faceRadius(spec)].join("|");
-  return cached(key, () => cutPattern(p, faceRadius(spec), backInk(lib, role, spec)));
+  const key = ["back", JSON.stringify(p), spec.back, spec.back === "custom" ? spec.customSvg : "", ed, spec.lang, spec.diameter, faceRadius(spec), spec.outline ?? ""].join("|");
+  return cached(key, () => cutPattern(p, faceRadius(spec), backInk(lib, role, spec), [], faceRadius(spec), Infinity, polyOutline(spec)));
 }
 
 /** The front part the pattern joins: the frame's or the name's, whichever has its colour (the frame's if neither). */
@@ -3585,7 +3728,9 @@ export function tokenSvg(lib: Library, role: Role, input: SpecInput | undefined,
       name += `<path fill="${c.front}" fill-rule="evenodd" d="${shapesToPath(shapes, dx, line.y)}"/>`;
     }
     body += up("text", name);
-    if (spec.frame !== "none") body += up("frame", `<circle r="${(faceRadius(spec) - frameInsetOf(spec) - spec.frameWidth / 2).toFixed(2)}" fill="none" stroke="${c.frame}" stroke-width="${spec.frameWidth}"/>`);
+    const wf = spec.frame !== "none" && sidesOf(spec) ? frameDesign(spec) : null;
+    if (wf) body += up("frame", `<path fill="${c.frame}" fill-rule="nonzero" d="${shapesToPath(wf.shapes, 0, 0, 48)}"/>`);
+    else if (spec.frame !== "none") body += up("frame", `<circle r="${(faceRadius(spec) - frameInsetOf(spec) - spec.frameWidth / 2).toFixed(2)}" fill="none" stroke="${c.frame}" stroke-width="${spec.frameWidth}"/>`);
   } else if (side === "front") {
     const icon = spec.style === "text" ? null : iconOf(role, spec);
     if (spec.style === "text" || !icon) {
@@ -3604,11 +3749,13 @@ export function tokenSvg(lib: Library, role: Role, input: SpecInput | undefined,
       let letters = "";
       L.chars.forEach((ch, i) => {
         if (ch === " ") return;
+        // on a polygon coin, the letter already turned and on its outline (placedLetter), as the model has it
+        if (sidesOf(spec)) { letters += `<path fill="${c.front}" fill-rule="evenodd" d="${shapesToPath(placedLetter(lib, spec, ch, L.radius, L.angles[i], L.em, turn), 0, 0, 1)}"/>`; return; }
         const a = L.angles[i];
         const x = L.radius * Math.cos((a * Math.PI) / 180), y = -L.radius * Math.sin((a * Math.PI) / 180);
         letters += letterSvg(lib, ch, x, y, -(a + 90), L.em, c.front);
       });
-      body += up("text", turn ? `<g transform="rotate(180)">${letters}</g>` : letters);
+      body += up("text", turn && !sidesOf(spec) ? `<g transform="rotate(180)">${letters}</g>` : letters);
     }
     const fd = frameDesign(spec);
     if (fd) body += up("frame", `<path fill="${c.frame}" fill-rule="nonzero" d="${shapesToPath(fd.shapes, 0, 0, 48)}"/>`);
@@ -3617,7 +3764,7 @@ export function tokenSvg(lib: Library, role: Role, input: SpecInput | undefined,
   } else {
     const back = ({ seal: "Seal", clock: "Clock", rings: "Rings", name: "Name", custom: "Custom" } as Record<string, string | undefined>)[spec.back];
     const designed = backDesign(spec.back, R);
-    if (designed) body += `<path fill="${c.back}" fill-rule="nonzero" d="${shapesToPath(designed, 0, 0, 48)}"/>`;
+    if (designed) body += `<path fill="${c.back}" fill-rule="nonzero" d="${shapesToPath(mapShapes(spec, designed), 0, 0, 48)}"/>`;
     const custom = spec.back === "custom" ? customBackPath(spec) : "";
     if (custom) body += `<path fill="${c.back}" fill-rule="nonzero" d="${custom}"/>`;
     const ed = spec.back === "edition" ? editionBack(lib, role, spec) : null;
@@ -3629,7 +3776,8 @@ export function tokenSvg(lib: Library, role: Role, input: SpecInput | undefined,
     if (spec.back === "seal" && lib.sealSvg) body += `<g fill="${c.back}" transform="scale(${spec.diameter / TRACE_VIEW}) translate(${-TRACE_VIEW / 2} ${-TRACE_VIEW / 2})">${lib.sealSvg.replace(/^[\s\S]*?<g /, "<g ").replace(/fill="#000000"/, "").replace(/<\/svg>\s*$/, "")}</g>`;
     else if (back && !designed && !custom) body += `<text y="1.5" text-anchor="middle" font-size="5" fill="${c.back}" font-family="${LETTERING.family}">${esc(back === "Name" ? label.toUpperCase() : back.toUpperCase())}</text>`;
   }
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${-R - 0.5} ${-R - 0.5} ${spec.diameter + 1} ${spec.diameter + 1}" role="img" aria-label="${esc(label)} token">${raised ? reliefFilter(rid, spec.reliefBevel) + (flatFrame ? reliefFilter(rid + "s") : "") : ""}${coinSvg(spec, c.base)}${body}</svg>`;
+  const E = polyOutline(spec)?.extent ?? R;   // a polygon's corners reach past the circle
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${(-E - 0.5).toFixed(2)} ${(-E - 0.5).toFixed(2)} ${(2 * E + 1).toFixed(2)} ${(2 * E + 1).toFixed(2)}" role="img" aria-label="${esc(label)} token">${raised ? reliefFilter(rid, spec.reliefBevel) + (flatFrame ? reliefFilter(rid + "s") : "") : ""}${coinSvg(spec, c.base)}${body}</svg>`;
 }
 
 /** Offers a file to the viewer: claude.ai's downloads capability, or a plain download. */

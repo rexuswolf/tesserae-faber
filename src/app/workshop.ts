@@ -1,7 +1,7 @@
 // The workshop: a token's preview, its parts and faces, and its own icon.
 import { on } from "./events.ts";
 import type { TokenShape, TokenSpec, BackFace, SpecInput, SpecColours, TokenIcon, TokenOverride, TokenContent } from "../types.ts";
-import { shapeOf, SHAPE_FEATURES, DEFAULT_SPEC, FACE_FIELDS, reliefOf, backLookOf, flipFace, buildToken, TEAMS, tokenSvg, MAGNET_SIZES, RING_SEPARATORS, RING_BASES, cardBackOf } from "../engine/token-engine.ts";
+import { shapeOf, SHAPE_FEATURES, DEFAULT_SPEC, FACE_FIELDS, reliefOf, backLookOf, flipFace, buildToken, TEAMS, tokenSvg, MAGNET_SIZES, RING_SEPARATORS, RING_BASES, cardBackOf, COIN_OUTLINES } from "../engine/token-engine.ts";
 import { state, coll, defSpec, STYLE_KEEPS, knownStyles, $, view3d, esc, input, hit, $$, SEPARATOR_MARKS, COLOUR_CHOICES, READONLY } from "./context.ts";
 import type { Part, Side, FaceTab, Fields } from "./context.ts";
 import { lookOf, designFor, ownChanged, designOf, inheritedRef, collLabel, defaultRef, unsaved } from "./designs.ts";
@@ -383,6 +383,7 @@ export function buildChoices() {
   // Layouts are drawn as coin tiles by renderStyleTiles().
   make("magnet", [{ id: "none" }, { id: "pocket" }, { id: "hidden" }]);
   make("edge", [{ id: "smooth" }, { id: "reeded" }, { id: "segmented" }]);
+  make("outline", COIN_OUTLINES);
   $("[data-choice=magnetSize]").innerHTML = MAGNET_SIZES.map((v) => `<button class="choice" type="button" data-v="${v}">${v.replace("x", " × ")} mm</button>`).join("");
   // a ring's mark between repeats: each drawn as itself, with its name
   $("[data-choice=separator]").innerHTML = RING_SEPARATORS.map((id) => `<button class="choice" type="button" data-v="${id}">${SEPARATOR_MARKS[id]}${esc(t(`separator.${id}`))}</button>`).join("");

@@ -355,7 +355,7 @@ const PART_OF: Record<string, Part> = {
   back: "back", backMode: "back", backFace: "back", customSvg: "back", backPattern: "back", backText: "back", cardBack: "back", "colours.back": "back", "colours.backFrame": "back",
   relief: "relief", reliefHeight: "relief", reliefBevel: "relief",
   magnet: "magnet", magnetSize: "magnet",
-  diameter: "body", height: "body", edge: "body", ringBase: "body", separator: "body", "colours.base": "body",
+  diameter: "body", height: "body", edge: "body", outline: "body", ringBase: "body", separator: "body", "colours.base": "body",
 };
 /** The token's parts that it changed (its look, from its design; a token of yours, what it carries for this print), for a mark in their menu. */
 const partOfField = (f: string, two: boolean): Part => PART_OF[f] ?? (!two && f.startsWith("colours.") ? "colours" : "front");
@@ -959,11 +959,13 @@ export function syncControls(role: Role, spec: TokenSpec, token: Token) {
   // a piece is smaller and may be thicker than a coin
   const dia = $<HTMLInputElement>("#diameter"), hgt = $<HTMLInputElement>("#height");
   dia.min = shape === "piece" ? "15" : "30"; hgt.min = shape === "piece" ? "2" : "1.2"; hgt.max = shape === "piece" ? "12" : "4";
-  $("label[for=diameter]").textContent = shapeText("range.diameter", shape);
+  // a coin with sides is measured from flat to flat
+  $("label[for=diameter]").textContent = shape === "coin" && s.outline && s.outline !== "round" ? t("range.diameter.flats") : shapeText("range.diameter", shape);
   $("#ringBaseRow").hidden = !f.ringBase;
   $("#separatorRow").hidden = !f.separator;
   $("#cardSizeHint").hidden = shape !== "card";
-  $("#edgeRow").hidden = shape !== "coin";
+  $("#outlineRow").hidden = shape !== "coin";
+  $("#edgeRow").hidden = shape !== "coin" || (!!s.outline && s.outline !== "round");   // a reeded edge is a round coin's
   if (shape === "base") { const bs = baseSize(s); $("#ringBaseHint").textContent = t("base.baseHelp", { inner: dec1(2 * bs.ri), outer: dec1(2 * bs.ro) }); }
   else { const rs = ringSize(s); $("#ringBaseHint").textContent = t("ring.baseHelp", { inner: dec1(2 * rs.inner), outer: dec1(2 * rs.outer) }); }
   $("#baseColourLabel").textContent = shapeText("coin.colour", shape);
@@ -990,7 +992,7 @@ export function syncControls(role: Role, spec: TokenSpec, token: Token) {
     if (key === "style" && (oneBack || side === "front")) continue;   // the tiles say it (renderBackStyleTiles, renderStyleTiles)
     if (key === "pieceIcon" || key === "pieceShape") continue;   // renderPieceTiles says it
     if ((key === "back" && !drawn) || (key === "style" && side === "back" && drawn)) { b.setAttribute("aria-pressed", "false"); continue; }
-    const v = key === "magnet" && faceBack && s.magnet === "pocket" ? "hidden" : from[key] ?? DEFAULT_SPEC[key] ?? (key === "edge" ? "smooth" : undefined);
+    const v = key === "magnet" && faceBack && s.magnet === "pocket" ? "hidden" : from[key] ?? DEFAULT_SPEC[key] ?? (key === "edge" ? "smooth" : key === "outline" ? "round" : undefined);
     b.setAttribute("aria-pressed", String(String(v) === b.dataset.v));
   }
   $("[data-choice=magnet] [data-v=pocket]").hidden = faceBack;

@@ -57,3 +57,13 @@ describe("planPlates", () => {
   });
 });
 
+
+describe("coins with sides on a plate", () => {
+  it("are spaced by the circle round their corners, so neighbours never meet", () => {
+    const items = (outline?: string) => Array.from({ length: 6 }, (_, i) => ({ title: `t${i}`, group: "g", token: { ...token([black, white, red, gold]), spec: { diameter: 40, ...(outline ? { outline } : {}) } } }));
+    const round = planPlates(items() as never).plates[0], square = planPlates(items("square") as never).plates[0];
+    expect(round.diameter).toBe(40);
+    expect(square.diameter).toBeGreaterThan(40);   // its corners reach past 40 mm
+    expect(square.capacity).toBeLessThanOrEqual(round.capacity);
+  });
+});
