@@ -1,7 +1,7 @@
 // Loading: the gate (loading screen), starting the app and the admin's sign-in.
 import { emit } from "./events.ts";
 import { $, coll, READONLY, state, prefetchViewer, loadJSON, VIEW_KEY, setGateState, setColl } from "./context.ts";
-import { signIn, loadRoles, isAdmin, signOut as signOutUser, onUser , canSeeBotc, unlockBotc} from "../services.ts";
+import { signIn, loadRoles, isAdmin, signOut as signOutUser, onUser , canSeeBotc, unlockBotc, BOTC_PUBLIC} from "../services.ts";
 import { t, uiLang } from "../i18n.ts";
 import { handingOver } from "../handoff.ts";
 import { OWN, nameIn, hasCcc, OWN_ID, builtInCollections, readBuiltIn, OWN_VIEW, rememberCollection, collectionRoles, loadMyLists } from "../collection.ts";
@@ -73,7 +73,7 @@ async function boot() {
       startApp();
       return;
     }
-    if (!canSeeBotc(state.user)) return botcGate();   // private until TPI says otherwise: its key first
+    if (!BOTC_PUBLIC && !canSeeBotc(state.user)) return botcGate();   // when private: its key first
     const roles = await loadRoles();
     const broken = !roles.length ? "empty" : roles.some((r) => !r.body) ? "oldLibrary" : null;
     if (broken) return libraryGate(broken);

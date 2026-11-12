@@ -59,7 +59,7 @@ export const TOKEN_LANG_KEY = "midnight-mint-token-lang";
 export const VIEW_KEY = `${KEYS}view`;   // the sheet you were on (all, an edition or a script) and its team filter
 export const EDITION_ORDER = ["tb", "bmr", "snv", "carousel", "fabled", "loric", "grimoire"];
 document.documentElement.dataset.mode = MODE;   // the generic creator's own colours (style.css)
-if (!OWN) { document.title = "Midnight Mint"; rememberCollection("botc"); }   // and it's where the front page's "carry on" leads   // Clocktower keeps its name (the page's own title is Tesserae Faber's)
+if (!OWN) { document.title = "Blood on the Clocktower · Tesserae Faber"; rememberCollection("botc"); }   // and it's where the front page's "carry on" leads   // Clocktower keeps its name (the page's own title is Tesserae Faber's)
 export const TEAM_ORDER: Team[] = ["townsfolk", "outsider", "minion", "demon", "traveller", "fabled", "loric", "info"];
 export const TEAM_PLURAL: Record<string, Record<string, string>> = {
   es: { townsfolk: "Aldeanos", outsider: "Forasteros", minion: "Esbirros", demon: "Demonios", traveller: "Viajeros", fabled: "Fábulas", loric: "Lóricos", info: "Tarjetas de información" },

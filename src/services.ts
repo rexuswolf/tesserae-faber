@@ -50,13 +50,14 @@ export async function signIn() {
   if (r === "ok") markSession(true);
   return r;
 }
-// Clocktower is private until The Pandemonium Institute says otherwise: its library is read only by
-// the admin and by a shared account whose key is given to whoever may use it. This browser
-// remembers that it has it, so the collection shows in the lists (the data stays behind the rules).
+// Clocktower is public: anyone can open it and read its library (only the admin writes it). It was
+// private for a while, read with a shared account's key; BOTC_PUBLIC = false brings that back (and
+// firestore.rules' canSeeBotc() with it). This browser remembers when it has the key.
+export const BOTC_PUBLIC = true;
 export const BOTC_EMAIL = "clocktower@tesserae-faber.web.app";
 const BOTC_KEY = "tesserae-botc-access";
 export const canSeeBotc = (user: AppUser | null | undefined) => isAdmin(user) || user?.email?.toLowerCase() === BOTC_EMAIL;
-export const botcUnlocked = () => local.get(BOTC_KEY) === "1";
+export const botcUnlocked = () => BOTC_PUBLIC || local.get(BOTC_KEY) === "1";
 /** Opens Clocktower with its key; false when the key is wrong. */
 export async function unlockBotc(key: string) {
   const ok = await (await authAdapter()).signInWithKey(BOTC_EMAIL, key.trim().toUpperCase());

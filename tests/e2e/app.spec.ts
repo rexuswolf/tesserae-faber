@@ -80,23 +80,16 @@ test("a collection that doesn't fit says so, until a save fits again", async ({ 
   await expect(notice).toHaveCount(0);
 });
 
-test("Clocktower is private: its key first, and nothing of its library without it", async ({ page }) => {
-  const adapters = new Set<string>();
-  page.on("request", (r) => { const m = r.url().match(/mock-(auth|roles)/); if (m) adapters.add(m[1]); });
-  await page.goto("/botc");
-  await expect(page.locator("#gateKey")).toBeVisible({ timeout: 30_000 });
-  expect([...adapters]).not.toContain("roles");
-  // and it isn't among the collections
+test("Clocktower is public: it opens with no key, and it's among the collections", async ({ page }) => {
   await page.goto("/colecciones");
-  await expect(page.locator("#ownHomeBuilt .oh-cover")).not.toHaveCount(0);
-  expect(await page.locator('#ownHomeBuilt a[href="/botc"]').count()).toBe(0);
-  // a wrong key says so; the right one opens it
+  await expect(page.locator('#ownHomeBuilt a[href="/botc"]')).not.toHaveCount(0, { timeout: 30_000 });
   await page.goto("/botc");
-  await page.locator("#gateKey").fill("nope");
-  await page.locator("#gateAction").click();
-  await expect(page.locator("#gateText")).not.toBeEmpty();
-  await page.locator("#gateKey").fill("test-key");
-  await page.locator("#gateAction").click();
   await expect(page.locator("#gate")).toBeHidden({ timeout: 30_000 });
+  await expect(page.locator("#gateKey")).toBeHidden();
   await expect(tokens(page).nth(99)).toBeAttached();
+  // the tokens on screen are drawn at once; the last row's, once it's scrolled to
+  await expect(page.locator("#rows .row").first().locator("svg[aria-label$='token']").first()).toBeVisible();
+  const last = page.locator("#rows .row:not(.info)").last();   // the last character (the info cards after it are drawn at once)
+  await last.scrollIntoViewIfNeeded();
+  await expect(last.locator("svg[aria-label$='token']").first()).toBeVisible();
 });

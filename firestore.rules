@@ -1,7 +1,6 @@
 rules_version = '2';
 
-// Clocktower's character library: read with its key (a shared account) or by the admin, who alone
-// writes it. Saved designs live in each browser.
+// Clocktower's character library: read by anyone, written by the admin alone. Saved designs live in each browser.
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -10,10 +9,12 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == 'ZF6TRxFCPNh6Bjvg7rbv5mAD0x83';
     }
 
-    // Clocktower is private until The Pandemonium Institute says otherwise: its library is read
-    // by the admin and by the shared account whose key is given to whoever may use it.
+    // Clocktower is public. To make it private again (read only by the admin and the shared account
+    // whose key is given out), return:
+    //   isAdmin() || (request.auth != null && request.auth.token.email == 'clocktower@tesserae-faber.web.app')
+    // and set BOTC_PUBLIC = false in src/services.ts.
     function canSeeBotc() {
-      return isAdmin() || (request.auth != null && request.auth.token.email == 'clocktower@tesserae-faber.web.app');
+      return true;
     }
 
     // The character library: names, team and icons.
