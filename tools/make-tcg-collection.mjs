@@ -1,9 +1,9 @@
 // Writes the TCG Counters collection that comes with the app (public/collections/tcg.json) and its logo.
-// Counters for trading card games: Pokémon TCG, Magic: The Gathering, Disney Lorcana and Star Wars:
-// Unlimited, a list each. Only what's printed on a counter (numbers, conditions, game terms) and
-// game-icons.net icons: no logo, art or character of any of the games, and a generic name; each game is
-// named only to say what its tokens are for. What the app says about it (its card, its About) is code,
-// src/builtins.ts.
+// Counters for trading card games (the Pokémon TCG, Magic: The Gathering, Disney Lorcana and Star Wars:
+// Unlimited), a list each. Only what's printed on a counter (numbers, conditions, game terms) and
+// game-icons.net icons: no logo, art or character of any of the games. Nothing the app shows names them
+// (the collection, its card, its lists are generic) but its About, only to say which list is for which
+// game. What the app says about it (its card, its About) is code, src/builtins.ts.
 //   node tools/make-tcg-collection.mjs
 // Types: counters (coins). Groups: damage, conditions, counters, markers. Each token in its own colour,
 // as the games' own counters look (Pokémon's damage counters warm, Star Wars: Unlimited's red), painted:
@@ -58,31 +58,31 @@ const damage = (game, n, colour, flip) => tok({ id: `${game}-damage-${n}`, group
   ...(flip ? { flip: { name: same(flip) } } : {}) });
 
 const GAMES = [
-  { id: "pokemon", name: "Pokémon TCG", tokens: [
-    damage("pokemon", 10, F.yellow), damage("pokemon", 50, F.red), damage("pokemon", 100, F.black),
-    tok({ id: "pokemon-poisoned", group: "conditions", name: { en: "Poisoned", es: "Envenenado" }, ic: "poison-bottle", colour: F.purple }),
-    tok({ id: "pokemon-burned", group: "conditions", name: { en: "Burned", es: "Quemado" }, ic: "flame", colour: F.red }),
-    tok({ id: "pokemon-asleep", group: "conditions", name: { en: "Asleep", es: "Dormido" }, ic: "night-sleep", colour: F.blue }),
-    tok({ id: "pokemon-paralyzed", group: "conditions", name: { en: "Paralyzed", es: "Paralizado" }, ic: "electric", colour: F.yellow }),
-    tok({ id: "pokemon-confused", group: "conditions", name: { en: "Confused", es: "Confundido" }, ic: "knocked-out-stars", colour: F.green }),
-    tok({ id: "pokemon-vstar", group: "markers", name: same("VSTAR"), ic: "polar-star", colour: F.gold, flip: { name: { en: "VSTAR used", es: "VSTAR usado" }, ic: "falling-star" } }),
+  { id: "monster", name: { en: "Monster battles", es: "Batallas de monstruos" }, tokens: [
+    damage("monster", 10, F.yellow), damage("monster", 50, F.red), damage("monster", 100, F.black),
+    tok({ id: "monster-poisoned", group: "conditions", name: { en: "Poisoned", es: "Envenenado" }, ic: "poison-bottle", colour: F.purple }),
+    tok({ id: "monster-burned", group: "conditions", name: { en: "Burned", es: "Quemado" }, ic: "flame", colour: F.red }),
+    tok({ id: "monster-asleep", group: "conditions", name: { en: "Asleep", es: "Dormido" }, ic: "night-sleep", colour: F.blue }),
+    tok({ id: "monster-paralyzed", group: "conditions", name: { en: "Paralyzed", es: "Paralizado" }, ic: "electric", colour: F.yellow }),
+    tok({ id: "monster-confused", group: "conditions", name: { en: "Confused", es: "Confundido" }, ic: "knocked-out-stars", colour: F.green }),
+    tok({ id: "monster-vstar", group: "markers", name: same("VSTAR"), ic: "polar-star", colour: F.gold, flip: { name: { en: "VSTAR used", es: "VSTAR usado" }, ic: "falling-star" } }),
     tok({ id: "coin-flip", group: "markers", name: { en: "Heads / Tails", es: "Cara / Cruz" }, ic: "sun", colour: F.gold, kind: "icono", flip: { name: { en: "Tails", es: "Cruz" }, ic: "moon" } }),
   ] },
-  { id: "magic", name: "Magic: The Gathering", tokens: [
-    tok({ id: "magic-plus", group: "counters", name: { en: "+1/+1 counter", es: "Contador +1/+1" }, text: same("+1/+1"), colour: F.green, kind: "numero" }),
-    tok({ id: "magic-minus", group: "counters", name: { en: "−1/−1 counter", es: "Contador −1/−1" }, text: same("−1/−1"), colour: F.black, kind: "numero" }),
+  { id: "duel", name: { en: "Duels", es: "Duelos" }, tokens: [
+    tok({ id: "duel-plus", group: "counters", name: { en: "+1/+1 counter", es: "Contador +1/+1" }, text: same("+1/+1"), colour: F.green, kind: "numero" }),
+    tok({ id: "duel-minus", group: "counters", name: { en: "−1/−1 counter", es: "Contador −1/−1" }, text: same("−1/−1"), colour: F.black, kind: "numero" }),
   ] },
-  { id: "lorcana", name: "Disney Lorcana", tokens: [
-    damage("lorcana", 1, F.red), damage("lorcana", 3, F.red), damage("lorcana", 5, F.red),
-    tok({ id: "lorcana-lore-1", group: "counters", name: { en: "Lore 1", es: "Leyenda 1" }, text: same("1"), colour: F.purple, kind: "numero" }),
-    tok({ id: "lorcana-lore-5", group: "counters", name: { en: "Lore 5", es: "Leyenda 5" }, text: same("5"), colour: F.purple, kind: "numero" }),
+  { id: "ink", name: { en: "Ink & lore", es: "Tinta y leyenda" }, tokens: [
+    damage("ink", 1, F.red), damage("ink", 3, F.red), damage("ink", 5, F.red),
+    tok({ id: "ink-lore-1", group: "counters", name: { en: "Lore 1", es: "Leyenda 1" }, text: same("1"), colour: F.purple, kind: "numero" }),
+    tok({ id: "ink-lore-5", group: "counters", name: { en: "Lore 5", es: "Leyenda 5" }, text: same("5"), colour: F.purple, kind: "numero" }),
   ] },
-  { id: "swu", name: "Star Wars: Unlimited", tokens: [
-    damage("swu", 1, F.red, "3"), damage("swu", 5, F.red, "10"),
-    tok({ id: "swu-shield", group: "markers", name: { en: "Shield", es: "Escudo" }, ic: "energy-shield", colour: F.blue }),
-    tok({ id: "swu-experience", group: "counters", name: { en: "Experience", es: "Experiencia" }, ic: "upgrade", colour: F.yellow }),
-    tok({ id: "swu-initiative", group: "markers", name: { en: "Initiative", es: "Iniciativa" }, ic: "light-sabers", colour: F.black, flip: { name: { en: "Initiative taken", es: "Iniciativa tomada" }, ic: "light-sabers" } }),
-    tok({ id: "swu-force", group: "markers", name: { en: "The Force", es: "La Fuerza" }, ic: "magic-swirl", colour: F.blue }),
+  { id: "galactic", name: { en: "Galactic battles", es: "Batallas galácticas" }, tokens: [
+    damage("galactic", 1, F.red, "3"), damage("galactic", 5, F.red, "10"),
+    tok({ id: "galactic-shield", group: "markers", name: { en: "Shield", es: "Escudo" }, ic: "energy-shield", colour: F.blue }),
+    tok({ id: "galactic-experience", group: "counters", name: { en: "Experience", es: "Experiencia" }, ic: "upgrade", colour: F.yellow }),
+    tok({ id: "galactic-initiative", group: "markers", name: { en: "Initiative", es: "Iniciativa" }, ic: "light-sabers", colour: F.black, flip: { name: { en: "Initiative taken", es: "Iniciativa tomada" }, ic: "light-sabers" } }),
+    tok({ id: "galactic-force", group: "markers", name: { en: "The Force", es: "La Fuerza" }, ic: "magic-swirl", colour: F.blue }),
   ] },
 ];
 // a two-sided damage counter is found by both its numbers ("Damage 1 / 3"), and the coin flip's front says Heads
