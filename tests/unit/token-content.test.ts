@@ -40,13 +40,13 @@ describe("a token's content", () => {
     expect(shapeSpec(coin("icon"), reminderSpec({ ...DEFAULT_SPEC, style: "classic" })).style).toBe("classic");
   });
   it("keeps the icon of a token that shows only its name, without drawing it", () => {
-    const c = starterCollection("en");
+    const c = starterCollection();
     const tk: OwnToken = { ...c.tokens[0], icon: { id: "lorc/wolf-head", g: "", body: "<path/>" } as OwnToken["icon"], content: "text" };
     expect(tokenRole(c, tk).body).toBe("");
     expect(tokenRole(c, { ...tk, content: "both" }).body).toBe("<path/>");
   });
   it("prints its text, and is named in the lists by its name", () => {
-    const c = starterCollection("en");
+    const c = starterCollection();
     const tk: OwnToken = { ...c.tokens[0], name: "Blood wolf", text: "WOLF" };
     const r = tokenRole(c, tk);
     expect(r.en).toBe("WOLF");

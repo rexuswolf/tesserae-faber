@@ -2,14 +2,15 @@
 import { on, emit } from "./events.ts";
 import { loadJSON, PICK_KEY, QUEUE_KEY, storeJSON, state, PLATE_LABEL, PLATE_GROUP, $, esc, hit, TEAM_ORDER, TEAM_PLURAL, $$, coll, loadViewer } from "./context.ts";
 import { roleById } from "./wiring.ts";
-import { remKey, charKey, textFor, ownIcon, sortKeys, specFor, filamentName, remindersOf } from "./tokens.ts";
+import { remKey, charKey, textFor, ownIcon, sortKeys, specFor, remindersOf } from "./tokens.ts";
 import { renderSheet, hasOwn, selectToken, ownPen } from "./sheet.ts";
 import type { QueueEntry, Role, TokenSpec, PlateItem, PlanToken, PartName, Hex, PlatePlan, Volumes, MagnetLayout, Token } from "../types.ts";
 import { lookOf } from "./designs.ts";
 import { tokenLang } from "./token-language.ts";
 import { shapeSpec, reminderSpec, DEFAULT_SPEC, roleName, shapeOf, SHAPE_FEATURES, partColours, backFaceOf, CARD, ringSize, isCard, buildToken, geometryVolume, SMALL_LETTERS_MM, tokenSvg, nameLetterHeight, magnetLayout, saveFile, cardPlan, pieceFoot } from "../engine/token-engine.ts";
 import { uiLang, t } from "../i18n.ts";
-import { planPlates, printerOf, nozzleOf, FILAMENT_SLOTS, PRINTERS, NOZZLES } from "../bambu/plates.ts";
+import { planPlates, printerOf, nozzleOf, PRINTERS, NOZZLES, FILAMENT_SLOTS, useFilaments, filaments, filamentFor, slotOf } from "../bambu/plates.ts";
+import { PLA_BASIC } from "../bambu/pla-basic.ts";
 import { layoutCoins, PAGE, backX } from "../pdf/layout.ts";
 import type { PaperSize, SheetSlot } from "../pdf/layout.ts";
 import { plateFeatures } from "../bambu/estimate.ts";
@@ -123,7 +124,32 @@ export function queuePlan() {
       },
     };
   });
+  // the project's filaments: each colour used, in the one chosen for it
+  planColours = coloursUsed(items.map((it) => it.token));
+  useFilaments(planColours, flow.filaments);
   return planPlates(items, { bed: printerOf(flow.printer).bed });
+}
+/** The colours the tokens' parts are in, most used first (a part counts once per token). */
+function coloursUsed(tokens: { parts: Partial<Record<PartName, unknown>>; colours: Partial<Record<PartName, Hex>> }[]) {
+  const n = new Map<string, number>();
+  for (const tk of tokens) for (const p of Object.keys(tk.parts) as PartName[]) {
+    const c = tk.parts[p] ? (tk.colours[p] ?? tk.colours.base)?.toLowerCase() : null;
+    if (c && /^#[0-9a-f]{6}$/.test(c)) n.set(c, (n.get(c) || 0) + 1);
+  }
+  return [...n.keys()].sort((a, b) => n.get(b)! - n.get(a)!);
+}
+/** The colours of the plan drawn last (queuePlan). */
+let planColours: string[] = [];
+/** A filament's name: a basic colour's, Bambu PLA Basic's, else its code. */
+export function filamentLabel(hex: string) {
+  const h = hex.toLowerCase(), basic = FILAMENT_SLOTS.find((x) => x.hex === h), bambu = PLA_BASIC.find((x) => x.hex.toLowerCase() === h);
+  return basic ? t(`filament.${basic.name}`) : bambu ? bambu.name[uiLang() === "es" ? "es" : "en"] : h.toUpperCase();
+}
+/** The colour a filament is set to, from the 3D step: `to` null, back to the colour itself. */
+export function setFilament(colour: string, to: string | null) {
+  const c = colour.toLowerCase();
+  if (!to || to.toLowerCase() === c) delete flow.filaments[c]; else flow.filaments[c] = to.toLowerCase();
+  storeJSON(FILAMENTS_KEY, flow.filaments);
 }
 
 /**
@@ -159,8 +185,10 @@ export const plateEstimates = (plan: PlatePlan<QueueItem>) => plan.plates.map((p
 
 // ------------------------------------------------------------ steps
 
-export const PRINT_WAY_KEY = "midnight-mint-print-way", PRINTER_KEY = "midnight-mint-printer", NOZZLE_KEY = "midnight-mint-nozzle", PAPER_BACKS_KEY = "midnight-mint-paper-backs";
-export const flow: { way: string; printer: string; nozzle: string; backs: boolean; undo: Map<string, number> | null } = { way: ((w) => (w === "paper" || w === "3d" ? w : ""))(loadJSON<string>(PRINT_WAY_KEY, "")),   // "": not chosen yet (asked first)
+export const PRINT_WAY_KEY = "midnight-mint-print-way", PRINTER_KEY = "midnight-mint-printer", NOZZLE_KEY = "midnight-mint-nozzle", PAPER_BACKS_KEY = "midnight-mint-paper-backs", FILAMENTS_KEY = "tesserae-filaments";
+export const flow: { way: string; printer: string; nozzle: string; backs: boolean; filaments: Record<string, string>; undo: Map<string, number> | null } = {
+  // 3D: the filament each of your colours prints in (a colour not here prints in its own); yours, in any collection
+  filaments: loadJSON<Record<string, string>>(FILAMENTS_KEY, {}) ?? {}, way: ((w) => (w === "paper" || w === "3d" ? w : ""))(loadJSON<string>(PRINT_WAY_KEY, "")),   // "": not chosen yet (asked first)
   printer: printerOf(loadJSON(PRINTER_KEY, "a1")).id,
   nozzle: nozzleOf(loadJSON(NOZZLE_KEY, "0.4")).id,   // 3D: the printer's nozzle, 0.4 mm (standard) or 0.2 mm
   backs: loadJSON<boolean>(PAPER_BACKS_KEY, true) !== false,   // paper: print the backs too (double-sided)
@@ -380,7 +408,7 @@ function renderPrintStep() {
   const queue = queueNow(), way = flow.way, detail = $("#printDetail");
   $("#printLead").textContent = t("print.lead", { n: queue.length });
   $$("#printPage [data-way]").forEach((b) => b.setAttribute("aria-checked", String(b.dataset.way === way)));
-  const swatches = (slots: number[]) => `<span class="sws">${slots.map((sl) => `<i class="sw" style="background:${FILAMENT_SLOTS[sl].hex}" title="${esc(filamentName(sl))}"></i>`).join("")}</span>`;
+  const swatches = (slots: number[]) => `<span class="sws">${slots.map((sl) => `<i class="sw" style="background:${filaments()[sl].hex}" title="${esc(filamentLabel(filaments()[sl].hex))}"></i>`).join("")}</span>`;
   let plan: PlatePlan<QueueItem> | null = null, planError: string | null = null, sheets: SheetSlot[][] = [];
   try { plan = queuePlan(); } catch (err) { planError = (err as Error).message; }
   try { sheets = layoutCoins(queue.map(paperSize)); } catch { /* shown below */ }
@@ -421,8 +449,22 @@ function renderPrintStep() {
     const testNote = test ? `<div class="q-note test-print"><span aria-hidden="true">✓</span><div>
       <p>${esc(t("print.test", { name: test.title, time: fmtT(plateFeatures([{ token: test.token, vol: tokenVolumes(test.q) }], flow.nozzle).minutes) }))}</p>
       <button class="action" type="button" data-test>${esc(t("print.testBtn"))}</button></div></div>` : "";
+    // each of your colours, and the filament it prints in: its own until you choose one you have (several may share one)
+    const pick = (c: string) => {
+      const now = filamentFor(c), others = [...new Set(planColours.map(filamentFor))].filter((f) => f !== now);
+      const sw = (hex: string, label: string, attrs = "") => `<button type="button" class="swatch" style="--c: ${hex}" data-fil-to="${hex}" data-fil-of="${c}" title="${esc(label)}" aria-label="${esc(label)}"${attrs}></button>`;
+      return `<details class="fil-pick"><summary><i class="sw" style="background:${now}"></i><b>${esc(filamentLabel(now))}</b><small>${esc(fmtG(gramsBy.get(slotOf(c as Hex)) || 0))}</small><span aria-hidden="true">▾</span></summary>
+        <div class="fil-menu">
+          ${now !== c ? `<button type="button" class="action action--quiet action--sm" data-fil-to="" data-fil-of="${c}">${esc(t("fil.own"))}</button>` : ""}
+          ${others.length ? `<p class="fil-h">${esc(t("fil.share"))}</p><div class="own-swatches">${others.map((f) => sw(f, filamentLabel(f))).join("")}</div>` : ""}
+          <p class="fil-h">Bambu PLA Basic</p><div class="own-swatches">${PLA_BASIC.map((b) => sw(b.hex.toLowerCase(), b.name[uiLang() === "es" ? "es" : "en"])).join("")}</div>
+          <p class="fil-h">${esc(t("fil.other"))}</p><label class="swatch sw-pick" title="${esc(t("metal.custom"))}"><input type="color" value="${now}" data-fil-pick="${c}" aria-label="${esc(t("metal.custom"))}"></label>
+        </div></details>`;
+    };
+    const filamentRows = planColours.map((c) => `<div class="fil-row"><i class="sw" style="background:${c}"></i><span class="fil-c">${esc(filamentLabel(c))}</span><span class="fil-arrow" aria-hidden="true">→</span>${pick(c)}</div>`).join("");
     detail.innerHTML = `${printers}${smallNote}${colourNotes("3d")}<h3 class="q-h">${esc(t("queue.filaments"))}</h3>
-      <p class="q-note">${swatches(slots)}<span>${esc(t("queue.filamentsNote", { list: slots.map((sl) => `${filamentName(sl)} ${fmtG(gramsBy.get(sl) || 0)}`).join(", ") }))}</span></p>
+      <p class="q-note"><span>${esc(t("fil.lead", { n: slots.length }))}</span></p>
+      <div class="fil-map">${filamentRows}</div>
       <p class="q-note"><span aria-hidden="true">⏱</span><span>${esc(t("print.estimate", { time: fmtT(totalMin), n: plan.plates.length }))}</span></p>
       ${testNote}
       ${pauses.length ? `<p class="q-note"><span aria-hidden="true">⏸</span><span>${esc(t("queue.pauses", { z: pauses.map((z) => String(z).replace(".", dec)).join(", ") }))}</span></p>` : ""}
@@ -468,6 +510,7 @@ export async function downloadBambu(one: QueueEntry | null = null, btn = $<HTMLB
     }
     const printer = printerOf(flow.printer);
     const nozzle = nozzleOf(flow.nozzle);
+    useFilaments(coloursUsed(items.map((it) => it.token as unknown as { parts: Partial<Record<PartName, unknown>>; colours: Partial<Record<PartName, Hex>> })), flow.filaments);   // the project's filaments, as chosen
     const { blob, plan, filaments } = await buildBambuProject(items, { printer: printer.id, nozzle: nozzle.id, title: collectionName(), onProgress: (d, total) => { out.textContent = t("queue.writing", { i: d, n: total }); } });
     const what = one ? `test-${fileSlug(items[0].title)}` : `${items.length}-tokens`;
     const file = `${fileSlug(collectionName()) || "tesserae-faber"}-${what}-${printer.short.toLowerCase().replace(/\s+/g, "-")}${nozzle.id === "0.4" ? "" : `-${nozzle.id}mm`}.3mf`;
@@ -486,7 +529,7 @@ export async function downloadBambu(one: QueueEntry | null = null, btn = $<HTMLB
       plate_count: plan.plates.length,
       is_test_export: Boolean(one),
     });
-    out.textContent = t("queue.done", { file, n: plan.plates.length, filaments: filaments.map((f) => t(`filament.${f.name}`)).join(", ") });
+    out.textContent = t("queue.done", { file, n: plan.plates.length, filaments: filaments.map((f) => filamentLabel(f.hex)).join(", ") });
   } catch (err) {
     out.className = "hint warn";
     out.textContent = t("queue.failed", { message: (err as Error).message });

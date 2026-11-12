@@ -5,8 +5,6 @@ import { TEAM_ORDER, state } from "./context.ts";
 import { tokenRole, tokenRem } from "./queue.ts";
 import { roleName, DEFAULT_SPEC, reminderSpec } from "../engine/token-engine.ts";
 import { lookOf } from "./designs.ts";
-import { t } from "../i18n.ts";
-import { FILAMENT_SLOTS } from "../bambu/plates.ts";
 
 // ------------------------------------------------------------ tokens: keys, text, style
 
@@ -49,4 +47,3 @@ export function textFor(key: string, role: Role, reminder: number | null): strin
   if (own != null && own !== "") return own;
   return reminder != null ? remindersOf(role)[reminder] : charName(role, key);
 }
-export const filamentName = (slot: number) => t(`filament.${FILAMENT_SLOTS[slot].name}`);

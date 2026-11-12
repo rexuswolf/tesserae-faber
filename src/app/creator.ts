@@ -1,13 +1,12 @@
 // Collections of your own: the creator, a token's panel, the collection's look and the list.
 import { emit } from "./events.ts";
 import { paintTesserae } from "./tesserae.ts";
-import { OWN, nameIn, storeMyLists, foldAbout, storeCollection, OWN_ID, builtIn, tallerUrl, readTokenList, newId, withName, copyBuiltIn, collectionUrl, collectionFile, readCollectionFile, addCollection, GROUP_COLOURS, SHAPES, collectionRoles, tokenRole as ownRole, isLocked, coinContent, THEMES, THEME_VARS, themeVars, APP_LOGO, APP_LOGO_SMALL, APP_ICON, APP_NAME, hasCcc, THEME_FONTS, okLogo, builtInCollections, listCollections, lastCollection, openUrl, OWN_VIEW, LIST_URL, starterCollection, loadCollection, deleteCollection, isUntouchedStarter } from "../collection.ts";
+import { OWN, nameIn, groupStandIn, renamedGroup, storeMyLists, foldAbout, storeCollection, OWN_ID, builtIn, tallerUrl, readTokenList, newId, withName, copyBuiltIn, collectionUrl, collectionFile, readCollectionFile, addCollection, GROUP_COLOURS, SHAPES, collectionRoles, tokenRole as ownRole, isLocked, coinContent, THEMES, THEME_VARS, themeVars, APP_LOGO, APP_LOGO_SMALL, APP_ICON, APP_NAME, hasCcc, THEME_FONTS, okLogo, builtInCollections, listCollections, lastCollection, openUrl, OWN_VIEW, LIST_URL, starterCollection, loadCollection, deleteCollection, isUntouchedStarter } from "../collection.ts";
 import type { OwnWord, OwnWords, OwnCatalog, OwnToken, OwnTheme, CollectionEntry, OwnFlip } from "../collection.ts";
-import { FILAMENT_SLOTS, slotOf, isFilament } from "../bambu/plates.ts";
-import { PLA_BASIC } from "../bambu/pla-basic.ts";
+import { FILAMENT_SLOTS } from "../bambu/plates.ts";
 import { coll, TEAM_ORDER, TEAM_PLURAL, PLATE_LABEL, PLATE_GROUP, $$, stickyNotice, state, $, esc, READONLY, hit, input, BUILT } from "./context.ts";
 import type { Role, Team, Hex, TokenShape, TokenIcon, TokenContent } from "../types.ts";
-import { uiLang, t, setOwnWords, applyStatic, appWord } from "../i18n.ts";
+import { uiLang, t, tIn, setOwnWords, applyStatic, appWord } from "../i18n.ts";
 import type { Word, WordKind } from "../i18n.ts";
 import { PRINT_GROUPS, persistPicks, renderDesignStage, setPick, goStep, editToken, settingsStep } from "./queue.ts";
 import { markdown } from "../markdown.ts";
@@ -18,7 +17,7 @@ import { UI_ICONS, TEAM_ICONS, uiIcon, SHAPE_ICONS } from "../ui-icons.ts";
 import { renderLangButtons, closeOnBackdrop, tokenLang } from "./token-language.ts";
 import { storeOverrides, designOf, defaultRef, lookOf } from "./designs.ts";
 import { roleById } from "./wiring.ts";
-import { charKey, remindersOf, sortKeys, filamentName } from "./tokens.ts";
+import { charKey, remindersOf, sortKeys } from "./tokens.ts";
 import { searchQuery, pickedBadge, selectToken } from "./sheet.ts";
 import { rememberReturn, toast } from "./design-sheet.ts";
 import { drawer, PHONE } from "./scripts-ui.ts";
@@ -258,27 +257,25 @@ export function wireOwn() {
   wireOwnToken();
 }
 
-/** A colour's name: the app's filament's (Yellow and Gold are two, alike on a screen), else Bambu's PLA Basic one's, else its code. */
+/** A colour's name: a basic one's (Yellow and Gold are two, alike on a screen), else its code. */
 const colourName = (hex: string) => {
-  const h = hex.toLowerCase(), f = FILAMENT_SLOTS.find((x) => x.hex === h), b = PLA_BASIC.find((x) => x.hex === h);
-  return f ? t(`metal.${f.name.toLowerCase()}`) : b ? `${b.name[uiLang() === "es" ? "es" : "en"]} · Bambu PLA Basic` : hex;
+  const h = hex.toLowerCase(), f = FILAMENT_SLOTS.find((x) => x.hex === h);
+  return f ? t(`metal.${f.name.toLowerCase()}`) : h.toUpperCase();
 };
 /** The metal filaments: their swatches and dots have a sheen, so Gold isn't Yellow. */
 const METAL = new Set(FILAMENT_SLOTS.filter((f) => ["Gold", "Silver", "Bronze"].includes(f.name)).map((f) => f.hex));
 const metal = (hex: string) => (METAL.has(hex.toLowerCase()) ? " metal" : "");
 /** The colours a group can have, as swatches named after their filaments; `data` is each one's attributes. */
 /**
- * The colours: the app's filaments (the Bambu project prints them as they are), then Bambu's PLA
- * Basic ones. Its colour pressed (whatever its case); one not among them (a file's own, picked
- * elsewhere) is shown too, pressed, at the end; one that isn't the app's filament says which it prints in.
+ * The colours: the basic ones, then any other with the picker (`pick`: its input's attributes; it says its
+ * colour on change). Its colour pressed (whatever its case); one not among them is shown too, pressed,
+ * before the picker. Which filament prints each colour is chosen when printing in 3D, not here.
  */
-const colourSwatches = (now: string | undefined, data: (hex: string) => string) => {
-  const cur = now?.toLowerCase(), bambu = PLA_BASIC.map((b) => b.hex.toLowerCase());
-  const known = (GROUP_COLOURS as string[]).includes(cur ?? "") || bambu.includes(cur ?? "");
+const colourSwatches = (now: string | undefined, data: (hex: string) => string, pick: string) => {
+  const cur = now?.toLowerCase(), known = (GROUP_COLOURS as string[]).includes(cur ?? "");
   const sw = (c: string) => `<button type="button" class="swatch${metal(c)}" style="--c: ${c}" ${data(c)} aria-pressed="${c === cur}" aria-label="${esc(colourName(c))}" title="${esc(colourName(c))}"></button>`;
-  return GROUP_COLOURS.map(sw).join("")
-    + `<small class="sw-head">Bambu PLA Basic</small>` + bambu.map(sw).join("") + (cur && !known ? sw(cur) : "")
-    + (cur && !isFilament(cur) ? `<small class="sw-note">${esc(t("metal.prints", { name: filamentName(slotOf(cur as Hex)) }))}</small>` : "");
+  return GROUP_COLOURS.map(sw).join("") + (cur && !known ? sw(cur) : "")
+    + `<label class="swatch sw-pick" title="${esc(t("metal.custom"))}"><input type="color" value="${esc(cur && /^#[0-9a-f]{6}$/.test(cur) ? cur : "#808080")}" aria-label="${esc(t("metal.custom"))}" ${pick}></label>`;
 };
 
 /**
@@ -289,7 +286,7 @@ function renderOwnGroups() {
   const lang = uiLang();
   $("#ownGroupList").innerHTML = coll.groups.map((g) => `<div class="own-group">
     <details class="og-colour"><summary class="og-dot${metal(g.colour)}" style="--c: ${g.colour}" title="${esc(colourName(g.colour))}" aria-label="${esc(t("own.colour"))}: ${esc(colourName(g.colour))}"></summary>
-      <span class="own-swatches og-menu">${colourSwatches(g.colour, (c) => `data-colour="${c}" data-for="${esc(g.id)}"`)}</span></details>
+      <span class="own-swatches og-menu">${colourSwatches(g.colour, (c) => `data-colour="${c}" data-for="${esc(g.id)}"`, `data-cpick data-for="${esc(g.id)}"`)}</span></details>
     <input class="input" value="${esc(nameIn(g.name, lang))}" data-gname="${esc(g.id)}" aria-label="${esc(t("own.groupNameLabel"))}">
     <small>${esc(t("own.groupCount", { n: coll.tokens.filter((tk) => tk.group === g.id).length }))}</small>
     ${coll.groups.length > 1 ? `<button class="action action--quiet action--sm" type="button" data-gdel="${esc(g.id)}">${esc(t("own.deleteGroup"))}</button>` : "<span></span>"}
@@ -530,29 +527,40 @@ function contentWithIcon(tk: OwnToken, shape: TokenShape, icon: TokenIcon | null
  * The token's own colour, over its group's (what "the group's colour" is in its design): a menu with
  * the group's first, then the colours a group can have.
  */
+/** More options, closed: what's set in it, or what it has. */
+function renderMoreSummary(tk: OwnToken) {
+  const set = [tk.colour ? t("own.moreColour") : "", tk.linked.length ? t("own.moreLinked", { n: tk.linked.length }) : ""].filter(Boolean);
+  $("#ownTokMoreSum").textContent = set.length ? set.join(" · ") : t("own.moreSub");
+}
 function renderTokenColour(tk: OwnToken) {
+  renderMoreSummary(tk);
   const usual = t("own.colourGroup");   // its group's, even a collection's only one (there's no colour of the collection's)
   $("#ownTokColourHelp").textContent = t("own.colourHelp");
   const group = coll.groups.find((g) => g.id === tk.group)?.colour ?? GROUP_COLOURS[0], now = tk.colour ?? group;
   $("#ownTokColour summary").innerHTML = `<i class="${metal(now).trim()}" style="--c: ${now}"></i><span>${esc(tk.colour ? colourName(tk.colour) : usual)}</span><b aria-hidden="true">▾</b>`;
   $("#ownTokColour .tok-colour-menu").innerHTML = `<button class="choice group-pill" type="button" data-tcolour="" aria-pressed="${!tk.colour}" style="--c: ${group}"><i class="${metal(group).trim()}"></i>${esc(usual)}</button>`
-    + `<span class="own-swatches">${colourSwatches(tk.colour, (c) => `data-tcolour="${c}"`)}</span>`;
+    + `<span class="own-swatches">${colourSwatches(tk.colour, (c) => `data-tcolour="${c}"`, "data-tpick")}</span>`;
 }
 /** The groups as their colours, the token's pressed, and a new one. */
 function renderGroupPills(tk: OwnToken) {
   $("#ownTokGroups").innerHTML = coll.groups.map((g) => `<button class="choice group-pill" type="button" data-group="${esc(g.id)}" aria-pressed="${g.id === tk.group}" style="--c: ${g.colour}"><i class="${metal(g.colour).trim()}"></i>${esc(nameIn(g.name, uiLang()))}</button>`).join("")
+    + `<button class="action action--quiet" type="button" data-group-edit aria-expanded="${groupEditing}">${esc(t(groupEditing ? "own.groupEditDone" : "own.groupEdit"))}</button>`
     + `<button class="action" type="button" data-group-new>${esc(t("own.groupNew"))}</button>`;
   renderGroupEdit(tk);
 }
+/** Whether the category's name and colour are open to change (Edit, or a category just made). */
+let groupEditing = false;
 /** The token's group, changed right here: its name and its colour (every token in it follows). */
 function renderGroupEdit(tk: OwnToken) {
-  const g = coll.groups.find((x) => x.id === tk.group);
+  const g = groupEditing ? coll.groups.find((x) => x.id === tk.group) : undefined;
+  $("#ownTokGroupEdit").hidden = !g;
   $("#ownTokGroupEdit").innerHTML = !g ? "" : `<input class="input" id="ownTokGroupName" value="${esc(nameIn(g.name, uiLang()))}" data-geid="${esc(g.id)}" aria-label="${esc(t("own.groupNameLabel"))}" autocomplete="off">`
-    + `<span class="own-swatches">${colourSwatches(g.colour, (c) => `data-gcolour="${c}"`)}</span>`
+    + `<span class="own-swatches">${colourSwatches(g.colour, (c) => `data-gcolour="${c}"`, "data-gpick")}</span>`
     + `<small class="hint">${esc(t("own.groupEditHelp"))}</small>`;
 }
 function renderOwnLinked(tk: OwnToken) {
   const lang = tokenLang();
+  renderMoreSummary(tk);
   $("#ownTokLinked").innerHTML = tk.linked.map((w, i) => `<span class="own-link"><input class="input" value="${esc(nameIn(w, lang))}" data-li="${i}" aria-label="${esc(t("own.linked"))}"><button class="action action--quiet action--sm" type="button" data-ldel="${i}" aria-label="${esc(t("own.remove"))}">✕</button></span>`).join("");
 }
 /** The back: like the other tokens' (its design's, named), or its other state, with its name and icon. */
@@ -655,9 +663,11 @@ function wireOwnToken() {
     const tk = editingOwn(); if (!tk) return;
     const g = hit(e, "[data-group]");
     if (g) { tk.group = g.dataset.group!; renderGroupPills(tk); renderTokenColour(tk); ownEdited(); return; }
+    if (hit(e, "[data-group-edit]")) { groupEditing = !groupEditing; renderGroupPills(tk); if (groupEditing) $<HTMLInputElement>("#ownTokGroupName").focus(); return; }
     if (hit(e, "[data-group-new]")) {
+      groupEditing = true;
       const used = new Set(coll.groups.map((x) => x.colour)), id = newId("g");
-      coll.groups.push({ id, name: t("own.groupName", { n: coll.groups.length + 1 }), colour: GROUP_COLOURS.find((c) => !used.has(c)) ?? GROUP_COLOURS[0] });
+      coll.groups.push({ id, name: coll.words?.group ? t("own.groupName", { n: coll.groups.length + 1 }) : groupStandIn(coll.groups.length + 1), colour: GROUP_COLOURS.find((c) => !used.has(c)) ?? GROUP_COLOURS[0] });
       tk.group = id;
       collectionChanged(); renderGroupPills(tk); renderTokenColour(tk);
       const name = $<HTMLInputElement>("#ownTokGroupName"); name.focus(); name.select();   // named at once
@@ -667,13 +677,15 @@ function wireOwnToken() {
   const editedGroup = () => coll.groups.find((x) => x.id === $<HTMLInputElement>("#ownTokGroupName")?.dataset.geid);
   $("#ownTokGroupEdit").oninput = (e) => {
     const g = editedGroup(), name = input(e).value; if (!g || !name.trim()) return;
-    g.name = withName(g.name, uiLang(), name.trim());
+    g.name = renamedGroup(g.name, uiLang(), name.trim());
     const pill = $(`#ownTokGroups [data-group="${CSS.escape(g.id)}"]`);
     pill.lastChild!.textContent = name.trim();
     ownEdited();
   };
-  $("#ownTokGroupEdit").onchange = (e) => {   // left empty: its name as it was
-    const g = editedGroup(); if (g && !input(e).value.trim()) input(e).value = nameIn(g.name, uiLang());
+  $("#ownTokGroupEdit").onchange = (e) => {
+    const tk = editingOwn(), g = editedGroup(); if (!g) return;
+    if (input(e).matches("[data-gpick]")) { if (!tk) return; g.colour = input(e).value.toLowerCase() as Hex; collectionChanged(); renderGroupPills(tk); renderTokenColour(tk); ownEdited(); return; }
+    if (!input(e).value.trim()) input(e).value = nameIn(g.name, uiLang());   // left empty: its name as it was
   };
   $("#ownTokGroupEdit").onclick = (e) => {
     const tk = editingOwn(), g = editedGroup(), b = hit(e, "[data-gcolour]"); if (!tk || !g || !b) return;
@@ -685,6 +697,11 @@ function wireOwnToken() {
     const tk = editingOwn(), b = hit(e, "[data-tcolour]"); if (!tk || !b) return;
     if (b.dataset.tcolour) tk.colour = b.dataset.tcolour; else delete tk.colour;
     $<HTMLDetailsElement>("#ownTokColour").open = false;
+    renderTokenColour(tk); ownEdited();
+  };
+  $("#ownTokColour").onchange = (e) => {
+    const tk = editingOwn(); if (!tk || !input(e).matches("[data-tpick]")) return;
+    tk.colour = input(e).value.toLowerCase();
     renderTokenColour(tk); ownEdited();
   };
   $("#ownTokCats").onchange = (e) => {
@@ -892,10 +909,14 @@ function wireOwnSettings() {
   const groupsChanged = () => { applyGroups(); renderOwnGroups(); changed(); };
   $("#ownGroupAdd").onclick = () => {
     const used = new Set(coll.groups.map((g) => g.colour));
-    coll.groups.push({ id: newId("g"), name: t("own.groupName", { n: coll.groups.length + 1 }), colour: GROUP_COLOURS.find((c) => !used.has(c)) ?? GROUP_COLOURS[0] });
+    coll.groups.push({ id: newId("g"), name: coll.words?.group ? t("own.groupName", { n: coll.groups.length + 1 }) : groupStandIn(coll.groups.length + 1), colour: GROUP_COLOURS.find((c) => !used.has(c)) ?? GROUP_COLOURS[0] });
     groupsChanged();
     $<HTMLInputElement>("#ownGroupList .own-group:last-child input").select();
   };
+  $("#ownGroupList").addEventListener("change", (e) => {
+    const el = e.target as HTMLInputElement, g = el.matches("[data-cpick]") && coll.groups.find((x) => x.id === el.dataset.for);
+    if (g) { g.colour = el.value.toLowerCase() as Hex; groupsChanged(); }
+  });
   $("#ownGroupList").onclick = (e) => {
     const sw = hit(e, "[data-colour]"), del = hit(e, "[data-gdel]");
     if (sw) { coll.groups.find((g) => g.id === sw.dataset.for)!.colour = sw.dataset.colour as Hex; groupsChanged(); }
@@ -913,11 +934,12 @@ function wireOwnSettings() {
   });
   $("#ownGroupList").addEventListener("toggle", (e) => {
     const d = e.target as HTMLDetailsElement;
+    if (!d.matches(".og-colour")) return;   // its More colours, opened inside it, leaves it open
     if (d.open) for (const x of $$<HTMLDetailsElement>("#ownGroupList .og-colour[open]")) if (x !== d) x.open = false;
   }, true);
   $("#ownGroupList").oninput = (e) => {
     const el = e.target as HTMLInputElement, g = coll.groups.find((x) => x.id === el.dataset.gname); if (!g || !el.value.trim()) return;
-    g.name = withName(g.name, uiLang(), el.value.trim()); applyGroups(); changed();
+    g.name = renamedGroup(g.name, uiLang(), el.value.trim()); applyGroups(); changed();
   };
   // its names for the app's words: as they're written, the app says them
   const wordChanged = (e: Event) => {
@@ -1012,11 +1034,11 @@ function created(how: "blank" | "quick" | "copy", from?: string) {
 }
 function wireOwnHome() {
   const note = (k: string, v = {}) => { for (const el of $$("[data-own-note]")) el.textContent = t(k, v); };
-  for (const b of $$("[data-own-new]")) b.onclick = () => { const id = addCollection(starterCollection(uiLang())); if (id) { created("blank"); location.href = collectionUrl(id); } else note("own.storageFull"); };
+  for (const b of $$("[data-own-new]")) b.onclick = () => { const id = addCollection(starterCollection()); if (id) { created("blank"); location.href = collectionUrl(id); } else note("own.storageFull"); };
   // a token first, no collection to think of: it goes in the one you were last in, or in a new "My tokens"
   for (const b of $$("[data-tok-new]")) b.onclick = () => {
     const last = lastCollection(), mine = last && !builtIn(last) && listCollections().some((c) => c.id === last) ? last : null;
-    const id = mine ?? addCollection({ ...starterCollection(uiLang()), name: t("own.quickName") });
+    const id = mine ?? addCollection({ ...starterCollection(), name: { es: tIn("es", "own.quickName"), en: tIn("en", "own.quickName") } });
     if (!id) { note("own.storageFull"); return; }
     if (!mine) created("quick");
     const q = new URLSearchParams({ nueva: "" });

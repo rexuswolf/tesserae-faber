@@ -17,23 +17,23 @@ export const COIN_DESIGNS = {
   // the thinnest token that holds up: one layer of colour on 1 mm of black (opaque, stiff at 45 mm), no back
   rapida: {
     id: "rapida", name: { es: "Impresión rápida", en: "Fast print" },
-    help: { es: "Negra y del color del grupo, sin reverso y lo más fina posible (1,2 mm): la más rápida.", en: "Black and the group colour, no back and as thin as it gets (1.2 mm): the quickest." },
+    help: { es: "Negra y del color de la categoría, sin reverso y lo más fina posible (1,2 mm): la más rápida.", en: "Black and the category colour, no back and as thin as it gets (1.2 mm): the quickest." },
     spec: { style: "classic", height: 1.2, frame: "rim", frameWidth: 0.8, back: "none", depth: 0.2, colours: { base: black, front: "team", frame: "team", back: gold } },
   },
   legible: {
     id: "legible", name: { es: "Alta legibilidad", en: "High legibility" },
-    help: { es: "Blanca, una ventana plana con letras grandes del color del grupo, sin reverso: se lee desde el otro lado de la mesa.", en: "White, a flat window with big letters in the group colour, no back: it reads from across the table." },
+    help: { es: "Blanca, una ventana plana con letras grandes del color de la categoría, sin reverso: se lee desde el otro lado de la mesa.", en: "White, a flat window with big letters in the category colour, no back: it reads from across the table." },
     spec: { style: "window", textSize: 6, frame: "none", back: "none", depth: 0.4, colours: { base: white, front: "team", frame: "team", back: gold } },
   },
   marfil: {
     id: "marfil", name: { es: "Marfil", en: "Ivory" },
-    help: { es: "Blanca, con el marco del color del grupo y el reverso grabado en bronce.", en: "White, with the frame in the group colour and an engraved bronze back." },
+    help: { es: "Blanca, con el marco del color de la categoría y el reverso grabado en bronce.", en: "White, with the frame in the category colour and an engraved bronze back." },
     spec: { style: "classic", frame: "rim", frameWidth: 1.0, back: "guilloche", depth: 0.4, colours: { base: white, front: "team", frame: "team", back: bronze } },
   },
   // raised letters: on white the group colour reads by its edge too, even a pale one
   pergamino: {
     id: "pergamino", name: { es: "Pergamino", en: "Parchment" },
-    help: { es: "Blanca, con las letras en relieve del color del grupo y el nombre de la colección en negro al reverso.", en: "White, with raised letters in the group colour and the collection's name in black on the back." },
+    help: { es: "Blanca, con las letras en relieve del color de la categoría y el nombre de la colección en negro al reverso.", en: "White, with raised letters in the category colour and the collection's name in black on the back." },
     spec: { style: "classic", frame: "rim", frameWidth: 1.0, back: "edition", depth: 0.4, relief: { text: true, frame: false, icon: false }, reliefHeight: 0.6, colours: { base: white, front: "team", frame: "team", back: black } },
   },
   // a struck coin: icon, milled frame and name raised in the coin's own metal, a reeded side edge;
@@ -54,7 +54,7 @@ export const COIN_DESIGNS = {
 export const RING_DESIGNS = {
   "aro-color": {
     id: "aro-color", name: { es: "Aro de color", en: "Colour ring" },
-    help: { es: "El aro entero del color del grupo y el nombre en negro, sin líneas: el color se ve de lejos y de lado.", en: "The whole ring in the group colour and the name in black, no lines: the colour shows from afar and from the side." },
+    help: { es: "El aro entero del color de la categoría y el nombre en negro, sin líneas: el color se ve de lejos y de lado.", en: "The whole ring in the category colour and the name in black, no lines: the colour shows from afar and from the side." },
     spec: { frame: "none", textSize: 4, height: 2, depth: 0.4, colours: { base: "team", front: black, frame: black } },
   },
   "relieve-alto": {
@@ -64,12 +64,12 @@ export const RING_DESIGNS = {
   },
   filos: {
     id: "filos", name: { es: "Filos marcados", en: "Bold edges" },
-    help: { es: "Negro, el nombre en blanco y una línea gruesa del color del grupo en cada borde, en relieve: el color enmarca el aro y se nota al tacto.", en: "Black, the name in white and a thick raised line in the group colour along each edge: the colour frames the ring, and you can feel it." },
+    help: { es: "Negro, el nombre en blanco y una línea gruesa del color de la categoría en cada borde, en relieve: el color enmarca el aro y se nota al tacto.", en: "Black, the name in white and a thick raised line in the category colour along each edge: the colour frames the ring, and you can feel it." },
     spec: { frame: "rim", frameWidth: 1.5, textSize: 3.2, height: 2, depth: 0.4, relief: { text: false, frame: true, icon: false }, reliefHeight: 0.4, colours: { base: black, front: white, frame: "team" } },
   },
   rapida: {
     id: "rapida", name: { es: "Exprés", en: "Express" },
-    help: { es: "Negro con el nombre del color del grupo, sin líneas, plano y de 1,2 mm: dos filamentos, el más rápido.", en: "Black with the name in the group colour, no lines, flat and 1.2 mm thick: two filaments, the quickest." },
+    help: { es: "Negro con el nombre del color de la categoría, sin líneas, plano y de 1,2 mm: dos filamentos, el más rápido.", en: "Black with the name in the category colour, no lines, flat and 1.2 mm thick: two filaments, the quickest." },
     spec: { frame: "none", textSize: 4, height: 1.2, depth: 0.4, colours: { base: black, front: "team", frame: "team" } },
   },
 } satisfies Record<string, StyleDef>;
@@ -79,17 +79,17 @@ export const RING_DESIGNS = {
 export const BASE_DESIGNS = {
   "bandeja-color": {
     id: "bandeja-color", name: { es: "Bandeja de color", en: "Colour tray" },
-    help: { es: "La bandeja entera del color del grupo y el texto en negro en relieve de 0,6 mm, sin líneas: se ve de lejos qué miniatura es, y se imprime con un solo cambio de color.", en: "The whole tray in the group colour and the text in black, raised 0.6 mm, no lines: you can tell the miniature from afar, and it prints with a single colour change." },
+    help: { es: "La bandeja entera del color de la categoría y el texto en negro en relieve de 0,6 mm, sin líneas: se ve de lejos qué miniatura es, y se imprime con un solo cambio de color.", en: "The whole tray in the category colour and the text in black, raised 0.6 mm, no lines: you can tell the miniature from afar, and it prints with a single colour change." },
     spec: { frame: "none", height: 2.5, depth: 0.4, relief: { text: true, frame: false, icon: false }, reliefHeight: 0.6, colours: { base: "team", front: black, frame: black } },
   },
   "bandeja-negra": {
     id: "bandeja-negra", name: { es: "Bandeja negra", en: "Black tray" },
-    help: { es: "Negra, el texto del color del grupo y una línea fina del mismo color por el borde y alrededor de la peana, en relieve de 0,6 mm: un solo cambio de color.", en: "Black, the text in the group colour and a fine line in the same colour along the edge and round the base, raised 0.6 mm: a single colour change." },
+    help: { es: "Negra, el texto del color de la categoría y una línea fina del mismo color por el borde y alrededor de la peana, en relieve de 0,6 mm: un solo cambio de color.", en: "Black, the text in the category colour and a fine line in the same colour along the edge and round the base, raised 0.6 mm: a single colour change." },
     spec: { frame: "rim", frameWidth: 0.8, height: 2.5, depth: 0.4, relief: { text: true, frame: true, icon: false }, reliefHeight: 0.6, colours: { base: black, front: "team", frame: "team" } },
   },
   "bandeja-relieve": {
     id: "bandeja-relieve", name: { es: "Negra sin líneas", en: "Plain black" },
-    help: { es: "Negra, sin líneas, con el texto del color del grupo en relieve de 0,6 mm: se nota al tacto y se lee de lado.", en: "Black, no lines, the text in the group colour raised 0.6 mm: you can feel it and read it from the side." },
+    help: { es: "Negra, sin líneas, con el texto del color de la categoría en relieve de 0,6 mm: se nota al tacto y se lee de lado.", en: "Black, no lines, the text in the category colour raised 0.6 mm: you can feel it and read it from the side." },
     spec: { frame: "none", height: 2.5, depth: 0.4, relief: { text: true, frame: false, icon: false }, reliefHeight: 0.6, colours: { base: black, front: "team", frame: "team" } },
   },
 } satisfies Record<string, StyleDef>;
@@ -98,37 +98,37 @@ export const BASE_DESIGNS = {
 export const CARD_DESIGNS = {
   pergamino: {
     id: "pergamino", name: { es: "Pergamino", en: "Parchment" },
-    help: { es: "Blanca, la frase en negro y un marco ancho del color del grupo: se lee de lejos, y el color se ve igual.", en: "White, the phrase in black and a wide frame in the group colour: it reads from afar, and so does the colour." },
+    help: { es: "Blanca, la frase en negro y un marco ancho del color de la categoría: se lee de lejos, y el color se ve igual.", en: "White, the phrase in black and a wide frame in the category colour: it reads from afar, and so does the colour." },
     spec: { frame: "rim", frameWidth: 2, height: 2, depth: 0.4, colours: { base: white, front: black, frame: "team" } },
   },
   placa: {
     id: "placa", name: { es: "Placa de color", en: "Colour plate" },
-    help: { es: "La tarjeta entera del color del grupo, con la frase y una línea fina en negro: el grupo se ve de un vistazo.", en: "The whole card in the group colour, with the phrase and a fine line in black: the group shows at a glance." },
+    help: { es: "La tarjeta entera del color de la categoría, con la frase y una línea fina en negro: la categoría se ve de un vistazo.", en: "The whole card in the category colour, with the phrase and a fine line in black: the category shows at a glance." },
     spec: { frame: "rim", frameWidth: 0.6, height: 2, depth: 0.4, colours: { base: "team", front: black, frame: black } },
   },
   filete: {
     id: "filete", name: { es: "Marco dorado", en: "Gold trim" },
-    help: { es: "Negra, la frase en blanco y un marco de oro, como un libro antiguo: la misma sea cual sea el grupo.", en: "Black, the phrase in white and a gold frame, like an old book's: the same whatever the group." },
+    help: { es: "Negra, la frase en blanco y un marco de oro, como un libro antiguo: la misma sea cual sea la categoría.", en: "Black, the phrase in white and a gold frame, like an old book's: the same whatever the category." },
     spec: { frame: "rim", frameWidth: 1.2, height: 2, depth: 0.4, colours: { base: black, front: white, frame: gold } },
   },
   laureles: {
     id: "laureles", name: { es: "Laureles", en: "Laurels" },
-    help: { es: "La tarjeta del color del grupo, la frase en negro y una línea fina con una ramita de laurel en cada esquina, también en negro.", en: "The card in the group colour, the phrase in black and a fine line with a sprig of laurel in each corner, black too." },
+    help: { es: "La tarjeta del color de la categoría, la frase en negro y una línea fina con una ramita de laurel en cada esquina, también en negro.", en: "The card in the category colour, the phrase in black and a fine line with a sprig of laurel in each corner, black too." },
     spec: { frame: "laurel", frameWidth: 0.6, height: 2, depth: 0.4, colours: { base: "team", front: black, frame: black } },
   },
   contraste: {
     id: "contraste", name: { es: "Contraste", en: "Contrast" },
-    help: { es: "Negra, la frase en blanco y una línea fina del color del grupo: la frase, lo más legible; el grupo, en el marco.", en: "Black, the phrase in white and a fine line in the group colour: the phrase as legible as it gets, the group in the frame." },
+    help: { es: "Negra, la frase en blanco y una línea fina del color de la categoría: la frase, lo más legible; la categoría, en el marco.", en: "Black, the phrase in white and a fine line in the category colour: the phrase as legible as it gets, the category in the frame." },
     spec: { frame: "rim", frameWidth: 0.6, height: 2, depth: 0.4, colours: { base: black, front: white, frame: "team" } },
   },
   rapida: {
     id: "rapida", name: { es: "Exprés", en: "Express" },
-    help: { es: "Negra con la frase del color del grupo, sin marco y de 1,2 mm: la más rápida.", en: "Black with the phrase in the group colour, no frame and 1.2 mm thick: the quickest." },
+    help: { es: "Negra con la frase del color de la categoría, sin marco y de 1,2 mm: la más rápida.", en: "Black with the phrase in the category colour, no frame and 1.2 mm thick: the quickest." },
     spec: { frame: "none", height: 1.2, depth: 0.4, colours: { base: black, front: "team", frame: "team" } },
   },
   esquinas: {
     id: "esquinas", name: { es: "Esquineras", en: "Corners" },
-    help: { es: "Negra, la frase del color del grupo y, en lugar de un marco entero, una escuadra en cada esquina: como las cartas antiguas.", en: "Black, the phrase in the group colour and, instead of a whole frame, a bracket at each corner: like old playing cards." },
+    help: { es: "Negra, la frase del color de la categoría y, en lugar de un marco entero, una escuadra en cada esquina: como las cartas antiguas.", en: "Black, the phrase in the category colour and, instead of a whole frame, a bracket at each corner: like old playing cards." },
     spec: { frame: "corners", frameWidth: 1.2, height: 2, depth: 0.4, colours: { base: black, front: "team", frame: "team" } },
   },
 } satisfies Record<string, StyleDef>;
@@ -137,7 +137,7 @@ export const CARD_DESIGNS = {
 export const PIECE_DESIGNS = {
   "pieza-silueta": {
     id: "pieza-silueta", name: { es: "Silueta", en: "Silhouette" },
-    help: { es: "La silueta del icono, 2 mm más ancha, del color del grupo, con el icono en blanco en relieve encima.", en: "The icon's silhouette, 2 mm wider, in the group colour, with the icon raised in white on top." },
+    help: { es: "La silueta del icono, 2 mm más ancha, del color de la categoría, con el icono en blanco en relieve encima.", en: "The icon's silhouette, 2 mm wider, in the category colour, with the icon raised in white on top." },
     spec: { pieceShape: "silhouette", pieceMargin: 2, pieceIcon: true, diameter: 25, height: 4, depth: 0.4, relief: { text: false, frame: false, icon: true }, reliefHeight: 0.6, colours: { base: "team", front: white, frame: white } },
   },
   "pieza-lisa": {
@@ -147,12 +147,12 @@ export const PIECE_DESIGNS = {
   },
   "pieza-negra": {
     id: "pieza-negra", name: { es: "Silueta negra", en: "Black silhouette" },
-    help: { es: "La silueta en negro y el icono del color del grupo en relieve.", en: "The silhouette in black and the icon raised in the group colour." },
+    help: { es: "La silueta en negro y el icono del color de la categoría en relieve.", en: "The silhouette in black and the icon raised in the category colour." },
     spec: { pieceShape: "silhouette", pieceMargin: 2, pieceIcon: true, diameter: 25, height: 4, depth: 0.4, relief: { text: false, frame: false, icon: true }, reliefHeight: 0.6, colours: { base: black, front: "team", frame: "team" } },
   },
   "pieza-hexagono": {
     id: "pieza-hexagono", name: { es: "Hexágono", en: "Hexagon" },
-    help: { es: "Un hexágono del color del grupo con el icono en blanco en relieve: un marcador que encaja en un tablero de hexágonos.", en: "A hexagon in the group colour with the icon raised in white: a marker that sits on a hex board." },
+    help: { es: "Un hexágono del color de la categoría con el icono en blanco en relieve: un marcador que encaja en un tablero de hexágonos.", en: "A hexagon in the category colour with the icon raised in white: a marker that sits on a hex board." },
     spec: { pieceShape: "hexagon", pieceIcon: true, diameter: 25, height: 4, depth: 0.4, relief: { text: false, frame: false, icon: true }, reliefHeight: 0.6, colours: { base: "team", front: white, frame: white } },
   },
 } satisfies Record<string, StyleDef>;

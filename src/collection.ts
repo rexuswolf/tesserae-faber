@@ -137,12 +137,12 @@ export type CollectionStyles = Partial<Record<TokenShape, StyleDef[]>>;
  * collection's name in gold on the back), so the style a token already had from it is this one.
  */
 const BASIC: StyleDef = {
-  id: "edicion", name: { es: "Básico", en: "Basic" }, help: { es: "Negra, con el color del grupo y el reverso liso.", en: "Black, with the group colour and a plain back." },
+  id: "edicion", name: { es: "Básico", en: "Basic" }, help: { es: "Negra, con el color de la categoría y el reverso liso.", en: "Black, with the category colour and a plain back." },
   spec: { style: "classic", frame: "rim", frameWidth: 0.8, back: "none", depth: 0.4, colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } },
 };
 /** Básico as it was, with the collection's name in gold on the back: a collection kept with it gets today's. */
 const BASIC_WAS: StyleDef = {
-  id: "edicion", name: { es: "Básico", en: "Basic" }, help: { es: "Negra, con el color del grupo y el nombre de la colección en oro al reverso.", en: "Black, with the group colour and the collection's name in gold on the back." },
+  id: "edicion", name: { es: "Básico", en: "Basic" }, help: { es: "Negra, con el color de la categoría y el nombre de la colección en oro al reverso.", en: "Black, with the category colour and the collection's name in gold on the back." },
   spec: { style: "classic", frame: "rim", frameWidth: 0.8, back: "edition", depth: 0.4, colours: { base: FILAMENTS.black, front: "team", frame: "team", back: FILAMENTS.gold } },
 };
 /**
@@ -313,15 +313,21 @@ const STARTER = {
 /** The first collection's token, as it came (nobody named it, gave it an icon or anything else): a placeholder to drop once there are real ones. */
 export const isUntouchedStarter = (tk: OwnToken) =>
   tk.id === "t1" && !tk.icon && !tk.linked.length && !tk.flip && !tk.colour && !tk.content && Object.values(STARTER).some((s) => nameIn(tk.name, "es") === s.token || nameIn(tk.name, "en") === s.token);
-/** A first collection: one category, one token, and no lists yet. */
-export const starterCollection = (lang = "es"): Collection => {
-  const s = lang === "es" ? STARTER.es : STARTER.en;
+/** The app's stand-in names, in both its languages: each shown in the language the app is in, whichever it was made in. */
+const both = (k: keyof (typeof STARTER)["es"], n?: number): Names => ({ es: n ? `${STARTER.es[k]} ${n}` : STARTER.es[k], en: n ? `${STARTER.en[k]} ${n}` : STARTER.en[k] });
+/** A category's stand-in name ("Category 2"), until it's given one. */
+export const groupStandIn = (n: number): Names => both("group", n);
+/** A category renamed: a stand-in name gives way to the one written (in every language); a name of its own changes in this one. */
+export const renamedGroup = (n: Names, lang: string, v: string): Names =>
+  typeof n === "object" && Object.values(n).every((x) => /^(?:Categoría|Category) \d+$/.test(x)) ? v : withName(n, lang, v);
+/** A first collection: one category, one token, and no lists yet; named in both languages until they're named. */
+export const starterCollection = (): Collection => {
   return {
-    name: s.name,
-    // one category, unseen until there are more
-    groups: [{ id: "g1", name: `${s.group} 1`, colour: GROUP_COLOURS[0] }],
+    name: both("name"),
+    // one category
+    groups: [{ id: "g1", name: groupStandIn(1), colour: GROUP_COLOURS[0] }],
     // one token to start from: the app always has something to show and design
-    tokens: [{ id: "t1", shape: "coin", group: "g1", name: s.token, icon: null, linked: [] }],
+    tokens: [{ id: "t1", shape: "coin", group: "g1", name: both("token"), icon: null, linked: [] }],
     catalogs: [],
     styles: basicStyles(),
   };
@@ -358,6 +364,8 @@ export function dropTypes(c: { tokens: (OwnToken & { type?: string })[]; types?:
 /** A collection kept before: its types and sections (dropTypes), and older ways still. */
 function upgrade(c: Collection & { types?: OldType[]; sections?: OldSection[] }): Collection {
   if (c.types || c.sections) dropTypes(c);
+  // a category still called what the app called it, in one language ("Categoría 1"): in both, so it's said in the app's
+  for (const g of c.groups) { const m = typeof g.name === "string" && /^(?:Categoría|Category|Grupo|Group) (\d+)$/.exec(g.name); if (m) g.name = groupStandIn(+m[1]); }
   c.catalogs ??= [];
   upgradeBasicStyles(c.styles);
   if (c.about) { const about = foldAbout(c.about); if (about) c.about = about; else delete c.about; }   // its credits and links: in its text now

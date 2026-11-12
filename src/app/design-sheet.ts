@@ -4,8 +4,7 @@ import type { TokenShape, TokenSpec, MyDesign, TokenOverride, Role, PatternSpec,
 import { DEFAULT_SPEC, reminderSpec, tokenSvg, SHAPE_FEATURES, shapeOf, roleName, shapeSpec, TOKEN_STYLES, FRAME_STYLES, ILLUSTRATIONS, isIllustration, illustrationPath, migrateBack, backShown, backLayoutContent, PATTERN_MIN, printsBack, cardBackOf, CARD_ICONS, CARD_JOINS, partColours, PATTERNS, patternDefaults, patternFilled, patternFixed, flipFace, reliefOf, hasRelief, FACE_FIELDS, ringBand, ringSize, baseSize, magnetLayout, pieceSpec, PIECE_SHAPES } from "../engine/token-engine.ts";
 import { tokenLang } from "./token-language.ts";
 import { iconFromSvg, GI_PLACE } from "../icons.ts";
-import { ownIcon, roleIdOf, charKey, textFor, remindersOf, charName, specFor, filamentName } from "./tokens.ts";
-import { isFilament, slotOf } from "../bambu/plates.ts";
+import { ownIcon, roleIdOf, charKey, textFor, remindersOf, charName, specFor } from "./tokens.ts";
 import { ownChanged, myDesigns, myEntry, collEntry, inheritedRef, refOf, originalRef, defaultRef, designOf, collLabel, designFor, uniqueDesignName, lookOf, storeMyDesigns, storeOverrides, shapesHere, tokensOf, designOverridden, defaults, storeDefaults, savedSpecOf, unsavedFields, markSaved, savedPointOf, unsaved } from "./designs.ts";
 import type { DesignEntry } from "./designs.ts";
 import { appDesigns, APP_NAME, tallerUrl, newId, OWN, isLocked, nameIn } from "../collection.ts";
@@ -317,7 +316,9 @@ export function renderTabs(role: Role, spec: TokenSpec) {
     const faceName = (f: string) => t(f === "text" && !SHAPE_FEATURES[shape].layout ? "face.layout" : `face.${f}`);
     return `<button type="button" class="nav-item" role="tab" data-part="${s.part}"${s.face ? ` data-face="${s.face}"` : ""} aria-selected="${isOpen(s)}">${esc(s.face ? faceName(s.face) : s.part === "body" ? t(`part.body.${shape}`) : t(`part.${s.part}`))}${dot ? `<i class="part-dot" title="${esc(t("part.changed"))}" aria-label="${esc(t("part.changed"))}"></i>` : ""}</button>`;
   };
-  $("#parts").innerHTML = secs.map(tab).join("");
+  // what only a 3D print has (relief, a magnet) under a heading of its own, after the rest
+  const first3d = secs.findIndex((s) => s.part === "relief" || s.part === "magnet");
+  $("#parts").innerHTML = secs.map((s, i) => (i === first3d ? `<span class="nav-sub" aria-hidden="true">${esc(t("part.for3d"))}</span>` : "") + tab(s)).join("");
   // a token of yours: its Token tab over its design (what it is, then how it looks); among the tabs only inside a part on a phone
   const tokSec = secs.find((s) => s.part === "token");
   $("#partsTok").hidden = !tokSec;
@@ -338,7 +339,9 @@ export function renderTabs(role: Role, spec: TokenSpec) {
   const comp = panel === "layout";
   // a piece's icon has a size to set only on a shape, and only with an icon on it (a silhouette's is its outline's)
   const ps = shape === "piece" ? pieceSpec(spec) : null, iconBox = SHAPE_FEATURES[shape].icon && !(ps && (ps.pieceShape === "silhouette" || !ps.pieceIcon));
-  $$(".ws-panel").forEach((p) => { const d = p.dataset.panel; p.hidden = !(d === panel || (comp && ((d === "text" && shape !== "piece") || (d === "icon" && iconBox)))); });
+  // a coin's plain back (its design's, no other state) has no words or icon to set
+  const plainBack = part === "back" && shape === "coin" && spec.backMode === "design" && !selFlip(role);
+  $$(".ws-panel").forEach((p) => { const d = p.dataset.panel; p.hidden = !(d === panel || (comp && !plainBack && ((d === "text" && shape !== "piece") || (d === "icon" && iconBox)))); });
   document.querySelector(".ws-body")?.setAttribute("data-comp", String(comp));
   const host = comp ? $("[data-panel=layout]") : $("[data-panel=text]"), what = $("#compWhat");
   if (what.parentElement !== host) host.prepend(what);
@@ -527,12 +530,23 @@ function renderFrameTiles(face: { role: Role; text: string }, spec: TokenSpec) {
       `<button class="choice back-tile frame-tile" type="button" data-v="${v}" aria-pressed="${s.frame === v}">${tokenSvg(state.lib!, role, { ...s, frame: v }, { text })}<span>${esc(label)}</span></button>`).join("");
     return;
   }
-  const list = s.style === "window" ? FRAME_STYLES.filter((f) => f.id === "none" || f.id === "rim") : FRAME_STYLES;
-  $("[data-choice=frame]").innerHTML = list.map((f) =>
-    `<button class="choice back-tile frame-tile" type="button" data-v="${f.id}" aria-pressed="${(s.style === "window" && s.frame !== "none" ? "rim" : s.frame) === f.id}">${
+  const list = s.style === "window" ? FRAME_STYLES.filter((f) => f.id === "none" || f.id === "rim") : FRAME_STYLES, now = s.style === "window" && s.frame !== "none" ? "rim" : s.frame;
+  const tile = (f: (typeof FRAME_STYLES)[number]) =>
+    `<button class="choice back-tile frame-tile" type="button" data-v="${f.id}" aria-pressed="${now === f.id}">${
       tokenSvg(state.lib!, role, { ...s, frame: f.id, frameWidth: f.id === "rim" || f.id === "double" ? Math.max(s.frameWidth, 0.8) : f.id === "runas" ? FRAME_START_WIDTH.runas : s.frameWidth }, { text })
-    }<span>${esc(t(`frame.${f.id}`))}</span></button>`).join("");
+    }<span>${esc(t(`frame.${f.id}`))}</span></button>`;
+  // in groups: the simple ones, the decorated ones, and the arcs (closed, unless one is the frame)
+  const groups = FRAME_GROUPS.map((g) => ({ ...g, frames: list.filter((f) => g.ids.includes(f.id)) })).filter((g) => g.frames.length);
+  $("[data-choice=frame]").innerHTML = groups.length < 2 ? list.map(tile).join("") : groups.map((g) => g.id === "arcs"
+    ? `<details class="tile-fold"${g.frames.some((f) => f.id === now) ? " open" : ""}><summary>${esc(t(`frame.group.${g.id}`))} <small>${g.frames.length}</small></summary><div class="tile-fold-grid">${g.frames.map(tile).join("")}</div></details>`
+    : `<p class="tile-group">${esc(t(`frame.group.${g.id}`))}</p>${g.frames.map(tile).join("")}`).join("");
 }
+/** The frames in the order and groups they're offered in. */
+const FRAME_GROUPS = [
+  { id: "simple", ids: ["none", "rim", "double", "beads", "acunado", "cordon", "clock"] },
+  { id: "decorated", ids: ["greca", "greca2", "greca3", "ola", "ola2", "laurel", "runas", "firmamento", "fases", "espinas", "colmillos", "ficha"] },
+  { id: "arcs", ids: ["arcos", "arcos-lados", "arcos4", "arcos4x", "arcos6", "arcos6x", "arcos8", "arcos8x"] },
+];
 /** A card's or a ring's frames (a line, or none; a card's also only its corners, or laurels), each with its name.
  *  "With" keeps whatever line design the spec has, so choosing it changes nothing else. */
 function lineFrames(shape: TokenShape, frame: string): [string, string][] {
@@ -639,7 +653,8 @@ export function setCardBackIcon(icon: TokenIcon | null) { changeCardBack((b) => 
 const BACK_SAYS: BackSay[] = ["name", "edition", "phrase", "none"];
 function renderBackSay(spec: TokenSpec) {
   // the icon alone (solo) says nothing
-  const b = spec.backMode === "design" ? {} : spec.backFace ?? {}, say = (b.style ?? spec.style) === "solo" ? "none" : b.say ?? "name";
+  // a plain back (the design's) says nothing: its name is only what picking it would say
+  const b = spec.backMode === "design" ? {} : spec.backFace ?? {}, say = spec.backMode === "design" || (b.style ?? spec.style) === "solo" ? "none" : b.say ?? "name";
   $("#backSay").innerHTML = BACK_SAYS.map((v) => `<button class="choice" type="button" data-v="${v}" aria-pressed="${v === say}">${esc(t(`back.say.${v}`))}</button>`).join("");
   const phrase = $<HTMLInputElement>("#backPhrase");
   phrase.hidden = say !== "phrase";
@@ -649,10 +664,10 @@ function renderBackSay(spec: TokenSpec) {
 function renderBackArt(role: Role, spec: TokenSpec, text: string) {
   const s = { ...DEFAULT_SPEC, ...spec, colours: { ...DEFAULT_SPEC.colours, ...spec.colours }, diameter: 45 };
   // the words alone (the text layout) show no icon
-  const b = s.backMode === "design" ? {} : s.backFace ?? {}, art = (b.style ?? s.style) === "text" ? "none" : b.art ?? "token", plain = { ...role, flip: undefined };
+  const b = s.backMode === "design" ? {} : s.backFace ?? {}, art = s.backMode === "design" || (b.style ?? s.style) === "text" ? "none" : b.art ?? "token", plain = { ...role, flip: undefined };
   // each alone on the back (its words would only be small print here), in its frame and colours
   const tile = (v: string, label: string) => `<button class="choice back-tile" type="button" data-v="${v}" aria-pressed="${v === art}">${
-    v === "custom" && !s.customSvg ? `<span class="upload-tile">SVG</span>` : tokenSvg(state.lib!, plain, { ...s, backMode: "own", backPattern: null, backFace: { ...b, style: "solo", say: "none", art: v } }, { side: "back", text })
+    v === "custom" && !s.customSvg ? `<span class="upload-tile">${esc(t("upload.tile"))}</span>` : tokenSvg(state.lib!, plain, { ...s, backMode: "own", backPattern: null, backFace: { ...b, style: "solo", say: "none", art: v } }, { side: "back", text })
   }<span>${esc(label)}</span></button>`;
   $("#backArt").innerHTML = [tile("token", t("back.art.token")), tile("custom", t("back.custom")), tile("none", t("back.art.none"))].join("");
 }
@@ -817,7 +832,9 @@ function renderRelief(role: Role, shape: TokenShape, spec: TokenSpec, back: Toke
     `<button class="choice" type="button" data-relief-part="${k}" aria-pressed="${relief[k]}">${esc(shape === "coin" ? t(`face.${k}`) : shapeText(`relief.${k}.help`, shape))}</button>`).join("");
   $("#reliefHeightBox").hidden = !on;
   const total = dec1(s.height + s.reliefHeight);
-  $("#reliefHint").textContent = !on ? shapeText("relief.flatHelp", shape) : t(on === "front" ? "relief.raisedHelp" : "relief.raisedBackHelp", { total });
+  // the back can't stand out while it's the design's plain one: said, so its greyed button isn't a puzzle
+  $("#reliefHint").textContent = (!on ? shapeText("relief.flatHelp", shape) : t(on === "front" ? "relief.raisedHelp" : "relief.raisedBackHelp", { total }))
+    + (twoFaces && plainBack ? ` ${t("relief.backPlain")}` : "");
 }
 /**
  * The face that stands out: the other made flush, its raised parts carried over (the face's own, if
@@ -1130,7 +1147,7 @@ export function renderDesignBar() {
   // each shape's chip opens all its designs (the collection's and yours, in their tabs): no way to the Taller beside them
   $("#designBar").innerHTML = shapes.map((sh) => {
       const d = designOf(sh, defaultRef(sh))!;
-      return `<button class="input input--select db-chip" type="button" data-default-shape="${sh}" aria-haspopup="dialog" aria-label="${esc(t("bar.chipAria", { shape: t(`type.${sh}.many`), name: d.name }))}">${designSwatch(d.spec, sampleRole(sh))}<span><small>${esc(t(`type.${sh}.many`))}</small><b>${esc(d.name)}</b></span>${CHEVRON}</button>`;
+      return `<button class="input input--select db-chip" type="button" data-default-shape="${sh}" aria-haspopup="dialog" aria-label="${esc(t("bar.chipAria", { shape: t(`type.${sh}.many`), name: d.name }))}">${designSwatch(d.spec, sampleRole(sh))}<span><small>${esc(`${t("design.label")} · ${t(`type.${sh}.many`)}`)}</small><b>${esc(d.name)}</b></span>${CHEVRON}</button>`;
     }).join("")
     + (changed.length ? `<button class="action action--quiet action--sm db-original" type="button" data-default-original>${esc(t("bar.original"))}</button>` : "");
   if (dz.open && dz.mode === "default") renderDesignSheet();
@@ -1204,16 +1221,19 @@ export function takeReturn(): { step: number; sel: string | null } | null {
 
 /**
  * A row of colours as it is now: the one it is pressed; a colour of your own (none of them), the
- * picker pressed and showing it, with the filament it prints in when it isn't one.
+ * picker pressed and showing it.
  */
 function markColours(box: HTMLElement, v: string | undefined) {
   const own = !!v && v !== "team" && !$$("button", box).some((b) => b.dataset.v === v);
   $$("button", box).forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === v)));
   const pick = $("label.pick", box), input = $<HTMLInputElement>("input", box), note = $("small.metal-note", box);
   if (!pick) return;
+  // its name beside the row (the category's, gold…): a swatch alone says little
+  let named = box.querySelector<HTMLElement>("small.metal-now");
+  if (!named) { named = document.createElement("small"); named.className = "metal-now"; box.insertBefore(named, note); }
+  named.textContent = $$("button", box).find((b) => b.dataset.v === v)?.title ?? (own ? t("metal.custom") : "");
   pick.classList.toggle("on", own);
   pick.style.background = own ? v! : "";
   if (own && document.activeElement !== input) input.value = v!;
-  note.hidden = !own || isFilament(v!);
-  if (!note.hidden) note.textContent = t("metal.prints", { name: filamentName(slotOf(v as never)) });
+  note.hidden = true;   // (which filament prints it is chosen when printing in 3D)
 }

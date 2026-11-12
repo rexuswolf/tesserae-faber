@@ -20,6 +20,26 @@ export const FILAMENT_SLOTS = [
   { hex: "#9a6a3a", name: "Bronze" },
   { hex: "#ece9e2", name: "White" },
 ];
+/**
+ * The filaments a project prints with: the colours its tokens use, each in the filament chosen for it
+ * (useFilaments; the colour itself until one is). A slot is an index into this list. The built-in ten
+ * (FILAMENT_SLOTS) are what Bambu's purge table and the template's filament presets know: each filament
+ * takes those of the one it looks most like (baseSlot). Unset, the ten themselves.
+ */
+export interface Filament { hex: string }
+let active: Filament[] = FILAMENT_SLOTS;
+let chosen: Record<string, string> = {};
+/** The colour a design's colour prints in: the filament chosen for it, else itself. */
+export const filamentFor = (hex: string) => (chosen[hex.toLowerCase()] ?? hex).toLowerCase();
+/** Sets the project's filaments: one for each colour used (the chosen one, or the colour), each once. */
+export function useFilaments(colours: string[], choice: Record<string, string> = {}) {
+  chosen = Object.fromEntries(Object.entries(choice).map(([k, v]) => [k.toLowerCase(), v.toLowerCase()]));
+  const hexes = [...new Set(colours.filter((c) => /^#[0-9a-f]{6}$/i.test(c)).map(filamentFor))];
+  active = hexes.length ? hexes.map((hex) => ({ hex })) : FILAMENT_SLOTS;
+  return active;
+}
+/** The project's filaments (slot = index). */
+export const filaments = () => active;
 // Later parts win where parts overlap: the icon sits over the (flat) window, on the front and
 // on a two-state token's back.
 export const PARTS: PartName[] = ["base", "front", "icon", "frame", "back", "backIcon", "backFrame"];
@@ -56,12 +76,17 @@ export const AMS_SLOTS = 4;
 
 /**
  * mm³ to purge going from filament slot `a` to `b`: Bambu Studio's auto-calculated value
- * (flush.json, from tools/make_flush_table.py) plus 20 % so it never falls short, within
- * Bambu's 900 cap. Dark after light needs little (White → Black 200), light after dark a
- * lot (Black → White 700).
+ * (flush.json, from tools/make_flush_table.py) for the built-in filaments they look most like,
+ * plus 20 % so it never falls short, within Bambu's 900 cap. Dark after light needs little
+ * (White → Black 200), light after dark a lot (Black → White 700). Two filaments like the same
+ * built-in one: a modest purge of their own.
  */
-const FLUSH_MARGIN = 1.2;
-export const purge = (a: number, b: number) => (a === b ? 0 : Math.min(900, Math.ceil((FLUSH.matrix[a][b] * FLUSH_MARGIN) / 10) * 10));
+const FLUSH_MARGIN = 1.2, ALIKE_PURGE = 150;
+export const purge = (a: number, b: number) => {
+  if (a === b) return 0;
+  const x = baseSlot(a), y = baseSlot(b);
+  return x === y ? ALIKE_PURGE : Math.min(900, Math.ceil((FLUSH.matrix[x][y] * FLUSH_MARGIN) / 10) * 10);
+};
 
 const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
 /** How far apart two colours look ("redmean": RGB weighted as the eye weighs it). */
@@ -69,17 +94,23 @@ function colourGap(a: string, b: string) {
   const [r1, g1, b1] = rgb(a), [r2, g2, b2] = rgb(b), rm = (r1 + r2) / 2;
   return (2 + rm / 256) * (r1 - r2) ** 2 + 4 * (g1 - g2) ** 2 + (2 + (255 - rm) / 256) * (b1 - b2) ** 2;
 }
-/** A colour's filament: its own, else the one that looks most like it (a colour of your own prints in it). */
-export const slotOf = (hex: Hex) => {
-  const h = String(hex).toLowerCase(), i = FILAMENT_SLOTS.findIndex((s) => s.hex === h);
-  if (i >= 0) return i;
-  if (!/^#[0-9a-f]{6}$/.test(h)) throw new Error(`no filament for colour ${hex}`);
+/** The one of `list` that looks most like a colour. */
+const nearest = (h: string, list: Filament[]) => {
   let best = 0;
-  FILAMENT_SLOTS.forEach((s, j) => { if (colourGap(h, s.hex) < colourGap(h, FILAMENT_SLOTS[best].hex)) best = j; });
+  list.forEach((s, j) => { if (colourGap(h, s.hex) < colourGap(h, list[best].hex)) best = j; });
   return best;
 };
-/** Whether a colour is a filament's own (else it prints in the nearest: slotOf). */
-export const isFilament = (hex: string) => FILAMENT_SLOTS.some((s) => s.hex === hex.toLowerCase());
+/** A colour's filament slot: the one chosen for it (its own colour, unless another was), else the one that looks most like it. */
+export const slotOf = (hex: Hex) => {
+  if (!/^#[0-9a-f]{6}$/i.test(String(hex))) throw new Error(`no filament for colour ${hex}`);
+  const h = filamentFor(String(hex)), i = active.findIndex((s) => s.hex === h);
+  return i >= 0 ? i : nearest(h, active);
+};
+/** The built-in filament a project's slot is most like: its purge and its preset in the template. */
+export const baseSlot = (slot: number) => {
+  const h = active[slot].hex, i = FILAMENT_SLOTS.findIndex((s) => s.hex === h);
+  return i >= 0 ? i : nearest(h, FILAMENT_SLOTS);
+};
 
 /** Filament slots one token needs. */
 function tokenSlots(token: PlanToken) {

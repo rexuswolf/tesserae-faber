@@ -646,6 +646,16 @@ select.input { cursor: pointer; }
 .back-tile { padding: var(--space-1-5) var(--space-0-5); display: flex; flex-direction: column; align-items: center; gap: var(--space-1); font-size: var(--font-size-2xs); text-align: center; line-height: 1.15; }
 .back-tile svg, .upload-tile { width: 56px; height: 56px; }
 [data-choice=frame] { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-1-5); }
+/* the frames' groups: a heading across the grid; the arcs folded, their tiles on the same grid */
+[data-choice=frame] .tile-group { grid-column: 1 / -1; margin: var(--space-2) 0 0; color: var(--color-text-muted); font-size: var(--font-size-xs); font-weight: 600; }
+[data-choice=frame] .tile-group:first-child { margin-top: 0; }
+[data-choice=frame] .tile-fold { grid-column: 1 / -1; }
+[data-choice=frame] .tile-fold > summary { cursor: pointer; list-style: none; margin-top: var(--space-2); color: var(--color-text-muted); font-size: var(--font-size-xs); font-weight: 600; }
+[data-choice=frame] .tile-fold > summary::-webkit-details-marker { display: none; }
+[data-choice=frame] .tile-fold > summary::before { content: "›"; display: inline-block; margin-right: var(--space-1-5); color: var(--color-text-accent); transition: transform .15s; }
+[data-choice=frame] .tile-fold[open] > summary::before { transform: rotate(90deg); }
+[data-choice=frame] .tile-fold > summary small { font-weight: 400; }
+[data-choice=frame] .tile-fold-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-1-5); margin-top: var(--space-1-5); }
 /* Layout (Type section): the two layouts as big tiles, then each face part flat or raised */
 [data-choice=style].layout-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-1-5); }
 .layout-tiles .back-tile { padding: var(--space-2) var(--space-1); font-size: var(--font-size-xs); }
@@ -1104,6 +1114,27 @@ html[data-mode=own]:not([data-theme=botc]) h1, html[data-mode=own]:not([data-the
 .og-dot.metal { background-image: linear-gradient(135deg, rgb(255 255 255 / .6) 0%, rgb(255 255 255 / 0) 42%, rgb(0 0 0 / .32) 100%); }
 .og-menu { position: absolute; z-index: 5; top: calc(100% + 8px); left: -6px; width: min(318px, calc(100vw - 40px)); padding: var(--space-3); border: 1px solid var(--color-border-default); border-radius: var(--radius-stone); background: var(--color-bg-surface); box-shadow: 0 8px 24px rgb(0 0 0 / .4); }
 .own-swatches { display: flex; gap: var(--space-2); flex-wrap: wrap; grid-column: 1 / -1; }
+/* 3D: each of your colours and the filament it prints in (a menu of the others, Bambu's PLA Basic, any colour) */
+.fil-map { display: grid; gap: var(--space-2); }
+.fil-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1.4fr); align-items: center; gap: var(--space-2) var(--space-3); }
+.fil-row > .sw, .fil-pick summary .sw { width: 22px; height: 22px; border-radius: var(--radius-stone); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-text-default) 22%, transparent); }
+.fil-c { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--font-size-sm); }
+.fil-arrow { color: var(--color-text-muted); }
+.fil-pick { position: relative; min-width: 0; }
+.fil-pick > summary { display: flex; align-items: center; gap: var(--space-2); cursor: pointer; list-style: none; padding: var(--space-1-5) var(--space-3); border: 1px solid var(--color-border-default); border-radius: var(--radius-stone); background: var(--color-bg-raised); }
+.fil-pick > summary::-webkit-details-marker { display: none; }
+.fil-pick > summary b { font-weight: 500; font-size: var(--font-size-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.fil-pick > summary small { margin-left: auto; color: var(--color-text-muted); font-size: var(--font-size-xs); white-space: nowrap; }
+.fil-pick > summary > span { color: var(--color-text-muted); font-size: var(--font-size-xs); }
+.fil-menu { position: absolute; z-index: 6; right: 0; top: calc(100% + 6px); width: min(330px, calc(100vw - 40px)); display: grid; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--color-border-default); border-radius: var(--radius-stone); background: var(--color-bg-surface); box-shadow: 0 8px 24px rgb(0 0 0 / .4); }
+.fil-menu .fil-h { margin: 0; color: var(--color-text-muted); font-size: var(--font-size-xs); font-weight: 600; }
+.fil-menu .action { justify-self: start; }
+/* any colour: the picker, a rainbow swatch at the end of the row */
+.own-swatches .sw-pick { position: relative; cursor: pointer; background: conic-gradient(#e53935, #fdd835, #43a047, #1e88e5, #8e24aa, #e53935); background-origin: border-box; }
+.own-swatches .sw-pick input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border: 0; padding: 0; }
+.own-swatches .sw-pick:focus-within { outline: 2px solid var(--color-border-inverse); outline-offset: 2px; }
+/* a row of colours: the chosen one's name after it */
+.metal .metal-now { align-self: center; margin-left: var(--space-1); color: var(--color-text-muted); font-size: var(--font-size-xs); }
 /* a choice whose stone is its colour: square like the rest (round is for tokens), ringed when picked */
 .own-swatches button { width: 24px; height: 24px; border-radius: var(--radius-stone); border: 2px solid transparent; cursor: pointer; padding: 0; box-shadow: var(--shadow-raised); }
 .own-swatches .swatch { background-color: var(--c); background-origin: border-box; background-repeat: no-repeat; }   /* the metals' sheen over the whole chip, its edge too */
@@ -1111,8 +1142,7 @@ html[data-mode=own]:not([data-theme=botc]) h1, html[data-mode=own]:not([data-the
 .own-swatches .swatch.metal, .group-pill i.metal, #ownTokColour summary i.metal { background-image: linear-gradient(135deg, rgb(255 255 255 / .6) 0%, rgb(255 255 255 / 0) 42%, rgb(0 0 0 / .32) 100%); }
 /* the one chosen: a ring apart from it, and a tick that reads on any colour (dark, with a light edge) */
 .own-swatches button { position: relative; }
-.own-swatches .sw-head { flex-basis: 100%; margin-top: var(--space-1); color: var(--color-text-muted); font-size: var(--font-size-2xs); letter-spacing: .04em; }
-.own-swatches .sw-note { white-space: normal; flex-basis: 100%; color: var(--color-text-muted); font-size: var(--font-size-xs); line-height: 1.35; }
+#ownTokGroupEdit[hidden] { display: none; }
 .own-swatches button[aria-pressed=true] { border-color: transparent; outline: 2px solid var(--color-border-selected); outline-offset: 2px; }
 .own-swatches button[aria-pressed=true]::after { content: ""; position: absolute; inset: 0;
   background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 12.5l4 4 8-9' fill='none' stroke='%23fff' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M6 12.5l4 4 8-9' fill='none' stroke='%23161412' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 70% no-repeat; }
@@ -2249,22 +2279,20 @@ details.tp-more > summary::before { content: "›"; display: inline-block; trans
 details.tp-more[open] > summary::before { transform: rotate(90deg); }
 details.tp-more > summary small { color: var(--color-text-muted); }
 details.tp-more > .own-fields { margin-top: var(--space-2); }
-#tpMoreOpts { gap: 0; }
-#tpMoreOpts > .field { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-1) var(--space-4); align-items: center; padding: var(--space-4) 0; border-top: 1px solid var(--color-border-default); }
-#tpMoreOpts > .field:first-child { border-top: 1px solid var(--color-border-default); }
-#tpMoreOpts > .field[hidden] { display: none; }
-#tpMoreOpts > .field > span:first-child { grid-column: 1; color: var(--color-text-default); font-size: var(--font-size-md); font-weight: 500; }
-#tpMoreOpts > .field > .hint { grid-column: 1; margin: 0; }
-#ownTokColour { grid-column: 2; grid-row: 1 / span 2; }
-#ownTokColourHelp { grid-row: 2; }
-#ownTokAddLinked { grid-column: 2; grid-row: 1 / span 2; }
-#ownTokLinked:not(:empty), #ownTokCats { grid-column: 1 / -1; margin-top: var(--space-2); }
+/* a panel's 3D-only settings, closed: laid out as the panel's own */
+#bodyMore[open], .panel-more[open] { display: flex; flex-direction: column; gap: var(--space-3); }
+#bodyMore > summary { margin-bottom: 0; }
+#tpMoreOpts { gap: var(--space-4); }
+/* More options: closed at first; each setting its name, a line of help and its control under them */
+#ownTokMore { margin-top: 0; }
+#ownTokMore .own-fields { gap: 0; }
+#ownTokMore .field { display: grid; gap: var(--space-1-5); justify-items: start; padding: var(--space-4) 0; border-top: 1px solid var(--color-border-default); }
+#ownTokMore .field:first-child { border-top: 0; }
+#ownTokMore .field[hidden] { display: none; }
+#ownTokMore .field > span:first-child { color: var(--color-text-default); font-size: var(--font-size-md); font-weight: 500; }
+#ownTokMore .field > .hint { margin: 0; }
+#ownTokLinked:not(:empty), #ownTokCats { justify-self: stretch; }
 #ownTokLinked:empty { display: none; }
-@media (max-width: 760px) {
-  /* More on a phone: each setting's control under its name and help */
-  #tpMoreOpts > .field { grid-template-columns: minmax(0, 1fr); }
-  #ownTokColour, #ownTokAddLinked { grid-column: 1; grid-row: auto; justify-self: start; margin-top: var(--space-1-5); }
-}
 
 /* ---- the list's head, as it is now: the title with New token; the search with the groups' filter (a funnel);
    under them the design each shape prints with, and Print */
@@ -2405,6 +2433,12 @@ details.tp-more > .own-fields { margin-top: var(--space-2); }
 .app[data-step="2"] .cr-item[data-cr="part"] { display: none !important; }
 .cr-parts-h { display: none; margin: var(--space-5) var(--space-6) var(--space-1-5); color: var(--color-text-muted); font-size: var(--font-size-xs); font-weight: 600; }
 .app[data-step="2"] .cr-parts-h { display: block; }
+/* who the settings change: this component (Save as a design shares them) */
+.cr-parts-hint { display: none; margin: 0 var(--space-6) var(--space-2); color: var(--color-text-muted); font-size: var(--font-size-2xs); line-height: 1.4; }
+@media (min-width: 901px) { .app[data-step="2"] .cr-parts-hint { display: block; } }
+/* the 3D printing tabs' heading: in the list (a computer, the phone's menu), not in the phone's row of tabs */
+.parts .nav-sub { display: none; }
+@media (min-width: 901px) { .cr-nav .parts .nav-sub { display: block; margin: var(--space-4) var(--space-3) var(--space-1); padding: 0 var(--space-4); color: var(--color-text-muted); font-size: var(--font-size-xs); font-weight: 600; } }
 /* a token of yours: its Token tab over its design, not among Customise's parts (but on a phone inside a part, as a tab) */
 #parts [data-part="token"] { display: none !important; }
 #partsTok[hidden] { display: none !important; }

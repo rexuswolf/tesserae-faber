@@ -8,7 +8,7 @@
 import JSZip from "jszip";
 import type { BufferGeometry } from "three";
 import { printsFaceUp } from "../engine/token-engine.ts";
-import { FILAMENT_SLOTS, PARTS, purge, nozzleOf, plateStride, printerOf, slotOf, slotsFor, towerSpot, planPlates, TOWER_WIDTH } from "./plates.ts";
+import { PARTS, purge, nozzleOf, plateStride, printerOf, slotOf, slotsFor, towerSpot, planPlates, TOWER_WIDTH, filaments, baseSlot } from "./plates.ts";
 import type { Nozzle } from "./plates.ts";
 import type { Hex, PartName, Plate, PlateItem, Token } from "../types.ts";
 
@@ -93,9 +93,10 @@ const XML = `<?xml version="1.0" encoding="UTF-8"?>\n`;
 
 function projectSettings(template: Template, used: number[], plates: Plate<BambuItem>[], bed: number, nozzle: Nozzle, tower: number) {
   const s = structuredClone(template.settings);
-  for (const key of template.perFilament) s[key] = used.map((slot) => template.settings[key][slot]);
+  // each filament takes the preset of the built-in one it's most like (they're all PLA), in its own colour
+  for (const key of template.perFilament) s[key] = used.map((slot) => template.settings[key][baseSlot(slot)]);
   const n = used.length;
-  s.filament_colour = used.map((slot) => FILAMENT_SLOTS[slot].hex.toUpperCase());
+  s.filament_colour = used.map((slot) => filaments()[slot].hex.toUpperCase());
   s.filament_map = Array(n).fill("1");
   s.flush_volumes_vector = Array(2 * n).fill("140");
   // Bambu Studio's own auto-calculated purge for each pair of colours (flush.json, from
@@ -278,5 +279,5 @@ ${platesCfg.join("\n")}
 </config>`);
 
   const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 6 } });
-  return { blob, plan, filaments: usedSlots.map((s) => FILAMENT_SLOTS[s]), pauses: [...new Set(pauses.flat())].sort((a, b) => a - b) };
+  return { blob, plan, filaments: usedSlots.map((s) => filaments()[s]), pauses: [...new Set(pauses.flat())].sort((a, b) => a - b) };
 }

@@ -105,6 +105,32 @@ test("printing in 3D: the Bambu project", async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
+test("printing in 3D: each colour in a filament you have, several sharing one", async ({ page }) => {
+  const errors = await open(page, "/c/tcg");
+  await pick(page, 8);
+  await next(page);
+  await expect(async () => {
+    await page.locator('#printPage [data-way="3d"]').click();
+    await expect(page.locator('#printPage [data-way="3d"]')).toHaveAttribute("aria-checked", "true", { timeout: 1000 });
+  }).toPass();
+  const rows = page.locator(".fil-row"), filaments = page.locator(".fil-pick summary b");
+  const n = await rows.count();
+  expect(n).toBeGreaterThan(1);
+  // each colour in its own until told otherwise
+  for (let i = 0; i < n; i++) await expect(rows.nth(i).locator(".fil-c")).toHaveText(await filaments.nth(i).textContent() ?? "");
+  // the second shares the first's filament: one fewer to load
+  const first = await filaments.first().textContent();
+  await page.locator(".fil-pick summary").nth(1).click();
+  await page.locator(`.fil-pick[open] .fil-menu [data-fil-to][title="${first}"]`).first().click();
+  await expect(filaments.nth(1)).toHaveText(first ?? "");
+  await expect(page.locator("#printPage .q-note").first()).toContainText(`${n - 1} now`);
+  // and back to its own
+  await page.locator(".fil-pick summary").nth(1).click();
+  await page.locator('.fil-pick[open] .fil-menu [data-fil-to=""]').click();
+  await expect(page.locator("#printPage .q-note").first()).toContainText(`${n} now`);
+  expect(errors).toEqual([]);
+});
+
 test("designing a token: another frame changes its preview", async ({ page }) => {
   const errors = await open(page, "/botc?admin");
   await pick(page, 1, '#rows [data-pick^="c:"]');
@@ -223,11 +249,11 @@ test("a token's back says words of its own, shows its icon, has an illustration 
   // its colour, its own: in Composition, under its layout, apart from the name's
   await expect(page.locator('.metal[data-colour="icon"]')).toBeVisible();
   await step('.metal[data-colour="icon"] button[data-v="#ece9e2"]', pressed('.metal[data-colour="icon"] button[data-v="#ece9e2"]'));
-  // any colour, with the picker: shown as chosen, and which filament it prints in
+  // any colour, with the picker: shown as chosen (its filament is chosen when printing in 3D, not here)
   const iconColours = page.locator('.metal[data-colour="icon"]:visible');
   await iconColours.locator("input[type=color]").fill("#ff2a8a");
   await expect(iconColours.locator(".pick")).toHaveClass(/\bon\b/);
-  await expect(iconColours.locator(".metal-note")).toBeVisible();
+  await expect(iconColours.locator(".metal-note")).toBeHidden();
   await expect(iconColours.locator('button[aria-pressed="true"]')).toHaveCount(0);
   await step('#faceTabs [data-face="layout"]', pressed('[data-choice="style"] [data-v="classic"]'));
   await step('[data-choice="style"] [data-v="solo"]', pressed('[data-choice="style"] [data-v="solo"]'));
@@ -625,17 +651,19 @@ test("a collection's settings: its categories, and its own names for categories 
   expect(errors).toEqual([]);
 });
 
-test("a category's colour: the app's filaments, then Bambu's PLA Basic; one of those says which filament it prints in", async ({ page }) => {
+test("a category's colour: a basic one, or any other with the picker; the filaments are chosen in 3D", async ({ page }) => {
   const errors = await open(page, "/");
   await makeToken(page, "Lobo");
   await page.locator('[data-coll="settings"]').first().evaluate((b) => (b as HTMLElement).click());
   await page.locator('[data-sp-tab="groups"]').click();
   await page.locator("#ownGroupList .og-dot").first().click();
-  await expect(page.locator("#ownGroupList .og-colour[open] .sw-note")).toHaveCount(0);   // the app's: prints as it is
-  await page.locator('#ownGroupList .og-colour[open] [data-colour="#00b1b7"]').click();
-  await expect(page.locator("#ownGroupList .og-dot").first()).toHaveAttribute("title", "Turquoise · Bambu PLA Basic");
+  await expect(page.locator("#ownGroupList .og-colour[open] [data-colour]")).toHaveCount(9, { timeout: 5000 });   // the basic ones, no filament lists
+  await page.locator('#ownGroupList .og-colour[open] [data-colour="#3f9651"]').click();
+  await expect(page.locator("#ownGroupList .og-dot").first()).toHaveAttribute("title", "Green");
+  // any other: the picker, named by its code
   await page.locator("#ownGroupList .og-dot").first().click();
-  await expect(page.locator("#ownGroupList .og-colour[open] .sw-note")).toContainText("prints in blue");
+  await page.locator("#ownGroupList .og-colour[open] input[data-cpick]").evaluate((el) => { const i = el as HTMLInputElement; i.value = "#ff69b4"; i.dispatchEvent(new Event("change", { bubbles: true })); });
+  await expect(page.locator("#ownGroupList .og-dot").first()).toHaveAttribute("title", "#FF69B4");
   expect(errors).toEqual([]);
 });
 

@@ -7,7 +7,7 @@ import { saveFile, shapeOf, FACE_FIELDS, DEFAULT_SPEC, PATTERN_MIN, backLayoutCo
 import { t, uiLang } from "../i18n.ts";
 import { storeScripts, loadScripts } from "../scripts.ts";
 import { roleIdOf, charKey, textFor } from "./tokens.ts";
-import { persistPicks, editToken, isPicked, setPick, renderQueue, goStep, flow, downloadPdf, downloadBambu, dropFromDesign, designToken, PAPER_BACKS_KEY, testQ, PRINT_WAY_KEY, PRINTER_KEY, NOZZLE_KEY, openQueue, onQueueClick, undoPicks, changePicks } from "./queue.ts";
+import { persistPicks, setFilament, editToken, isPicked, setPick, renderQueue, goStep, flow, downloadPdf, downloadBambu, dropFromDesign, designToken, PAPER_BACKS_KEY, testQ, PRINT_WAY_KEY, PRINTER_KEY, NOZZLE_KEY, openQueue, onQueueClick, undoPicks, changePicks } from "./queue.ts";
 import { renderSpine, renderSheet, onCopyStep, openRows, toggleCharacter, openAddMenu, addShown } from "./sheet.ts";
 import { editOwnToken, wireCollSwitch, wireOwn, setOwnContent } from "./creator.ts";
 import { wireEditor, openContent } from "./editor.ts";
@@ -148,6 +148,9 @@ export function wire() {
   }, { passive: false });
   // step 3: how to print
   $("#printPage").addEventListener("change", (e) => {
+    // 3D: a filament of any colour for one of yours
+    const fil = input(e).dataset.filPick;
+    if (fil) { setFilament(fil, input(e).value); $("#printNote").textContent = ""; renderQueue(); return; }
     if (input(e).id !== "paperBacks") return;
     flow.backs = input(e).checked; storeJSON(PAPER_BACKS_KEY, flow.backs);
     $("#printNote").textContent = ""; renderQueue();
@@ -155,6 +158,8 @@ export function wire() {
   $("#printPage").addEventListener("click", (e) => {
     const w = hit(e, "[data-way]"), pr = hit(e, "[data-printer]"), nz = hit(e, "[data-nozzle]"), fix = hit(e, "[data-fix]");
     if (fix) { goStep(2); designToken(fix.dataset.fix!); return; }
+    const fil = hit(e, "[data-fil-of]");
+    if (fil) { setFilament(fil.dataset.filOf!, fil.dataset.filTo || null); $("#printNote").textContent = ""; renderQueue(); return; }
     if (hit(e, "[data-deepen-all]")) { deepenAll(); return; }
     if (hit(e, "[data-test]") && testQ) { downloadBambu(testQ, hit(e, "[data-test]") as HTMLButtonElement); return; }
     if (w) { flow.way = w.dataset.way!; storeJSON(PRINT_WAY_KEY, flow.way); }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AMS_SLOTS, FILAMENT_SLOTS, perPlate, planPlates, purge, slotOf, towerSpot } from "../../src/bambu/plates.ts";
+import { AMS_SLOTS, FILAMENT_SLOTS, baseSlot, filaments, perPlate, planPlates, purge, slotOf, towerSpot, useFilaments } from "../../src/bambu/plates.ts";
 
 const [black, white, red, blue, gold, green] = ["#1d1c21", "#ece9e2", "#b3191e", "#2f86e0", "#c9a227", "#3f9651"];
 const token = (colours: string[]) => ({ spec: { diameter: 45 }, parts: { base: true, front: true, icon: true, frame: true }, colours: { base: colours[0], front: colours[1], icon: colours[2], frame: colours[3] } });
@@ -18,6 +18,30 @@ describe("filaments", () => {
       const p = purge(a, b);
       if (a === b) expect(p).toBe(0); else { expect(p).toBeGreaterThan(0); expect(p).toBeLessThanOrEqual(900); }
     }
+  });
+});
+
+describe("the filaments you choose", () => {
+  const pink = "#ff69b4", teal = "#20b2aa";
+  it("prints each colour in its own filament until another is chosen, each filament once", () => {
+    useFilaments([pink, black, teal, pink]);
+    expect(filaments().map((f) => f.hex)).toEqual([pink, black, teal]);
+    expect(slotOf(pink as never)).toBe(0);
+    expect(slotOf(teal as never)).toBe(2);
+  });
+  it("lets several colours share one filament, and prints a colour in the one chosen for it", () => {
+    useFilaments([pink, red, black], { [pink]: red, [black]: "#000000" });
+    expect(filaments().map((f) => f.hex)).toEqual([red, "#000000"]);
+    expect(slotOf(pink as never)).toBe(slotOf(red as never));
+    expect(slotOf(black as never)).toBe(1);
+  });
+  it("takes its purges and presets from the built-in filament it looks most like", () => {
+    useFilaments(["#000000", "#ffffff", "#111111"]);
+    expect(FILAMENT_SLOTS[baseSlot(0)].name).toBe("Black");
+    expect(FILAMENT_SLOTS[baseSlot(1)].name).toBe("White");
+    expect(purge(0, 1)).toBeGreaterThan(purge(1, 0));   // light after dark needs more
+    expect(purge(0, 2)).toBeGreaterThan(0);             // two blacks: a modest purge, not none
+    useFilaments([]);                                     // (back to the built-in ten for the rest)
   });
 });
 

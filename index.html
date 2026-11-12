@@ -171,6 +171,7 @@
     </div>
     <!-- the design's settings: its parts, always in sight under their heading (no Customise to go into) -->
     <p class="cr-parts-h design-only" data-i18n="editor.parts"></p>
+    <p class="cr-parts-hint design-only" data-i18n="editor.partsHint"></p>
     <button type="button" class="nav-link nav-link--back cr-back design-only" id="crBack"><b id="crBackLabel"></b></button>
     <div class="parts" id="parts" role="tablist" data-i18n-attr="aria-label:ws.sections"></div>
     <!-- this token's changes since it was saved: undone or saved; customised, kept as a design of yours too, or back to its design as it is -->
@@ -306,17 +307,19 @@
       </section>
       <section class="ws-panel" data-panel="text" role="tabpanel" hidden>
         <h4 class="comp-sub" data-i18n="face.text"></h4>
-        <p class="hint" id="nameHint"></p>
-        <div class="row"><label for="textSize" data-i18n="range.textSize"></label><output data-for="textSize"></output><input type="range" id="textSize" min="2" max="6" step="0.1" value="4"></div>
-        <div class="row"><label for="spacing" data-i18n="range.spacing"></label><output data-for="spacing"></output><input type="range" id="spacing" min="0.8" max="2" step="0.05" value="1.1"></div>
-        <div class="row"><label for="maxArc" data-i18n="range.maxArc"></label><output data-for="maxArc"></output><input type="range" id="maxArc" min="90" max="240" step="5" value="180"></div>
+        <p class="metal-label" id="frontColourLabel"></p>
+        <div class="metal" data-colour="front" data-i18n-attr="aria-label:front.colour"></div>
         <div id="separatorRow" hidden>
           <p class="metal-label" data-i18n="ring.separator"></p>
           <div class="choices choice-group" data-choice="separator" data-i18n-attr="aria-label:ring.separator"></div>
           <p class="hint" data-i18n="ring.separatorHelp"></p>
         </div>
-        <p class="metal-label" id="frontColourLabel"></p>
-        <div class="metal" data-colour="front" data-i18n-attr="aria-label:front.colour"></div>
+        <!-- the letters' size, spacing and reach: closed, the design's are good to start with -->
+        <details class="tp-more panel-more" id="textMore"><summary><span data-i18n="text.fine"></span><small id="nameHint"></small></summary>
+          <div class="row"><label for="textSize" data-i18n="range.textSize"></label><output data-for="textSize"></output><input type="range" id="textSize" min="2" max="6" step="0.1" value="4"></div>
+          <div class="row"><label for="spacing" data-i18n="range.spacing"></label><output data-for="spacing"></output><input type="range" id="spacing" min="0.8" max="2" step="0.05" value="1.1"></div>
+          <div class="row"><label for="maxArc" data-i18n="range.maxArc"></label><output data-for="maxArc"></output><input type="range" id="maxArc" min="90" max="240" step="5" value="180"></div>
+        </details>
       </section>
       <section class="ws-panel" data-panel="icon" role="tabpanel" hidden>
         <h4 class="comp-sub" data-i18n="face.icon"></h4>
@@ -332,11 +335,12 @@
       </section>
       <section class="ws-panel" data-panel="frame" role="tabpanel" hidden>
         <div class="choices choice-group" data-choice="frame"></div>
+        <p class="metal-label" data-i18n="frame.colourLabel"></p>
+        <div class="metal" data-colour="frame" data-i18n-attr="aria-label:frame.aria"></div>
         <div class="row"><label for="frameWidth" data-i18n="range.frameWidth"></label><output data-for="frameWidth"></output><input type="range" id="frameWidth" min="0.4" max="2" step="0.1" value="0.8"></div>
         <!-- a coin's frame in from its edge: its side all the base's colour -->
         <div class="row"><label for="frameInset" data-i18n="range.frameInset"></label><output data-for="frameInset"></output><input type="range" id="frameInset" min="0" max="2" step="0.1" value="0"></div>
         <p class="hint" id="frameInsetHint" data-i18n="frame.insetHint"></p>
-        <div class="metal" data-colour="frame" data-i18n-attr="aria-label:frame.aria"></div>
       </section>
       <!-- a face's background pattern (patternGroupHtml): the front's, or the back's -->
       <section class="ws-panel" data-panel="pattern" role="tabpanel" hidden>
@@ -395,6 +399,12 @@
         </div>
       </section>
       <section class="ws-panel" data-panel="body" role="tabpanel" hidden>
+        <!-- a coin's outline: round, or with sides (as wide across its flats as the size) -->
+        <div id="outlineRow" hidden>
+          <p class="metal-label" data-i18n="outline.label"></p>
+          <div class="choices choice-group" data-choice="outline" data-i18n-attr="aria-label:outline.label"></div>
+          <p class="hint" data-i18n="outline.help"></p>
+        </div>
         <div class="row" id="diameterRow"><label for="diameter" data-i18n="range.diameter"></label><output data-for="diameter"></output><input type="range" id="diameter" min="30" max="60" step="1" value="45"></div>
         <div id="ringBaseRow" hidden>
           <p class="metal-label" data-i18n="ring.base"></p>
@@ -402,22 +412,19 @@
           <p class="hint" id="ringBaseHint"></p>
         </div>
         <p class="hint" id="cardSizeHint" data-i18n="card.size" hidden></p>
-        <div class="row"><label for="height" data-i18n="range.height"></label><output data-for="height"></output><input type="range" id="height" min="1.2" max="4" step="0.2" value="2"></div>
-        <div class="row"><label for="depth" data-i18n="range.depth"></label><output data-for="depth"></output><input type="range" id="depth" min="0.2" max="1.6" step="0.2" value="0.2"></div>
-        <p class="hint" id="depthHint"></p>
         <p class="metal-label" id="baseColourLabel" data-i18n="coin.colour"></p>
         <div class="metal" data-colour="base" data-i18n-attr="aria-label:coin.colour"></div>
-        <!-- a coin's outline: round, or with sides (as wide across its flats as the size) -->
-        <div id="outlineRow" hidden>
-          <p class="metal-label" data-i18n="outline.label"></p>
-          <div class="choices choice-group" data-choice="outline" data-i18n-attr="aria-label:outline.label"></div>
-          <p class="hint" data-i18n="outline.help"></p>
-        </div>
-        <div id="edgeRow" hidden>
-          <p class="metal-label" data-i18n="edge.label"></p>
-          <div class="choices choice-group" data-choice="edge" data-i18n-attr="aria-label:edge.label"></div>
-          <p class="hint" data-i18n="edge.help"></p>
-        </div>
+        <!-- what only a 3D print has: its thickness, how deep its colours go, its side's edge -->
+        <details class="tp-more" id="bodyMore"><summary><span data-i18n="part.for3d"></span><small data-i18n="body.moreSub"></small></summary>
+          <div class="row"><label for="height" data-i18n="range.height"></label><output data-for="height"></output><input type="range" id="height" min="1.2" max="4" step="0.2" value="2"></div>
+          <div class="row"><label for="depth" data-i18n="range.depth"></label><output data-for="depth"></output><input type="range" id="depth" min="0.2" max="1.6" step="0.2" value="0.2"></div>
+          <p class="hint" id="depthHint"></p>
+          <div id="edgeRow" hidden>
+            <p class="metal-label" data-i18n="edge.label"></p>
+            <div class="choices choice-group" data-choice="edge" data-i18n-attr="aria-label:edge.label"></div>
+            <p class="hint" data-i18n="edge.help"></p>
+          </div>
+        </details>
       </section>
       <!-- relief: which face stands out (only one can: the other lies on the bed), which of its parts, how high, how bevelled -->
       <section class="ws-panel" data-panel="relief" role="tabpanel" hidden>
@@ -755,9 +762,9 @@
   <details class="lang-menu gate-langs" data-lang-menu hidden></details>
   <div class="gate-card">
     <img class="gate-logo" src="/logo-mark.svg" alt="" width="88" height="88">
-    <p class="mark wordmark"><span class="wm-mid">Midnight</span><span class="wm-mint">Mint</span></p>
-    <p class="brand-title gate-title-brand" hidden></p>
-    <p class="faber-wm gate-faber own-only">TESSERAE<span class="ip" aria-hidden="true"></span>FABER</p>
+    <p class="mark wordmark" hidden><span class="wm-mid">Midnight</span><span class="wm-mint">Mint</span></p>
+    <p class="brand-title gate-title-brand">Blood on the Clocktower</p>
+    <p class="faber-wm gate-faber">TESSERAE<span class="ip" aria-hidden="true"></span>FABER</p>
     <h2 id="gateTitle">Abriendo el grimorio…</h2>
     <p id="gateText"></p>
     <form id="gateKeyForm" hidden><input class="input gate-key" type="text" id="gateKey" autocomplete="off" autocapitalize="characters" spellcheck="false" data-i18n-attr="placeholder:botc.keyPlaceholder aria-label:botc.keyPlaceholder"></form>
@@ -784,7 +791,6 @@
       root.dataset.mode = "own";
       var card = document.querySelector(".gate-card"), look = null;
       try { look = JSON.parse(localStorage.getItem("midnight-mint-gate:" + location.pathname)); } catch (e) { /* none kept */ }
-      card.querySelector(".wordmark").hidden = true;
       card.querySelector(".gate-logo").src = (look && look.logo) || "/tesserae-faber.svg";
       document.getElementById("gateTitle").textContent = (look && look.title) || (en ? "Opening…" : "Abriendo…");
       var ccc = card.querySelector(".ccc");
@@ -795,6 +801,8 @@
         var OLD = { "--velvet": "--theme-surface", "--velvet-mid": "--theme-panel", "--velvet-deep": "--theme-background", "--brass": "--theme-accent", "--bone": "--theme-text", "--dust": "--theme-muted", "--glow": "--theme-glow", "--display": "--theme-font-display" };
         for (var k in look.vars) if (k !== "--seam") root.style.setProperty(OLD[k] || k, look.vars[k]);
         var bt = card.querySelector(".brand-title"); bt.textContent = look.name || ""; bt.hidden = !look.name;
+      } else {
+        card.querySelector(".brand-title").hidden = true;
       }
     }
   } catch (e) { /* no storage */ }
@@ -886,6 +894,8 @@
       </section>
       <!-- the rest of what it is: its own colour, catalogs and linked tokens; another like it, or none -->
       <div class="own-fields" id="tpMoreOpts">
+       <details class="tp-more" id="ownTokMore"><summary><span data-i18n="own.more"></span><small id="ownTokMoreSum"></small></summary>
+        <div class="own-fields">
         <div class="field"><span data-i18n="own.colour"></span>
           <details class="tok-colour" id="ownTokColour"><summary class="input input--select"></summary><div class="tok-colour-menu choice-group"></div></details>
           <p class="hint" id="ownTokColourHelp"></p></div>
@@ -894,6 +904,8 @@
           <div class="own-linked" id="ownTokLinked"></div>
           <button class="action" type="button" id="ownTokAddLinked" data-i18n="own.addLinked"></button>
         </div>
+        </div>
+       </details>
         <div class="tp-tok-acts">
           <button class="action" type="button" id="ownTokAnother" data-i18n="own.another"></button>
           <button class="action action--danger" type="button" id="ownTokDelete" data-i18n="own.deleteToken"></button>
