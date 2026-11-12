@@ -14,8 +14,9 @@ export const charKey = (role: Role) => `c:${role.id}`;
 export const remKey = (role: Role, i: number) => `r:${role.id}:${i}`;
 /** Characters by team, then alphabetically by the name the token shows. */
 // The token language is a translation id ("es-bumble3ee"); collation needs its language ("es").
+// Numbers go by their value: "Damage 5" before "Damage 10".
 const collators = new Map<string, Intl.Collator>();
-export const collator = (lang = langById(tokenLang()).lang) => collators.get(lang) ?? collators.set(lang, new Intl.Collator(lang, { sensitivity: "base" })).get(lang)!;
+export const collator = (lang = langById(tokenLang()).lang) => collators.get(lang) ?? collators.set(lang, new Intl.Collator(lang, { sensitivity: "base", numeric: true })).get(lang)!;
 const byName = (a: Role, b: Role) => collator().compare(textFor(charKey(a), a, null), textFor(charKey(b), b, null));
 const byTeamName = (a: Role, b: Role) => TEAM_ORDER.indexOf(a.team) - TEAM_ORDER.indexOf(b.team) || byName(a, b);
 /** Token keys in sheet order: team, name, the character before its reminders. */

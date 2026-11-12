@@ -20,6 +20,7 @@ for (const [path, adapters, minTokens] of [
   ["/c/srd5e", [], 10],
   ["/c/senado", [], 3],
   ["/c/werewolf", [], 10],
+  ["/c/tcg", [], 10],
   ["/taller", [], 1],
   ["/", [], 0],
 ] as const) {

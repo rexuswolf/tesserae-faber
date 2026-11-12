@@ -129,6 +129,14 @@ async function art(lang) {
     srd5e: await ownStrip([[["Ventaja", "Advantage"], "delapouite/dice-twenty-faces-twenty", "#d4a72c"], [["Asustado", "Frightened"], "lorc/terror", "#8a3d9e"], [["Ensangrentado", "Bloodied"], "lorc/bleeding-heart", "#b3191e"], [["Envenenado", "Poisoned"], "lorc/poison-bottle", "#3f9651"], [["Paralizado", "Paralyzed"], "delapouite/frozen-body", "#2f86e0"]], ["Fichas de Fantasía 5e", "5e Fantasy tokens"]),
     // Secret Caesar's (the Senate's): the three sides, the vote and the Consul, in their colours, in its laurel wreath
     senado: await ownStrip([[["Republicano", "Republican"], "delapouite/greek-temple", "#ece9e2"], [["Conspirador", "Conspirator"], "lorc/cloak-dagger", "#b3191e"], [["Aspirante a César", "Aspiring Caesar"], "delapouite/caesar", "#8a3d9e"], [["Placet", "Placet"], "delapouite/thumb-up", "#2f86e0"], [["Cónsul", "Consul"], "lorc/laurel-crown", "#a7adb4"]], ["Fichas de Secret Caesar", "Secret Caesar tokens"], { ...base, frame: "laurel" }),
+    // TCG Counters': painted coins as its designs draw them (the coin in its colour, white on it; black on a light one):
+    // a Pokémon damage counter, Poisoned, a Star Wars: Unlimited Shield, a Magic +1/+1, a Lorcana lore counter
+    tcg: strip(await Promise.all([[["10", "10"], null, "#d4a72c", "text"], [["Envenenado", "Poisoned"], "lorc/poison-bottle", "#8a3d9e"], [["Escudo", "Shield"], "lorc/energy-shield", "#2f86e0"], [["+1/+1", "+1/+1"], null, "#3f9651", "text"], [["5", "5"], null, "#8a3d9e", "text", "#c9a227"]]
+      .map(async ([names, path, colour, style, ink]) => {
+        const name = n(names), icon = path ? await iconOf(path) : undefined, fg = ink ?? (["#d4a72c", "#c9a227"].includes(colour) ? FILAMENTS.black : FILAMENTS.white);
+        const r = { id: `tcg_${name}`, en: name, es: name, team: "townsfolk", edition: "own", editionName: "Tesserae Faber", d: [], body: "", g: "" };
+        return tokenSvg(lib, r, { ...base, back: "none", frameWidth: 0.9, ...(style ? { style, textSize: 14 } : {}), ...(icon ? { icon } : {}), colours: { ...base.colours, base: colour, front: fg, frame: fg } }, { text: name });
+      })), ["Fichas de Contadores TCG", "TCG Counters tokens"]),
     // The Werewolves': the Seer, the Werewolf, the Mayor, the Alpha Wolf and the Witch, in their sides' colours
     werewolf: await ownStrip([[["Vidente", "Seer"], "lorc/crystal-ball", "#2f86e0"], [["Hombre lobo", "Werewolf"], "lorc/werewolf", "#b3191e"], [["Alcalde", "Mayor"], "delapouite/star-medal", "#d4a72c"], [["Lobo alfa", "Alpha Wolf"], "lorc/wolf-head", "#b3191e"], [["Bruja", "Witch"], "lorc/cauldron", "#2f86e0"]], ["Fichas de Hombres lobo", "Werewolves tokens"]),
   };

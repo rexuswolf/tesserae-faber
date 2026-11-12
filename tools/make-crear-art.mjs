@@ -1,6 +1,6 @@
 // Saves the generic creator's front-page art (tools/make-crear-art/, drawn by the app's engine)
 // into public/, in Spanish and in English (the English ones end in -en): crear-hero.svg and each
-// collection's cover strip, collections/<id>-preview.svg (botc, drawsteel, srd5e, senado, werewolf).
+// collection's cover strip, collections/<id>-preview.svg (botc, drawsteel, srd5e, senado, werewolf, tcg).
 // Needs the UI test server on port 5198, or the one in PORT
 // (npx vite --config tools/ui-test/vite.config.js --port 5198) and Playwright:
 //   PLAYWRIGHT=/path/to/playwright-core/index.mjs CHROME=/path/to/chrome node tools/make-crear-art.mjs
