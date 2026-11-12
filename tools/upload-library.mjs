@@ -1,10 +1,11 @@
 // Replaces the Firestore character library with admin-data/roles_game_icons.json
 // (run tools/fetch-translations.mjs first to add the Villacuervos translations),
+//   node tools/upload-library.mjs [project]   (default tesserae-faber)
 // using your firebase-tools login (an owner account, so security rules don't apply).
 // Each document is written whole, so fields from the old library (e.g. traced art) go away.
 import fs from "node:fs";
 import os from "node:os";
-const PROJECT = "midnight-mint";
+const PROJECT = process.argv[2] ?? "tesserae-faber";   // the app's own (src/firebase-config.json); "midnight-mint" for the old app
 const cfg = JSON.parse(fs.readFileSync(`${os.homedir()}/.config/configstore/firebase-tools.json`));
 let token = cfg.tokens?.access_token;
 if (!token || (cfg.tokens.expires_at && cfg.tokens.expires_at < Date.now() + 60000)) {

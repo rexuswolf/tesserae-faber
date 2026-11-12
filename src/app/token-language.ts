@@ -2,7 +2,7 @@
 import { emit } from "./events.ts";
 import { local } from "../services.ts";
 import { TOKEN_LANG_KEY, coll, $$, esc, state, $, hit } from "./context.ts";
-import { TRANSLATIONS, VILLACUERVOS_URL } from "../translations.ts";
+import { TRANSLATIONS, VILLACUERVOS_URL, TPI_TRANSLATIONS_URL } from "../translations.ts";
 import type { Translation } from "../translations.ts";
 import { uiLang, t, LANGUAGES, tIn } from "../i18n.ts";
 import { OWN, hasCcc, OWN_VIEW } from "../collection.ts";
@@ -63,7 +63,7 @@ function langGroups() {
 /** The menu label for a translation: "Español · Rovortox" when its language has several. */
 function isGrouped(x: Translation) { return langGroups().find((g) => g.name === x.name)!.items.length > 1; }
 export function tlName(x: Translation) { return x.version ? `${x.name} · ${x.version}` : x.name; }
-function tlCredit(x: Translation) { return x.pack ? (x.by ? t("tlang.by", { by: x.by }) : t("tlang.community")) : t(OWN ? "tlang.collection" : "tlang.official"); }
+function tlCredit(x: Translation) { return x.tpi ? t("tlang.tpi") : x.pack ? (x.by ? t("tlang.by", { by: x.by }) : t("tlang.community")) : t(OWN ? "tlang.collection" : "tlang.official"); }
 /** What "Same as the interface" prints in now ("Now, English: this collection isn't in Español" when it can't follow). */
 function sameNote() {
   const x = sameAsInterface();
@@ -169,7 +169,7 @@ function drawTokenLangStage(id: string) {
     <div class="tl-hero">${pic(hero).svg}</div>
     <div class="tl-strip">${strip.map((p) => `<span>${p.svg}${esc(p.text)}</span>`).join("")}</div>
     <div class="tl-card"><img src="${x.flag}" alt=""><span><b>${esc(tlName(x))}</b>
-      <small>${esc(tlCredit(x))}${x.pack ? ` · <a href="${VILLACUERVOS_URL}" target="_blank" rel="noopener">Villacuervos</a>` : ""}${x.fem ? ` · ${esc(t("credits.feminine"))}` : ""}</small></span></div>`;
+      <small>${esc(tlCredit(x))}${x.pack ? ` · <a href="${VILLACUERVOS_URL}" target="_blank" rel="noopener">Villacuervos</a>` : x.tpi ? ` · <a href="${TPI_TRANSLATIONS_URL}" target="_blank" rel="noopener">The Pandemonium Institute</a>` : ""}${x.fem ? ` · ${esc(t("credits.feminine"))}` : ""}</small></span></div>`;
 }
 /** The stage for a list item: an interface language, a token language, or a group (its version in use, or its first). */
 function previewItem(el: HTMLElement) {

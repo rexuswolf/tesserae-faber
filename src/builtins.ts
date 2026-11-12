@@ -23,8 +23,8 @@ export const BUILT_INS: BuiltInEntry[] = [
     ccc: true,   // Community Created Content: its mark in About
     about: {
       text: {
-        es: `Todas las ediciones de Blood on the Clocktower: personajes con sus recordatorios, las tarjetas de información del Grimorio y tus guiones del Script Tool.\n\n[Blood on the Clocktower](https://bloodontheclocktower.com), sus personajes y sus reglas son de The Pandemonium Institute; esta colección no es oficial ni está respaldada por ellos. Los nombres y recordatorios traducidos vienen de [Villacuervos](${VILLACUERVOS_URL}).`,
-        en: `Every Blood on the Clocktower edition: characters with their reminders, the Grimoire's info cards and your Script Tool scripts.\n\n[Blood on the Clocktower](https://bloodontheclocktower.com), its characters and its rules belong to The Pandemonium Institute; this collection is unofficial and not endorsed by them. Translated names and reminders come from [Villacuervos](${VILLACUERVOS_URL}).`,
+        es: `Todas las ediciones de Blood on the Clocktower: personajes con sus recordatorios, las tarjetas de información del Grimorio y tus guiones del Script Tool.\n\n[Blood on the Clocktower](https://bloodontheclocktower.com), sus personajes y sus reglas son de The Pandemonium Institute; esta colección no es oficial ni está respaldada por ellos. Los nombres y recordatorios traducidos vienen de [Villacuervos](${VILLACUERVOS_URL}) y de las [traducciones oficiales](https://translation.botc.app/projects/botc-app/) de The Pandemonium Institute.`,
+        en: `Every Blood on the Clocktower edition: characters with their reminders, the Grimoire's info cards and your Script Tool scripts.\n\n[Blood on the Clocktower](https://bloodontheclocktower.com), its characters and its rules belong to The Pandemonium Institute; this collection is unofficial and not endorsed by them. Translated names and reminders come from [Villacuervos](${VILLACUERVOS_URL}) and The Pandemonium Institute's [official translations](https://translation.botc.app/projects/botc-app/).`,
       },
     },
   },

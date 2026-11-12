@@ -92,6 +92,55 @@ for (const tr of TRANSLATIONS.filter((x) => x.pack)) {
   report.push(`${tr.id.padEnd(17)} ${tr.pack.padEnd(14)} names ${lib.length} · feminine ${lib.filter((r) => r.fem[tr.id]).length} · reminders filled ${filled} (${[...filledWhere].slice(0, 6).join(", ")}${filledWhere.size > 6 ? "…" : ""})`);
 }
 
+// The Pandemonium Institute's official translations (translation.botc.app, the Weblate behind
+// botc.app). Its public API gives each language's strings: roles.<id>.name and reminders.<key>,
+// the reminders shared by every character and keyed by their English text. Whatever isn't
+// translated yet (a new character, say) stays in English and is listed in the report.
+const TPI_API = "https://translation.botc.app/api/translations/botc-app/game-content";
+const TPI_DIR = new URL("../admin-data/botc-app/", import.meta.url);
+fs.mkdirSync(TPI_DIR, { recursive: true });
+async function tpiUnits(code) {
+  const at = new URL(`${code}.json`, TPI_DIR);
+  if (cached && fs.existsSync(at)) return JSON.parse(fs.readFileSync(at, "utf8"));
+  const units = [];
+  for (let url = `${TPI_API}/${code}/units/?page_size=1000`; url;) {
+    const res = await fetch(url, { headers: { "User-Agent": "tesserae-faber-library-builder" } });
+    if (!res.ok) throw new Error(`${code}: ${res.status}`);
+    const j = await res.json();
+    units.push(...j.results.map((u) => ({ key: u.context, en: u.source[0], text: u.translated && !u.fuzzy ? u.target[0].trim() : "" })));
+    url = j.next;
+  }
+  fs.writeFileSync(at, JSON.stringify(units, null, 1));
+  return units;
+}
+const tpiId = (s) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^a-z]/g, "");   // "Lil' Monsta" → lilmonsta
+// Our reminder words that the game words a little differently
+const TPI_REMINDER = { "known": "know", "knows": "know", "die today": "died today", "minion not nominated": "minions not nominated", "sober and healthy": "sober & healthy" };
+for (const tr of TRANSLATIONS.filter((x) => x.tpi)) {
+  const units = await tpiUnits(tr.tpi);
+  const name = new Map(), word = new Map();
+  for (const u of units) {
+    const [kind, id, field] = u.key.split(".");
+    // A few keep the English name and explain it in brackets ("Exorcist (geesten uitdrijver)", Dutch):
+    // the token says the word in the language
+    if (kind === "roles" && field === "name") name.set(id, u.text.replace(/^.*\((.+)\)$/, (_, w) => w[0].toUpperCase() + w.slice(1)));
+    if (kind === "reminders") word.set(u.en.toLowerCase(), u.text);
+  }
+  const english = [], untranslated = new Set();
+  for (const r of lib) {
+    const n = name.get(tpiId(r.en));
+    if (n === undefined) throw new Error(`${tr.id}: ${r.en} is not on translation.botc.app`);
+    r.names[tr.id] = n || r.en;
+    if (!n) english.push(r.en);
+    r.reminders[tr.id] = r.reminders.en.map((w) => {
+      const t = word.get(TPI_REMINDER[w.toLowerCase()] ?? w.toLowerCase());
+      if (t === "" || (t === undefined && /\p{L}{2}/u.test(w))) untranslated.add(w);   // "?", "X" and numbers are the same everywhere
+      return t || w;
+    });
+  }
+  report.push(`${tr.id.padEnd(17)} tpi:${tr.tpi.padEnd(10)} names in English ${english.length}${english.length ? ` (${english.join(", ")})` : ""} · reminders in English ${untranslated.size}${untranslated.size ? ` (${[...untranslated].join(", ")})` : ""}`);
+}
+
 fs.writeFileSync(LIB, JSON.stringify(lib));
 console.log(report.join("\n"));
 console.log(`\nwrote ${lib.length} roles to admin-data/roles_game_icons.json`);

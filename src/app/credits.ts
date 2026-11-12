@@ -1,7 +1,7 @@
 // Credits: the game, translators, icon authors, fonts and libraries.
 import { tokenLang, tlName } from "./token-language.ts";
 import { esc, state, coll, $, REPO_PUBLIC, REPO_URL, hit } from "./context.ts";
-import { TRANSLATIONS, VILLACUERVOS_URL } from "../translations.ts";
+import { TRANSLATIONS, VILLACUERVOS_URL, TPI_TRANSLATIONS_URL } from "../translations.ts";
 import { t, uiLang } from "../i18n.ts";
 import type { TokenIcon } from "../types.ts";
 import { UI_ICONS } from "../ui-icons.ts";
@@ -26,7 +26,7 @@ function openCredits() {
   const cur = tokenLang();
   const link = (href: string, text: string) => `<a href="${href}" target="_blank" rel="noopener">${esc(text)}</a>`;
   const translations = [...TRANSLATIONS].sort((a, b) => Number(b.id === cur) - Number(a.id === cur)).map((x) => `<li${x.id === cur ? ' aria-current="true"' : ""}>
-    <b>${esc(tlName(x))}</b><span>${esc(x.pack ? x.by ?? t("credits.community") : t("credits.official"))}${x.fem ? ` <small>· ${esc(t("credits.feminine"))}</small>` : ""}</span>
+    <b>${esc(tlName(x))}</b><span>${esc(x.tpi ? t("credits.tpi") : x.pack ? x.by ?? t("credits.community") : t("credits.official"))}${x.fem ? ` <small>· ${esc(t("credits.feminine"))}</small>` : ""}</span>
     ${x.id === cur ? `<em>${esc(t("credits.inUse"))}</em>` : ""}</li>`).join("");
 
   const byAuthor = new Map<string, Set<string>>();
@@ -57,7 +57,7 @@ function openCredits() {
       <p class="about-actions"><button type="button" class="action" data-guide>${esc(t("guide.open"))}</button></p></section>
     <h2 class="credits-h">${esc(t("credits.title"))}</h2>
     ${!OWN ? `<section><h3>${esc(t("credits.translations"))}</h3>
-      <p class="hint">${esc(t("credits.translationsIntro")).replace("Villacuervos", link(VILLACUERVOS_URL, "Villacuervos"))}</p>
+      <p class="hint">${esc(t("credits.translationsIntro")).replace("Villacuervos", link(VILLACUERVOS_URL, "Villacuervos")).replace("The Pandemonium Institute", link(TPI_TRANSLATIONS_URL, "The Pandemonium Institute"))}</p>
       <ul class="credit-grid">${translations}</ul></section>` : ""}
     <section><h3>${esc(t("credits.icons"))}</h3>
       <p class="hint">${esc(t("credits.iconsIntro")).replace("game-icons.net", link("https://game-icons.net", "game-icons.net"))}</p>
