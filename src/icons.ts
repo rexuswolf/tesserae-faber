@@ -106,9 +106,11 @@ function gameIconPath(url: string) {
  * changes, and icons traced the old way are traced again (2: near-white details became gaps;
  * 3: only an icon over 90% near-white keeps its whole shape, so outlined drawings keep their lines;
  * 4: a drop shadow, grey and see-through, isn't part of the icon;
- * 5: a texture's light specks stay icon, and the shape's edges are smoothed).
+ * 5: a texture's light specks stay icon, and the shape's edges are smoothed;
+ * 6: traced three times finer, from how see-through each pixel is, so a sprayed or soft edge is smooth
+ * and a thin see-through line inside the icon stays a gap).
  */
-export const TRACE_VERSION = 5;
+export const TRACE_VERSION = 6;
 /** True for an icon traced from a picture before the current way of tracing. */
 export const tracedBefore = (icon: TokenIcon | null | undefined) => !!icon?.url && icon.source === "script" && !/\.svg(\?|#|$)/i.test(icon.url) && !icon.url.startsWith("data:") && (icon.traced ?? 1) < TRACE_VERSION;
 
@@ -130,18 +132,25 @@ function keepSpecks(kind: Uint8Array, W: number, H: number, min: number) {
     if (patch.length < min) for (const j of patch) kind[j] = 1;
   }
 }
-/** Smooths a 0/1 mask: each pixel takes what most of its (2r+1)² neighbours are (rough edges, specks). */
-function smoothMask(on: Uint8Array, W: number, H: number, r: number) {
-  const I = new Uint32Array((W + 1) * (H + 1));   // running sums, so each window is four reads
-  for (let y = 0; y < H; y++) {
-    let row = 0;
-    for (let x = 0; x < W; x++) { row += on[y * W + x]; I[(y + 1) * (W + 1) + x + 1] = I[y * (W + 1) + x + 1] + row; }
+/** Blurs a 0..1 field: a box of (2r+1)² pixels, twice (close to a Gaussian), edges held. */
+function blurField(src: Float32Array, W: number, H: number, r: number): Float32Array {
+  const n = 2 * r + 1, at = (v: number, max: number) => Math.min(max - 1, Math.max(0, v));
+  let cur = src;
+  for (let pass = 0; pass < 2; pass++) {
+    const tmp = new Float32Array(W * H), out = new Float32Array(W * H);
+    for (let y = 0; y < H; y++) {
+      let sum = 0;
+      for (let x = -r; x <= r; x++) sum += cur[y * W + at(x, W)];
+      for (let x = 0; x < W; x++) { tmp[y * W + x] = sum / n; sum += cur[y * W + at(x + r + 1, W)] - cur[y * W + at(x - r, W)]; }
+    }
+    for (let x = 0; x < W; x++) {
+      let sum = 0;
+      for (let y = -r; y <= r; y++) sum += tmp[at(y, H) * W + x];
+      for (let y = 0; y < H; y++) { out[y * W + x] = sum / n; sum += tmp[at(y + r + 1, H) * W + x] - tmp[at(y - r, H) * W + x]; }
+    }
+    cur = out;
   }
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-    const xa = Math.max(0, x - r), xb = Math.min(W, x + r + 1), ya = Math.max(0, y - r), yb = Math.min(H, y + r + 1);
-    const sum = I[yb * (W + 1) + xb] - I[ya * (W + 1) + xb] - I[yb * (W + 1) + xa] + I[ya * (W + 1) + xa];
-    on[y * W + x] = sum * 2 > (xb - xa) * (yb - ya) ? 1 : 0;
-  }
+  return cur;
 }
 /** Near-white: light and nearly grey (cream, white), not a light colour like yellow or sky blue. */
 const nearWhite = (r: number, g: number, b: number) => 0.2126 * r + 0.7152 * g + 0.0722 * b > 190 && Math.max(r, g, b) - Math.min(r, g, b) < 60;
@@ -150,7 +159,9 @@ const nearWhite = (r: number, g: number, b: number) => 0.2126 * r + 0.7152 * g +
  * A picture (PNG, JPEG, WebP…) traced into an icon: its opaque pixels become shapes, placed
  * like the library's icons. Details drawn in white or cream on top of the icon (a page's lines,
  * an outline, a drawing's white fill) become gaps, but a texture's light specks don't; a grey
- * see-through drop shadow is left out, and the shape's edges are smoothed, as they'd be in a one-colour print; unless
+ * see-through drop shadow is left out. It's traced from how see-through each pixel is, blurred a little
+ * and cut where it's mostly icon, so a sprayed or soft edge comes out smooth and a faint line inside the
+ * icon stays a gap, as they'd be in a one-colour print; unless
  * nearly all the icon is that light (over 90%), when it's a white icon and keeps its whole shape. The host must allow reading it
  * (CORS). Throws when it can't be read, or when it's opaque edge to edge (a photo or a square
  * image: no shape to find).
@@ -159,12 +170,13 @@ async function tracedIcon(url: string, name: string, source: "script" | "upload"
   const img = new Image();
   img.crossOrigin = "anonymous"; img.src = url;
   await img.decode();
-  const S = 512, k = S / Math.max(img.naturalWidth, img.naturalHeight);
+  const S = 1536, k = S / Math.max(img.naturalWidth, img.naturalHeight);
   const cv = Object.assign(document.createElement("canvas"), { width: S, height: S });
   const cx = cv.getContext("2d", { willReadFrequently: true })!;
+  cx.imageSmoothingQuality = "high";   // a small picture is drawn larger: smoothly, not in squares
   cx.drawImage(img, 0, 0, img.naturalWidth * k, img.naturalHeight * k);
   const { data } = cx.getImageData(0, 0, S, S);   // throws when the host doesn't allow it
-  const W = Math.round(img.naturalWidth * k), H = Math.round(img.naturalHeight * k), on = new Uint8Array(W * H);
+  const W = Math.round(img.naturalWidth * k), H = Math.round(img.naturalHeight * k), on = new Uint8Array(W * H), unit = S / 512;
   let opaque = 0, light = 0;
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const i = (y * S + x) * 4;
@@ -177,12 +189,15 @@ async function tracedIcon(url: string, name: string, source: "script" | "upload"
   const kind = new Uint8Array(W * H);
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const i = (y * S + x) * 4;
-    if (data[i + 3] <= 128 || shadowPx(data[i], data[i + 1], data[i + 2], data[i + 3])) continue;
+    if (!data[i + 3] || shadowPx(data[i], data[i + 1], data[i + 2], data[i + 3])) continue;
     kind[y * W + x] = cutLight && nearWhite(data[i], data[i + 1], data[i + 2]) ? 2 : 1;
   }
-  keepSpecks(kind, W, H, 60);
-  for (let j = 0; j < W * H; j++) on[j] = kind[j] === 1 ? 1 : 0;
-  smoothMask(on, W, H, 2);
+  keepSpecks(kind, W, H, Math.round(60 * unit * unit));
+  // how much of each pixel is icon (its opacity), blurred a little, and cut where it's mostly icon
+  const cover = new Float32Array(W * H);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (kind[y * W + x] === 1) cover[y * W + x] = data[(y * S + x) * 4 + 3] / 255;
+  const soft = blurField(cover, W, H, 2);
+  for (let j = 0; j < W * H; j++) on[j] = soft[j] > 0.65 ? 1 : 0;
   let x0 = W, y0 = H, x1 = -1, y1 = -1, count = 0;
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     if (!on[y * W + x]) continue;
@@ -199,7 +214,7 @@ async function tracedIcon(url: string, name: string, source: "script" | "upload"
   const { default: tracer } = await import("imagetracerjs");
   const svg = tracer.imagedataToSVG(mask, {
     numberofcolors: 2, colorsampling: 0, pal: [{ r: 0, g: 0, b: 0, a: 255 }, { r: 255, g: 255, b: 255, a: 255 }],
-    ltres: 0.5, qtres: 0.5, pathomit: 16, blurradius: 0, roundcoords: 2, viewbox: true, desc: false, linefilter: true,
+    ltres: 1.5, qtres: 1.5, pathomit: 60, blurradius: 0, roundcoords: 2, viewbox: true, desc: false, linefilter: true,
   });
   // the dark layer is the icon; the light one is the background
   const doc = new DOMParser().parseFromString(svg, "image/svg+xml");
