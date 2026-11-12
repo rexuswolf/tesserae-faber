@@ -162,7 +162,10 @@ export function wire() {
     if (fil) { setFilament(fil.dataset.filOf!, fil.dataset.filTo || null); $("#printNote").textContent = ""; renderQueue(); return; }
     if (hit(e, "[data-deepen-all]")) { deepenAll(); return; }
     if (hit(e, "[data-test]") && testQ) { downloadBambu(testQ, hit(e, "[data-test]") as HTMLButtonElement); return; }
-    if (w) { flow.way = w.dataset.way!; storeJSON(PRINT_WAY_KEY, flow.way); }
+    if (w) {
+      if (posthogEnabled && flow.way !== w.dataset.way) posthog.capture("print_method_chosen", { method: w.dataset.way, previous_method: flow.way || null, token_count: state.pick.size });
+      flow.way = w.dataset.way!; storeJSON(PRINT_WAY_KEY, flow.way);
+    }
     else if (pr) { flow.printer = printerOf(pr.dataset.printer!).id; storeJSON(PRINTER_KEY, flow.printer); }
     else if (nz) { flow.nozzle = nozzleOf(nz.dataset.nozzle!).id; storeJSON(NOZZLE_KEY, flow.nozzle); }
     else return;

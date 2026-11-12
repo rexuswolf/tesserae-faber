@@ -298,6 +298,11 @@ export async function shareScript() {
 
 export function goEdition(ed: string | undefined) {
   if (!ed) return;
+  // which list people look for (the editions, a script, a category); a script's or a category's own id stays out
+  if (posthogEnabled && ed !== state.edition) posthog.capture("edition_selected", {
+    edition_kind: ed === "all" ? "all" : ed.startsWith("s:") ? "script" : ed.startsWith("k:") ? "category" : ed.startsWith("f:") ? "shape" : "edition",
+    edition: /^[sk]:/.test(ed) ? null : ed, from_edition_kind: state.edition === "all" ? "all" : state.edition.slice(0, 2),
+  });
   state.edition = ed; state.team = "all"; $<HTMLInputElement>("#search").value = "";
   renderSpine(); renderSheet(); $("#sheet").scrollTo({ top: 0 });
 }

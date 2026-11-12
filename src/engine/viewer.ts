@@ -55,7 +55,8 @@ function sizeDie() {
 
 /** A rotatable preview bound to a canvas. */
 export function createViewer(canvas: HTMLCanvasElement, { background = null }: { background?: THREE.ColorRepresentation | null } = {}) {
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: background === null });
+  // preserveDrawingBuffer: the session recordings can read the preview's frames (otherwise they come out blank)
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: background === null, preserveDrawingBuffer: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   const scene = new THREE.Scene();
   if (background) scene.background = new THREE.Color(background);

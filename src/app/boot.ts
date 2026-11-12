@@ -20,6 +20,9 @@ import { takeReturn } from "./design-sheet.ts";
 import { selectToken } from "./sheet.ts";
 import { guide, wireGuide } from "./guide.ts";
 import { posthogAppLogger } from "../posthog-logger.ts";
+import posthog, { posthogEnabled, markInternal } from "../posthog.ts";
+
+let collectionOpened = false;   // collection_opened goes once a page
 
 // ------------------------------------------------------------ gate
 
@@ -163,11 +166,17 @@ function startApp() {
     collection_source: OWN ? "own" : "library",
     role_count: state.lib!.roles.length,
   });
+  // the funnel's second step: a collection open and ready (once a page; the library loading again isn't another visit)
+  if (posthogEnabled && !collectionOpened) {
+    collectionOpened = true;
+    posthog.capture("collection_opened", { collection_source: OWN ? "own" : "library", role_count: state.lib!.roles.length, entry_step: ["pick", "pick", "design", "print", "settings"][asked.step] });
+  }
 }
 
 /** The account corner: the admin's menu when signed in, a sign-in button only on ?admin. */
 function renderAccount() {
   const admin = isAdmin(state.user);
+  if (admin) markInternal();   // the admin's sessions aren't visitors'
   $(".me").hidden = !admin;
   $("#adminSignIn").hidden = admin || !ADMIN_ENTRY;
   if (admin) { $<HTMLImageElement>("#avatar").src = state.user!.photoURL || ""; $("#meEmail").textContent = state.user!.email ?? ""; }

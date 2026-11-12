@@ -200,6 +200,8 @@ const queuePic = (q: QueueEntry, role = roleById(q.roleId)!) => tokenSvg(state.l
 
 /** The step in the address: ?disenar=<the token> (Redesign), ?imprimir (Print), ?ajustes (a collection's settings); none, the tokens. */
 const STEP_WORDS: Record<number, string> = { 2: "disenar", 3: "imprimir", 4: "ajustes" };
+/** The steps' names in the analytics (step_viewed): the funnel pick → design → print. */
+const STEP_NAMES: Record<number, string> = { 1: "pick", 2: "design", 3: "print", 4: "settings" };
 /**
  * The settings page (4) is a collection of yours' (src/app/creator.ts): whether it's there to open,
  * what opening it does, and whether it can be left (unsaved changes, kept or not, asked first).
@@ -243,6 +245,10 @@ export function goStep(step: number, address: "push" | "replace" | "keep" = "pus
     void settleToken().then((ok) => { if (ok) goStep(step, address === "keep" ? "push" : address); });
     return;
   }
+  if (step !== state.step && posthogEnabled) posthog.capture("step_viewed", {
+    step: STEP_NAMES[step], from_step: STEP_NAMES[state.step], via: address === "keep" ? "back_forward" : address === "replace" ? "address" : "click",
+    picked_count: state.pick.size,
+  });
   state.step = step;
   const url = stepUrl(step);
   if (address !== "keep" && url !== location.pathname + location.search + location.hash) history[address === "push" ? "pushState" : "replaceState"](history.state, "", url);

@@ -18,6 +18,8 @@ if (!posthogEnabled) {
       serviceName: "tesserae-faber-web",
       environment: import.meta.env.MODE,
     },
+    // the recordings show the 3D preview too (a few frames a second, light): what people saw while designing
+    session_recording: { captureCanvas: { recordCanvas: true, canvasFps: 2, canvasQuality: "0.4" } },
     capture_exceptions: {
       capture_unhandled_errors: true,
       capture_unhandled_rejections: true,
@@ -31,6 +33,15 @@ if (!posthogEnabled) {
     collection_kind: !id ? "none" : id === "botc" ? "botc" : BUILT_INS.some((x) => x.id === id) ? "built_in" : "own",
     collection_id: id,
   });
+  // ?admin is the admin's door: this browser is ours, not a visitor's, from now on
+  if (new URLSearchParams(location.search).has("admin")) markInternal();
+}
+
+/** This browser is the team's (the admin's): its sessions are left out of the analyses (the project's test-account filter). */
+export function markInternal() {
+  if (!posthogEnabled) return;
+  posthog.register({ is_internal: true });
+  posthog.setPersonProperties({ is_internal: true });
 }
 
 export default posthog;
