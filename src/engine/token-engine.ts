@@ -61,9 +61,9 @@ const sidesOf = (spec: Pick<TokenSpec, "outline">) => outlineOf(spec)?.sides ?? 
  * inside out. Only what lives near the edge is moved (mapShapes); the middle (the icon, words in the
  * middle) stays and still fits. Coin coordinates (mm, y up), a flat at the bottom; null for a round coin.
  */
-interface PolyOutline { ring: [number, number][]; extent: number; map: (x: number, y: number) => [number, number]; along: (depth: number, round?: number) => PolyPath; inside: (x: number, y: number) => number }
+interface PolyOutline { ring: [number, number][]; extent: number; map: (x: number, y: number, ref?: number) => [number, number]; along: (depth: number, round?: number) => PolyPath; inside: (x: number, y: number) => number }
 /** A way round a rounded polygon from its bottom flat's middle, anticlockwise: its length, and the point s along it with its direction (radians). */
-interface PolyPath { length: number; at: (s: number) => { x: number; y: number; dir: number } }
+interface PolyPath { length: number; at: (s: number) => { x: number; y: number; dir: number }; flat: number; arc: number; start: number }
 const polyOutlines = new Map<string, PolyOutline>();
 function polyOutline(spec: Pick<TokenSpec, "diameter" | "outline">): PolyOutline | null {
   const n = sidesOf(spec);
@@ -81,7 +81,7 @@ function polyPath(n: number, apothem: number, rho: number, turned = false): Poly
   const inner = apothem - rho, e = 2 * inner * Math.tan(Math.PI / n), arc = (rho * 2 * Math.PI) / n, unit = e + arc, length = n * unit;
   const rot = turned ? Math.PI / n : 0, start = turned ? -arc / 2 : e / 2;   // from the bottom: a corner's middle, or a flat's
   return {
-    length,
+    length, flat: e, arc, start,
     at: (s) => {
       const u = ((((s + start) % length) + length) % length), j = Math.floor(u / unit), w = u - j * unit;
       const phi = -Math.PI / 2 + rot + (j * 2 * Math.PI) / n;             // edge j's outward normal (edge 0, the bottom's or the one after it)
@@ -106,10 +106,19 @@ function makePolyOutline(n: number, R: number, turned = false): PolyOutline {
   };
   const edge = along(0), steps = n * 64;
   const ring = Array.from({ length: steps }, (_, i): [number, number] => { const q = edge.at((i * edge.length) / steps); return [q.x, q.y]; });
-  const map = (x: number, y: number): [number, number] => {
+  // with `ref` (a depth, mm), a side and the corner after it take the same share of the way round at every
+  // depth, theirs at that depth: so a frame's motifs, drawn there, keep their shape round a corner (squeezed
+  // into it a little deeper in, stretched a little nearer the edge) instead of shearing; otherwise each depth its own
+  const map = (x: number, y: number, ref?: number): [number, number] => {
     const r = Math.hypot(x, y);
     if (r < 1e-9) return [x, y];
-    const t = (Math.atan2(y, x) + Math.PI / 2) / (2 * Math.PI), p = along(R - r), q = p.at(t * p.length);
+    const t = (Math.atan2(y, x) + Math.PI / 2) / (2 * Math.PI), p = along(R - r), m = ref === undefined ? p : along(ref);
+    // (from the edge to `ref`, its share goes from the depth's own to ref's: the rim keeps its corners)
+    const k = ref === undefined || ref <= 0 ? 1 : Math.min(1, Math.max(0, (R - r) / ref)), share = (q: PolyPath) => [q.flat / (q.flat + q.arc), q.start / (q.flat + q.arc)];
+    const [fp, sp] = share(p), [fm, sm] = share(m), fe = fp + (fm - fp) * k, from = sp + (sm - sp) * k;
+    const U = t * n + from, j = Math.floor(U), u = U - j;
+    const local = u < fe ? (u / fe) * p.flat : p.flat + ((u - fe) / (1 - fe)) * p.arc;
+    const q = p.at(j * (p.flat + p.arc) + local - p.start);
     return [q.x, q.y];
   };
   // how far in from the edge a point is (mm; negative outside): the polygon inside by the corners' radius, less that radius
@@ -137,14 +146,14 @@ export function coinOutlinePoints(spec: Pick<TokenSpec, "diameter" | "outline">,
  * clear of the middle (all of them at least `band` of the radius out) and, with `all`, every one. Unchanged
  * on a round coin.
  */
-function mapShapes(spec: Pick<TokenSpec, "diameter" | "outline">, shapes: THREE.Shape[], { all = false, div = 12 } = {}): THREE.Shape[] {
+function mapShapes(spec: Pick<TokenSpec, "diameter" | "outline">, shapes: THREE.Shape[], { all = false, div = 12, turn = 0, ref = undefined as number | undefined } = {}): THREE.Shape[] {
   const poly = polyOutline(spec);
   if (!poly) return shapes;
-  const R = spec.diameter / 2;
-  const move = (pts: THREE.Vector2[]) => pts.map((p) => new THREE.Vector2(...poly.map(p.x, p.y)));
+  const R = spec.diameter / 2, c = Math.cos(turn), sn = Math.sin(turn);
+  const move = (pts: THREE.Vector2[]) => pts.map((p) => new THREE.Vector2(...poly.map(p.x * c - p.y * sn, p.x * sn + p.y * c, ref)));
   return shapes.map((sh) => {
     const outer = sh.getPoints(div);
-    if (!all && Math.min(...outer.map((p) => Math.hypot(p.x, p.y))) < 0.42 * R) return sh;   // the middle: as it is
+    if (!all && !turn && Math.min(...outer.map((p) => Math.hypot(p.x, p.y))) < 0.42 * R) return sh;   // the middle: as it is
     const o = new THREE.Shape(move(densify(outer)));
     o.holes = sh.holes.map((h) => new THREE.Path(move(densify(h.getPoints(div)))));
     return o;
@@ -1310,7 +1319,7 @@ const MEANDER_HANGS = new Set(["greca3"]);
  * each, so outer ones run anticlockwise and holes clockwise once the strip runs clockwise round the coin).
  */
 function meander(rows: string[], rIn: number, s: number) {
-  const H = rows.length, W = rows[0].length, rMid = rIn + (H * s) / 2, N = Math.max(4, Math.round((TAU * rMid) / (W * s))), L = N * W;
+  const H = rows.length, W = rows[0].length, rMid = rIn + (H * s) / 2, N = repeats(Math.max(4, Math.round((TAU * rMid) / (W * s))), rMid, (m) => Math.PI / 2 + Math.PI / m), L = N * W;
   const filled = (x: number, y: number) => y >= 0 && y < H && rows[H - 1 - y][((x % L) + L) % L % W] === "X";
   const da = TAU / L, a0 = Math.PI / 2 + (W / 2) * da;
   const next = new Map<string, [number, number]>(), key = (x: number, y: number) => `${((x % L) + L) % L},${y}`;
@@ -1391,7 +1400,7 @@ function wavePeriod(f: WaveForm) {
  */
 function waveBand(f: WaveForm, edge: number, h: number, base: number) {
   const per = wavePeriod(f), ys = per.map((q) => q[1]), y0 = Math.min(...ys), hp = Math.max(...ys) - y0;
-  const rMid = edge - base - h / 2, N = Math.max(6, Math.round((TAU * rMid) / (h / hp))), P = (TAU * rMid) / N, k = P;
+  const rMid = edge - base - h / 2, N = repeats(Math.max(6, Math.round((TAU * rMid) / (h / hp))), rMid, () => Math.PI / 2), P = (TAU * rMid) / N, k = P;
   const a0 = Math.PI / 2;
   const line: THREE.Vector2[] = [];
   for (let j = 0; j < N; j++) for (const [x, y] of per.slice(0, -1)) line.push(pt(edge - base - (y - y0) * k, a0 - ((j + x) * P) / rMid));
@@ -1457,13 +1466,36 @@ function edgeRing(rOut: number, rIn: number, n: number) {
 }
 
 const frameDesigns = new Map<string, { shapes: THREE.Shape[]; inner: number } | null>();
+/** While a polygon coin's frame is drawn: how many of a motif go round it (n as on the round coin, r its radius), a multiple of its sides. */
+let motifFit: ((n: number, r: number) => number) | null = null;
+/** What the frame drawn last wants at a polygon's corners: `n` repeats round, one at angle `at` (radians). */
+let motifCorner: { n: number; at: number; r: number } | null = null;
+const lastMotif = () => motifCorner;
+/** A frame's repeat count (round coin's n at radius r), fitted to a polygon's sides; `corner(n)`, the angle of a part that suits a corner. */
+function repeats(n: number, r: number, corner: (n: number) => number) {
+  const m = motifFit ? motifFit(n, r) : n;
+  motifCorner = { n: m, at: corner(m), r };
+  return m;
+}
 /** Filled shapes for the front frame and its inner edge, or null for none (the same ones for the same frame). */
 export function frameDesign(spec: TokenSpec): { shapes: THREE.Shape[]; inner: number } | null {
   const key = `${spec.frame}|${spec.frameWidth}|${frameInsetOf(spec)}|${faceRadius(spec)}|${spec.outline ?? ""}`;
   if (!frameDesigns.has(key)) {
-    // drawn for the round coin; on a polygon one, every part of it follows the outline (it all lives at the edge)
-    const round = makeFrameDesign(spec);
-    frameDesigns.set(key, round && sidesOf(spec) ? { shapes: mapShapes(spec, round.shapes, { all: true }).map(ccw), inner: round.inner } : round);
+    // drawn for the round coin; on a polygon one, every part of it follows the outline (it all lives at the edge),
+    // its motifs as many as fit round the polygon, the same on each side, turned so each corner has the same part
+    const sides = sidesOf(spec), poly = polyOutline(spec);
+    motifCorner = null;
+    motifFit = poly ? (n, r) => sides * Math.max(1, Math.round((n * poly.along(spec.diameter / 2 - r).length) / (TAU * r) / sides)) : null;
+    let round: ReturnType<typeof makeFrameDesign>;
+    try { round = makeFrameDesign(spec); } finally { motifFit = null; }
+    let turn = 0, ref: number | undefined;
+    const want = lastMotif();   // (set by the frame just drawn)
+    if (poly && want) {
+      const corner = -Math.PI / 2 + (outlineOf(spec)?.turned ? 0 : Math.PI / sides), period = TAU / want.n;
+      turn = (((corner - want.at) % period) + period) % period;
+      ref = spec.diameter / 2 - want.r;
+    }
+    frameDesigns.set(key, round && sides ? { shapes: mapShapes(spec, round.shapes, { all: true, turn, ref }).map(ccw), inner: round.inner } : round);
     if (frameDesigns.size > 100) frameDesigns.delete(frameDesigns.keys().next().value!);
   }
   return frameDesigns.get(key)!;
@@ -1493,20 +1525,20 @@ function makeFrameDesign(spec: TokenSpec): { shapes: THREE.Shape[]; inner: numbe
       break;
     }
     case "beads": {
-      const rb = edge - 0.95, n = Math.round((TAU * rb) / 1.85);
+      const rb = edge - 0.95, n = repeats(Math.round((TAU * rb) / 1.85), rb, (m) => Math.PI / m);
       sh.push(...beads(rb, n, 0.55)); inner = rb - 0.55;
       break;
     }
     case "acunado": {
       // Milled coin edge: fine reeds between the rim and a thin inner fillet.
-      const r1 = edge - 1.25, n = Math.round((TAU * edge) / 1.05);
+      const r1 = edge - 1.25, n = repeats(Math.round((TAU * edge) / 1.05), (edge + r1) / 2, (m) => Math.PI / m);
       for (let i = 0; i < n; i++) sh.push(taper(r1, edge + 0.05, (i * TAU) / n, 0.45, 0.55));
       sh.push(annulus(r1 + 0.05, r1 - 0.45)); inner = r1 - 0.45;
       break;
     }
     case "cordon": {
       // Twisted rope: slanted strands between the rim and a fine inner fillet.
-      const r1 = edge - 0.35, r2 = r1 - 1.3, n = Math.round((TAU * r1) / 1.25), da = TAU / n, skew = da * 0.9;
+      const r1 = edge - 0.35, r2 = r1 - 1.3, n = repeats(Math.round((TAU * r1) / 1.25), r1, (m) => (TAU / m) * 1.2), da = TAU / n, skew = da * 0.9;
       for (let i = 0; i < n; i++) {
         const a = i * da, a2 = a + da * 0.58;
         sh.push(polygon([pt(r2, a), pt(r2, a2), pt(r1, a2 + skew), pt(r1, a + skew)]));
@@ -1528,7 +1560,7 @@ function makeFrameDesign(spec: TokenSpec): { shapes: THREE.Shape[]; inner: numbe
     }
     case "firmamento": {
       // A night sky band: four-pointed stars, large and small, with dots between.
-      const rs = edge - 1.35, n = 12;
+      const rs = edge - 1.35, n = repeats(12, rs, (m) => Math.PI / 2 - TAU / (2 * m));   // a dot in a corner
       for (let i = 0; i < n * 2; i++) {
         const a = Math.PI / 2 - (i * TAU) / (n * 2);
         if (i % 2) sh.push(disc(0.3, ...ptXY(rs, a)));
@@ -1539,21 +1571,21 @@ function makeFrameDesign(spec: TokenSpec): { shapes: THREE.Shape[]; inner: numbe
     }
     case "espinas": {
       // A crown of thorns: spikes pointing in from the rim.
-      const n = Math.round((TAU * edge) / 2.6);
+      const n = repeats(Math.round((TAU * edge) / 2.6), edge - 0.85, () => 0);   // a thorn in a corner
       for (let i = 0; i < n; i++) sh.push(taper(edge + 0.05, edge - 1.7, (i * TAU) / n, 0.9, 0.12));
       inner = edge - 1.7;
       break;
     }
     case "colmillos": {
       // Fangs: long and short teeth in turn, pointing in.
-      const n = 2 * Math.round((TAU * edge) / 7);
+      const n = 2 * repeats(Math.round((TAU * edge) / 7), edge - 1.3, () => 0);   // a long fang in a corner
       for (let i = 0; i < n; i++) sh.push(taper(edge + 0.05, edge - (i % 2 ? 1.5 : 2.6), (i * TAU) / n, i % 2 ? 0.9 : 1.3, 0.12));
       inner = edge - 2.6;
       break;
     }
     case "runas": {
       // Rune-like marks (made up, no real alphabet) centred between the rim and a thin inner ring, 0.6 mm from each.
-      const r0 = edge - 0.6, r1 = r0 - 1.9, ringOut = r1 - 0.6, rIn = ringOut - 0.45, n = Math.round((TAU * edge) / 3.2), w = 0.6;
+      const r0 = edge - 0.6, r1 = r0 - 1.9, ringOut = r1 - 0.6, rIn = ringOut - 0.45, n = repeats(Math.round((TAU * edge) / 3.2), (r0 + r1) / 2, (m) => Math.PI / m), w = 0.6;
       const bar = (p: THREE.Vector2, q: THREE.Vector2) => { const d = q.clone().sub(p).normalize(), nn = new THREE.Vector2(-d.y, d.x).multiplyScalar(w / 2);
         return polygon([p.clone().add(nn), q.clone().add(nn), q.clone().sub(nn), p.clone().sub(nn)]); };
       const da = 0.55 / edge;                                   // ~0.55 mm either side of a mark's axis
