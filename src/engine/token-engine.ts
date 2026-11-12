@@ -41,11 +41,15 @@ export const TEAMS: Record<Team, { label: Record<string, string>; colour: Hex; f
   info: { label: { en: "Info tokens", es: "Fichas de información" }, colour: "#c9a227", file: "yellow" },
 };
 
-/** A coin's outline (spec.outline; unset is round): a square, pentagon or hexagon as wide across its flats as the diameter. */
-export const COIN_OUTLINES: { id: CoinOutline; label: string; sides: number }[] = [
+/** A coin's outline (spec.outline; unset is round): a polygon as wide across its flats as the diameter (a triangle's height is half its corner's reach more). */
+// `turned`: a corner at the bottom instead of a flat (the diamond, a pointy hexagon)
+export const COIN_OUTLINES: { id: CoinOutline; label: string; sides: number; turned?: boolean }[] = [
   { id: "round", label: "Round", sides: 0 }, { id: "square", label: "Square", sides: 4 }, { id: "pentagon", label: "Pentagon", sides: 5 }, { id: "hexagon", label: "Hexagon", sides: 6 },
+  { id: "octagon", label: "Octagon", sides: 8 }, { id: "triangle", label: "Triangle", sides: 3 },
+  { id: "diamond", label: "Diamond", sides: 4, turned: true }, { id: "hexagon-pointy", label: "Pointy hexagon", sides: 6, turned: true },
 ];
-const sidesOf = (spec: Pick<TokenSpec, "outline">) => COIN_OUTLINES.find((o) => o.id === spec.outline)?.sides ?? 0;
+const outlineOf = (spec: Pick<TokenSpec, "outline">) => COIN_OUTLINES.find((o) => o.id === spec.outline);
+const sidesOf = (spec: Pick<TokenSpec, "outline">) => outlineOf(spec)?.sides ?? 0;
 
 /**
  * A polygon coin's outline, and where the round coin's points go on it. The round coin's designs (frame,
@@ -64,19 +68,23 @@ const polyOutlines = new Map<string, PolyOutline>();
 function polyOutline(spec: Pick<TokenSpec, "diameter" | "outline">): PolyOutline | null {
   const n = sidesOf(spec);
   if (!n) return null;
-  const R = spec.diameter / 2, key = `${n}|${R}`;
+  const R = spec.diameter / 2, turned = !!outlineOf(spec)?.turned, key = `${n}|${R}|${turned}`;
   let o = polyOutlines.get(key);
-  if (!o) { o = makePolyOutline(n, R); polyOutlines.set(key, o); if (polyOutlines.size > 40) polyOutlines.delete(polyOutlines.keys().next().value!); }
+  if (!o) { o = makePolyOutline(n, R, turned); polyOutlines.set(key, o); if (polyOutlines.size > 40) polyOutlines.delete(polyOutlines.keys().next().value!); }
   return o;
 }
-/** The rounded polygon whose flats are `apothem` from the centre, its corners rounded by `rho` (0: sharp), as a path (PolyPath). */
-function polyPath(n: number, apothem: number, rho: number): PolyPath {
+/**
+ * The rounded polygon whose flats are `apothem` from the centre, its corners rounded by `rho` (0: sharp), as a path
+ * (PolyPath) from the bottom: a flat's middle, or, `turned`, a corner's (the polygon turned by half a side).
+ */
+function polyPath(n: number, apothem: number, rho: number, turned = false): PolyPath {
   const inner = apothem - rho, e = 2 * inner * Math.tan(Math.PI / n), arc = (rho * 2 * Math.PI) / n, unit = e + arc, length = n * unit;
+  const rot = turned ? Math.PI / n : 0, start = turned ? -arc / 2 : e / 2;   // from the bottom: a corner's middle, or a flat's
   return {
     length,
     at: (s) => {
-      const u = ((((s + e / 2) % length) + length) % length), j = Math.floor(u / unit), w = u - j * unit;
-      const phi = -Math.PI / 2 + (j * 2 * Math.PI) / n;                   // edge j's outward normal (edge 0, the bottom)
+      const u = ((((s + start) % length) + length) % length), j = Math.floor(u / unit), w = u - j * unit;
+      const phi = -Math.PI / 2 + rot + (j * 2 * Math.PI) / n;             // edge j's outward normal (edge 0, the bottom's or the one after it)
       if (w < e || rho <= 0) {
         const along = Math.min(w, e) - e / 2;
         return { x: apothem * Math.cos(phi) - along * Math.sin(phi), y: apothem * Math.sin(phi) + along * Math.cos(phi), dir: phi + Math.PI / 2 };
@@ -86,14 +94,14 @@ function polyPath(n: number, apothem: number, rho: number): PolyPath {
     },
   };
 }
-function makePolyOutline(n: number, R: number): PolyOutline {
+function makePolyOutline(n: number, R: number, turned = false): PolyOutline {
   const rc = R / 6, paths = new Map<number, PolyPath>();
   // round the polygon d mm in (to a hundredth of a mm, kept); with `round`, its corners rounded at least by
   // that much of its own radius (a name's path: letters turn gently, inside the polygon)
   const along = (depth: number, round = 0) => {
     const d = Math.round(depth * 100) / 100, key = d + round * 1e4;
     let p = paths.get(key);
-    if (!p) { p = polyPath(n, R - d, Math.max(rc - d, round * (R - d))); paths.set(key, p); if (paths.size > 4000) paths.delete(paths.keys().next().value!); }
+    if (!p) { p = polyPath(n, R - d, Math.max(rc - d, round * (R - d)), turned); paths.set(key, p); if (paths.size > 4000) paths.delete(paths.keys().next().value!); }
     return p;
   };
   const edge = along(0), steps = n * 64;
@@ -105,9 +113,9 @@ function makePolyOutline(n: number, R: number): PolyOutline {
     return [q.x, q.y];
   };
   // how far in from the edge a point is (mm; negative outside): the polygon inside by the corners' radius, less that radius
-  const a = R - rc, h = a * Math.tan(Math.PI / n), step = (2 * Math.PI) / n;
+  const a = R - rc, h = a * Math.tan(Math.PI / n), step = (2 * Math.PI) / n, rot = turned ? Math.PI / n : 0;
   const inside = (x: number, y: number) => {
-    const j = Math.round((Math.atan2(y, x) + Math.PI / 2) / step), phi = -Math.PI / 2 + j * step;
+    const j = Math.round((Math.atan2(y, x) + Math.PI / 2 - rot) / step), phi = -Math.PI / 2 + rot + j * step;
     const u = x * Math.cos(phi) + y * Math.sin(phi), v = Math.abs(-x * Math.sin(phi) + y * Math.cos(phi));
     const out = u > a && v > h ? Math.hypot(u - a, v - h) : u - a;   // past a corner: to the corner; else to the flat
     return rc - out;
@@ -1563,7 +1571,8 @@ function makeFrameDesign(spec: TokenSpec): { shapes: THREE.Shape[]; inner: numbe
       // the coin's colour between them, and a dashed ring inside them, 0.8 mm in. No rim of its own: the blocks are the edge.
       // On a polygon coin, one block in the middle of each flat (a square's on its corners too, eight still): where
       // the round coin's blocks go round it (mapShapes), a block there.
-      const sides = sidesOf(spec), blocks = sides === 4 ? 8 : sides || 8, first = sides ? -Math.PI / 2 : Math.PI / 2;
+      const sides = sidesOf(spec), blocks = sides === 4 ? 8 : sides || 8;
+      const first = !sides ? Math.PI / 2 : -Math.PI / 2 + (outlineOf(spec)?.turned && blocks === sides ? Math.PI / sides : 0);   // turned: a flat's middle is half a side round
       const band = Math.max(2.2, 4 * w), rIn = out - band, half = (TAU / 8) * 0.2;
       sh.length = 0;
       for (let k = 0; k < blocks; k++) { const a = first + (k * TAU) / blocks; sh.push(arcBand(out, rIn, a - half, a + half, 12)); }

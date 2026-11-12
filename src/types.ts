@@ -101,7 +101,7 @@ export type TokenStyle = "classic" | "window" | "solo" | "double" | "text";
 /** A coin's side edge. */
 export type CoinEdge = "smooth" | "reeded" | "segmented";
 /** A coin's outline: round, or a regular polygon with rounded corners (a flat at the bottom). */
-export type CoinOutline = "round" | "square" | "pentagon" | "hexagon";
+export type CoinOutline = "round" | "square" | "pentagon" | "hexagon" | "octagon" | "triangle" | "diamond" | "hexagon-pointy";
 export type MagnetKind = "none" | "pocket" | "hidden";
 /** The face parts that can stand out of the coin. */
 export type ReliefPart = "text" | "frame" | "icon";

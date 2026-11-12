@@ -14,7 +14,7 @@ import { local, readJSON, writeJSON , botcUnlocked} from "./services.ts";
 import type { CardBack, CardIcon, CardJoin, Hex, PatternSpec, Role, SpecInput, Team, TokenContent, TokenIcon, TokenShape } from "./types.ts";
 import { gameIcon } from "./icons.ts";
 import { safeIconMarkup, safeTransform } from "./engine/safe-svg.ts";
-import { DEFAULT_SPEC, FILAMENTS, PATTERNS, CARD_ICONS, CARD_JOINS, CARD_ICON_MM, BACK_ORNAMENTS, ILLUSTRATIONS } from "./engine/token-engine.ts";
+import { DEFAULT_SPEC, FILAMENTS, PATTERNS, CARD_ICONS, CARD_JOINS, CARD_ICON_MM, BACK_ORNAMENTS, ILLUSTRATIONS, COIN_OUTLINES } from "./engine/token-engine.ts";
 import { BUILT_INS } from "./builtins.ts";
 import { ringDesigns, cardDesigns, baseDesigns, pieceDesigns, APP_DESIGNS, appTwin } from "./shape-designs.ts";
 
@@ -534,7 +534,7 @@ function readSpec(v: unknown): SpecInput | null {
     else if (k === "frontPattern" || k === "backPattern") { const p = readPattern(x); if (p) out[k] = p; }
     else if (k === "backText") { if (x === "collection") out[k] = x; }
     else if (k === "edge") { if (x === "smooth" || x === "reeded" || x === "segmented") out[k] = x; }
-    else if (k === "outline") { if (x === "square" || x === "pentagon" || x === "hexagon") out[k] = x; }   // round is unset
+    else if (k === "outline") { if (COIN_OUTLINES.some((o) => o.id === x && o.sides)) out[k] = x; }   // round is unset
     else if (k === "reliefBevel") { if (typeof x === "number" && x >= 0 && x <= 0.4) out[k] = x; }
     else if (k === "cardIcon") { if (CARD_ICONS.includes(x as CardIcon)) out[k] = x; }
     else if (k === "cardJoin") { if (CARD_JOINS.includes(x as CardJoin)) out[k] = x; }

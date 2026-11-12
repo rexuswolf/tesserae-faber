@@ -3,7 +3,8 @@ import { DEFAULT_SPEC, frameDesign, coinExtent, coinOutlinePoints, coinOutline, 
 import type { CoinOutline, TokenSpec } from "../../src/types.ts";
 
 const spec = (outline: CoinOutline | undefined, extra: Partial<TokenSpec> = {}): TokenSpec => ({ ...DEFAULT_SPEC, diameter: 40, frame: "rim", frameWidth: 1, ...(outline ? { outline } : {}), ...extra });
-const SIDES: [CoinOutline, number][] = [["square", 4], ["pentagon", 5], ["hexagon", 6]];
+const SIDES: [CoinOutline, number][] = [["square", 4], ["pentagon", 5], ["hexagon", 6], ["octagon", 8], ["triangle", 3]];
+const TURNED: [CoinOutline, number][] = [["diamond", 4], ["hexagon-pointy", 6]];
 
 describe("a coin with sides", () => {
   it("is as wide across its flats as the diameter, its corners reaching further (rounded)", () => {
@@ -48,5 +49,17 @@ describe("a coin with sides", () => {
         expect(t.parts.front, o).toBeTruthy();             // the name, along its edge
       }
     } finally { globalThis.fetch = fetchFont; }
+  });
+  it("turned (a diamond, a pointy hexagon), has a corner at the bottom: as wide across its flats, its frame inside it", () => {
+    for (const [o, n] of TURNED) {
+      const s = spec(o), pts = coinOutlinePoints(s)!, E = coinExtent(s);
+      const bottom = pts.reduce((a, b) => (b[1] < a[1] ? b : a));
+      expect(Math.abs(bottom[0]), o).toBeLessThan(0.01);                   // the corner straight down
+      expect(-bottom[1], o).toBeCloseTo(E, 1);                             // reaching as far as the corners do
+      expect(Math.min(...pts.map(([x, y]) => Math.hypot(x, y))), o).toBeCloseTo(20, 1);   // the flats 20 mm in
+      const frame = frameDesign(s)!.shapes.flatMap((sh) => sh.getPoints(8));
+      expect(Math.max(...frame.map((p) => Math.hypot(p.x, p.y))), o).toBeLessThanOrEqual(E + 1e-6);
+      expect(n).toBeGreaterThan(0);
+    }
   });
 });
