@@ -228,7 +228,8 @@ export function wireOwn() {
     if (what !== "import") { openCollMenu(false); drawer(false); }
     if (what === "copy" && BUILT) {
       const n = $("#ownNote"); n.textContent = t("own.copying");
-      void copyBuiltIn(BUILT.id, t("own.copyName", { name: nameIn(BUILT.name, uiLang()) })).then((id) => { if (id) location.href = collectionUrl(id); else n.textContent = t("own.storageFull"); });
+      const from = BUILT.id;
+      void copyBuiltIn(from, t("own.copyName", { name: nameIn(BUILT.name, uiLang()) })).then((id) => { if (id) { created("copy", from); location.href = collectionUrl(id); } else n.textContent = t("own.storageFull"); });
       return;
     }
     if (what === "settings") goStep(4);
@@ -1002,14 +1003,20 @@ export async function renderOwnHome() {
     </article>`).join("")
     || `<p class="oh-empty">${esc(t("own.mineEmpty"))}</p>`;
 }
+/** A new collection of yours: how it was made (blank, from the front page's token maker, a copy of one of the app's),
+ *  sent before its page opens (sendBeacon outlives the page). An imported one says so itself (collection_imported). */
+function created(how: "blank" | "quick" | "copy", from?: string) {
+  if (posthogEnabled) posthog.capture("collection_created", { how, ...(from ? { copied_from: from } : {}) }, { transport: "sendBeacon" });
+}
 function wireOwnHome() {
   const note = (k: string, v = {}) => { for (const el of $$("[data-own-note]")) el.textContent = t(k, v); };
-  for (const b of $$("[data-own-new]")) b.onclick = () => { const id = addCollection(starterCollection(uiLang())); if (id) location.href = collectionUrl(id); else note("own.storageFull"); };
+  for (const b of $$("[data-own-new]")) b.onclick = () => { const id = addCollection(starterCollection(uiLang())); if (id) { created("blank"); location.href = collectionUrl(id); } else note("own.storageFull"); };
   // a token first, no collection to think of: it goes in the one you were last in, or in a new "My tokens"
   for (const b of $$("[data-tok-new]")) b.onclick = () => {
     const last = lastCollection(), mine = last && !builtIn(last) && listCollections().some((c) => c.id === last) ? last : null;
     const id = mine ?? addCollection({ ...starterCollection(uiLang()), name: t("own.quickName") });
     if (!id) { note("own.storageFull"); return; }
+    if (!mine) created("quick");
     const q = new URLSearchParams({ nueva: "" });
     if (b.dataset.tokNew === "maker") {   // the one tried on the front page
       const n = $<HTMLInputElement>("#tourName").value.trim(), i = $("#tourIcons [aria-pressed=true]")?.getAttribute("data-icon");
@@ -1033,7 +1040,7 @@ function wireOwnHome() {
     if (cp) {
       const b = builtIn(cp.dataset.ohCopy!); if (!b) return;
       cp.textContent = t("own.copying"); (cp as HTMLButtonElement).disabled = true;
-      void copyBuiltIn(b.id, t("own.copyName", { name: nameIn(b.name, uiLang()) })).then((id) => { if (id) location.href = collectionUrl(id); else { note("own.storageFull"); renderOwnHome(); } });
+      void copyBuiltIn(b.id, t("own.copyName", { name: nameIn(b.name, uiLang()) })).then((id) => { if (id) { created("copy", b.id); location.href = collectionUrl(id); } else { note("own.storageFull"); renderOwnHome(); } });
       return;
     }
     if (ex) { const c = loadCollection(ex.dataset.ohExport!); if (c) saveFile(new Blob([JSON.stringify(collectionFile(c), null, 2)], { type: "application/json" }), `${nameIn(c.name, "en").replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase() || "collection"}.json`); }

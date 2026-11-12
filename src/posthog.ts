@@ -1,4 +1,5 @@
 import posthog from "posthog-js";
+import { BUILT_INS } from "./builtins.ts";
 
 // the e2e tests' build ("test") sends nothing: their visits aren't anyone's
 const testing = __BUILD__ === "test";
@@ -22,6 +23,13 @@ if (!posthogEnabled) {
       capture_unhandled_rejections: true,
       capture_console_errors: false,
     },
+  });
+  // Which collection every event of this page happened in, to tell Clocktower's from the app's others
+  // and from yours (a funnel, a download): set on each page, so the last page's never carries over.
+  const id = /^\/botc(\/|$)/.test(location.pathname) ? "botc" : location.pathname.match(/^\/c\/([\w-]+)/)?.[1] ?? null;
+  posthog.register({
+    collection_kind: !id ? "none" : id === "botc" ? "botc" : BUILT_INS.some((x) => x.id === id) ? "built_in" : "own",
+    collection_id: id,
   });
 }
 
