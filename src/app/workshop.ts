@@ -16,7 +16,7 @@ import { specFor, textFor, charKey, ownIcon } from "./tokens.ts";
 import { editionName } from "./scripts-ui.ts";
 import { filled, keptBefore } from "./looks.ts";
 import { tokenLang } from "./token-language.ts";
-import { iconFromSvg, searchGameIcons, gameIconPreview, gameIcon } from "../icons.ts";
+import { searchGameIcons, gameIconPreview, gameIcon, iconFromFile, IMAGE_ACCEPT } from "../icons.ts";
 import { renderDesignStage } from "./queue.ts";
 import { renderEditor } from "./editor.ts";
 
@@ -292,13 +292,17 @@ export function renderIconField() {
     ? t(icon.source === "game-icons" ? "icon.isGame" : "icon.isOwn", { name: icon.name || "SVG", author: icon.author || "" }) + (isRem ? ` ${t("icon.remShares")}` : "")
     : t("icon.help");
 }
+/** What went wrong with an uploaded picture, as a message key: nothing to print in it, or not a picture at all. */
+export const uploadError = (err: unknown) => ((err as Error)?.message === "no-shapes" ? "icon.noShapes" : "icon.notSvg");
 export function wireIcons() {
   $("#iconUpload").onclick = () => $("#iconFile").click();
+  $<HTMLInputElement>("#iconFile").accept = IMAGE_ACCEPT;
   $("#iconFile").onchange = async (e) => {
     const file = input(e).files![0]; input(e).value = "";
     if (!file) return;
-    try { setIcon(iconFromSvg(await file.text(), { source: "upload", name: file.name.replace(/\.svg$/i, "") })); }
-    catch (err) { $("#iconHint").className = "hint warn"; $("#iconHint").textContent = t((err as Error).message === "no-shapes" ? "icon.noShapes" : "icon.notSvg"); }
+    $("#iconHint").className = "hint"; $("#iconHint").textContent = t("icon.tracing");   // an image takes a moment to trace
+    try { setIcon(await iconFromFile(file)); }
+    catch (err) { $("#iconHint").className = "hint warn"; $("#iconHint").textContent = t(uploadError(err)); }
   };
   $("#iconReset").onclick = () => setIcon(null);
   $("#iconSearchOpen").onclick = () => { const box = $("#iconSearch"); box.hidden = !box.hidden; if (!box.hidden) $("#iconQuery").focus(); };
@@ -341,11 +345,13 @@ export function wireCardBack() {
   const hint = (key: string) => { $("#cbIconHint").className = "hint warn"; $("#cbIconHint").textContent = t(key); };
   const choose = (icon: TokenIcon | null) => { $("#cbIconHint").className = "hint"; setCardBackIcon(icon); };
   $("#cbIconUpload").onclick = () => $("#cbIconFile").click();
+  $<HTMLInputElement>("#cbIconFile").accept = IMAGE_ACCEPT;
   $("#cbIconFile").onchange = async (e) => {
     const file = input(e).files![0]; input(e).value = "";
     if (!file) return;
-    try { choose({ ...iconFromSvg(await file.text(), { source: "upload", name: file.name.replace(/\.svg$/i, "") }), id: `upload:${Date.now().toString(36)}` }); }
-    catch (err) { hint((err as Error).message === "no-shapes" ? "icon.noShapes" : "icon.notSvg"); }
+    $("#cbIconHint").className = "hint"; $("#cbIconHint").textContent = t("icon.tracing");
+    try { choose({ ...(await iconFromFile(file)), id: `upload:${Date.now().toString(36)}` }); }
+    catch (err) { hint(uploadError(err)); }
   };
   $("#cbIconReset").onclick = () => choose(null);
   $("#cbIconSearchOpen").onclick = () => { const box = $("#cbIconSearch"); box.hidden = !box.hidden; if (!box.hidden) $("#cbIconQuery").focus(); };

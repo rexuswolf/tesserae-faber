@@ -24,7 +24,7 @@ import { rememberReturn, toast } from "./design-sheet.ts";
 import { drawer, PHONE } from "./scripts-ui.ts";
 import { renderWorkshop } from "./workshop.ts";
 import { filled } from "./looks.ts";
-import { searchGameIcons, gameIconPreview, gameIcon, iconFromSvg } from "../icons.ts";
+import { searchGameIcons, gameIconPreview, gameIcon, iconFromFile, IMAGE_ACCEPT } from "../icons.ts";
 import posthog, { posthogEnabled } from "../posthog.ts";
 
 // ------------------------------------------------------------ Tesserae Faber, the generic creator
@@ -635,10 +635,12 @@ function wireOwnToken() {
       const b = hit(e, "[data-gi]"); if (!b) return;
       try { chosen({ ...(await gameIcon(b.dataset.gi!)), id: b.dataset.gi! }); } catch { /* offline: keep the old one */ }
     };
+    $<HTMLInputElement>(`#${id}Svg`).accept = IMAGE_ACCEPT;
     $<HTMLInputElement>(`#${id}Svg`).onchange = async (e) => {
       const f = input(e).files?.[0]; input(e).value = ""; if (!f) return;
-      try { chosen({ ...iconFromSvg(await f.text(), { source: "upload", name: f.name }), id: `upload:${newId("i")}` }); }
-      catch { $(`#${id}Hits`).innerHTML = `<p class="hint warn">${esc(t("own.svgFailed"))}</p>`; }
+      $(`#${id}Hits`).innerHTML = `<p class="hint">${esc(t("icon.tracing"))}</p>`;   // an image takes a moment to trace
+      try { chosen({ ...(await iconFromFile(f)), id: `upload:${newId("i")}` }); $(`#${id}Hits`).innerHTML = ""; }
+      catch (err) { $(`#${id}Hits`).innerHTML = `<p class="hint warn">${esc(t((err as Error)?.message === "no-shapes" ? "icon.noShapes" : "own.svgFailed"))}</p>`; }
     };
   };
   iconPicker("ownTok", (icon) => {

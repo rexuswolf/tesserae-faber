@@ -155,7 +155,7 @@ const nearWhite = (r: number, g: number, b: number) => 0.2126 * r + 0.7152 * g +
  * (CORS). Throws when it can't be read, or when it's opaque edge to edge (a photo or a square
  * image: no shape to find).
  */
-async function tracedIcon(url: string, name: string): Promise<TokenIcon> {
+async function tracedIcon(url: string, name: string, source: "script" | "upload" = "script"): Promise<TokenIcon> {
   const img = new Image();
   img.crossOrigin = "anonymous"; img.src = url;
   await img.decode();
@@ -204,12 +204,32 @@ async function tracedIcon(url: string, name: string): Promise<TokenIcon> {
   // the dark layer is the icon; the light one is the background
   const doc = new DOMParser().parseFromString(svg, "image/svg+xml");
   for (const p of doc.querySelectorAll("path")) if (!/rgb\(0,\s*0,\s*0\)/.test(p.getAttribute("fill") || "")) p.remove();
-  const icon = iconFromSvg(new XMLSerializer().serializeToString(doc), { source: "script", name });
+  const icon = iconFromSvg(new XMLSerializer().serializeToString(doc), { source, name });
   // fit the shapes (not the margin traced around them) into the library's box
   const cw = w - 2 * P, ch = h - 2 * P, s = (BOX * TRACED_FILL) / Math.max(cw, ch);
   const g = `translate(${(BOX_X + (BOX - cw * s) / 2 - P * s).toFixed(3)} ${(BOX_Y + (BOX - ch * s) / 2 - P * s).toFixed(3)}) scale(${s.toFixed(6)})`;
-  return { ...icon, g, url, traced: TRACE_VERSION };
+  // a script's picture keeps its link (it's where it came from); an uploaded one has none worth keeping
+  return { ...icon, g, ...(source === "script" ? { url } : {}), traced: TRACE_VERSION };
 }
+
+/** Pictures an upload takes: SVG as it is, the rest traced. For an <input type="file"> accept. */
+export const IMAGE_ACCEPT = ".svg,.png,.jpg,.jpeg,.webp,image/svg+xml,image/png,image/jpeg,image/webp";
+/**
+ * An icon from a file you upload: an SVG used as it is (its filled shapes); a PNG, JPEG or WebP traced into
+ * shapes (tracedIcon: its opaque pixels, light details as gaps), so a logo or a drawing on a transparent
+ * background works as well as a vector. Throws "not-image" for another kind of file, "no-shapes" when
+ * there's nothing to print (an SVG of strokes, a photo opaque edge to edge).
+ */
+export async function iconFromFile(file: File): Promise<TokenIcon> {
+  const name = file.name.replace(/\.[^.]+$/, "");
+  if (file.type === "image/svg+xml" || /\.svg$/i.test(file.name)) return iconFromSvg(await file.text(), { source: "upload", name });
+  if (!/^image\/(png|jpeg|webp)$/.test(file.type) && !/\.(png|jpe?g|webp)$/i.test(file.name)) throw new Error("not-image");
+  const url = URL.createObjectURL(file);
+  try { return await tracedIcon(url, name, "upload"); } finally { URL.revokeObjectURL(url); }
+}
+/** An icon as an SVG document (its shapes in the icon square): for what takes a whole SVG, a back's own drawing. */
+export const iconSvgText = (icon: TokenIcon) =>
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${ICON_VIEW.toFixed(3)} ${ICON_VIEW.toFixed(3)}"><g transform="${icon.g}">${icon.body}</g></svg>`;
 
 /**
  * The icon a script entry brings, from its "image" (a link or a list of them, as the Script

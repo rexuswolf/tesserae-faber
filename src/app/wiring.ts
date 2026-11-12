@@ -18,7 +18,8 @@ import { designFor, rereadMyDesigns, markSaved } from "./designs.ts";
 import { adminSignIn } from "./boot.ts";
 import { printerOf, nozzleOf } from "../bambu/plates.ts";
 import type { ViewKind } from "../engine/viewer.ts";
-import { syncView, editShape, openPart, showTab, renderWorkshop, viewTab, changeFace, editSide, editLook, wireIcons, wireCardBack } from "./workshop.ts";
+import { syncView, editShape, openPart, showTab, renderWorkshop, viewTab, changeFace, editSide, editLook, wireIcons, wireCardBack, uploadError } from "./workshop.ts";
+import { iconFromFile, iconSvgText, IMAGE_ACCEPT } from "../icons.ts";
 import type { TokenOverride, TokenSpec, TokenStyle, ReliefPart, BackSay, TokenContent } from "../types.ts";
 import { signOut as signOutUser, local } from "../services.ts";
 import { openAdmin } from "./admin.ts";
@@ -317,13 +318,22 @@ export function wire() {
     if (b.dataset.v === "custom" && !editLook().customSvg) { $("#upload").click(); return; }
     changeBackContent({ art: b.dataset.v });
   };
+  $<HTMLInputElement>("#upload").accept = IMAGE_ACCEPT;
   $("#upload").onchange = async (e) => {
     const f = input(e).files![0]; input(e).value = "";
     if (!f) return;
     const hint = $("#uploadHint");
     hint.hidden = false;
-    if (f.size > MAX_SVG) { hint.className = "hint warn"; hint.textContent = t("upload.tooBig", { file: f.name, kb: (f.size / 1024).toFixed(0), max: MAX_SVG / 1000 }); return; }
-    const svg = await f.text();
+    // an SVG as it is; a picture traced into one (iconFromFile), its shapes in the icon square
+    const isSvg = f.type === "image/svg+xml" || /\.svg$/i.test(f.name);
+    if (isSvg && f.size > MAX_SVG) { hint.className = "hint warn"; hint.textContent = t("upload.tooBig", { file: f.name, kb: (f.size / 1024).toFixed(0), max: MAX_SVG / 1000 }); return; }
+    let svg: string;
+    if (isSvg) svg = await f.text();
+    else {
+      hint.className = "hint"; hint.textContent = t("icon.tracing");
+      try { svg = iconSvgText(await iconFromFile(f)); }
+      catch (err) { hint.className = "hint warn"; hint.textContent = t(uploadError(err)); return; }
+    }
     changeLook((s) => { s.customSvg = svg; });
     changeBackContent({ art: "custom" });
     hint.className = "hint"; hint.textContent = t("upload.using", { file: f.name });
